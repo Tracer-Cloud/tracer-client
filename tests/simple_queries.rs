@@ -250,6 +250,7 @@ async fn test_datasets_processed_tracking() {
         Some(run_name.clone()),
         Some(run_name.clone()),
     );
+    
     run_process_watcher(
         &mut events_recorder,
         Duration::from_secs(10),

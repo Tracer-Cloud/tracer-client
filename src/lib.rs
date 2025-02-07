@@ -179,7 +179,7 @@ mod tests {
     async fn test_monitor_processes_with_tracer_client() {
         let config = load_test_config();
         let pwd = std::env::current_dir().unwrap();
-        let region = "us-east-2";
+        let region = "us-east-1";
 
         setup_env_vars(region);
 

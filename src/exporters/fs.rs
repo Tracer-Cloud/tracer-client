@@ -27,10 +27,12 @@ impl FsExportHandler {
 #[async_trait::async_trait]
 impl ParquetExport for FsExportHandler {
     type ExportableType = FlattenedTracerEvent;
+
     async fn output(&self, data: &[Event], run_name: &str) -> Result<PathBuf, String> {
         if data.is_empty() {
-            return Err("Empty data passed".to_string());
+            return Err("[FsExportHandler/output] Empty data passed".to_string());
         }
+        
         let data: Vec<Self::ExportableType> =
             data.iter().cloned().map(|event| event.into()).collect();
 

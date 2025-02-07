@@ -256,7 +256,7 @@ pub mod tests {
     }
 
     async fn get_test_s3_client() -> S3Client {
-        let region = "us-east-2";
+        let region = "us-east-1";
         setup_env_vars(region);
         let config = AwsConfig::Env;
         S3Client::new(config, region).await
