@@ -82,7 +82,7 @@ impl TracerClient {
         println!("Initializing TracerClient with API Key: {}", config.api_key);
         println!("Service URL: {}", service_url);
 
-        let pricing_client = PricingClient::new(config.aws_init_type.clone(), "us-east-1").await;
+        let pricing_client = PricingClient::new(config.aws_init_type.clone(), "us-east-2").await;
 
         let file_watcher = FileWatcher::new();
 

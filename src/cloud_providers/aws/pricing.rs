@@ -18,9 +18,9 @@ pub struct PricingClient {
 
 impl PricingClient {
     /// Creates a new PricingClient instance
-    /// Note: Currently only us-east-1 region is supported for the pricing API
+    /// Note: Currently only us-east-2 region is supported for the pricing API
     pub async fn new(initialization_conf: AwsConfig, _region: &'static str) -> Self {
-        let region = "us-east-1";
+        let region = "us-east-2";
         let config = get_initialized_aws_conf(initialization_conf, region).await;
 
         Self {
@@ -150,7 +150,7 @@ mod tests {
     async fn setup_client() -> PricingClient {
         dotenv().ok();
         let config = AwsConfig::Env;
-        PricingClient::new(config, "us-east-1").await
+        PricingClient::new(config, "us-east-2").await
     }
 
     // Basic functionality test

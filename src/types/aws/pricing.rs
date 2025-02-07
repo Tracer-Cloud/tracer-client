@@ -92,7 +92,7 @@ pub struct EC2FilterBuilder {
 
 impl EC2FilterBuilder {
     /// "intance_type: InstanceType" E:g: t3.small
-    // "region": "regionCode" "us-east-1"
+    // "region": "regionCode" "us-east-2"
     /// "vcpu": "vcpu" "2"
     /// "memory": "memory" "2 GiB" the memory comes in bytes so convert to Gb (divide by 1e9)
     pub fn to_filter(&self) -> Vec<PricingFilters> {

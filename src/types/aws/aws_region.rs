@@ -62,7 +62,7 @@ impl AwsRegion {
             AwsRegion::EuWest3 => "eu-west-3",
             AwsRegion::MeSouth1 => "me-south-1",
             AwsRegion::SaEast1 => "sa-east-1",
-            AwsRegion::UsEast2 => "us-east-1",
+            AwsRegion::UsEast2 => "us-east-2",
             AwsRegion::UsGovEast1 => "us-gov-east-1",
             AwsRegion::UsGovWest1 => "us-gov-west-1",
             AwsRegion::UsWest1 => "us-west-1",

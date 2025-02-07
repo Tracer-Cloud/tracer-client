@@ -132,7 +132,7 @@ impl ConfigManager {
                 }
                 .to_string(),
             ),
-            aws_region: "us-east-1".into(),
+            aws_region: "us-east-2".into(),
         }
     }
 

@@ -164,7 +164,7 @@ pub mod tests {
     #[serial]
     async fn test_s3_exporter_initializes_export_bucket_on_start() -> Result<(), String> {
         // Configure AWS environment
-        let region = "us-east-1";
+        let region = "us-east-2";
         setup_env_vars(region);
 
         let tracer_bucket_name = "tracer-client-events".to_string();
@@ -201,7 +201,7 @@ pub mod tests {
     #[serial]
     async fn test_s3_exporter_output_to_parquet_succeeds() -> Result<(), String> {
         // Configure AWS environment
-        let region = "us-east-1";
+        let region = "us-east-2";
         setup_env_vars(region);
 
         // Initialize system monitoring components
