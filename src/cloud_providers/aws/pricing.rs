@@ -184,13 +184,21 @@ mod tests {
                 .unwrap(),
         ];
 
+        debug!("Requesting EC2 instance price with filters: {:?}", filters);
         let result = client.get_ec2_instance_price(filters).await;
-        assert!(result.is_some());
 
-        let price_data = result.unwrap();
-        assert_eq!(price_data.instance_type, "t2.micro");
-        assert!(price_data.price_per_unit > 0.0);
-        assert_eq!(price_data.unit, "Hrs");
+        match &result {
+            Some(price_data) => {
+                debug!("Received pricing data: {:?}", price_data);
+                assert_eq!(price_data.instance_type, "t2.micro");
+                assert!(price_data.price_per_unit > 0.0, "Price per unit should be greater than 0.0");
+                assert_eq!(price_data.unit, "Hrs");
+            },
+            None => {
+                error!("No pricing data found for the specified filters");
+                panic!("Expected pricing data but got None");
+            }
+        }
     }
 
     // Test no results case
@@ -356,3 +364,4 @@ mod tests {
         );
     }
 }
+           
