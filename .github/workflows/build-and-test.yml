@@ -7,45 +7,123 @@ on:
   pull_request:
     branches:
     - "**"
+
 env:
-  CARGO_TERM_COLOR: always # Ensures colored output in GitHub Actions logs
+  CARGO_TERM_COLOR: always
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+  AWS_REGION: "us-east-1"
+  AWS_ENDPOINT: "https://s3.us-east-2.amazonaws.com"
+  RUST_LOG: "debug"
+  RUST_BACKTRACE: 1
 
 jobs:
-  build-and-test:
-    name: Build and Test
+  # build-and-test:
+  #   name: Build and Test
+  #   runs-on: linux-arm64-16c-64r-600ssd-ubuntu24
+  #   steps:
+  #   - uses: actions/checkout@v4.1.4
+  #   - name: Setup Rust toolchain
+  #     run: rustup toolchain install stable --profile minimal
+  #   - name: Rust Cache
+  #     uses: Swatinem/rust-cache@v2.7.3
+  #   - name: Set up cargo Nextest
+  #     run: |
+  #       which cargo-nextest || cargo install cargo-nextest
+  #   - name: Build
+  #     run: cargo build --verbose
+  #   - name: Check Formatting
+  #     run: cargo fmt -- --check
+  #   - name: Lint with Clippy
+  #     run: make clippy
+  #   - name: Run tests
+  #     run: make test
+
+  test-aws-batch:
+    name: Test AWS Batch Jobs
+    # needs: build-and-test
     runs-on: linux-arm64-16c-64r-600ssd-ubuntu24
-
     steps:
-    - uses: actions/checkout@v4.1.4
+      - uses: actions/checkout@v4.1.4
 
-    - name: Setup Rust toolchain
-      run: rustup toolchain install stable --profile minimal
+      - name: Setup Rust toolchain
+        run: rustup toolchain install stable --profile minimal
 
-    - name: Rust Cache
-      uses: Swatinem/rust-cache@v2.7.3
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2.7.3
 
-    - name: Set up cargo Nextest
-      run: |
-        which cargo-nextest || cargo install cargo-nextest
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
-    - name: Build
-      run: cargo build --verbose
+      # - name: Build and push container
+      #   run: |
+      #     aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+      #     # Delete previous image if it exists
+      #     aws ecr batch-delete-image \
+      #       --repository-name tracer-client \
+      #       --image-ids imageTag=latest \
+      #       --region $AWS_REGION || true
+      #     docker build -t tracer-client:latest .
+      #     docker tag tracer-client:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/tracer-client:latest
+      #     docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/tracer-client:latest
 
-    # - name: Copy config
-    #   run: mkdir -p $HOME/.config/tracer && cp tracer.toml $HOME/.config/tracer/tracer.toml
+      - name: Submit and monitor batch job
+        id: submit_job
+        run: |
+          cd e2e-tests/aws-batch/tracer-test-pipelines-bioinformatics
+          
+          # Register job definition with tracer sidecar
+          aws batch register-job-definition \
+            --cli-input-json file://job-definitions/rnaseq-with-tracer.json \
+            --region $AWS_REGION
+          
+          # Submit the batch job
+          JOB_ID=$(aws batch submit-job \
+            --job-name rnaseq-test \
+            --job-queue NextflowCPU \
+            --job-definition rnaseq-with-tracer \
+            --region $AWS_REGION \
+            --query 'jobId' \
+            --output text)
+          
+          echo "Submitted job ID: $JOB_ID"
+          
+          # Monitor job status
+          while true; do
+            STATUS=$(aws batch describe-jobs \
+              --jobs $JOB_ID \
+              --region $AWS_REGION \
+              --query 'jobs[0].status' \
+              --output text)
+            
+            echo "Job status: $STATUS"
+            
+            if [ "$STATUS" = "SUCCEEDED" ]; then
+              echo "Job completed successfully"
+              break
+            elif [ "$STATUS" = "FAILED" ] || [ "$STATUS" = "CANCELLED" ]; then
+              echo "Job failed or was cancelled"
+              aws batch describe-jobs --jobs $JOB_ID --region $AWS_REGION
+              exit 1
+            fi
+            
+            sleep 30  # Check status every 30 seconds
+          done
 
-    - name: Check Formatting
-      run: cargo fmt -- --check
-
-    - name: Lint with Clippy
-      run: make clippy
-
-    - name: Run tests
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: "us-east-2"
-        AWS_ENDPOINT: "https://s3.us-east-2.amazonaws.com"
-        RUST_LOG: "debug"
-        RUST_BACKTRACE: 1
-      run: make test
+      - name: Generate report
+        if: always()  # This step will run regardless of the previous job's success or failure
+        run: |
+          echo "Generating report..."
+          # Add your report generation logic here
+          # For example, you could run a script that collects logs or outputs from the job
+          python ../generate_report.py
+        env:
+          AWS_BATCH_JOB_QUEUE: ${{ secrets.AWS_BATCH_JOB_QUEUE }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}

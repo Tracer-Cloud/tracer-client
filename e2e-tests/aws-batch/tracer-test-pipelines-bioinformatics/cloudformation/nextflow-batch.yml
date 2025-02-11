@@ -1,0 +1,360 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Creates an AWS Batch environment for Nextflow pipelines, including
+  IAM resources, S3, and Batch.
+Parameters:
+  VPC:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID to boot compute into
+  Subnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: List of Subnets to boot into
+  InstanceConnectEndpointSubnet:
+    Type: AWS::EC2::Subnet::Id
+    Description: Subnet in which to place EC2 Instance Connect Endpoint
+Resources:
+  NextflowWorkBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: tracer-nxf-work
+      LifecycleConfiguration:
+        Rules:
+          - ExpirationInDays: 30
+            Id: DeleteAfter30Days
+            Status: Enabled
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+  NextflowOutputsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: tracer-nxf-outputs
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+  NextflowBatchInstanceIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+      Policies:
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:putObject
+                Resource: !Sub ${NextflowWorkBucket.Arn}/*
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                Resource: !Sub ${NextflowOutputsBucket.Arn}/metrics/*
+              - Effect: Allow
+                Action:
+                  - s3:getObject
+                  - s3:getObjectVersions
+                  - s3:headObject
+                  - s3:listBucket
+                Resource: arn:aws:s3:::*
+              - Effect: Allow
+                Action:
+                  - s3:ListObjects
+                  - s3:ListObjectsV2
+                Resource: !Sub ${NextflowOutputsBucket.Arn}/*
+              - Effect: Allow
+                Action:
+                  - batch:RegisterJobDefinition
+                Resource: "*"
+  InstanceConnectEndpointSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: EC2 Instance Connect Endpoint Security Group
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: '-1'
+      VpcId: !Ref VPC
+  InstanceConnectEndpoint:
+    Type: AWS::EC2::InstanceConnectEndpoint
+    Properties:
+      SecurityGroupIds:
+        - !Ref InstanceConnectEndpointSecurityGroup
+      SubnetId: !Ref InstanceConnectEndpointSubnet
+  NextflowBatchInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref NextflowBatchInstanceIAMRole
+  NextflowBatchSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Nextflow Batch EC2 Security Group
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: '-1'
+      VpcId: !Ref VPC
+  EICEToInstanceRule:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref InstanceConnectEndpointSecurityGroup
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      DestinationSecurityGroupId: !Ref NextflowBatchSecurityGroup
+  InstanceFromEICERule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref NextflowBatchSecurityGroup
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      SourceSecurityGroupId: !Ref InstanceConnectEndpointSecurityGroup
+  NextflowLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              DeleteOnTermination: true
+              Encrypted: false
+              VolumeSize: 500
+              VolumeType: gp3
+        MetadataOptions:
+          HttpTokens: required
+          # Allow instance tags to propagate to the local instance metadata service.
+          # This makes it possible to query the autoscaling group name from the metdata.
+          InstanceMetadataTags: enabled
+        NetworkInterfaces:
+          # Public IP required for cloud-init package updates and S3 access. NAT Gateway
+          # or VPC endpoints are an alternative but cost money. The security group handles
+          # isolation well enough.
+          - AssociatePublicIpAddress: true
+            DeleteOnTermination: true
+            DeviceIndex: 0
+            Groups:
+              - !Ref NextflowBatchSecurityGroup
+        # Patchelf allows the aws cli to be mounted into containers without having to set
+        # LD_LIBRARY_PATH, which could mess up other programs that rely on dynamic libraries.
+        # The --no-sort argument to patchelf is required because recent releases lead to
+        # segmentation faults due to changing the order of program and section headers.
+        # See: https://github.com/NixOS/patchelf/issues/446
+        #
+        # Download tracer in `runcmd` to the host, e.g., curl xxxx.tracer OR pull from S3
+        UserData: !Base64 |
+          MIME-Version: 1.0
+          Content-Type: multipart/mixed; boundary="==BOUNDARY=="
+
+          --==BOUNDARY==
+          MIME-Version: 1.0
+          Content-Type: text/cloud-config; charset="us-ascii"
+
+          #cloud-config
+          yum_repos:
+            vector:
+              name: Vector
+              baseurl: https://yum.vector.dev/stable/vector-0/$basearch/
+              enabled: true
+              gpgcheck: true
+              gpgkey: https://keys.datadoghq.com/DATADOG_RPM_KEY_CURRENT.public
+              priority: 1
+          packages:
+            - ec2-instance-connect
+            - groff
+            - less
+            - patchelf
+            - unzip
+            - vector
+          runcmd:
+            # Configure ecs agent
+            - echo ECS_MANIFEST_PULL_TIMEOUT=60m >> /etc/ecs/ecs.config
+            - echo ECS_CONTAINER_START_TIMEOUT=60m >> /etc/ecs/ecs.config
+            - echo ECS_CONTAINER_CREATE_TIMEOUT=60m >> /etc/ecs/ecs.config
+            - echo ECS_IMAGE_PULL_BEHAVIOR=once >> /etc/ecs/ecs.config
+            - echo ECS_RESERVED_MEMORY=256 >> /etc/ecs/ecs.config
+            # Configure Docker daemon
+            - |
+              echo '{"max-concurrent-downloads": 1}' > /etc/docker/daemon.json
+            # Install AWS CLI
+            - curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
+            - unzip awscliv2.zip
+            - ./aws/install
+            - patchelf --force-rpath --no-sort --set-rpath '$ORIGIN/../dist' /usr/local/aws-cli/v2/current/bin/aws
+            # Configure Vector log collector; add --skip-healthchecks due to bug in aws_cloudwatch_logs sink;
+            # add CAP_DAC_READ_SEARCH capability to read log files owned by root.
+            - sed -i -e 's/validate/validate --skip-healthchecks/' -e '/^AmbientCapabilities=/ s/$/ CAP_DAC_READ_SEARCH/' /usr/lib/systemd/system/vector.service
+            - systemctl daemon-reload
+            - systemctl start vector
+          write_files:
+            - path: /etc/vector/vector.yaml
+              content: |
+                sources:
+                  ecs_init:
+                    type: file
+                    include:
+                      - /var/log/ecs/ecs-init.log
+                  ecs_agent:
+                    type: file
+                    include:
+                      - /var/log/ecs/ecs-agent.log
+                  cloud_init:
+                    type: file
+                    include:
+                      - /var/log/cloud-init.log
+                  journald:
+                    type: journald
+                  host_metrics:
+                    type: host_metrics
+                    scrape_interval_secs: 60
+                  ecs_metrics:
+                    type: aws_ecs_metrics
+                    scrape_interval_secs: 60
+                transforms:
+                  ecs_init_log_group:
+                    type: remap
+                    inputs:
+                      - ecs_init
+                    source: ."group-name" = "/ecs/init"
+                  ecs_agent_log_group:
+                    type: remap
+                    inputs:
+                      - ecs_agent
+                    source: ."group-name" = "/ecs/agent"
+                  cloud_init_log_group:
+                    type: remap
+                    inputs:
+                      - cloud_init
+                    source: ."group-name" = "/cloud-init"
+                  journald_interesting:
+                    type: filter
+                    inputs:
+                      - journald
+                    condition:
+                      type: vrl
+                      source: to_int(.PRIORITY) <= 4 ?? false
+                  journald_log_group:
+                    type: remap
+                    inputs:
+                      - journald_interesting
+                    source: ."group-name" = "/journald"
+                  add_log_metadata:
+                    type: aws_ec2_metadata
+                    inputs:
+                      - ecs_init_log_group
+                      - ecs_agent_log_group
+                      - cloud_init_log_group
+                      - journald_log_group
+                    fields:
+                      - instance-id
+                      - instance-type
+                      - ami-id
+                    tags:
+                      - 'aws:autoscaling:groupName'
+                    required: false
+                  add_metrics_metadata:
+                    type: aws_ec2_metadata
+                    inputs:
+                      - host_metrics
+                      - ecs_metrics
+                    fields:
+                      - instance-id
+                      - instance-type
+                      - ami-id
+                    tags:
+                      - 'aws:autoscaling:groupName'
+                    required: false
+                sinks:
+                  cloudwatch_logs:
+                    type: aws_cloudwatch_logs
+                    inputs:
+                      - add_log_metadata
+                    group_name: '{{ ."group-name" }}'
+                    stream_name: '{{ ."instance-id" }}'
+                    retention:
+                      days: 14
+                      enabled: true
+                    encoding:
+                      codec: json
+                  cloudwatch_metrics:
+                    type: aws_cloudwatch_metrics
+                    inputs:
+                      - add_metrics_metadata
+                    default_namespace: default
+          --==BOUNDARY==--
+  NextflowCPUComputeEnvironment:
+    Type: AWS::Batch::ComputeEnvironment
+    Properties:
+      State: ENABLED
+      Type: MANAGED
+      ComputeResources:
+        AllocationStrategy: BEST_FIT_PROGRESSIVE
+        DesiredvCpus: 0
+        Ec2Configuration:
+          - ImageType: ECS_AL2023
+        InstanceRole: !Ref NextflowBatchInstanceProfile
+        InstanceTypes:
+          - optimal
+        LaunchTemplate:
+          LaunchTemplateId: !Ref NextflowLaunchTemplate
+          Version: !GetAtt NextflowLaunchTemplate.LatestVersionNumber
+        MinvCpus: 0
+        MaxvCpus: 1024
+        Subnets: !Ref Subnets
+        Type: EC2
+        UpdateToLatestImageVersion: true
+  NextflowGPUComputeEnvironment:
+    Type: AWS::Batch::ComputeEnvironment
+    Properties:
+      State: ENABLED
+      Type: MANAGED
+      ComputeResources:
+        AllocationStrategy: BEST_FIT_PROGRESSIVE
+        DesiredvCpus: 0
+        Ec2Configuration:
+          - ImageType: ECS_AL2_NVIDIA
+        InstanceRole: !Ref NextflowBatchInstanceProfile
+        InstanceTypes:
+          - g4dn
+        LaunchTemplate:
+          LaunchTemplateId: !Ref NextflowLaunchTemplate
+          Version: !GetAtt NextflowLaunchTemplate.LatestVersionNumber
+        MinvCpus: 0
+        MaxvCpus: 256
+        Subnets: !Ref Subnets
+        Type: EC2
+        UpdateToLatestImageVersion: true
+  NextflowBatchCPUQueue:
+    Type: AWS::Batch::JobQueue
+    Properties:
+      ComputeEnvironmentOrder:
+        - ComputeEnvironment: !Ref NextflowCPUComputeEnvironment
+          Order: 1
+      JobQueueName: NextflowCPU
+      Priority: 1
+      State: ENABLED
+  NextflowBatchGPUQueue:
+    Type: AWS::Batch::JobQueue
+    Properties:
+      ComputeEnvironmentOrder:
+        - ComputeEnvironment: !Ref NextflowGPUComputeEnvironment
+          Order: 1
+      JobQueueName: NextflowGPU
+      Priority: 1
+      State: ENABLED

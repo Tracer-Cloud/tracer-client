@@ -1,0 +1,6 @@
+{
+    "outdir": "s3://tracer-nxf-outputs/proteinfold/right-size-tests/half-cpu-mem",
+    "use_gpu": true,
+    "max_memory": "400.GB",
+    "max_cpus": 24
+}

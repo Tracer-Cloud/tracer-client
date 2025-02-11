@@ -1,0 +1,63 @@
+{
+    "jobDefinitionName": "rnaseq-with-tracer",
+    "type": "container",
+    "containerProperties": {
+      "privileged": true,
+      "image": "quay.io/biocontainers/multiqc:1.25.1--pyhdfd78af_0",
+     "command": [
+        "/bin/bash",
+        "-c",
+        "apt-get update && apt-get install -y curl git default-jdk wget && curl -s https://get.nextflow.io | bash && mkdir -p /opt/nextflow && cd /opt/nextflow && wget https://github.com/nextflow-io/nextflow/releases/download/v23.10.0/nextflow-23.10.0-all && chmod +x nextflow-23.10.0-all && ln -s nextflow-23.10.0-all nextflow && export PATH=$PATH:/opt/nextflow && nextflow run nf-core/rnaseq -profile test --outdir s3://tracer-nxf-outputs/rnaseq"
+      ],
+      "resourceRequirements": [
+        {
+          "type": "VCPU",
+          "value": "4"
+        },
+        {
+          "type": "MEMORY",
+          "value": "8192"
+        }
+      ],
+      "volumes": [
+        {
+          "name": "docker-socket",
+          "host": {
+            "sourcePath": "/var/run/docker.sock"
+          }
+        },
+        {
+          "name": "aws-cli",
+          "host": {
+            "sourcePath": "/usr/local/aws-cli/v2/current"
+          }
+        }
+      ],
+      "mountPoints": [
+        {
+          "sourceVolume": "docker-socket",
+          "containerPath": "/var/run/docker.sock",
+          "readOnly": true
+        },
+        {
+          "sourceVolume": "aws-cli",
+          "containerPath": "/usr/local/aws-cli/v2/current",
+          "readOnly": true
+        }
+      ],
+      "environment": [
+        {
+          "name": "AWS_REGION",
+          "value": "us-east-1"
+        },
+        {
+          "name": "TRACER_SIDECAR_IMAGE",
+          "value": "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/tracer-client:latest"
+        },
+        {
+          "name": "NXF_WORK",
+          "value": "s3://tracer-nxf-work/work"
+        }
+      ]
+    }
+}

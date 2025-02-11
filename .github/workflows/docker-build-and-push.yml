@@ -18,7 +18,7 @@ jobs:
       run: echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
     - name: Build Docker Image
-      run: docker build -t ghcr.io/tracer-cloud/tracer-cloud:rust-ci-arm64 .
+      run: docker build -t tracer-client:latest .
 
     - name: Push Docker Image
-      run: docker push ghcr.io/tracer-cloud/tracer-cloud:rust-ci-arm64
+      run: docker push tracer-client:latest

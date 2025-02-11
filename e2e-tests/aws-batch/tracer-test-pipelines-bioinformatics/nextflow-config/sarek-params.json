@@ -1,0 +1,4 @@
+{
+    "outdir": "output/sarek-test",
+    "multiqc_config": "nextflow-config/custom_multiqc_config.yml"
+}
