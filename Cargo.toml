@@ -1,6 +1,10 @@
 [package]
 name = "tracer"
+<<<<<<< HEAD
 version = "0.0.130"
+=======
+version = "0.0.3"
+>>>>>>> origin/main
 edition = "2021"
 
 [dependencies]

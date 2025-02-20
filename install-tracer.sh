@@ -5,7 +5,11 @@
 #   DESCRIPTION:  Parameters used in the rest of this script
 #-------------------------------------------------------------------------------
 SCRIPT_VERSION="v0.0.1"
+<<<<<<< HEAD
 TRACER_VERSION="v0.0.130"
+=======
+TRACER_VERSION="v0.0.3"
+>>>>>>> origin/main
 TRACER_VERSION_DEVELOP="v0.0.129-dev"
 
 TRACER_HOME="$HOME/.tracerbio"

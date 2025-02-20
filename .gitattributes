@@ -1,0 +1,10 @@
+target/debug/deps/*.rlib filter=lfs diff=lfs merge=lfs -text
+target/debug/build/libduckdb-sys-dd67f5770befd557/out/libduckdb.a filter=lfs diff=lfs merge=lfs -text
+infrastructure/.terraform/providers/registry.terraform.io/hashicorp/aws/* filter=lfs diff=lfs merge=lfs -text
+infrastructure/.terraform/providers/registry.terraform.io/hashicorp/local/* filter=lfs diff=lfs merge=lfs -text
+infrastructure/.terraform/providers/registry.terraform.io/hashicorp/null/* filter=lfs diff=lfs merge=lfs -text
+target/debug/examples/* filter=lfs diff=lfs merge=lfs -text
+target/debug/libtracer.rlib filter=lfs diff=lfs merge=lfs -text
+target/debug/tracer filter=lfs diff=lfs merge=lfs -text
+test-files/chipseq-test/hg19.refGene.gtf filter=lfs diff=lfs merge=lfs -text
+test-files/chipseq-test/human.fa filter=lfs diff=lfs merge=lfs -text

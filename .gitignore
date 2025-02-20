@@ -32,3 +32,11 @@ debug.log
 
 .env
 .vscode/settings.json
+<<<<<<< HEAD
+target/
+infrastructure/.terraform/
+*.rlib
+libduckdb.a
+infrastructure/.terraform/
+=======
+>>>>>>> origin/main

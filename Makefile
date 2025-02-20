@@ -2,10 +2,13 @@
 #
 # # change the 20 value in printf to adjust width
 # # Use ' ## some comment' behind a command and it will be added to the help message automatically
+<<<<<<< HEAD
+=======
 
 
 
 
+>>>>>>> origin/main
 help: ## Show this help message
 	@awk 'BEGIN {FS = ":.*?## "}; /^[a-zA-Z0-9_-]+:.*?## / {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST) | grep -v '^help:.*?## '
 
