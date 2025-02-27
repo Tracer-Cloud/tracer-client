@@ -63,7 +63,7 @@ pub async fn run(
     let raw_config = ConfigManager::load_config();
 
     // create the conn pool to aurora
-    let db_client = Arc::new(AuroraClient::new(&raw_config.db_url, None).await);
+    let db_client = Arc::new(AuroraClient::new(&raw_config, None).await);
 
     let client = TracerClient::new(
         raw_config.clone(),
@@ -119,7 +119,7 @@ mod tests {
 
         setup_env_vars(region);
 
-        let aurora_client = Arc::new(AuroraClient::new(&config.db_url, None).await);
+        let aurora_client = Arc::new(AuroraClient::new(&config, None).await);
 
         let mut tracer_client = TracerClient::new(
             config,
