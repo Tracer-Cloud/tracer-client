@@ -4,20 +4,6 @@ provider "aws" {
 }
 
 
-# resource "aws_security_group" "db_sg" {
-#   name        = "rds_sg"
-#   description = "Security group for RDS access"
-
-#   ingress {
-#     from_port   = 5432
-#     to_port     = 5432
-#     protocol    = "tcp"
-#     cidr_blocks = ["0.0.0.0/0"] # update this based on security groups to be more secure
-#     # security_groups = [aws_security_group.rust_client_sg.id] # ✅ Only allow traffic from Rust Client EC2
-
-#   }
-# }
-
 resource "aws_security_group" "db_sg" {
   name        = "rds_sg"
   description = "Security group for RDS access"
