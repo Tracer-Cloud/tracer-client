@@ -12,6 +12,11 @@ variable "db_username" {
   default     = "tracer_user"
 }
 
+variable "db_name" {
+  description = "Username for database"
+  default     = "tracer_db"
+}
+
 variable "security_group_ids" {
   description = "List of security group IDs that should be allowed to access the database"
   type        = list(string)

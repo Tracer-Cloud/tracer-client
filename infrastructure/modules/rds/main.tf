@@ -50,6 +50,7 @@ resource "aws_db_instance" "rds" {
   manage_master_user_password = true
   vpc_security_group_ids      = [aws_security_group.db_sg.id]
   skip_final_snapshot         = true
+  db_name                     = var.db_name
 
 }
 
