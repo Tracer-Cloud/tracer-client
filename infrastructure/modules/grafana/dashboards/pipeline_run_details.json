@@ -66,8 +66,7 @@
     "panels": [
         {
             "datasource": {
-                "type": "grafana-postgresql-datasource",
-                "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+                "type": "grafana-postgresql-datasource"
             },
             "gridPos": {
                 "h": 24,
@@ -90,8 +89,7 @@
             "targets": [
                 {
                     "datasource": {
-                        "type": "grafana-postgresql-datasource",
-                        "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+                        "type": "grafana-postgresql-datasource"
                     },
                     "editorMode": "code",
                     "format": "table",
@@ -123,8 +121,7 @@
         },
         {
             "datasource": {
-                "type": "grafana-postgresql-datasource",
-                "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+                "type": "grafana-postgresql-datasource"
             },
             "description": "",
             "fieldConfig": {
@@ -189,8 +186,7 @@
             "targets": [
                 {
                     "datasource": {
-                        "type": "grafana-postgresql-datasource",
-                        "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+                        "type": "grafana-postgresql-datasource"
                     },
                     "editorMode": "code",
                     "format": "table",
@@ -221,8 +217,7 @@
         },
         {
             "datasource": {
-                "type": "grafana-postgresql-datasource",
-                "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+                "type": "grafana-postgresql-datasource"
             },
             "description": "",
             "fieldConfig": {
@@ -287,8 +282,7 @@
             "targets": [
                 {
                     "datasource": {
-                        "type": "grafana-postgresql-datasource",
-                        "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+                        "type": "grafana-postgresql-datasource"
                     },
                     "editorMode": "code",
                     "format": "table",
@@ -319,8 +313,7 @@
         },
         {
             "datasource": {
-                "type": "grafana-postgresql-datasource",
-                "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+                "type": "grafana-postgresql-datasource"
             },
             "description": "",
             "fieldConfig": {
@@ -424,8 +417,7 @@
             "targets": [
                 {
                     "datasource": {
-                        "type": "grafana-postgresql-datasource",
-                        "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+                        "type": "grafana-postgresql-datasource"
                     },
                     "editorMode": "code",
                     "format": "table",
@@ -456,8 +448,7 @@
         },
         {
             "datasource": {
-                "type": "grafana-postgresql-datasource",
-                "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+                "type": "grafana-postgresql-datasource"
             },
             "description": "",
             "fieldConfig": {
@@ -580,8 +571,7 @@
             "targets": [
                 {
                     "datasource": {
-                        "type": "grafana-postgresql-datasource",
-                        "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+                        "type": "grafana-postgresql-datasource"
                     },
                     "editorMode": "code",
                     "format": "table",
@@ -609,8 +599,7 @@
                 },
                 {
                     "datasource": {
-                        "type": "grafana-postgresql-datasource",
-                        "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+                        "type": "grafana-postgresql-datasource"
                     },
                     "editorMode": "code",
                     "format": "table",
@@ -649,8 +638,7 @@
             {
                 "current": {},
                 "datasource": {
-                    "type": "grafana-postgresql-datasource",
-                    "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+                    "type": "grafana-postgresql-datasource"
                 },
                 "definition": "select distinct(data->>'run_name')\nfrom batch_jobs_logs;",
                 "hide": 0,
