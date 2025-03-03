@@ -65,6 +65,7 @@ pub async fn run(
     // create the conn pool to aurora
     let db_client = Arc::new(AuroraClient::new(&raw_config.db_url, None).await);
 
+
     let client = TracerClient::new(
         raw_config.clone(),
         workflow_directory_path,
@@ -73,6 +74,9 @@ pub async fn run(
     )
     .await
     .context("Failed to create TracerClient")?;
+
+    println!("Pipeline Name: {:?}", client.get_pipeline_name());
+
 
     client.run().await
 }
