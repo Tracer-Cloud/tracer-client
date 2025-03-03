@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::{collections::HashMap, path::Path};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use chrono::{DateTime, TimeDelta, Utc};
 use lazy_static::lazy_static;
 use predicates::prelude::predicate;
@@ -109,43 +109,136 @@ impl FileWatcher {
     }
 
     pub fn gather_all_files_from_directory(
-        all_files: &mut HashMap<String, FileInfo>,
+        _all_files: &mut HashMap<String, FileInfo>,
         directory: &Path,
     ) {
         if !directory.exists() {
-            return;
+            println!("Warning: Directory does not exist: {}", directory.display());
         }
 
-        let files = directory.read_dir().unwrap();
-
-        for file in files {
-            if file.is_err() {
-                continue;
-            }
-
-            let file = file.unwrap();
-            if file.path().is_dir() {
-                Self::gather_all_files_from_directory(all_files, &file.path());
-                continue;
-            }
-
-            let file_path = file.path();
-            let file_path_string = file_path.to_str().unwrap();
-            let directory = file_path.parent().unwrap().to_str().unwrap();
-            let metadata = file.metadata().unwrap();
-            let last_update = metadata.modified().unwrap();
-            let size = metadata.len();
-
-            all_files.insert(
-                file_path_string.to_string(),
-                FileInfo {
-                    name: file_path.file_name().unwrap().to_str().unwrap().to_string(),
-                    directory: directory.to_string(),
-                    size,
-                    last_update: last_update.into(),
-                },
-            );
-        }
+        // match directory.read_dir() {
+        //     Ok(files) => {
+        //         // Process files
+        //         for file in files {
+        //             match file {
+        //                 Ok(file) => {
+        //                     if file.path().is_dir() {
+        //                         Self::gather_all_files_from_directory(all_files, &file.path());
+        //                         continue;
+        //                     }
+        //
+        //                     let file_path = file.path();
+        //                     let file_path_string = match file_path.to_str() {
+        //                         Some(path) => path,
+        //                         None => {
+        //                             println!(
+        //                                 "Warning: Could not convert file path to string: {}",
+        //                                 file_path.display()
+        //                             );
+        //                             continue;
+        //                         }
+        //                     };
+        //
+        //                     let directory = match file_path.parent() {
+        //                         Some(parent) => match parent.to_str() {
+        //                             Some(dir) => dir,
+        //                             None => {
+        //                                 println!("Warning: Could not convert parent directory to string: {}", parent.display());
+        //                                 continue;
+        //                             }
+        //                         },
+        //                         None => {
+        //                             println!(
+        //                                 "Warning: File has no parent directory: {}",
+        //                                 file_path.display()
+        //                             );
+        //                             continue;
+        //                         }
+        //                     };
+        //
+        //                     let metadata = match file.metadata() {
+        //                         Ok(meta) => meta,
+        //                         Err(e) => {
+        //                             println!(
+        //                                 "Warning: Could not read metadata for file {}: {}",
+        //                                 file_path.display(),
+        //                                 e
+        //                             );
+        //                             continue;
+        //                         }
+        //                     };
+        //
+        //                     let last_update = match metadata.modified() {
+        //                         Ok(time) => time.into(),
+        //                         Err(e) => {
+        //                             println!(
+        //                                 "Warning: Could not get modification time for file {}: {}",
+        //                                 file_path.display(),
+        //                                 e
+        //                             );
+        //                             continue;
+        //                         }
+        //                     };
+        //
+        //                     let file_name = match file_path.file_name() {
+        //                         Some(name) => {
+        //                             match name.to_str() {
+        //                                 Some(name_str) => name_str.to_string(),
+        //                                 None => {
+        //                                     println!("Warning: Could not convert file name to string: {}", file_path.display());
+        //                                     continue;
+        //                                 }
+        //                             }
+        //                         }
+        //                         None => {
+        //                             println!("Warning: File has no name: {}", file_path.display());
+        //                             continue;
+        //                         }
+        //                     };
+        //
+        //                     let size = metadata.len();
+        //
+        //                     all_files.insert(
+        //                         file_path_string.to_string(),
+        //                         FileInfo {
+        //                             name: file_name,
+        //                             directory: directory.to_string(),
+        //                             size,
+        //                             last_update,
+        //                         },
+        //                     );
+        //                 }
+        //                 Err(e) => {
+        //                     println!(
+        //                         "Error reading directory entry in {}: {}",
+        //                         directory.display(),
+        //                         e
+        //                     );
+        //                 }
+        //             }
+        //         }
+        //     }
+        //     Err(e) => {
+        //         println!("Error reading directory {}: {}", directory.display(), e);
+        //
+        //         // Handle common error cases with more specific messages
+        //         if e.kind() == std::io::ErrorKind::PermissionDenied {
+        //             println!(
+        //                 "Permission denied when accessing directory: {}",
+        //                 directory.display()
+        //             );
+        //         } else if e.kind() == std::io::ErrorKind::NotFound {
+        //             println!("Directory not found: {}", directory.display());
+        //         } else if e.raw_os_error() == Some(40) {
+        //             // FilesystemLoop error code
+        //             println!(
+        //                 "Symbolic link loop detected in directory: {}",
+        //                 directory.display()
+        //             );
+        //             println!("There are too many levels of symbolic links, possibly creating a circular reference.");
+        //         }
+        //     }
+        // }
     }
 
     pub fn gather_pattern_from_directory(
@@ -236,20 +329,36 @@ impl FileWatcher {
                 Path::new(file_cache_dir)
                     .join(file_name)
                     .to_str()
-                    .unwrap()
+                    .ok_or_else(|| anyhow::anyhow!("Failed to convert cache path to string"))?
                     .to_string(),
             );
         }
-        fs::copy(&file_info.path, file_info.cached_path.as_ref().unwrap())?;
+
+        fs::copy(&file_info.path, file_info.cached_path.as_ref().unwrap()).with_context(|| {
+            format!(
+                "Failed to copy file from {} to cached location {}",
+                file_info.path,
+                file_info.cached_path.as_ref().unwrap()
+            )
+        })?;
+
         Ok(())
     }
 
     pub fn prepare_cache_directory(&self, file_cache_dir: &str) -> Result<()> {
         let path = Path::new(file_cache_dir);
         if path.exists() {
-            fs::remove_dir_all(path)?;
+            fs::remove_dir_all(path).with_context(|| {
+                format!(
+                    "Failed to remove existing cache directory: {}",
+                    file_cache_dir
+                )
+            })?;
         }
-        fs::create_dir_all(path)?;
+
+        fs::create_dir_all(path)
+            .with_context(|| format!("Failed to create cache directory: {}", file_cache_dir))?;
+
         Ok(())
     }
 
@@ -266,26 +375,33 @@ impl FileWatcher {
 
         let file_path = file_info.cached_path.as_ref().unwrap_or(&file_info.path);
 
-        upload_from_file_path(
-            service_url,
-            api_key,
-            file_path,
-            Path::new(&file_info.path).file_name().unwrap().to_str(),
-        )
-        .await?;
+        let file_name = Path::new(&file_info.path)
+            .file_name()
+            .ok_or_else(|| {
+                anyhow::anyhow!("Failed to get file name from path: {}", file_info.path)
+            })?
+            .to_str();
+
+        upload_from_file_path(service_url, api_key, file_path, file_name)
+            .await
+            .with_context(|| format!("Failed to upload file: {}", file_path))?;
 
         Ok(())
     }
 
     pub fn get_file_by_path_suffix(&self, path_suffix: &str) -> Option<(&String, &FileInfo)> {
         let path = self.all_files.keys().find(|path| {
-            path.ends_with(path_suffix) && path_suffix.contains(path.split('/').last().unwrap())
+            path.ends_with(path_suffix)
+                && match path.split('/').last() {
+                    Some(last) => path_suffix.contains(last),
+                    None => {
+                        println!("Warning: Could not determine filename from path: {}", path);
+                        false
+                    }
+                }
         });
 
-        if let Some(path) = path {
-            return Some((path, self.all_files.get(path).unwrap()));
-        }
-        None
+        path.and_then(|p| self.all_files.get(p).map(|info| (p, info)))
     }
 
     pub async fn poll_files(
@@ -302,11 +418,17 @@ impl FileWatcher {
         if !workflow_path.exists() {
             logger
                 .log(
-                    &format!("Workflow directory does not exist - {:?}", workflow_path),
+                    &format!(
+                        "Workflow directory does not exist: {}",
+                        workflow_path.display()
+                    ),
                     None,
                 )
                 .await;
-            return Ok(());
+            return Err(anyhow::anyhow!(
+                "Workflow directory does not exist: {}",
+                workflow_path.display()
+            ));
         }
 
         let mut found_files = HashMap::new();
@@ -315,12 +437,23 @@ impl FileWatcher {
         let mut watched_files = self.watched_files.clone();
 
         for (pattern, action) in FILE_WATCHER_PATTERNS.iter() {
-            Self::gather_pattern_from_directory(&found_files, &mut watched_files, pattern, action)?;
+            Self::gather_pattern_from_directory(&found_files, &mut watched_files, pattern, action)
+                .with_context(|| "Failed to gather files matching pattern")?;
         }
 
         let paths = found_files.keys().cloned().collect::<Vec<String>>();
 
-        logger.log(&format!("Found files: {:?}", paths), None).await;
+        logger
+            .log(&format!("Found {} files", paths.len()), None)
+            .await;
+        if paths.is_empty() {
+            logger
+                .log(
+                    "Warning: No files were found in the workflow directory",
+                    None,
+                )
+                .await;
+        }
 
         let paths: HashSet<String> = HashSet::from_iter(
             [
@@ -343,33 +476,35 @@ impl FileWatcher {
 
             match upload_type {
                 FileUploadType::Old => {
-                    to_upload.push(old_file_info.unwrap().clone());
+                    if let Some(old_info) = old_file_info {
+                        to_upload.push(old_info.clone());
+                    }
                 }
                 FileUploadType::New => {
-                    let new_file_info = new_file_info.unwrap();
-                    new_file_info.last_upload = Some(Utc::now());
-                    to_upload.push(new_file_info.clone());
+                    if let Some(new_file_info) = new_file_info {
+                        new_file_info.last_upload = Some(Utc::now());
+                        to_upload.push(new_file_info.clone());
+                    }
                 }
                 _ => {}
             }
         }
 
         for file_info in to_upload {
-            self.upload_file(service_url, api_key, &file_info).await?;
+            self.upload_file(service_url, api_key, &file_info)
+                .await
+                .with_context(|| format!("Failed to upload file: {}", file_info.path))?;
         }
 
         for file_info in watched_files.values_mut() {
             let old_file_info = self.watched_files.get(&file_info.path);
             let update = self.check_if_file_to_update(old_file_info, Some(file_info));
             if update {
-                self.cache_file(file_cache_dir, file_info)?;
+                self.cache_file(file_cache_dir, file_info)
+                    .with_context(|| format!("Failed to cache file: {}", file_info.path))?;
             } else if let Some(old_file_info) = old_file_info {
                 file_info.cached_path = old_file_info.cached_path.clone();
-                file_info.last_upload = if let Some(last_upload) = old_file_info.last_upload {
-                    Some(last_upload)
-                } else {
-                    file_info.last_upload
-                };
+                file_info.last_upload = old_file_info.last_upload;
             }
         }
 

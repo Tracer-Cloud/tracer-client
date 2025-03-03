@@ -2,11 +2,11 @@ name: Rust CI
 on:
   push:
     branches:
-    - "main"
-    - "staging"
+      - "main"
+      - "staging"
   pull_request:
     branches:
-    - "**"
+      - "**"
 env:
   CARGO_TERM_COLOR: always # Ensures colored output in GitHub Actions logs
 
@@ -16,50 +16,82 @@ jobs:
     runs-on: linux-arm64-16c-64r-600ssd-ubuntu24
 
     steps:
-    - uses: actions/checkout@v4.1.4
+      - name: Check out
+        uses: actions/checkout@v4.1.4
 
-    - name: Setup Rust toolchain
-      run: rustup toolchain install stable --profile minimal
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
 
-    - name: Rust Cache
-      uses: Swatinem/rust-cache@v2.7.3
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
 
-    - name: Set up cargo Nextest
-      run: |
-        which cargo-nextest || cargo install cargo-nextest
+      - name: Set up cargo Nextest
+        run: |
+          which cargo-nextest || cargo install cargo-nextest
 
-    # - name: Copy config
-    #   run: mkdir -p $HOME/.config/tracer && cp tracer.toml $HOME/.config/tracer/tracer.toml
+      # - name: Copy config
+      #   run: mkdir -p $HOME/.config/tracer && cp tracer.toml $HOME/.config/tracer/tracer.toml
 
-    - name: Check Formatting
-      run: cargo fmt -- --check
+      - name: Check Formatting
+        run: cargo fmt -- --check
 
-    - name: Lint with Clippy
-      run: make clippy
+      - name: Lint with Clippy
+        run: make clippy
 
-    - name: Run tests
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: "us-east-2"
-        AWS_ENDPOINT: "https://s3.us-east-2.amazonaws.com"
-        RUST_LOG: "debug"
-        RUST_BACKTRACE: 1
-      run: make test-tracer
+      - name: Run tests
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: "us-east-2"
+          AWS_ENDPOINT: "https://s3.us-east-2.amazonaws.com"
+          RUST_LOG: "debug"
+          RUST_BACKTRACE: 1
+        run: make test-tracer
 
 
   run-integrations:
       name: Build and Test Integrations
       runs-on: linux-arm64-16c-64r-600ssd-ubuntu24
+      needs: []
 
       steps:
       - uses: actions/checkout@v4.1.4
 
-      - name: Setup Rust toolchain
-        run: rustup toolchain install stable --profile minimal
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
 
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2.7.3
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
 
       - name: Cache Docker images.
         uses: ScribeMD/docker-cache@0.5.0

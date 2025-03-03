@@ -32,3 +32,37 @@ debug.log
 
 .env
 .vscode/settings.json
+
+
+# Terraform state files
+terraform.tfstate
+terraform.tfstate.backup
+*.tfstate*
+.terraform/
+.terraform.lock.hcl
+.terraform/*
+
+
+# Environment files (sensitive credentials)
+.env
+*.env
+
+# SSH keys (if generated for EC2)
+*.pem
+*.key
+*.ssh
+
+# Local execution & log files
+*.log
+*.tfvars
+*.tfvars.json
+*.backup
+
+# macOS system files
+.DS_Store
+
+# Node.js dependencies (if any)
+node_modules/
+
+# Temporary script files
+script-second-script.sh

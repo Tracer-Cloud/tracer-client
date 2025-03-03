@@ -17,7 +17,7 @@ impl Default for Logger {
 impl Logger {
     pub fn new() -> Self {
         Self {
-            log_file_path: "debug.log".to_string(),
+            log_file_path: "/tmp/debug.log".to_string(),
         }
     }
 

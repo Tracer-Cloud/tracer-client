@@ -98,6 +98,9 @@ impl PricingClient {
         filters: Vec<PricingFilters>,
     ) -> Result<Option<FlattenedData>, Box<dyn std::error::Error + Send + Sync>> {
         // Create paginated request to AWS Pricing API
+
+        println!("Filters being applied: {:?}", filters); // Print statement
+
         let mut response = self
             .client
             .get_products()
@@ -105,6 +108,8 @@ impl PricingClient {
             .set_filters(Some(filters)) // Apply the filters (instance type, OS, etc)
             .into_paginator() // Handle pagination of results
             .send();
+
+        println!("API Request: {:?}", response); // Print statement (may need adjustment based on actual request)
 
         let mut data = Vec::new();
 
@@ -181,20 +186,8 @@ mod tests {
                 .build()
                 .unwrap(),
             Filter::builder()
-                .field("operatingSystem")
-                .value("Linux")
-                .r#type(FilterType::TermMatch)
-                .build()
-                .unwrap(),
-            Filter::builder()
-                .field("tenancy")
-                .value("Shared")
-                .r#type(FilterType::TermMatch)
-                .build()
-                .unwrap(),
-            Filter::builder()
-                .field("location")
-                .value("US East (N. Virginia)")
+                .field("regionCode")
+                .value("us-east-1")
                 .r#type(FilterType::TermMatch)
                 .build()
                 .unwrap(),

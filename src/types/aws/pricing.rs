@@ -86,17 +86,13 @@ impl FlattenedData {
 pub struct EC2FilterBuilder {
     pub instance_type: String,
     pub region: String,
-    pub vcpu: usize,
-    pub memory_bytes: u64,
 }
 
 impl EC2FilterBuilder {
     /// "intance_type: InstanceType" E:g: t3.small
     // "region": "regionCode" "us-east-1"
-    /// "vcpu": "vcpu" "2"
-    /// "memory": "memory" "2 GiB" the memory comes in bytes so convert to Gb (divide by 1e9)
+    // Instance type and region code are enough to get the most precise pricing data
     pub fn to_filter(&self) -> Vec<PricingFilters> {
-        let memory_gb = self.memory_bytes / 1_000_000_000;
         vec![
             PricingFilters::builder()
                 .field("InstanceType".to_string())
@@ -107,18 +103,6 @@ impl EC2FilterBuilder {
             PricingFilters::builder()
                 .field("regionCode".to_string())
                 .value(self.region.to_owned())
-                .r#type(PricingFilterType::TermMatch)
-                .build()
-                .expect("failed to build filter"),
-            PricingFilters::builder()
-                .field("vcpu".to_string())
-                .value(format!("{}", self.vcpu))
-                .r#type(PricingFilterType::TermMatch)
-                .build()
-                .expect("failed to build filter"),
-            PricingFilters::builder()
-                .field("memory".to_string())
-                .value(format!("{} GiB", memory_gb))
                 .r#type(PricingFilterType::TermMatch)
                 .build()
                 .expect("failed to build filter"),

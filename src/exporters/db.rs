@@ -61,6 +61,7 @@ impl AuroraClient {
         let query = "INSERT INTO batch_jobs_logs (data, job_id) VALUES ($1, $2)";
 
         info!("Inserting row with job_id: {}", job_id);
+        println!("Inserting row with job_id: {}", job_id);
 
         let mut transaction = self
             .get_pool()

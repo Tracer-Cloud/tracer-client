@@ -160,11 +160,17 @@ impl TracerClient {
     }
 
     pub async fn submit_batched_data(&mut self) -> Result<()> {
+        println!(
+            "Submitting batched data for pipeline {}",
+            self.pipeline_name
+        );
         let run_name = if let Some(run) = &self.current_run {
             &run.name
         } else {
             "annoymous"
         };
+
+        println!("Submitting batched data for run_name {}", run_name);
 
         if self.last_sent.is_none() || Instant::now() - self.last_sent.unwrap() >= self.interval {
             self.metrics_collector
@@ -481,7 +487,6 @@ mod tests {
 
         // Create an instance of AuroraClient
         let db_client = Arc::new(AuroraClient::new(&config.db_url, Some(1)).await);
-        let job_id = "job-1234";
 
         let cli_config = TracerCliInitArgs::default();
 
@@ -494,10 +499,12 @@ mod tests {
             .await
             .expect("Error starting new run");
 
+        let run_name = client.current_run.clone().unwrap().name;
+
         // Record a test event
         client.logs.record_event(
             EventType::TestEvent,
-            format!("[submit_batched_data.rs] Test event for job {}", job_id),
+            format!("[submit_batched_data.rs] Test event for job {}", run_name),
             None,
             None,
         );
@@ -513,12 +520,12 @@ mod tests {
 
         // Verify the row was inserted into the database
         let result: (Json<Value>, String) = sqlx::query_as(query)
-            .bind(job_id) // Use the job_id for the query
+            .bind(run_name.clone()) // Use the job_id for the query
             .fetch_one(db_client) // Use the pool from the AuroraClient
             .await?;
 
         // Check that the inserted data matches the expected data
-        assert_eq!(result.1, job_id); // Compare with the unique job ID
+        assert_eq!(result.1, run_name.clone()); // Compare with the unique job ID
 
         Ok(())
     }

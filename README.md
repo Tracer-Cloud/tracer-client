@@ -1,4 +1,13 @@
-# Tracer Daemon Instructions
+<h1 align="left">
+🦡 Tracer Linux Agent
+</h1>
+
+![Tracer Banner](docs/images/tracer-banner-image.jpeg)
+
+## 🚀 Quickstart Installation
+```bash
+curl -s https://install.tracer.cloud | sudo bash
+ ```
 
 ## How to Test Tracer:
 - Ensure you have docker running
@@ -162,7 +171,7 @@ This step ensures that Tracer has the necessary authentication to send logs or t
 
 This step sets up a custom Bash configuration to intercept and log relevant commands. It creates a .bashrc file inside the tracer config directory, defining aliases for monitored commands. This ensures that when a command runs, tracer logs its execution without interfering with normal operation.
 
-Additionally, it redirects stdout and stderr to `/tmp/tracerd-stdout` and `/tmp/tracerd-stderr`, allowing users to track command outputs and errors. The setup persists across sessions by sourcing the custom `.bashrc` file in the user’s shell configuration.
+Additionally, it redirects stdout and stderr to `/tmp/tracerd-stdout` and `/tmp/tracerd-stderr`, allowing users to track command outputs and errors. The setup persists across sessions by sourcing the custom `.bashrc` file in the user's shell configuration.
 
 ```bash
 cargo run apply-bashrc
@@ -171,7 +180,7 @@ cargo run apply-bashrc
 ---
 
 ## **5. Configure AWS Credentials**  
-If you’re running Tracer on an **EC2 instance** or a local machine that interacts with AWS, ensure your AWS credentials are set up correctly.
+If you're running Tracer on an **EC2 instance** or a local machine that interacts with AWS, ensure your AWS credentials are set up correctly.
 
 - **Updating `tracer.toml` for AWS IAM Roles (EC2):**  
   Instead of using an `aws_profile`, modify `tracer.toml` to specify the AWS IAM Role ARN you want to assume:
@@ -185,7 +194,7 @@ If you’re running Tracer on an **EC2 instance** or a local machine that intera
 Tracer runs in the background as a daemon using the `daemonize` crate in Rust. This ensures it continues running after logout or system reboots.
 
 - **Monitor Daemon Logs for Errors**  
-  Since the tracer runs as a daemon, you won’t see its output in the terminal. Check logs for debugging:  
+  Since the tracer runs as a daemon, you won't see its output in the terminal. Check logs for debugging:  
   ```bash
   tail -f /tmp/tracerd.err
   ```
@@ -196,7 +205,7 @@ Tracer runs in the background as a daemon using the `daemonize` crate in Rust. T
 ## **Understanding `daemonize` in Rust**  
 The [`daemonize`](https://docs.rs/daemonize/latest/daemonize/) crate helps create system daemons in Rust by handling:  
 - **Forking the process** (so it runs in the background)  
-- **Detaching from the terminal** (so it doesn’t stop when you close the session)  
+- **Detaching from the terminal** (so it doesn't stop when you close the session)  
 - **Redirecting logs to files** (important for debugging)  
 - **Setting permissions and working directories**  
 

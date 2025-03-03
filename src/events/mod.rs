@@ -72,8 +72,6 @@ async fn gather_system_properties(
     let ec2_cost_analysis = if let Some(ref metadata) = &aws_metadata {
         let filters = EC2FilterBuilder {
             instance_type: metadata.instance_type.clone(),
-            vcpu: system.cpus().len(),
-            memory_bytes: system.total_memory(),
             region: metadata.region.clone(),
         }
         .to_filter();
