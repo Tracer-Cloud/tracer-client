@@ -23,5 +23,12 @@ variable "security_group_ids" {
   default     = [] # Empty list by default
 }
 
+variable "vpc_id" {
+  type = string
+}
 
-
+variable "subnet_ids" {
+  description = "Set of subnet ids"
+  type        = list(string)
+  default     = [] # Empty list by default
+}

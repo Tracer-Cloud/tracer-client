@@ -1,0 +1,836 @@
+{
+    "__inputs": [
+        {
+            "name": "DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE",
+            "label": "grafana-postgresql-aurora-datasource",
+            "description": "",
+            "type": "datasource",
+            "pluginId": "grafana-postgresql-datasource",
+            "pluginName": "PostgreSQL"
+        }
+    ],
+    "__elements": {},
+    "__requires": [
+        {
+            "type": "panel",
+            "id": "bargauge",
+            "name": "Bar gauge",
+            "version": ""
+        },
+        {
+            "type": "grafana",
+            "id": "grafana",
+            "name": "Grafana",
+            "version": "10.4.1"
+        },
+        {
+            "type": "datasource",
+            "id": "grafana-postgresql-datasource",
+            "name": "PostgreSQL",
+            "version": "1.0.0"
+        },
+        {
+            "type": "panel",
+            "id": "stat",
+            "name": "Stat",
+            "version": ""
+        },
+        {
+            "type": "panel",
+            "id": "table",
+            "name": "Table",
+            "version": ""
+        },
+        {
+            "type": "panel",
+            "id": "timeseries",
+            "name": "Time series",
+            "version": ""
+        }
+    ],
+    "annotations": {
+        "list": [
+            {
+                "builtIn": 1,
+                "datasource": {
+                    "type": "grafana",
+                    "uid": "-- Grafana --"
+                },
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "type": "dashboard"
+            }
+        ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": null,
+    "links": [],
+    "panels": [
+        {
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "custom": {
+                        "align": "auto",
+                        "cellOptions": {
+                            "type": "auto"
+                        },
+                        "inspect": false
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 0
+            },
+            "id": 7,
+            "options": {
+                "cellHeight": "sm",
+                "footer": {
+                    "countRows": false,
+                    "fields": "",
+                    "reducer": [
+                        "sum"
+                    ],
+                    "show": false
+                },
+                "showHeader": true
+            },
+            "pluginVersion": "10.4.1",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "rawSql": "SELECT data->>'message' as message\nfrom batch_jobs_logs\nWHERE data->>'pipeline_name' = '${pipeline_name}'\norder by creation_date desc;",
+                    "refId": "A",
+                    "sql": {
+                        "columns": [
+                            {
+                                "parameters": [],
+                                "type": "function"
+                            }
+                        ],
+                        "groupBy": [
+                            {
+                                "property": {
+                                    "type": "string"
+                                },
+                                "type": "groupBy"
+                            }
+                        ],
+                        "limit": 50
+                    }
+                }
+            ],
+            "title": "Logs for $pipeline_name",
+            "type": "table"
+        },
+        {
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "continuous-GrYlRd"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 0
+            },
+            "id": 2,
+            "options": {
+                "displayMode": "basic",
+                "maxVizHeight": 300,
+                "minVizHeight": 16,
+                "minVizWidth": 8,
+                "namePlacement": "auto",
+                "orientation": "horizontal",
+                "reduceOptions": {
+                    "calcs": [],
+                    "fields": "",
+                    "values": true
+                },
+                "showUnfilled": true,
+                "sizing": "auto",
+                "valueMode": "color"
+            },
+            "pluginVersion": "10.4.1",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "rawSql": "SELECT \n  data->'attributes'->>'tool_name' AS tool_name,\n  COUNT(DISTINCT data->'attributes'->'process'->>'tool_pid') AS execution_count\nFROM batch_jobs_logs\nWHERE data->>'pipeline_name' = '${pipeline_name}'\nGROUP BY tool_name\nORDER BY execution_count DESC;\n",
+                    "refId": "A",
+                    "sql": {
+                        "columns": [
+                            {
+                                "parameters": [],
+                                "type": "function"
+                            }
+                        ],
+                        "groupBy": [
+                            {
+                                "property": {
+                                    "type": "string"
+                                },
+                                "type": "groupBy"
+                            }
+                        ],
+                        "limit": 50
+                    }
+                }
+            ],
+            "title": "Processes called by job: $pipeline_name",
+            "type": "bargauge"
+        },
+        {
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 9,
+                "w": 24,
+                "x": 0,
+                "y": 8
+            },
+            "id": 1,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "10.4.1",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "rawSql": "SELECT \n    to_timestamp((data->>'timestamp')::BIGINT) AS time,\n    (data->'attributes'->'system_metric'->>'system_cpu_utilization')::FLOAT AS cpu_usage\nFROM batch_jobs_logs\nWHERE data->>'pipeline_name' = '${pipeline_name}';",
+                    "refId": "A",
+                    "sql": {
+                        "columns": [
+                            {
+                                "parameters": [],
+                                "type": "function"
+                            }
+                        ],
+                        "groupBy": [
+                            {
+                                "property": {
+                                    "type": "string"
+                                },
+                                "type": "groupBy"
+                            }
+                        ],
+                        "limit": 50
+                    },
+                    "table": "batch_jobs_logs"
+                }
+            ],
+            "title": "CPU UTILIZATION FOR JOB: $pipeline_name",
+            "type": "timeseries"
+        },
+        {
+            "collapsed": false,
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 17
+            },
+            "id": 4,
+            "panels": [],
+            "repeat": "pipeline_name",
+            "repeatDirection": "h",
+            "title": "Pipeline costs analisys",
+            "type": "row"
+        },
+        {
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 5,
+                "w": 7,
+                "x": 0,
+                "y": 18
+            },
+            "id": 3,
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+            },
+            "pluginVersion": "10.4.1",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "rawSql": "select COUNT(DISTINCT data->>'run_name') AS number_of_runs\nfrom batch_jobs_logs\nWHERE data->>'pipeline_name' = '$pipeline_name';\n",
+                    "refId": "A",
+                    "sql": {
+                        "columns": [
+                            {
+                                "parameters": [],
+                                "type": "function"
+                            }
+                        ],
+                        "groupBy": [
+                            {
+                                "property": {
+                                    "type": "string"
+                                },
+                                "type": "groupBy"
+                            }
+                        ],
+                        "limit": 50
+                    }
+                }
+            ],
+            "title": "Pipeline Runs",
+            "type": "stat"
+        },
+        {
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "total_costs"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "currencyUSD"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 10,
+                "w": 7,
+                "x": 7,
+                "y": 18
+            },
+            "id": 5,
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+            },
+            "pluginVersion": "10.4.1",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "rawSql": "WITH relevant_jobs AS (\n  SELECT DISTINCT job_id\n  FROM batch_jobs_logs\n  WHERE data->>'pipeline_name' = '${pipeline_name}'\n),\nrun_data AS (\n  SELECT \n    data->>'run_name' AS run_name,\n    data->>'run_id' AS run_id,\n    to_timestamp((data->>'timestamp')::BIGINT) AS ts,\n    (data->'attributes'->'system_properties'->>'ec2_cost_per_hour')::FLOAT AS cost_per_hour,\n    job_id\n  FROM batch_jobs_logs\n  WHERE job_id IN (SELECT job_id FROM relevant_jobs)\n),\nrun_times AS (\n  SELECT \n    job_id,\n    MIN(ts) AS start_time,\n    MAX(ts) AS end_time,\n    MAX(cost_per_hour) AS cost_per_hour -- Assuming cost remains constant for each run\n  FROM run_data\n  WHERE job_id IS NOT NULL\n  GROUP BY job_id\n),\ntotal_costs as (\n  SELECT \n    rt.job_id,\n    rt.start_time,\n    rt.end_time,\n    (EXTRACT(EPOCH FROM (rt.end_time - rt.start_time)) / 3600) * rt.cost_per_hour AS total_cost\n  FROM run_times rt\n)\nSELECT sum(total_cost) as total_costs\nfrom total_costs as tc;\n",
+                    "refId": "A",
+                    "sql": {
+                        "columns": [
+                            {
+                                "parameters": [],
+                                "type": "function"
+                            }
+                        ],
+                        "groupBy": [
+                            {
+                                "property": {
+                                    "type": "string"
+                                },
+                                "type": "groupBy"
+                            }
+                        ],
+                        "limit": 50
+                    }
+                }
+            ],
+            "title": "Total costs of $pipeline_name pipelines",
+            "type": "stat"
+        },
+        {
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green"
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 5,
+                "w": 7,
+                "x": 0,
+                "y": 23
+            },
+            "id": 8,
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+            },
+            "pluginVersion": "10.4.1",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "rawSql": "WITH relevant_jobs AS (\n  SELECT DISTINCT job_id\n  FROM batch_jobs_logs\n  WHERE data->>'pipeline_name' = '${pipeline_name}'\n),\nrun_data AS (\n  SELECT \n    job_id,\n    COALESCE((data->'attributes'->'process_dataset_stats'->>'total')::INT, 0) AS processed_dataset\n  FROM batch_jobs_logs\n  WHERE job_id IN (SELECT job_id FROM relevant_jobs)\n),\nmax_per_run AS (\n  -- Take the maximum processed_dataset per job_id (each run)\n  SELECT \n    job_id,\n    MAX(processed_dataset) AS max_processed_dataset\n  FROM run_data\n  GROUP BY job_id\n)\nSELECT \n  SUM(max_processed_dataset) AS total_processed_datasets\nFROM max_per_run;\n",
+                    "refId": "A",
+                    "sql": {
+                        "columns": [
+                            {
+                                "parameters": [],
+                                "type": "function"
+                            }
+                        ],
+                        "groupBy": [
+                            {
+                                "property": {
+                                    "type": "string"
+                                },
+                                "type": "groupBy"
+                            }
+                        ],
+                        "limit": 50
+                    }
+                }
+            ],
+            "title": "Total # of Processed Dataset for $pipeline_name",
+            "type": "stat"
+        },
+        {
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "custom": {
+                        "align": "auto",
+                        "cellOptions": {
+                            "type": "auto"
+                        },
+                        "inspect": false
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green"
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "run_name"
+                        },
+                        "properties": [
+                            {
+                                "id": "links",
+                                "value": [
+                                    {
+                                        "title": "",
+                                        "url": "https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com/d/cedgdo1e448hsa/pipeline-run-details?var-run_name=${__data.fields[\"run_name\"]}&orgId=1&refresh=5s&from=now-5m&to=now"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "total_cost"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "currencyUSD"
+                            },
+                            {
+                                "id": "custom.width",
+                                "value": 93
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "total_runtime_minutes"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "m"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "status"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.cellOptions",
+                                "value": {
+                                    "mode": "gradient",
+                                    "type": "color-background"
+                                }
+                            },
+                            {
+                                "id": "mappings",
+                                "value": [
+                                    {
+                                        "options": {
+                                            "Running": {
+                                                "color": "yellow",
+                                                "index": 0
+                                            }
+                                        },
+                                        "type": "value"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 24,
+                "x": 0,
+                "y": 28
+            },
+            "id": 6,
+            "options": {
+                "cellHeight": "sm",
+                "footer": {
+                    "countRows": false,
+                    "fields": "",
+                    "reducer": [
+                        "sum"
+                    ],
+                    "show": false
+                },
+                "showHeader": true,
+                "sortBy": []
+            },
+            "pluginVersion": "10.4.1",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "rawSql": "WITH relevant_jobs AS (\n  SELECT DISTINCT job_id\n  FROM batch_jobs_logs\n  WHERE data->>'pipeline_name' = '${pipeline_name}'\n),\nrun_data AS (\n  SELECT \n    data->>'run_name' AS run_name,\n    data->>'run_id' AS run_id,\n    to_timestamp((data->>'timestamp')::BIGINT) AS ts,\n    (data->'attributes'->'system_properties'->>'ec2_cost_per_hour')::FLOAT AS cost_per_hour,\n    job_id,\n    COALESCE((data->'attributes'->'process_dataset_stats'->>'total')::INT, 0) AS processed_dataset\n  FROM batch_jobs_logs\n  WHERE job_id IN (SELECT job_id FROM relevant_jobs)\n),\nrun_times AS (\n  SELECT \n    job_id,\n    MIN(ts) AS start_time,\n    MAX(ts) AS end_time,\n    MAX(cost_per_hour) AS cost_per_hour,  -- Assuming cost remains constant for each run\n    MAX(processed_dataset) AS processed_dataset\n  FROM run_data\n  WHERE job_id IS NOT NULL\n  GROUP BY job_id\n)\nSELECT \n  rt.job_id AS run_name,\n  rt.start_time,\n  rt.end_time,\n  (EXTRACT(EPOCH FROM (rt.end_time - rt.start_time)) / 3600) * rt.cost_per_hour AS total_cost,\n  (EXTRACT(EPOCH FROM (rt.end_time - rt.start_time)) / 60) AS total_runtime_minutes,\n  CASE \n    WHEN rt.end_time < NOW() - INTERVAL '30 seconds' THEN 'Completed'\n    ELSE 'Running'\n  END AS status,\n  rt.processed_dataset AS processed_datasets\nFROM run_times rt\nORDER BY start_time DESC;\n",
+                    "refId": "A",
+                    "sql": {
+                        "columns": [
+                            {
+                                "parameters": [],
+                                "type": "function"
+                            }
+                        ],
+                        "groupBy": [
+                            {
+                                "property": {
+                                    "type": "string"
+                                },
+                                "type": "groupBy"
+                            }
+                        ],
+                        "limit": 50
+                    }
+                }
+            ],
+            "title": "$pipeline_name runs overview",
+            "type": "table"
+        }
+    ],
+    "refresh": "5s",
+    "schemaVersion": 39,
+    "tags": [],
+    "templating": {
+        "list": [
+            {
+                "current": {},
+                "datasource": {
+                    "type": "grafana-postgresql-datasource",
+                    "uid": "${DS_GRAFANA-POSTGRESQL-AURORA-DATASOURCE}"
+                },
+                "definition": "select distinct data->>'pipeline_name' from batch_jobs_logs",
+                "hide": 0,
+                "includeAll": false,
+                "label": "Pipeline Name",
+                "multi": false,
+                "name": "pipeline_name",
+                "options": [],
+                "query": "select distinct data->>'pipeline_name' from batch_jobs_logs",
+                "refresh": 1,
+                "regex": "",
+                "skipUrlSync": false,
+                "sort": 0,
+                "type": "query"
+            }
+        ]
+    },
+    "time": {
+        "from": "now-6h",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "browser",
+    "title": "CPU UTILIZATION BY PIPELINE",
+    "uid": "aedcoz7u4xk3ke",
+    "version": 47,
+    "weekStart": ""
+}

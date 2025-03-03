@@ -1,0 +1,590 @@
+{
+    "annotations": {
+        "list": [
+            {
+                "builtIn": 1,
+                "datasource": {
+                    "type": "grafana",
+                    "uid": "-- Grafana --"
+                },
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "type": "dashboard"
+            }
+        ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": 6,
+    "links": [],
+    "panels": [
+        {
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "aedc1yh2fx8g0d"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "custom": {
+                        "align": "auto",
+                        "cellOptions": {
+                            "type": "auto"
+                        },
+                        "inspect": false
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Avg CPU Usage"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "percent"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Avg RAM Used (GB)"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "percent"
+                            },
+                            {
+                                "id": "unit",
+                                "value": "decgbytes"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Max CPU Usage"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "percent"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Pipeline Name"
+                        },
+                        "properties": [
+                            {
+                                "id": "links",
+                                "value": [
+                                    {
+                                        "title": "Show Details",
+                                        "url": "https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com/d/aedcoz7u4xk3ke/cpu-utilization-by-pipeline?var-pipeline_name=${__data.fields[\"Pipeline Name\"]}&orgId=1&from=now-5m&to=now&refresh=5s"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Total Pipeline Cost"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "currencyUSD"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Total Pipeline Runtime"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "m"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Single Run Runtime"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "m"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Total Pipeline Cost"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "currencyUSD"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Avg Cost per Run"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "currencyUSD"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Cost per Processed Dataset"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "currencyUSD"
+                            },
+                            {
+                                "id": "custom.width",
+                                "value": 212
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Total Processed Datasets"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.width",
+                                "value": 213
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Number of Runs per Pipeline"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.width",
+                                "value": 228
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 13,
+                "w": 24,
+                "x": 0,
+                "y": 0
+            },
+            "id": 1,
+            "options": {
+                "cellHeight": "sm",
+                "footer": {
+                    "countRows": false,
+                    "fields": "",
+                    "reducer": [
+                        "sum"
+                    ],
+                    "show": false
+                },
+                "showHeader": true,
+                "sortBy": [
+                    {
+                        "desc": true,
+                        "displayName": "Pipeline Status"
+                    }
+                ]
+            },
+            "pluginVersion": "10.4.1",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "aedc1yh2fx8g0d"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "rawSql": "WITH base AS (\n  SELECT \n    job_id,\n    COALESCE(\n      data->>'pipeline_name',\n      (\n        SELECT b2.data->>'pipeline_name'\n        FROM batch_jobs_logs b2\n        WHERE b2.job_id = batch_jobs_logs.job_id\n          AND b2.data->>'pipeline_name' IS NOT NULL\n        LIMIT 1\n      )\n    ) AS pipeline_name_filled,\n    to_timestamp((data->>'timestamp')::BIGINT) AS ts,\n    (data->'attributes'->'system_properties'->>'ec2_cost_per_hour')::FLOAT AS cost_per_hour,\n    (data->'attributes'->'system_metric'->>'system_cpu_utilization')::FLOAT AS cpu_usage,\n    (data->'attributes'->'system_metric'->>'system_memory_used')::FLOAT AS mem_used,\n    COALESCE((data->'attributes'->'process_dataset_stats'->>'total')::INT, 0) AS processed_dataset\n  FROM batch_jobs_logs\n),\nrun_times AS (\n  SELECT\n    job_id,\n    pipeline_name_filled AS pipeline_name,\n    MIN(ts) AS start_time,\n    MAX(ts) AS end_time,\n    (EXTRACT(EPOCH FROM (MAX(ts) - MIN(ts))) / 60) AS run_duration_minutes,\n    MAX(cost_per_hour) AS cost_per_hour\n  FROM base\n  GROUP BY job_id, pipeline_name_filled\n),\nrun_costs AS (\n  SELECT\n    job_id,\n    pipeline_name,\n    run_duration_minutes * (cost_per_hour / 60) AS total_cost\n  FROM run_times\n),\npipeline_costs AS (\n  SELECT \n    pipeline_name,\n    SUM(total_cost) AS total_cost,\n    COUNT(DISTINCT job_id) AS run_count\n  FROM run_costs\n  GROUP BY pipeline_name\n),\npipeline_times AS (\n  SELECT\n    pipeline_name,\n    SUM(run_duration_minutes) AS total_run_time_minutes,\n    AVG(run_duration_minutes) AS avg_run_time_minutes\n  FROM run_times\n  GROUP BY pipeline_name\n),\npipeline_metrics AS (\n  SELECT\n    pipeline_name_filled AS pipeline_name,\n    AVG(cpu_usage) AS avg_cpu_usage,\n    MAX(cpu_usage) AS max_cpu_usage,\n    AVG(mem_used) / 1073741824 AS avg_ram_used_gb\n  FROM base\n  WHERE pipeline_name_filled IS NOT NULL\n  GROUP BY pipeline_name_filled\n),\nrun_datasets AS (\n  SELECT \n    job_id,\n    pipeline_name_filled AS pipeline_name,\n    MAX(processed_dataset) AS processed_dataset\n  FROM base\n  GROUP BY job_id, pipeline_name_filled\n),\npipeline_datasets AS (\n  SELECT \n    pipeline_name,\n    SUM(processed_dataset) AS total_processed_datasets\n  FROM run_datasets\n  GROUP BY pipeline_name\n),\npipeline_status AS (\n  SELECT \n    pipeline_name_filled AS pipeline_name,\n    MAX(ts) AS last_activity_timestamp\n  FROM base\n  GROUP BY pipeline_name_filled\n)\nSELECT\n  pm.pipeline_name                  AS \"Pipeline Name\",\n  CASE \n    WHEN ps.last_activity_timestamp >= NOW() - INTERVAL '30 seconds' THEN 'Running'\n    ELSE 'Not Running'\n  END                               AS \"Pipeline Status\",\n  pm.avg_cpu_usage                  AS \"Avg CPU Usage\",\n  pm.max_cpu_usage                  AS \"Max CPU Usage\",\n  pm.avg_ram_used_gb                AS \"Avg RAM Used (GB)\",\n  COALESCE(pc.total_cost, 0)        AS \"Total Pipeline Cost\",\n  COALESCE(pc.run_count, 0)         AS \"Number of Runs per Pipeline\",\n  CASE \n    WHEN COALESCE(pc.run_count, 0) > 0 THEN COALESCE(pc.total_cost, 0) / pc.run_count \n    ELSE 0 \n  END                               AS \"Avg Cost per Run\",\n  COALESCE(pt.total_run_time_minutes, 0) AS \"Total Pipeline Runtime\",\n  COALESCE(pt.avg_run_time_minutes, 0)   AS \"Single Run Runtime\",\n  COALESCE(pd.total_processed_datasets, 0) AS \"Total Processed Datasets\",\n  CASE \n    WHEN COALESCE(pd.total_processed_datasets, 0) > 0 \n    THEN COALESCE(pc.total_cost, 0) / pd.total_processed_datasets \n    ELSE 0 \n  END                               AS \"Cost per Processed Dataset\"\nFROM pipeline_metrics pm\nLEFT JOIN pipeline_costs pc\n  ON pm.pipeline_name = pc.pipeline_name\nLEFT JOIN pipeline_times pt\n  ON pm.pipeline_name = pt.pipeline_name\nLEFT JOIN pipeline_datasets pd\n  ON pm.pipeline_name = pd.pipeline_name\nLEFT JOIN pipeline_status ps\n  ON pm.pipeline_name = ps.pipeline_name\nORDER BY pm.avg_cpu_usage DESC;\n",
+                    "refId": "A",
+                    "sql": {
+                        "columns": [
+                            {
+                                "parameters": [],
+                                "type": "function"
+                            }
+                        ],
+                        "groupBy": [
+                            {
+                                "property": {
+                                    "type": "string"
+                                },
+                                "type": "groupBy"
+                            }
+                        ],
+                        "limit": 50
+                    },
+                    "table": "batch_jobs_logs"
+                }
+            ],
+            "title": "✨ PIPELINES OVERVIEW [MAIN]",
+            "type": "table"
+        },
+        {
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "aedc1yh2fx8g0d"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "custom": {
+                        "align": "auto",
+                        "cellOptions": {
+                            "type": "auto"
+                        },
+                        "inspect": false
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Avg CPU Usage"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "percent"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Avg RAM Used (GB)"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "percent"
+                            },
+                            {
+                                "id": "unit",
+                                "value": "decgbytes"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Max CPU Usage"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "percent"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Pipeline Name"
+                        },
+                        "properties": [
+                            {
+                                "id": "links",
+                                "value": [
+                                    {
+                                        "title": "Show Details",
+                                        "url": "https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com/d/aedcoz7u4xk3ke/cpu-utilization-by-pipeline?var-pipeline_name=${__data.fields[\"Pipeline Name\"]}&orgId=1&from=now-5m&to=now&refresh=5s"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Total Pipeline Cost"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "currencyUSD"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Total Pipeline Runtime"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "m"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Single Run Runtime"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "m"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Total Pipeline Cost"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "currencyUSD"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Avg Cost per Run"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "currencyUSD"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Cost per Processed Dataset"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "currencyUSD"
+                            },
+                            {
+                                "id": "custom.width",
+                                "value": 212
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Total Processed Datasets"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.width",
+                                "value": 213
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Number of Runs per Pipeline"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.width",
+                                "value": 228
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Tags"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.width",
+                                "value": 245
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Pipeline Status"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.cellOptions",
+                                "value": {
+                                    "mode": "gradient",
+                                    "type": "color-background"
+                                }
+                            },
+                            {
+                                "id": "mappings",
+                                "value": [
+                                    {
+                                        "options": {
+                                            "Running": {
+                                                "color": "yellow",
+                                                "index": 0
+                                            }
+                                        },
+                                        "type": "value"
+                                    }
+                                ]
+                            },
+                            {
+                                "id": "custom.width",
+                                "value": 126
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 13,
+                "w": 24,
+                "x": 0,
+                "y": 13
+            },
+            "id": 2,
+            "options": {
+                "cellHeight": "sm",
+                "footer": {
+                    "countRows": false,
+                    "fields": "",
+                    "reducer": [
+                        "sum"
+                    ],
+                    "show": false
+                },
+                "showHeader": true,
+                "sortBy": [
+                    {
+                        "desc": true,
+                        "displayName": "Pipeline Status"
+                    }
+                ]
+            },
+            "pluginVersion": "10.4.1",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "aedc1yh2fx8g0d"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "rawSql": "-- WITH base AS (\n--   SELECT \n--     job_id,\n--     data->'tags' AS tags,  -- Keep tags as JSONB\n--     COALESCE(\n--       data->>'pipeline_name',\n--       (\n--         SELECT b2.data->>'pipeline_name'\n--         FROM batch_jobs_logs b2\n--         WHERE b2.job_id = batch_jobs_logs.job_id\n--           AND b2.data->>'pipeline_name' IS NOT NULL\n--         LIMIT 1\n--       )\n--     ) AS pipeline_name_filled,\n--     to_timestamp((data->>'timestamp')::BIGINT) AS ts,\n--     (data->'attributes'->'system_properties'->>'ec2_cost_per_hour')::FLOAT AS cost_per_hour,\n--     (data->'attributes'->'system_metric'->>'system_cpu_utilization')::FLOAT AS cpu_usage,\n--     (data->'attributes'->'system_metric'->>'system_memory_used')::FLOAT AS mem_used,\n--     COALESCE((data->'attributes'->'process_dataset_stats'->>'total')::INT, 0) AS processed_dataset\n--   FROM batch_jobs_logs\n-- ),\n-- run_times AS (\n--   SELECT\n--     job_id,\n--     pipeline_name_filled AS pipeline_name,\n--     tags,\n--     MIN(ts) AS start_time,\n--     MAX(ts) AS end_time,\n--     (EXTRACT(EPOCH FROM (MAX(ts) - MIN(ts))) / 60) AS run_duration_minutes,\n--     MAX(cost_per_hour) AS cost_per_hour\n--   FROM base\n--   GROUP BY job_id, pipeline_name_filled, tags\n-- ),\n-- run_costs AS (\n--   SELECT\n--     job_id,\n--     pipeline_name,\n--     tags,\n--     run_duration_minutes * (cost_per_hour / 60) AS total_cost\n--   FROM run_times\n-- ),\n-- pipeline_costs AS (\n--   SELECT \n--     pipeline_name,\n--     tags,\n--     SUM(total_cost) AS total_cost,\n--     COUNT(DISTINCT job_id) AS run_count\n--   FROM run_costs\n--   GROUP BY pipeline_name, tags\n-- ),\n-- pipeline_times AS (\n--   SELECT\n--     pipeline_name,\n--     tags,\n--     SUM(run_duration_minutes) AS total_run_time_minutes,\n--     AVG(run_duration_minutes) AS avg_run_time_minutes\n--   FROM run_times\n--   GROUP BY pipeline_name, tags\n-- ),\n-- pipeline_metrics AS (\n--   SELECT\n--     pipeline_name_filled AS pipeline_name,\n--     tags,\n--     AVG(cpu_usage) AS avg_cpu_usage,\n--     MAX(cpu_usage) AS max_cpu_usage,\n--     AVG(mem_used) / 1073741824 AS avg_ram_used_gb\n--   FROM base\n--   WHERE pipeline_name_filled IS NOT NULL\n--   GROUP BY pipeline_name_filled, tags\n-- ),\n-- run_datasets AS (\n--   SELECT \n--     job_id,\n--     pipeline_name_filled AS pipeline_name,\n--     tags,\n--     MAX(processed_dataset) AS processed_dataset\n--   FROM base\n--   GROUP BY job_id, pipeline_name_filled, tags\n-- ),\n-- pipeline_datasets AS (\n--   SELECT \n--     pipeline_name,\n--     tags,\n--     SUM(processed_dataset) AS total_processed_datasets\n--   FROM run_datasets\n--   GROUP BY pipeline_name, tags\n-- ),\n-- pipeline_status AS (\n--   SELECT \n--     pipeline_name_filled AS pipeline_name,\n--     tags,\n--     MAX(ts) AS last_activity_timestamp\n--   FROM base\n--   GROUP BY pipeline_name_filled, tags\n-- )\n-- SELECT\n--   pm.pipeline_name                  AS \"Pipeline Name\",\n--   pm.tags                            AS \"Tags\",\n--   CASE \n--     WHEN ps.last_activity_timestamp >= NOW() - INTERVAL '30 seconds' THEN 'Running'\n--     ELSE 'Not Running'\n--   END                               AS \"Pipeline Status\",\n--   pm.avg_cpu_usage                  AS \"Avg CPU Usage\",\n--   pm.max_cpu_usage                  AS \"Max CPU Usage\",\n--   pm.avg_ram_used_gb                AS \"Avg RAM Used (GB)\",\n--   COALESCE(pc.total_cost, 0)        AS \"Total Pipeline Cost\",\n--   COALESCE(pc.run_count, 0)         AS \"Number of Runs per Pipeline\",\n--   CASE \n--     WHEN COALESCE(pc.run_count, 0) > 0 THEN COALESCE(pc.total_cost, 0) / pc.run_count \n--     ELSE 0 \n--   END                               AS \"Avg Cost per Run\",\n--   COALESCE(pt.total_run_time_minutes, 0) AS \"Total Pipeline Runtime\",\n--   COALESCE(pt.avg_run_time_minutes, 0)   AS \"Single Run Runtime\",\n--   COALESCE(pd.total_processed_datasets, 0) AS \"Total Processed Datasets\",\n--   CASE \n--     WHEN COALESCE(pd.total_processed_datasets, 0) > 0 \n--     THEN COALESCE(pc.total_cost, 0) / pd.total_processed_datasets \n--     ELSE 0 \n--   END                               AS \"Cost per Processed Dataset\"\n-- FROM pipeline_metrics pm\n-- LEFT JOIN pipeline_costs pc\n--   ON pm.pipeline_name = pc.pipeline_name AND pm.tags = pc.tags\n-- LEFT JOIN pipeline_times pt\n--   ON pm.pipeline_name = pt.pipeline_name AND pm.tags = pt.tags\n-- LEFT JOIN pipeline_datasets pd\n--   ON pm.pipeline_name = pd.pipeline_name AND pm.tags = pd.tags\n-- LEFT JOIN pipeline_status ps\n--   ON pm.pipeline_name = ps.pipeline_name AND pm.tags = ps.tags\n-- ORDER BY pm.avg_cpu_usage DESC;\n\n\n\n\nWITH base AS (\n  SELECT \n    job_id,\n    data->'tags' AS tags,  -- Keep tags as JSONB\n    COALESCE(\n      data->>'pipeline_name',\n      (\n        SELECT b2.data->>'pipeline_name'\n        FROM batch_jobs_logs b2\n        WHERE b2.job_id = batch_jobs_logs.job_id\n          AND b2.data->>'pipeline_name' IS NOT NULL\n        LIMIT 1\n      )\n    ) AS pipeline_name_filled,\n    to_timestamp((data->>'timestamp')::BIGINT) AS ts,\n    (data->'attributes'->'system_properties'->>'ec2_cost_per_hour')::FLOAT AS cost_per_hour,\n    (data->'attributes'->'system_metric'->>'system_cpu_utilization')::FLOAT AS cpu_usage,\n    (data->'attributes'->'system_metric'->>'system_memory_used')::FLOAT AS mem_used,\n    COALESCE((data->'attributes'->'process_dataset_stats'->>'total')::INT, 0) AS processed_dataset\n  FROM batch_jobs_logs\n),\nrun_times AS (\n  SELECT\n    job_id,\n    pipeline_name_filled AS pipeline_name,\n    tags,\n    MIN(ts) AS start_time,\n    MAX(ts) AS end_time,\n    (EXTRACT(EPOCH FROM (MAX(ts) - MIN(ts))) / 3600) AS run_duration_hours,  -- Changed to hours for consistency\n    MAX(cost_per_hour) AS cost_per_hour\n  FROM base\n  GROUP BY job_id, pipeline_name_filled, tags\n),\nrun_costs AS (\n  SELECT\n    job_id,\n    pipeline_name,\n    tags,\n    run_duration_hours * cost_per_hour AS total_cost  -- Corrected cost calculation\n  FROM run_times\n),\npipeline_costs AS (\n  SELECT \n    pipeline_name,\n    tags,\n    SUM(total_cost) AS total_cost,\n    COUNT(DISTINCT job_id) AS run_count\n  FROM run_costs\n  GROUP BY pipeline_name, tags\n),\npipeline_times AS (\n  SELECT\n    pipeline_name,\n    tags,\n    SUM(run_duration_hours * 60) AS total_run_time_minutes,  -- Convert back to minutes for display\n    AVG(run_duration_hours * 60) AS avg_run_time_minutes     -- Convert back to minutes for display\n  FROM run_times\n  GROUP BY pipeline_name, tags\n),\npipeline_metrics AS (\n  SELECT\n    pipeline_name_filled AS pipeline_name,\n    tags,\n    AVG(cpu_usage) AS avg_cpu_usage,\n    MAX(cpu_usage) AS max_cpu_usage,\n    AVG(mem_used) / 1073741824 AS avg_ram_used_gb\n  FROM base\n  WHERE pipeline_name_filled IS NOT NULL\n  GROUP BY pipeline_name_filled, tags\n),\nrun_datasets AS (\n  SELECT \n    job_id,\n    pipeline_name_filled AS pipeline_name,\n    tags,\n    MAX(processed_dataset) AS processed_dataset\n  FROM base\n  GROUP BY job_id, pipeline_name_filled, tags\n),\npipeline_datasets AS (\n  SELECT \n    pipeline_name,\n    tags,\n    SUM(processed_dataset) AS total_processed_datasets\n  FROM run_datasets\n  GROUP BY pipeline_name, tags\n),\npipeline_status AS (\n  SELECT \n    pipeline_name_filled AS pipeline_name,\n    tags,\n    MAX(ts) AS last_activity_timestamp\n  FROM base\n  GROUP BY pipeline_name_filled, tags\n),\ntag_expansion AS (\n  SELECT \n    pipeline_name, \n    tags,\n    jsonb_array_elements_text(tags) AS tag\n  FROM pipeline_metrics\n),\ntag_aggregated AS (\n  SELECT \n    pipeline_name, \n    tags,\n    STRING_AGG(tag, ', ') AS tags_str\n  FROM tag_expansion\n  GROUP BY pipeline_name, tags\n)\nSELECT\n  COALESCE(NULLIF(pm.pipeline_name, ''), 'pipeline_name_not_available') AS \"Pipeline Name\",\n  COALESCE(ta.tags_str, '')          AS \"Tags\",\n  CASE \n    WHEN ps.last_activity_timestamp >= NOW() - INTERVAL '30 seconds' THEN 'Running'\n    ELSE 'Completed'\n  END                               AS \"Pipeline Status\",\n  pm.avg_cpu_usage                  AS \"Avg CPU Usage\",\n  pm.max_cpu_usage                  AS \"Max CPU Usage\",\n  pm.avg_ram_used_gb                AS \"Avg RAM Used (GB)\",\n  COALESCE(pc.total_cost, 0)        AS \"Total Pipeline Cost\",\n  COALESCE(pc.run_count, 0)         AS \"Number of Runs per Pipeline\",\n  CASE \n    WHEN COALESCE(pc.run_count, 0) > 0 THEN COALESCE(pc.total_cost, 0) / pc.run_count \n    ELSE 0 \n  END                               AS \"Avg Cost per Run\",\n  COALESCE(pt.total_run_time_minutes, 0) AS \"Total Pipeline Runtime\",\n  COALESCE(pt.avg_run_time_minutes, 0)   AS \"Single Run Runtime\",\n  COALESCE(pd.total_processed_datasets, 0) AS \"Total Processed Datasets\",\n  CASE \n    WHEN COALESCE(pd.total_processed_datasets, 0) > 0 \n    THEN COALESCE(pc.total_cost, 0) / pd.total_processed_datasets \n    ELSE 0 \n  END                               AS \"Cost per Processed Dataset\"\nFROM pipeline_metrics pm\nLEFT JOIN tag_aggregated ta\n  ON pm.pipeline_name = ta.pipeline_name AND pm.tags = ta.tags\nLEFT JOIN pipeline_costs pc\n  ON pm.pipeline_name = pc.pipeline_name AND pm.tags = pc.tags\nLEFT JOIN pipeline_times pt\n  ON pm.pipeline_name = pt.pipeline_name AND pm.tags = pt.tags\nLEFT JOIN pipeline_datasets pd\n  ON pm.pipeline_name = pd.pipeline_name AND pm.tags = pd.tags\nLEFT JOIN pipeline_status ps\n  ON pm.pipeline_name = ps.pipeline_name AND pm.tags = ps.tags\nORDER BY ps.last_activity_timestamp DESC, COALESCE(pc.run_count, 0) DESC;",
+                    "refId": "A",
+                    "sql": {
+                        "columns": [
+                            {
+                                "parameters": [],
+                                "type": "function"
+                            }
+                        ],
+                        "groupBy": [
+                            {
+                                "property": {
+                                    "type": "string"
+                                },
+                                "type": "groupBy"
+                            }
+                        ],
+                        "limit": 50
+                    },
+                    "table": "batch_jobs_logs"
+                }
+            ],
+            "title": " PIPELINES OVERVIEW Cost Attribution",
+            "type": "table"
+        }
+    ],
+    "refresh": "5s",
+    "schemaVersion": 39,
+    "tags": [],
+    "templating": {
+        "list": []
+    },
+    "time": {
+        "from": "now-5m",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "browser",
+    "title": "Pipelines Preview",
+    "uid": "cedcrqk4j2yv4c",
+    "version": 36,
+    "weekStart": ""
+}
