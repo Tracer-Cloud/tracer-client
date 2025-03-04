@@ -5,6 +5,9 @@ use sqlx::pool::PoolOptions;
 use sqlx::types::Json;
 use sqlx::PgPool;
 
+use crate::cloud_providers::aws::SecretsClient;
+use crate::config_manager::Config;
+use crate::types::aws::secrets::DatabaseAuth;
 use crate::types::event::Event;
 
 pub struct AuroraClient {
@@ -12,13 +15,23 @@ pub struct AuroraClient {
 }
 
 impl AuroraClient {
-    pub async fn new(url: &str, pool_size: Option<u32>) -> Self {
-        // Hardcoded database connection string (to change)
+    pub async fn new(config: &Config, pool_size: Option<u32>) -> Self {
+        let secrets_client = SecretsClient::new().await;
+
+        let db_secrets: DatabaseAuth = secrets_client
+            .get_secrets("secret_arn")
+            .await
+            .expect("Failed to get secrets");
+
+        let url = format!(
+            "postgres://{}:{}@{}/{}",
+            db_secrets.username, db_secrets.password, config.database_host, config.database_name
+        );
 
         // Use PgPoolOptions to set max_size
         let pool = PoolOptions::new()
             .max_connections(pool_size.unwrap_or(100))
-            .connect(url)
+            .connect(&url)
             .await
             .expect("Failed establish connection");
 
