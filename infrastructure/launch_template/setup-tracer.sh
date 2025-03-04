@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # Accept role ARN and API key from terraform
-
 echo "Setting up Tracer"
 # Create the directory for the config file
 mkdir -p /home/ubuntu/.config/tracer/
@@ -22,6 +21,13 @@ db_url = "postgres://postgres:tracer-test@tracer-database.cdgizpzxtdp6.us-east-1
 EOL
 
 echo "Configuration file created at /home/ubuntu/.config/tracer/tracer.toml"
+
+# Install the binary
+echo "Updating Tracer binary..."
+sudo rm /usr/local/bin/tracer
+su - ubuntu -c "source /home/ubuntu/.cargo/env && cd /home/ubuntu/tracer-client && git pull origin main && cargo build --release"
+sudo cp /home/ubuntu/tracer-client/target/release/tracer /usr/local/bin/
+echo "Tracer binary updated successfully"
 
 source ~/.bashrc
 

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+LOG_FILE="/home/ubuntu/one_click.txt"
+exec > >(tee -a "$LOG_FILE") 2>&1  # Log both stdout & stderr
+
 # Accept role ARN and API key from terraform
 #FIXME: launch template should update tracer for the current main because image ami could be months old
 echo "Setting up Tracer"
@@ -29,6 +32,7 @@ source ~/.bashrc
 
 # Build the Tracer binary
 echo "Updating Tracer..."
+# TODO: remove checking out to feature branch, pull from main
 su - ubuntu -c "source /home/ubuntu/.cargo/env && cd /home/ubuntu/tracer-client && git fetch && git checkout -f ENG-92/one-click-deploy && cargo build --release"
 
 # Install the binary
