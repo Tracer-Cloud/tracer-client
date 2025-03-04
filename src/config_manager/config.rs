@@ -145,9 +145,10 @@ impl ConfigManager {
             ),
             aws_region: "us-east-2".into(),
 
-            database_secrets_arn: "invalid".into(),
-            database_name: "postgres".into(),
-            database_host: "tracer-database.cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432".into(),
+            database_secrets_arn: "arn:aws:secretsmanager:us-east-1:395261708130:secret:rds!cluster-cd690a09-953c-42e9-9d9f-1ed0b434d226-M0wZYA".into(),
+            database_name: "tracer_db".into(),
+            database_host:
+                "tracer-cluster-v2-instance-1.cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432".into(),
         }
     }
 

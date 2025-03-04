@@ -9,6 +9,7 @@ use crate::cloud_providers::aws::SecretsClient;
 use crate::config_manager::Config;
 use crate::types::aws::secrets::DatabaseAuth;
 use crate::types::event::Event;
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 
 pub struct AuroraClient {
     pool: PgPool,
@@ -23,10 +24,17 @@ impl AuroraClient {
             .await
             .expect("Failed to get secrets");
 
+        println!("{db_secrets:?}");
+
+        let encoded_password =
+            utf8_percent_encode(&db_secrets.password, NON_ALPHANUMERIC).to_string();
+
         let url = format!(
             "postgres://{}:{}@{}/{}",
-            db_secrets.username, db_secrets.password, config.database_host, config.database_name
+            db_secrets.username, encoded_password, config.database_host, config.database_name
         );
+
+        println!("{}", url);
 
         // Use PgPoolOptions to set max_size
         let pool = PoolOptions::new()
