@@ -19,7 +19,7 @@ impl AuroraClient {
         let secrets_client = SecretsClient::new(config.aws_init_type.clone()).await;
 
         let db_secrets: DatabaseAuth = secrets_client
-            .get_secrets("secret_arn")
+            .get_secrets(&config.database_secrets_arn)
             .await
             .expect("Failed to get secrets");
 
