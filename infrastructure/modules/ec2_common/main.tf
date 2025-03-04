@@ -124,7 +124,7 @@ resource "aws_iam_role_policy" "ec2_instance_connect_policy" {
 }
 
 resource "aws_iam_instance_profile" "ec2_instance_connect_profile" {
-  name = "EC2InstanceConnectProfile"
+  name = "EC2InstanceConnectProfile-${var.name_suffix}"
   role = aws_iam_role.ec2_instance_connect.name
 }
 

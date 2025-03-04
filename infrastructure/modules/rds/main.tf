@@ -1,11 +1,8 @@
-provider "aws" {
-  region  = var.region
-  profile = "default"
-}
+
 
 
 resource "aws_security_group" "db_sg" {
-  name        = "rds_sg"
+  name        = "rds_sg-${random_string.suffix.result}"
   description = "Security group for RDS access"
   vpc_id      = var.vpc_id
 
@@ -42,17 +39,16 @@ resource "random_string" "suffix" {
 
 
 resource "aws_db_instance" "rds" {
-  identifier                          = "tracer-rds-${random_string.suffix.result}"
-  engine                              = "postgres"
-  instance_class                      = var.db_instance_class
-  allocated_storage                   = 10
-  max_allocated_storage               = 100
-  username                            = var.db_username
-  manage_master_user_password         = true
-  vpc_security_group_ids              = [aws_security_group.db_sg.id]
-  skip_final_snapshot                 = true
-  db_name                             = var.db_name
-  iam_database_authentication_enabled = true
+  identifier                  = "tracer-rds-${random_string.suffix.result}"
+  engine                      = "postgres"
+  instance_class              = var.db_instance_class
+  allocated_storage           = 10
+  max_allocated_storage       = 100
+  username                    = var.db_username
+  manage_master_user_password = true
+  vpc_security_group_ids      = [aws_security_group.db_sg.id]
+  skip_final_snapshot         = true
+  db_name                     = var.db_name
 
   # ✅ Attach the subnet group here
   db_subnet_group_name = aws_db_subnet_group.rds_subnet_group.name

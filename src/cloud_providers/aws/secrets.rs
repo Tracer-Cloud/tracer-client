@@ -7,9 +7,9 @@ pub struct SecretsClient {
 }
 
 impl SecretsClient {
-    pub async fn new() -> Self {
+    pub async fn new(initialization_conf: crate::types::config::AwsConfig) -> Self {
         let region = "us-east-1";
-        let config = get_initialized_aws_conf(crate::types::config::AwsConfig::Env, region).await;
+        let config = get_initialized_aws_conf(initialization_conf, region).await;
 
         Self {
             client: Client::new(&config),

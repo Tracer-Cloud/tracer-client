@@ -16,7 +16,7 @@ pub struct AuroraClient {
 
 impl AuroraClient {
     pub async fn new(config: &Config, pool_size: Option<u32>) -> Self {
-        let secrets_client = SecretsClient::new().await;
+        let secrets_client = SecretsClient::new(config.aws_init_type.clone()).await;
 
         let db_secrets: DatabaseAuth = secrets_client
             .get_secrets("secret_arn")
