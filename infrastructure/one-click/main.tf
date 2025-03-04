@@ -14,16 +14,30 @@ terraform {
   }
 }
 
-module "vpc" {
-  source = "../modules/vpc"
-}
-
-# provider "aws" {
-#   region = var.region # Change as needed
-# }
 
 data "aws_vpc" "default" {
   default = true
+}
+
+# Fetch subnets of the default AWS VPC
+data "aws_subnets" "default_vpc_subnets" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
+}
+# Fetch subnet details (includes Availability Zones)
+data "aws_subnet" "default_subnet_details" {
+  for_each = toset(data.aws_subnets.default_vpc_subnets.ids)
+  id       = each.value
+}
+
+# Filter subnets that are in supported AWS Grafana AZs
+locals {
+  supported_azs = ["us-east-1a", "us-east-1b", "us-east-1c"] # Update based on AWS docs for your region
+  grafana_subnets = [for s in data.aws_subnet.default_subnet_details :
+    s.id if contains(local.supported_azs, s.availability_zone)
+  ]
 }
 
 data "aws_caller_identity" "current" {}
@@ -45,17 +59,16 @@ resource "random_string" "suffix" {
 module "grafana_workspace" {
   source             = "../modules/grafana"
   region             = var.region
-  subnet_ids         = module.vpc.public_subnet_ids
+  subnet_ids         = local.grafana_subnets
   grafana_api_key    = aws_grafana_workspace_api_key.grafana_api_key.key
   security_group_ids = [aws_security_group.allow_access.id]
 }
 
-
-# # # # Security Group for Grafana Access to RDS
+# Security Group for Grafana
 resource "aws_security_group" "allow_access" {
   name        = "allow_access-${random_string.suffix.result}"
   description = "Allow Grafana to connect to RDS"
-  vpc_id      = module.vpc.vpc_id
+  vpc_id      = data.aws_vpc.default.id # Updated to default VPC
 
   ingress {
     from_port   = 443
@@ -74,12 +87,12 @@ resource "aws_security_group" "allow_access" {
 
 module "rds" {
   source             = "../modules/rds"
-  vpc_id             = module.vpc.vpc_id
+  vpc_id             = data.aws_vpc.default.id # Use default VPC
   db_instance_class  = "db.t3.micro"
   db_name            = "tracer_db"
   region             = var.region
-  subnet_ids         = module.vpc.private_subnet_ids
-  security_group_ids = [aws_security_group.allow_access.id]
+  subnet_ids         = data.aws_subnets.default_vpc_subnets.ids # Use default subnets
+  security_group_ids = [aws_security_group.allow_access.id, module.ec2_common.security_group_id]
 }
 
 
@@ -92,7 +105,6 @@ resource "aws_grafana_workspace_api_key" "grafana_api_key" {
   seconds_to_live = 2592000 # 30 days (adjust as needed) #9600
   workspace_id    = module.grafana_workspace.workspace_id
 }
-
 
 
 # IAM Role for Grafana Authentication
@@ -186,7 +198,7 @@ resource "grafana_data_source" "postgres" {
 module "ec2_common" {
   source      = "../modules/ec2_common"
   name_suffix = random_string.suffix.result
-  vpc_id      = data.aws_vpc.default.id
+  vpc_id      = data.aws_vpc.default.id # Use default VPC
 }
 
 resource "aws_instance" "rust_server" {
@@ -196,6 +208,7 @@ resource "aws_instance" "rust_server" {
   key_name               = var.perm_key
   iam_instance_profile   = module.ec2_common.iam_instance_profile_name
   vpc_security_group_ids = [module.ec2_common.security_group_id]
+  subnet_id              = data.aws_subnets.default_vpc_subnets.ids[0] # Pick first available subnet
 
   metadata_options {
     http_tokens                 = "optional"

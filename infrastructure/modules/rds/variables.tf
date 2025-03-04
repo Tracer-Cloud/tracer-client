@@ -20,7 +20,7 @@ variable "db_name" {
 variable "security_group_ids" {
   description = "List of security group IDs that should be allowed to access the database"
   type        = list(string)
-  default     = [] # Empty list by default
+  # default     = [] # Empty list by default
 }
 
 variable "vpc_id" {

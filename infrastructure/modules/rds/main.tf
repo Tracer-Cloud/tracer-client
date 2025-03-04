@@ -25,6 +25,22 @@ resource "aws_security_group" "db_sg" {
       security_groups = [ingress.value]
     }
   }
+
+  # # Allow EC2 security group to access RDS
+  # ingress {
+  #   from_port       = 5432
+  #   to_port         = 5432
+  #   protocol        = "tcp"
+  #   security_groups = var.security_group_ids # Allow EC2 security group
+  # }
+
+  # Allow outbound traffic
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
 
 

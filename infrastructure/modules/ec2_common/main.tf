@@ -6,6 +6,7 @@ resource "aws_security_group" "tracer_rust_server_sg" {
   description = "Allow SSH and outbound traffic"
   vpc_id      = var.vpc_id
 
+
   ingress {
     from_port       = 22
     to_port         = 22
@@ -15,6 +16,15 @@ resource "aws_security_group" "tracer_rust_server_sg" {
 
   }
 
+  # Allow PostgreSQL (RDS)
+  ingress {
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # Change to allow specific IPs or security groups in production
+  }
+
+  # Allow all outbound traffic
   egress {
     from_port   = 0
     to_port     = 0
@@ -70,26 +80,6 @@ resource "aws_iam_policy" "ec2_general_access" {
       {
         Effect   = "Allow"
         Action   = ["s3:*"]
-        Resource = "*"
-      },
-      {
-        Effect   = "Allow"
-        Action   = ["pricing:*"]
-        Resource = "*"
-      },
-      {
-        Effect   = "Allow"
-        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
-        Resource = "*"
-      },
-      {
-        Effect   = "Allow"
-        Action   = ["secretsmanager:GetSecretValue", "secretsmanager:ListSecrets"]
-        Resource = "*"
-      },
-      {
-        Effect   = "Allow"
-        Action   = ["ssm:GetParameter", "ssm:DescribeInstanceInformation", "ssm:StartSession"]
         Resource = "*"
       },
       {
@@ -163,9 +153,24 @@ resource "aws_iam_role_policy" "s3_full_access" {
       },
       {
         Effect   = "Allow"
-        Action   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
-        Resource = "**arn:aws:secretsmanager:*:*:secret:rds-*"
-      }
+        Action   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret", "secretsmanager:ListSecrets"]
+        Resource = "**arn:aws:secretsmanager:*:*:secret:rds*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["pricing:GetProducts"]
+        Resource = "*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["ssm:GetParameter", "ssm:DescribeInstanceInformation", "ssm:StartSession"]
+        Resource = "*"
+      },
     ]
   })
 }
