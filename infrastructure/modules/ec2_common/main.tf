@@ -7,10 +7,12 @@ resource "aws_security_group" "tracer_rust_server_sg" {
   vpc_id      = var.vpc_id
 
   ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # Restrict in production
+    from_port       = 22
+    to_port         = 22
+    protocol        = "tcp"
+    cidr_blocks     = ["0.0.0.0/0"] # Restrict in production
+    security_groups = var.security_group_ids
+
   }
 
   egress {
@@ -153,11 +155,18 @@ resource "aws_iam_role_policy" "s3_full_access" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = ["s3:*", "s3-object-lambda:*"]
-      Resource = "*"
-    }]
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["s3:*", "s3-object-lambda:*"]
+        Resource = "*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
+        Resource = "**arn:aws:secretsmanager:*:*:secret:rds-*"
+      }
+    ]
   })
 }
 

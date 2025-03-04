@@ -11,10 +11,6 @@ terraform {
   }
 }
 
-provider "aws" {
-  region = var.region
-}
-
 
 
 # Random suffix for unique naming
