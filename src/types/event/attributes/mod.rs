@@ -1,6 +1,7 @@
 use process::{CompletedProcess, DataSetsProcessed, ProcessProperties};
 use syslog::SyslogProperties;
 use system_metrics::{SystemMetric, SystemProperties};
+use crate::types::event::attributes::system_metrics::NextflowLog;
 
 pub mod process;
 pub mod syslog;
@@ -15,6 +16,7 @@ pub enum EventAttributes {
     Syslog(SyslogProperties),
     SystemProperties(SystemProperties),
     ProcessDatasetStats(DataSetsProcessed),
+    NextflowLog(NextflowLog),
     // TODO: take out when done with demo
     Other(serde_json::Value),
 }

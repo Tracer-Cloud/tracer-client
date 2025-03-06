@@ -25,6 +25,7 @@ pub enum EventType {
     Alert,
     DataSamplesEvent,
     TestEvent, // Added TestEvent variant
+    NextflowLogEvent,
 }
 
 impl EventType {
@@ -41,6 +42,7 @@ impl EventType {
             EventType::RunStatusMessage => "run_status_message",
             EventType::Alert => "alert",
             EventType::DataSamplesEvent => "datasets_in_process",
+            EventType::NextflowLogEvent => "nextflow_log_event",
         }
     }
 }
