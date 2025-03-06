@@ -5,8 +5,16 @@
 ![Tracer Banner](docs/images/tracer-banner-image.jpeg)
 
 ## 🚀 Quickstart Installation
+Get started with Tracer in just a few steps.
+### 1️⃣ Install Tracer  
+Run the following command to install Tracer on your Linux system:
 ```bash
-curl -s https://install.tracer.cloud | sudo bash
+curl -sSL https://install.tracer.cloud/installation-script.sh | bash && source ~/.bashrc
+ ```
+### 2️⃣ Initialize a Pipeline
+Set up your pipeline by specifying a name:
+```bash
+tracer init --pipeline-name <PROVIDE_PIPELINE_NAME_HERE>
  ```
 
 ## How to Test Tracer:
