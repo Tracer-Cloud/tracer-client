@@ -14,7 +14,7 @@ curl -sSL https://install.tracer.cloud/installation-script.sh | bash && source ~
 ### 2️⃣ Initialize a Pipeline
 Set up your pipeline by specifying a name:
 ```bash
-tracer init --pipeline-name <PROVIDE_PIPELINE_NAME_HERE>
+tracer init --pipeline-name <YOUR_PIPELINE_NAME>
  ```
 
 ## How to Test Tracer:
