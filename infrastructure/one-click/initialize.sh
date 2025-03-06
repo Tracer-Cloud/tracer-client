@@ -33,7 +33,7 @@ source ~/.bashrc
 # Build the Tracer binary
 echo "Updating Tracer..."
 # TODO: remove checking out to feature branch, pull from main
-su - ubuntu -c "source /home/ubuntu/.cargo/env && cd /home/ubuntu/tracer-client && git fetch && git checkout -f ENG-92/one-click-deploy && cargo build --release"
+su - ubuntu -c "source /home/ubuntu/.cargo/env && cd /home/ubuntu/tracer-client && git pull origin main && cargo build --release"
 
 # Install the binary
 echo "Updating Tracer binary..."
