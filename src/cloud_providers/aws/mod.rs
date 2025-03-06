@@ -1,9 +1,12 @@
 mod pricing;
 mod s3;
+mod secrets;
+
 use aws_config::{BehaviorVersion, SdkConfig};
 use aws_credential_types::provider::ProvideCredentials;
 pub use pricing::PricingClient;
 pub use s3::S3Client;
+pub use secrets::SecretsClient;
 
 #[cfg(test)]
 pub use s3::tests::setup_env_vars;

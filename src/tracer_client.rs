@@ -484,7 +484,7 @@ mod tests {
         let work_dir = temp_dir.path().to_str().unwrap();
 
         // Create an instance of AuroraClient
-        let db_client = Arc::new(AuroraClient::new(&config.db_url, Some(1)).await);
+        let db_client = Arc::new(AuroraClient::new(&config, Some(1)).await);
 
         let cli_config = TracerCliInitArgs::default();
 
@@ -539,7 +539,7 @@ mod tests {
         let job_id = "job-1234";
 
         // Create an instance of AuroraClient
-        let db_client = Arc::new(AuroraClient::new(&config.db_url, Some(1)).await);
+        let db_client = Arc::new(AuroraClient::new(&config, Some(1)).await);
 
         let tags = vec!["Hello".to_string(), "Test".to_string()];
 
