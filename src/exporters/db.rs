@@ -90,7 +90,6 @@ impl AuroraClient {
 
         info!("Inserting row with job_id: {}", job_id);
 
-
         let mut transaction = self
             .get_pool()
             .begin()
@@ -101,7 +100,11 @@ impl AuroraClient {
 
         for event in data {
             let json_data = Json(serde_json::to_value(event)?); // Convert the event to JSON
-            println!("Inserting row with job_id: {}, data: {:#?}", job_id, json_data.to_string());
+            println!(
+                "Inserting row with job_id: {}, data: {:#?}",
+                job_id,
+                json_data.to_string()
+            );
             rows_affected += sqlx::query(query)
                 .bind(json_data)
                 .bind(job_id)

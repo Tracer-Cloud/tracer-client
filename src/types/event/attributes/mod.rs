@@ -1,7 +1,7 @@
+use crate::types::event::attributes::system_metrics::NextflowLog;
 use process::{CompletedProcess, DataSetsProcessed, ProcessProperties};
 use syslog::SyslogProperties;
 use system_metrics::{SystemMetric, SystemProperties};
-use crate::types::event::attributes::system_metrics::NextflowLog;
 
 pub mod process;
 pub mod syslog;

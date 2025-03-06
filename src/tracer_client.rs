@@ -162,14 +162,16 @@ impl TracerClient {
     }
 
     pub async fn submit_batched_data(&mut self) -> Result<()> {
-
         let run_name = if let Some(run) = &self.current_run {
             &run.name
         } else {
             "anonymous"
         };
 
-        println!("Submitting batched data for pipeline {} and run_name {}", self.pipeline_name, run_name);
+        println!(
+            "Submitting batched data for pipeline {} and run_name {}",
+            self.pipeline_name, run_name
+        );
 
         if self.last_sent.is_none() || Instant::now() - self.last_sent.unwrap() >= self.interval {
             self.metrics_collector
@@ -466,7 +468,9 @@ impl TracerClient {
     }
 
     pub async fn poll_nextflow_log(&mut self) -> Result<()> {
-        self.nextflow_log_watcher.poll_nextflow_log(&mut self.logs, &self.workflow_directory).await
+        self.nextflow_log_watcher
+            .poll_nextflow_log(&mut self.logs, &self.workflow_directory)
+            .await
     }
 }
 

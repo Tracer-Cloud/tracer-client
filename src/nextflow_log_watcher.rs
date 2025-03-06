@@ -1,15 +1,15 @@
+use crate::events::recorder::{EventRecorder, EventType};
+use crate::types::event::attributes::EventAttributes;
+use anyhow::{Context, Result};
+use chrono::Utc;
+use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use std::collections::HashMap;
 use tokio::time::sleep;
-use anyhow::{Context, Result};
-use chrono::Utc;
-use crate::events::recorder::{EventRecorder, EventType};
-use crate::types::event::attributes::EventAttributes;
+use tracing::{debug, error, info, warn};
 use walkdir::WalkDir;
-use tracing::{info, warn, error, debug};
 
 pub struct NextflowLogWatcher {
     last_position: u64,
@@ -53,12 +53,13 @@ impl NextflowLogWatcher {
                             // and could cause performance issues
                             let path = entry.path();
                             let path_str = path.to_string_lossy();
-                            if path_str.contains("/proc") ||
-                               path_str.contains("/sys") ||
-                               path_str.contains("/dev") ||
-                               path_str.contains("/.git") ||
-                               path_str.contains("/node_modules") ||
-                               path_str.contains("/target") {
+                            if path_str.contains("/proc")
+                                || path_str.contains("/sys")
+                                || path_str.contains("/dev")
+                                || path_str.contains("/.git")
+                                || path_str.contains("/node_modules")
+                                || path_str.contains("/target")
+                            {
                                 dirs_skipped += 1;
                                 return None;
                             }
@@ -73,9 +74,15 @@ impl NextflowLogWatcher {
                 })
             {
                 let path = entry.path();
-                if path.file_name().map_or(false, |name| name == ".nextflow.log") {
+                if path
+                    .file_name()
+                    .map_or(false, |name| name == ".nextflow.log")
+                {
                     info!("Found .nextflow.log at: {:?}", path);
-                    debug!("Search stats: checked {} files, skipped {} directories", files_checked, dirs_skipped);
+                    debug!(
+                        "Search stats: checked {} files, skipped {} directories",
+                        files_checked, dirs_skipped
+                    );
                     self.log_path = Some(path.to_path_buf());
                     self.last_check = std::time::Instant::now();
                     return Ok(self.log_path.clone());
@@ -83,7 +90,10 @@ impl NextflowLogWatcher {
             }
 
             self.last_check = std::time::Instant::now();
-            warn!("No .nextflow.log found after checking {} files and skipping {} directories", files_checked, dirs_skipped);
+            warn!(
+                "No .nextflow.log found after checking {} files and skipping {} directories",
+                files_checked, dirs_skipped
+            );
         } else {
             debug!("Using cached log path: {:?}", self.log_path);
         }
@@ -92,9 +102,13 @@ impl NextflowLogWatcher {
     }
 
     // Process new lines in the log file and look for keywords
-    pub async fn poll_nextflow_log(&mut self, logs: &mut EventRecorder, workflow_directory: &str) -> Result<()> {
+    pub async fn poll_nextflow_log(
+        &mut self,
+        logs: &mut EventRecorder,
+        workflow_directory: &str,
+    ) -> Result<()> {
         debug!("Starting nextflow log polling");
-        
+
         // First ensure we have a path to the log file
         let log_path = match self.find_nextflow_log(workflow_directory)? {
             Some(path) => path,
@@ -119,20 +133,21 @@ impl NextflowLogWatcher {
 
         // Seek to the last position we read
         if let Err(e) = reader.seek(SeekFrom::Start(self.last_position)) {
-            error!("Error seeking to position {} in log file: {}", self.last_position, e);
+            error!(
+                "Error seeking to position {} in log file: {}",
+                self.last_position, e
+            );
             return Ok(());
         }
 
         let mut new_position = self.last_position;
         let mut line = String::new();
         let mut lines_processed = 0;
-        let mut events_found = 0;
 
         // Read new lines and process them
         while reader.read_line(&mut line)? > 0 {
             lines_processed += 1;
-            debug!("Processing line {}: {}", lines_processed, line.trim());
-            
+
             // Check for Session UUID
             if line.contains("Session UUID:") {
                 if let Some(uuid) = extract_session_uuid(&line) {
@@ -160,7 +175,10 @@ impl NextflowLogWatcher {
 
         // Update the last position
         self.last_position = new_position;
-        info!("Finished polling nextflow log. Processed {} lines.", lines_processed);
+        info!(
+            "Finished polling nextflow log. Processed {} lines.",
+            lines_processed
+        );
         info!("Current Nextflow Sessions and Jobs:");
         for (session, jobs) in &self.session_jobs {
             info!("Session UUID: {}", session);

@@ -8,17 +8,21 @@ pub mod events;
 pub mod exporters;
 pub mod extracts;
 
+mod nextflow_log_watcher;
 pub mod tracer_client;
 pub mod types;
 pub mod utils;
-mod nextflow_log_watcher;
 
 use anyhow::{Context, Ok, Result};
 use daemonize::Daemonize;
 use exporters::db::AuroraClient;
-use types::cli::TracerCliInitArgs;
-use tracing_subscriber::{fmt::{self, time::SystemTime}, EnvFilter, prelude::*};
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
+use tracing_subscriber::{
+    fmt::{self, time::SystemTime},
+    prelude::*,
+    EnvFilter,
+};
+use types::cli::TracerCliInitArgs;
 
 use std::fs::File;
 use std::sync::Arc;
@@ -84,20 +88,15 @@ pub async fn run(
 
     println!("Pipeline Name: {:?}", client.get_pipeline_name());
 
-
     client.run().await
 }
 
 fn setup_logging() -> Result<()> {
     // Set up the filter
-    let filter = EnvFilter::from("debug");  // Capture all levels from debug up
+    let filter = EnvFilter::from("debug"); // Capture all levels from debug up
 
     // Create a file appender that writes to daemon.log
-    let file_appender = RollingFileAppender::new(
-        Rotation::NEVER,
-        "/tmp",
-        "daemon.log",
-    );
+    let file_appender = RollingFileAppender::new(Rotation::NEVER, "/tmp", "daemon.log");
 
     // Create a custom format for the logs
     let file_layer = fmt::layer()
@@ -111,9 +110,7 @@ fn setup_logging() -> Result<()> {
         .with_writer(file_appender);
 
     // Set up the subscriber with our custom layer
-    let subscriber = tracing_subscriber::registry()
-        .with(filter)
-        .with(file_layer);
+    let subscriber = tracing_subscriber::registry().with(filter).with(file_layer);
 
     // Set the subscriber as the default
     tracing::subscriber::set_global_default(subscriber)
