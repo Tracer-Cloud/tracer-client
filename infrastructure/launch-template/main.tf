@@ -30,10 +30,10 @@ module "ec2_common" {
 # ---------------------------
 # EC2 Launch Template
 # ---------------------------
-resource "aws_launch_template" "tracer_demo" {
-  name_prefix   = "tracer-demo"
+resource "aws_launch_template" "tracer_launch_template" {
+  name_prefix   = "tracer-launch-template"
   image_id      = "ami-08963412c7663a4b8"
-  instance_type = "c6g.large"
+  instance_type = "c6g.large" #"c5d.large"         
 
   key_name = var.perm_key
 
