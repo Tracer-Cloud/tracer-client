@@ -1,8 +1,10 @@
 <h1 align="left">
 🦡 Tracer Linux Agent
 </h1>
-
 ![Tracer Banner](docs/images/tracer-banner-image.jpeg)
+<br />
+<em>The objective of tracer's rust agent is to provide scientists and engineers with useful DevOps insights to efficiently drive massive computational power towards humanities' most critical problems</em>
+<br />
 
 ## 🚀 Quickstart Installation
 ```bash
