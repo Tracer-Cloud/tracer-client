@@ -1,4 +1,4 @@
-use anyhow::{Ok, Result};
+use anyhow::Result;
 use chrono::Utc;
 use core::panic;
 use serde_json::{json, Value};
@@ -34,7 +34,7 @@ pub fn process_log_command<'a>(
 
     async fn fun<'a>(
         tracer_client: &'a Arc<Mutex<TracerClient>>,
-        service_url: &'a str,
+        _service_url: &'a str,
         api_key: &'a str,
         message: String,
     ) -> Result<String, anyhow::Error> {
@@ -48,7 +48,7 @@ pub fn process_log_command<'a>(
         );
 
         // TODO: remove
-        send_log_event(service_url, api_key, message).await
+        send_log_event(api_key, message).await
     }
 
     Some(Box::pin(fun(tracer_client, api_key, service_url, message)))
@@ -68,15 +68,15 @@ pub fn process_alert_command<'a>(
 
     async fn fun<'a>(
         tracer_client: &'a Arc<Mutex<TracerClient>>,
-        service_url: &'a str,
-        api_key: &'a str,
+        _service_url: &'a str,
+        _api_key: &'a str,
         message: String,
     ) -> Result<String, anyhow::Error> {
         let event_recorder = &mut tracer_client.lock().await.logs;
 
         event_recorder.record_event(EventType::Alert, message.clone(), None, Some(Utc::now()));
         // TODO: remove
-        send_alert_event(service_url, api_key, message).await
+        send_alert_event(message).await
     }
     Some(Box::pin(fun(tracer_client, service_url, api_key, message)))
 }
