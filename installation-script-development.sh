@@ -528,7 +528,7 @@ EOL
 main() {
 
     print_header
-    check_args "$@"
+    #check_args "$@"
     check_os
     check_prereqs
     get_package_name

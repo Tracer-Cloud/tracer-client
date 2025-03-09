@@ -528,20 +528,20 @@ EOL
 main() {
 
     print_header
-    check_args "$@"
+    # check_args "$@"
     check_os
     check_prereqs
     get_package_name
     configure_bindir
 
-    send_event "start_installation" "Start Tracer installation for key: ${API_KEY}"
+    # send_event "start_installation" "Start Tracer installation for key: ${API_KEY}"
     make_temp_dir
     download_tracer
     setup_tracer_configuration_file
     printsucc "Ended setup the tracer configuration file"
 
     printsucc "Tracer CLI has been successfully installed."
-    send_event "finished_installation" "Successfully installed Tracer for key: ${API_KEY}"
+    # send_event "finished_installation" "Successfully installed Tracer for key: ${API_KEY}"
 
 }
 
