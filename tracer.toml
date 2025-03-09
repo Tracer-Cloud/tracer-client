@@ -1,8 +1,8 @@
 api_key = "<YOUR_API_KEY>"
-service_url = "https://app.tracer.bio/api"
 process_polling_interval_ms = 20
 batch_submission_interval_ms = 5000
 aws_profile = "me"
 database_secrets_arn = "master_secret_arn"
 database_host = "db:5432"
 database_name = "tracer_db"
+grafana_workspace_url = "https://test.grafana-workspace.us-east-1.amazonaws.com"
