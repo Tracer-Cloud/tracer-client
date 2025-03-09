@@ -1,3 +1,5 @@
+use colored::Colorize;
+use std::fmt::Write;
 use std::process::Command;
 
 use anyhow::{Context, Result};
@@ -20,28 +22,49 @@ pub fn clean_up_after_daemon() -> Result<()> {
 
 pub async fn print_config_info() -> Result<()> {
     let config = ConfigManager::load_config();
-    println!("Service URL: {}", config.service_url);
-    println!("API Key: {}", config.api_key);
-    println!(
+    let daemon_status = send_info_request(SOCKET_PATH).await;
+
+    let mut output = String::new();
+
+    let _ = writeln!(&mut output, "\n\n===== Tracer Info =====\n");
+
+    if daemon_status.is_ok() {
+        let _ = writeln!(&mut output, "Daemon status: {}", "Running".green());
+    } else {
+        let _ = writeln!(&mut output, "Daemon status: {}", "Stopped".red());
+    }
+    let _ = writeln!(&mut output, "Daemon version: {}", env!("CARGO_PKG_VERSION"));
+
+    if let Ok(info) = daemon_status {
+        if !info.run_name.is_empty() {
+            let _ = writeln!(&mut output, "Service name: {}", info.pipeline_name);
+            let _ = writeln!(&mut output, "Run name: {}", info.run_name);
+            let _ = writeln!(&mut output, "Run ID: {}", info.run_id);
+            // TODO: add total run time
+        }
+    }
+    let _ = writeln!(
+        &mut output,
+        "Grafana Workspace URL: {}",
+        config.grafana_workspace_url
+    );
+
+    let _ = writeln!(
+        &mut output,
         "Process polling interval: {} ms",
         config.process_polling_interval_ms
     );
-    println!(
+
+    let _ = writeln!(
+        &mut output,
         "Batch submission interval: {} ms",
         config.batch_submission_interval_ms
     );
-    println!("Daemon version: {}", env!("CARGO_PKG_VERSION"));
-    let daemon_status = send_info_request(SOCKET_PATH).await;
-    if let Ok(info) = daemon_status {
-        if !info.run_name.is_empty() {
-            println!("Run name: {}", info.run_name);
-            println!("Run ID: {}", info.run_id);
-            println!("Service name: {}", info.pipeline_name);
-        }
-        println!("Daemon status: Running");
-    } else {
-        println!("Daemon status: Stopped");
-    }
+
+    let _ = writeln!(&mut output, "\n===== ... =====\n\n");
+
+    println!("{}", output);
+
     Ok(())
 }
 
@@ -53,13 +76,11 @@ pub fn print_config_info_sync() -> Result<()> {
 
 pub async fn setup_config(
     api_key: &Option<String>,
-    service_url: &Option<String>,
     process_polling_interval_ms: &Option<u64>,
     batch_submission_interval_ms: &Option<u64>,
 ) -> Result<()> {
     ConfigManager::modify_config(
         api_key,
-        service_url,
         process_polling_interval_ms,
         batch_submission_interval_ms,
     )?;

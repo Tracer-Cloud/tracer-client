@@ -15,7 +15,7 @@ use crate::extracts::{
 };
 use crate::types::cli::TracerCliInitArgs;
 use crate::types::event::attributes::EventAttributes;
-use crate::{monitor_processes_with_tracer_client, FILE_CACHE_DIR};
+use crate::{monitor_processes_with_tracer_client, DEFAULT_SERVICE_URL, FILE_CACHE_DIR};
 use crate::{SOCKET_PATH, SYSLOG_FILE};
 use anyhow::{Context, Result};
 use chrono::{DateTime, TimeDelta, Utc};
@@ -86,10 +86,7 @@ impl TracerClient {
         db_client: Arc<AuroraClient>,
         cli_args: TracerCliInitArgs,
     ) -> Result<TracerClient> {
-        let service_url = config.service_url.clone();
-
         println!("Initializing TracerClient with API Key: {}", config.api_key);
-        println!("Service URL: {}", service_url);
 
         let pricing_client = PricingClient::new(config.aws_init_type.clone(), "us-east-1").await;
 
@@ -331,7 +328,7 @@ impl TracerClient {
     pub async fn poll_files(&mut self) -> Result<()> {
         self.file_watcher
             .poll_files(
-                &self.config.service_url,
+                DEFAULT_SERVICE_URL,
                 &self.config.api_key,
                 &self.workflow_directory,
                 FILE_CACHE_DIR,
@@ -356,7 +353,7 @@ impl TracerClient {
 
         self.stdout_watcher
             .poll_stdout(
-                &self.config.service_url,
+                DEFAULT_SERVICE_URL,
                 &self.config.api_key,
                 stdout_lines_buffer,
                 false,
@@ -365,7 +362,7 @@ impl TracerClient {
 
         self.stdout_watcher
             .poll_stdout(
-                &self.config.service_url,
+                DEFAULT_SERVICE_URL,
                 &self.config.api_key,
                 stderr_lines_buffer,
                 true,
@@ -382,7 +379,7 @@ impl TracerClient {
     }
 
     pub fn get_service_url(&self) -> &str {
-        &self.config.service_url
+        DEFAULT_SERVICE_URL
     }
 
     pub fn get_pipeline_name(&self) -> &str {

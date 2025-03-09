@@ -12,7 +12,6 @@ use crate::{
         bashrc_intercept::{modify_bashrc_file, rewrite_interceptor_bashrc_file},
         target_process::target_matching::TargetMatch,
     },
-    events::send_daemon_start_event,
     types::{aws::aws_region::AwsRegion, config::AwsConfig},
 };
 
@@ -21,18 +20,18 @@ use crate::config_manager::target_process::Target;
 use super::target_process::targets_list;
 
 const DEFAULT_API_KEY: &str = "EAjg7eHtsGnP3fTURcPz1";
-const DEFAULT_SERVICE_URL: &str = "https://app.tracer.bio/api";
 const DEFAULT_CONFIG_FILE_LOCATION_FROM_HOME: &str = ".config/tracer/tracer.toml";
 const PROCESS_POLLING_INTERVAL_MS: u64 = 5;
 const BATCH_SUBMISSION_INTERVAL_MS: u64 = 10000;
 const NEW_RUN_PAUSE_MS: u64 = 10 * 60 * 1000;
 const PROCESS_METRICS_SEND_INTERVAL_MS: u64 = 10000;
 const FILE_SIZE_NOT_CHANGING_PERIOD_MS: u64 = 1000 * 60;
+const DEFAULT_GRAFANA_WORKSPACE_URL: &str =
+    "https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com";
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ConfigFile {
     pub api_key: String,
-    pub service_url: Option<String>,
     pub process_polling_interval_ms: Option<u64>,
     pub batch_submission_interval_ms: Option<u64>,
     pub new_run_pause_ms: Option<u64>,
@@ -45,6 +44,8 @@ pub struct ConfigFile {
     pub database_secrets_arn: String,
     pub database_host: String,
     pub database_name: String,
+
+    pub grafana_workspace_url: String,
 }
 
 #[derive(Clone, Debug)]
@@ -54,7 +55,6 @@ pub struct Config {
     pub batch_submission_interval_ms: u64,
     pub process_metrics_send_interval_ms: u64,
     pub file_size_not_changing_period_ms: u64,
-    pub service_url: String,
     pub new_run_pause_ms: u64,
     pub targets: Vec<Target>,
     pub aws_init_type: AwsConfig,
@@ -63,6 +63,8 @@ pub struct Config {
     pub database_secrets_arn: String,
     pub database_host: String,
     pub database_name: String,
+
+    pub grafana_workspace_url: String,
 }
 
 pub struct ConfigManager;
@@ -99,9 +101,6 @@ impl ConfigManager {
             batch_submission_interval_ms: config
                 .batch_submission_interval_ms
                 .unwrap_or(BATCH_SUBMISSION_INTERVAL_MS),
-            service_url: config
-                .service_url
-                .unwrap_or(DEFAULT_SERVICE_URL.to_string()),
             new_run_pause_ms: config.new_run_pause_ms.unwrap_or(NEW_RUN_PAUSE_MS),
             process_metrics_send_interval_ms: config
                 .process_metrics_send_interval_ms
@@ -118,6 +117,8 @@ impl ConfigManager {
             database_secrets_arn: config.database_secrets_arn,
             database_name: config.database_name,
             database_host: config.database_host,
+
+            grafana_workspace_url: config.grafana_workspace_url,
         })
     }
 
@@ -128,7 +129,6 @@ impl ConfigManager {
             batch_submission_interval_ms: BATCH_SUBMISSION_INTERVAL_MS,
             new_run_pause_ms: NEW_RUN_PAUSE_MS,
             file_size_not_changing_period_ms: FILE_SIZE_NOT_CHANGING_PERIOD_MS,
-            service_url: DEFAULT_SERVICE_URL.to_string(),
             targets: targets_list::TARGETS.to_vec(),
             process_metrics_send_interval_ms: PROCESS_METRICS_SEND_INTERVAL_MS,
             // aws_init_type: AwsConfig::Profile("me".to_string()),
@@ -149,6 +149,8 @@ impl ConfigManager {
             database_name: "tracer_db".into(),
             database_host:
                 "tracer-cluster-v2-instance-1.cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432".into(),
+
+            grafana_workspace_url: DEFAULT_GRAFANA_WORKSPACE_URL.to_string()
         }
     }
 
@@ -172,12 +174,6 @@ impl ConfigManager {
         if let Ok(api_key) = std::env::var("TRACER_API_KEY") {
             config.api_key = api_key;
         }
-
-        if let Ok(service_url) = std::env::var("TRACER_SERVICE_URL") {
-            config.service_url = service_url;
-        }
-
-        config.service_url = config.service_url.replace("data-collector-api", ""); // To support legacy (pre-2024/08/23) configs
 
         config
     }
@@ -218,7 +214,6 @@ impl ConfigManager {
         };
         let config_out = ConfigFile {
             api_key: config.api_key.clone(),
-            service_url: Some(config.service_url.clone()),
             new_run_pause_ms: Some(config.new_run_pause_ms),
             file_size_not_changing_period_ms: Some(config.file_size_not_changing_period_ms),
             process_polling_interval_ms: Some(config.process_polling_interval_ms),
@@ -232,6 +227,7 @@ impl ConfigManager {
             database_secrets_arn: config.database_secrets_arn.clone(),
             database_name: config.database_name.clone(),
             database_host: config.database_host.clone(),
+            grafana_workspace_url: config.grafana_workspace_url.clone(),
         };
         let config = toml::to_string(&config_out)?;
         std::fs::write(config_file_location, config)?;
@@ -240,16 +236,12 @@ impl ConfigManager {
 
     pub fn modify_config(
         api_key: &Option<String>,
-        service_url: &Option<String>,
         process_polling_interval_ms: &Option<u64>,
         batch_submission_interval_ms: &Option<u64>,
     ) -> Result<()> {
         let mut current_config = ConfigManager::load_config();
         if let Some(api_key) = api_key {
             current_config.api_key.clone_from(api_key);
-        }
-        if let Some(service_url) = service_url {
-            current_config.service_url.clone_from(service_url);
         }
         if let Some(process_polling_interval_ms) = process_polling_interval_ms {
             current_config.process_polling_interval_ms = *process_polling_interval_ms;
@@ -259,26 +251,6 @@ impl ConfigManager {
         }
         ConfigManager::save_config(&current_config)?;
         Ok(())
-    }
-
-    // TODO: remove dependencies away from frontend api
-    pub async fn test_service_config() -> Result<()> {
-        let config = ConfigManager::load_config();
-
-        let result = send_daemon_start_event(&config.service_url, &config.api_key).await;
-
-        if let Err(error) = result {
-            println!("Failed to test the service configuration! Please check the configuration and try again.");
-            println!("{}", &error);
-            return Err(error);
-        }
-
-        Ok(())
-    }
-
-    pub fn _test_service_config_sync() -> Result<()> {
-        let runtime = tokio::runtime::Runtime::new().unwrap();
-        runtime.block_on(ConfigManager::test_service_config())
     }
 
     pub fn get_tracer_parquet_export_dir() -> Result<PathBuf> {
@@ -329,7 +301,6 @@ mod tests {
         env::remove_var("TRACER_SERVICE_URL");
         let config = ConfigManager::load_default_config();
         assert_eq!(config.api_key, DEFAULT_API_KEY);
-        assert_eq!(config.service_url, DEFAULT_SERVICE_URL);
         assert_eq!(
             config.process_polling_interval_ms,
             PROCESS_POLLING_INTERVAL_MS
