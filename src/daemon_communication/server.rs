@@ -12,6 +12,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{
     config_manager::{Config, ConfigManager},
+    daemon_communication::structs::InfoResponse,
     events::{recorder::EventType, send_alert_event, send_log_event, send_update_tags_event},
     extracts::process_watcher::ShortLivedProcessLog,
     tracer_client::TracerClient,
@@ -131,21 +132,7 @@ pub fn process_info_command<'a>(
     ) -> Result<String, anyhow::Error> {
         let guard = tracer_client.lock().await;
 
-        let out = guard.get_run_metadata();
-
-        let output = if let Some(out) = out {
-            json!({
-                "run_name": out.name,
-                "run_id": out.id,
-                "pipeline_name": guard.get_pipeline_name(),
-            })
-        } else {
-            json!({
-                "run_name": "",
-                "run_id": "",
-                "pipeline_name": "",
-            })
-        };
+        let output: Option<InfoResponse> = guard.get_run_metadata().map(|out| out.into());
 
         stream
             .write_all(serde_json::to_string(&output)?.as_bytes())
