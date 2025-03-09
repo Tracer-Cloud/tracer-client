@@ -83,6 +83,13 @@ resource "aws_iam_policy" "ec2_general_access" {
         Resource = "*"
       },
       {
+        "Action" : [
+          "secretsmanager:*"
+        ],
+        "Effect" : "Allow",
+        "Resource" : "*"
+      },
+      {
         Effect   = "Allow"
         Action   = ["sts:AssumeRole"]
         Resource = "*"
