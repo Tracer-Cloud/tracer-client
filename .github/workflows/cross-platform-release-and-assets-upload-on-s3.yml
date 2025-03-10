@@ -78,3 +78,57 @@ jobs:
       - name: Upload to S3
         run: |
           aws s3 cp release-files/tracer-x86_64-unknown-linux-gnu.tar.gz s3://tracer-releases/tracer-x86_64-unknown-linux-gnu.tar.gz
+
+  aws-batch-job-testing:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Submit AWS Batch Job
+        id: submit-batch-job
+        run: |
+          # Submit the batch job and capture the job ID
+          JOB_ID=$(aws batch submit-job \
+            --job-name "tracer-test-job" \
+            --job-queue "NextflowCPU" \
+            --job-definition "${{ secrets.AWS_BATCH_JOB_DEFINITION }}" \
+            --query 'jobId' \
+            --output text)
+          
+          echo "Job submitted with ID: $JOB_ID"
+          echo "job_id=$JOB_ID" >> $GITHUB_OUTPUT
+
+      - name: Wait for AWS Batch Job to complete
+        id: wait-for-job
+        run: |
+          JOB_ID="${{ steps.submit-batch-job.outputs.job_id }}"
+          echo "Waiting for job $JOB_ID to complete..."
+
+          # Poll the job status until it's complete
+          while true; do
+            STATUS=$(aws batch describe-jobs --jobs $JOB_ID --query 'jobs[0].status' --output text)
+            echo "Current job status: $STATUS"
+
+            if [[ "$STATUS" == "SUCCEEDED" ]]; then
+              echo "Job completed successfully!"
+              echo "::set-output name=job_status::success"
+              exit 0
+            elif [[ "$STATUS" == "FAILED" ]]; then
+              echo "::error::AWS Batch job $JOB_ID failed. Check AWS console for detailed logs."
+              echo "::set-output name=job_status::failed"
+              exit 1
+            elif [[ "$STATUS" == "CANCELLED" || "$STATUS" == "TERMINATED" ]]; then
+              echo "::error::AWS Batch job $JOB_ID was cancelled or terminated."
+              echo "::set-output name=job_status::cancelled"
+              exit 1
+            fi
+
+            echo "Waiting 30 seconds before checking again..."
+            sleep 30
+          done
