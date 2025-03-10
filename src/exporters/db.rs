@@ -43,6 +43,10 @@ impl AuroraClient {
             db_secrets.username, encoded_password, config.database_host, config.database_name
         );
 
+        println!("db secrets : {}, {}", db_secrets.username, db_secrets.password);
+
+        println!("db url: {}", url);
+
         // Use PgPoolOptions to set max_size
         let pool = PoolOptions::new()
             .max_connections(pool_size.unwrap_or(100))
@@ -50,10 +54,10 @@ impl AuroraClient {
             .await
             .expect("Failed establish connection");
 
-        sqlx::migrate!("./migrations")
-            .run(&pool)
-            .await
-            .expect("Failed to migrate the database");
+        // sqlx::migrate!("./migrations")
+        //     .run(&pool)
+        //     .await
+        //     .expect("Failed to migrate the database");
 
         info!("Successfully created connection pool");
 
@@ -89,7 +93,6 @@ impl AuroraClient {
         let query = "INSERT INTO batch_jobs_logs (data, job_id) VALUES ($1, $2)";
 
         info!("Inserting row with job_id: {}", job_id);
-        println!("Inserting row with job_id: {}", job_id);
 
         let mut transaction = self
             .get_pool()
@@ -101,7 +104,11 @@ impl AuroraClient {
 
         for event in data {
             let json_data = Json(serde_json::to_value(event)?); // Convert the event to JSON
-
+            println!(
+                "Inserting row with job_id: {}, data: {:#?}",
+                job_id,
+                json_data.to_string()
+            );
             rows_affected += sqlx::query(query)
                 .bind(json_data)
                 .bind(job_id)

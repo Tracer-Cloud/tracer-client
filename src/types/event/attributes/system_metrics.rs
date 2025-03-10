@@ -40,3 +40,9 @@ pub struct SystemProperties {
     // cost analysis
     pub ec2_cost_per_hour: Option<f64>,
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct NextflowLog {
+    pub session_uuid: Option<String>,
+    pub jobs_ids: Option<Vec<String>>,
+}

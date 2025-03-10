@@ -50,17 +50,6 @@ jobs:
             ~/.cargo/git/db/
           key: cargo-deps-${{ matrix.target }}-stable-v1
           restore-keys: |
-            cargo-deps-${{ matrix.target }}-stable-
-
-      - name: Cache build artifacts
-        id: cache-build
-        uses: actions/cache@v3
-        with:
-          path: |
-            target/
-          key: cargo-build-${{ matrix.target }}-stable-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            cargo-build-${{ matrix.target }}-stable-
 
       - name: Build the binary
         run: cargo build --release --target ${{ matrix.target }}
