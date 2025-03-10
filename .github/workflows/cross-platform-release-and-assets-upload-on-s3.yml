@@ -11,12 +11,23 @@ on:
 jobs:
   build-and-release:
     permissions: write-all
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            target: x86_64-unknown-linux-gnu
+            runner: ubuntu-latest
+          - arch: aarch64
+            target: aarch64-unknown-linux-gnu
+            runner: ubuntu-22.04-arm  # Native ARM runner
+
+    runs-on: ${{ matrix.runner }}
+
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all history and tags
-          ref: main  # Use main branch after version update
+          fetch-depth: 0
+          ref: main
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -26,7 +37,7 @@ jobs:
           override: true
 
       - name: Install target
-        run: rustup target add x86_64-unknown-linux-gnu
+        run: rustup target add ${{ matrix.target }}
 
       - name: Cache Rust dependencies
         id: cache-deps
@@ -37,9 +48,9 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-          key: cargo-deps-x86_64-unknown-linux-gnu-stable-v1
+          key: cargo-deps-${{ matrix.target }}-stable-v1
           restore-keys: |
-            cargo-deps-x86_64-unknown-linux-gnu-stable-
+            cargo-deps-${{ matrix.target }}-stable-
 
       - name: Cache build artifacts
         id: cache-build
@@ -47,26 +58,19 @@ jobs:
         with:
           path: |
             target/
-          key: cargo-build-x86_64-unknown-linux-gnu-stable-${{ hashFiles('Cargo.lock') }}
+          key: cargo-build-${{ matrix.target }}-stable-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
-            cargo-build-x86_64-unknown-linux-gnu-stable-
+            cargo-build-${{ matrix.target }}-stable-
 
       - name: Build the binary
-        run: cargo build --release --target x86_64-unknown-linux-gnu
-        env:
-          CARGO_BUILD_TARGET: x86_64-unknown-linux-gnu
+        run: cargo build --release --target ${{ matrix.target }}
 
       - name: Prepare binary for release
         run: |
-          mkdir -p release-files
-          # Copy the binary to the release directory
-          cp target/x86_64-unknown-linux-gnu/release/tracer release-files/tracer
-
-          # Make the binary executable
-          chmod +x release-files/tracer
-
-          # Create tar.gz file with the desired name and correct file structure
-          tar -czf release-files/tracer-x86_64-unknown-linux-gnu.tar.gz -C release-files tracer
+          mkdir -p release-files/${{ matrix.arch }}
+          cp target/${{ matrix.target }}/release/tracer release-files/${{ matrix.arch }}/tracer
+          chmod +x release-files/${{ matrix.arch }}/tracer
+          tar -czf release-files/tracer-${{ matrix.target }}.tar.gz -C release-files/${{ matrix.arch }} tracer
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -77,4 +81,4 @@ jobs:
 
       - name: Upload to S3
         run: |
-          aws s3 cp release-files/tracer-x86_64-unknown-linux-gnu.tar.gz s3://tracer-releases/tracer-x86_64-unknown-linux-gnu.tar.gz
+          aws s3 cp release-files/tracer-${{ matrix.target }}.tar.gz s3://tracer-releases/tracer-${{ matrix.target }}.tar.gz
