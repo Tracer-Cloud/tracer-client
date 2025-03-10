@@ -2,10 +2,13 @@
 🦡 Tracer Linux Agent
 </h1>
 
+> *"The goal of Tracer's Rust agent is to equip scientists and engineers with DevOps intelligence to efficiently harness massive computational power for humanity's most critical challenges."*
+
 ![Tracer Banner](docs/images/tracer-banner-image.jpeg)
 
 ## 🚀 Quickstart Installation
 Get started with Tracer in just a few steps.
+
 ### 1️⃣ Install Tracer  
 Run the following command to install Tracer on your Linux system:
 ```bash
