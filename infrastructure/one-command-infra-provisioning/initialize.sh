@@ -29,21 +29,12 @@ EOL
 echo "Configuration file created at /home/ubuntu/.config/tracer/tracer.toml"
 
 source ~/.bashrc
-# echo "Updating Tracer binary..."
-# sudo rm /usr/local/bin/tracer
-# su - ubuntu -c "curl -sSL https://feature-artifact-release-for.tracer-client.pages.dev/installation-script-development.sh | bash -s -- 2IDkkNoUZq20EaADT1kGz && source ~/.bashrc"
-# sudo cp /home/ubuntu/.tracerbio/bin/tracer  /usr/local/bin/
-# echo "Tracer binary updated successfully"
-
-# Build the Tracer binary
-echo "Updating Tracer..."
-# TODO: remove checking out to feature branch, pull from main
-su - ubuntu -c "source /home/ubuntu/.cargo/env && cd /home/ubuntu/tracer-client && git pull origin main && cargo build --release"
 
 # Install the binary
 echo "Updating Tracer binary..."
 sudo rm /usr/local/bin/tracer
-sudo cp /home/ubuntu/tracer-client/target/release/tracer /usr/local/bin/
+su - ubuntu -c "curl -sSL https://tracer-client.pages.dev/installation-script-development.sh | bash && source ~/.bashrc"
+sudo cp /home/ubuntu/.tracerbio/bin/tracer  /usr/local/bin/
 echo "Tracer binary updated successfully"
 
 su - ubuntu -c "tracer init --pipeline-name one-click"
