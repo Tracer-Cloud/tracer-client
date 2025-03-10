@@ -2,7 +2,7 @@
 # Security Group for EC2
 # ---------------------------
 resource "aws_security_group" "tracer_rust_server_sg" {
-  name_prefix = "rust-sg-"
+  name_prefix = "rust-sg-${var.name_suffix}"
   description = "Allow SSH and outbound traffic"
   vpc_id      = var.vpc_id
 
@@ -83,6 +83,13 @@ resource "aws_iam_policy" "ec2_general_access" {
         Resource = "*"
       },
       {
+        "Action" : [
+          "secretsmanager:*"
+        ],
+        "Effect" : "Allow",
+        "Resource" : "*"
+      },
+      {
         Effect   = "Allow"
         Action   = ["sts:AssumeRole"]
         Resource = "*"
@@ -139,8 +146,8 @@ resource "aws_iam_role" "tracer_client_service_role" {
   })
 }
 
-resource "aws_iam_role_policy" "s3_full_access" {
-  name = "S3FullAccessPolicy-${var.name_suffix}"
+resource "aws_iam_role_policy" "service_access_policy" {
+  name = "TracerServiceAccessPolicy-${var.name_suffix}"
   role = aws_iam_role.tracer_client_service_role.id
 
   policy = jsonencode({

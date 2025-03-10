@@ -6,19 +6,20 @@ use crate::{
         aws::pricing::EC2FilterBuilder,
         event::{attributes::system_metrics::SystemProperties, aws_metadata::AwsInstanceMetaData},
     },
-    utils::{debug_log::Logger, http_client::send_http_event},
+    utils::debug_log::Logger,
 };
 pub mod recorder;
 mod run_details;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use chrono::Utc;
 use run_details::{generate_run_id, generate_run_name};
 use serde_json::json;
 use sysinfo::System;
 use tracing::info;
 
-pub async fn send_log_event(service_url: &str, api_key: &str, message: String) -> Result<String> {
-    let log_entry = json!({
+// FIXME: How should this be handled with the new architecture?
+pub async fn send_log_event(_api_key: &str, message: String) -> Result<String> {
+    let _log_entry = json!({
         "message": message,
         "process_type": "pipeline",
         "process_status": "run_status_message",
@@ -26,13 +27,12 @@ pub async fn send_log_event(service_url: &str, api_key: &str, message: String) -
         "timestamp": Utc::now().timestamp_millis() as f64 / 1000.,
     });
 
-    send_http_event(service_url, api_key, &log_entry)
-        .await
-        .context("Failed to send HTTP event")
+    todo!()
 }
 
-pub async fn send_alert_event(service_url: &str, api_key: &str, message: String) -> Result<String> {
-    let alert_entry = json!({
+// FIXME: same with other events, how should it be handled now?
+pub async fn send_alert_event(message: String) -> Result<String> {
+    let _alert_entry = json!({
         "message": message,
         "process_type": "pipeline",
         "process_status": "alert",
@@ -40,9 +40,7 @@ pub async fn send_alert_event(service_url: &str, api_key: &str, message: String)
         "timestamp": Utc::now().timestamp_millis() as f64 / 1000.,
     });
 
-    send_http_event(service_url, api_key, &alert_entry)
-        .await
-        .context("Failed to send HTTP event")
+    todo!()
 }
 
 pub struct RunEventOut {
@@ -153,43 +151,13 @@ pub async fn send_start_run_event(
     })
 }
 
-// TODO: remove
-pub async fn send_end_run_event(service_url: &str, api_key: &str) -> Result<String> {
-    info!("Finishing pipeline run...");
-
-    let end_entry = json!({
-        "message": "[CLI] Finishing pipeline run",
-        "process_type": "pipeline",
-        "process_status": "finished_run",
-        "event_type": "process_status",
-        "timestamp": Utc::now().timestamp_millis() as f64 / 1000.,
-    });
-
-    let result = send_http_event(service_url, api_key, &end_entry).await;
-
-    info!("Ended pipeline run successfully...");
-    result
-}
-
-pub async fn send_daemon_start_event(service_url: &str, api_key: &str) -> Result<String> {
-    let daemon_start_entry: serde_json::Value = json!({
-        "message": "[CLI] Starting daemon",
-        "process_type": "pipeline",
-        "process_status": "daemon_start",
-        "event_type": "process_status",
-        "timestamp": Utc::now().timestamp_millis() as f64 / 1000.,
-    });
-
-    send_http_event(service_url, api_key, &daemon_start_entry).await
-}
-
-// TODO: Should tag updates be parts of events?
+//FIXME: Should tag updates be parts of events?... how should it be handled and stored
 pub async fn send_update_tags_event(
-    service_url: &str,
-    api_key: &str,
+    _service_url: &str,
+    _api_key: &str,
     tags: Vec<String>,
 ) -> Result<String> {
-    let tags_entry = json!({
+    let _tags_entry = json!({
         "tags": tags,
         "message": "[CLI] Updating tags",
         "process_type": "pipeline",
@@ -198,26 +166,5 @@ pub async fn send_update_tags_event(
         "timestamp": Utc::now().timestamp_millis() as f64 / 1000.,
     });
 
-    send_http_event(service_url, api_key, &tags_entry).await
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::config_manager::ConfigManager;
-    use anyhow::Error;
-
-    #[ignore = "deprecated"]
-    #[tokio::test]
-    async fn test_event_log() -> Result<(), Error> {
-        let config = ConfigManager::load_default_config();
-        send_log_event(
-            &config.service_url.clone(),
-            &config.api_key.clone(),
-            "Test".to_string(),
-        )
-        .await?;
-
-        Ok(())
-    }
+    todo!()
 }
