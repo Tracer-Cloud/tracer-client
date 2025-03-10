@@ -59,8 +59,10 @@ impl EventRecorder {
         let aws_batch_job_id = std::env::var("AWS_BATCH_JOB_ID").ok();
 
         if let Some(job_id) = &aws_batch_job_id {
+            println!("Found AWS Batch Job ID: {}", job_id);
             tracing::info!("Found AWS Batch Job ID: {}", job_id);
         } else {
+            println!("No AWS Batch Job ID found in environment");
             tracing::debug!("No AWS Batch Job ID found in environment");
         }
 
