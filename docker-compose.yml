@@ -49,6 +49,13 @@ services:
         condition: service_healthy
     profiles: [ integrations_tests ]
 
+    environment:
+      USE_LOCAL_CREDENTIALS: true
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres
+
+
+
   parallel_tests:
     build:
       context: .
@@ -65,6 +72,12 @@ services:
       db:
         condition: service_healthy
     profiles: [ parallel_tests ]
+
+    environment:
+      USE_LOCAL_CREDENTIALS: true
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres
+
 
   db:
     image: postgres:13-alpine
@@ -83,12 +96,3 @@ services:
       retries: 5
     profiles: [ parallel_tests, integrations_tests ]
 
-  pgadmin:
-    image: dpage/pgadmin4
-    ports:
-      - "8888:80"
-    environment:
-      PGADMIN_DEFAULT_EMAIL: youngstizy@gmail.com
-      PGADMIN_DEFAULT_PASSWORD: incorrect
-
-    profiles: [ integrations_tests ]
