@@ -42,9 +42,7 @@ pub struct ConfigFile {
     pub aws_region: Option<String>,
     pub aws_role_arn: Option<String>,
     pub aws_profile: Option<String>,
-    pub database_secrets_arn: String,
-    pub database_host: String,
-    pub database_name: String,
+    pub db_url: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -59,10 +57,7 @@ pub struct Config {
     pub targets: Vec<Target>,
     pub aws_init_type: AwsConfig,
     pub aws_region: AwsRegion,
-
-    pub database_secrets_arn: String,
-    pub database_host: String,
-    pub database_name: String,
+    pub db_url: String,
 }
 
 pub struct ConfigManager;
@@ -91,6 +86,8 @@ impl ConfigManager {
             (None, None) => AwsConfig::Env,
         };
 
+        let db_url = "postgres://postgres:tracer-test@tracer-database.cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432/postgres".to_string();
+
         Ok(Config {
             api_key: config.api_key,
             process_polling_interval_ms: config
@@ -115,13 +112,12 @@ impl ConfigManager {
             aws_init_type,
             aws_region: AwsRegion::UsEast2,
 
-            database_secrets_arn: config.database_secrets_arn,
-            database_name: config.database_name,
-            database_host: config.database_host,
+            db_url: config.db_url.unwrap_or(db_url),
         })
     }
 
     pub fn load_default_config() -> Config {
+        let db_url = "postgres://postgres:tracer-test@tracer-database.cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432/postgres";
         Config {
             api_key: DEFAULT_API_KEY.to_string(),
             process_polling_interval_ms: PROCESS_POLLING_INTERVAL_MS,
@@ -145,10 +141,7 @@ impl ConfigManager {
             ),
             aws_region: "us-east-2".into(),
 
-            database_secrets_arn: "arn:aws:secretsmanager:us-east-1:395261708130:secret:rds!cluster-cd690a09-953c-42e9-9d9f-1ed0b434d226-M0wZYA".into(),
-            database_name: "tracer_db".into(),
-            database_host:
-                "tracer-cluster-v2-instance-1.cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432".into(),
+            db_url: db_url.to_string(),
         }
     }
 
@@ -228,10 +221,7 @@ impl ConfigManager {
             aws_role_arn,
             aws_profile,
             aws_region: Some(config.aws_region.as_str().to_string()),
-
-            database_secrets_arn: config.database_secrets_arn.clone(),
-            database_name: config.database_name.clone(),
-            database_host: config.database_host.clone(),
+            db_url: Some(config.db_url.clone()),
         };
         let config = toml::to_string(&config_out)?;
         std::fs::write(config_file_location, config)?;

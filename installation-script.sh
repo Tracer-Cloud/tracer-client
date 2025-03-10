@@ -18,8 +18,7 @@
 # https://github.com/Tracer-Cloud/tracer-client/releases/download/v0.0.8/tracer-universal-apple-darwin.tar.gz
 SCRIPT_VERSION="v0.0.1"
 TRACER_VERSION="v2025.02.27.234158"
-TRACER_LINUX_URL_X86_64="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-x86_64-unknown-linux-gnu.tar.gz"
-TRACER_LINUX_URL_ARM="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-aarch64-unknown-linux-gnu.tar.gz"
+TRACER_LINUX_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-x86_64-unknown-linux-gnu.tar.gz"
 TRACER_MACOS_AARCH_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-aarch64-apple-darwin.tar.gz"
 TRACER_MACOS_X86_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-x86_64-apple-darwin.tar.gz"
 
@@ -176,26 +175,14 @@ function print_help() {
 #-------------------------------------------------------------------------------
 check_os() {
     OS=$(uname -s)
-    ARCH=$(uname -m)
     case "$OS" in
     Linux*)
         printinfo "Detected Linux OS."
-        case "$ARCH" in
-        x86_64)
-            TRACER_URL=$TRACER_LINUX_URL_X86_64
-            ;;
-        aarch64)
-            TRACER_URL=$TRACER_LINUX_URL_ARM
-            ;;
-        *)
-            printerror "Unsupported Linux architecture: $ARCH. Aborting."
-            exit 1
-            ;;
-        esac
+        TRACER_URL=$TRACER_LINUX_URL
         ;;
     Darwin*)
         # Differentiating between ARM and x86_64 architectures on macOS
-        
+        ARCH=$(uname -m)
         if [ "$ARCH" = "arm64" ]; then
             printinfo "Detected macOS ARM64 architecture"
             TRACER_URL=$TRACER_MACOS_AARCH_URL
@@ -541,18 +528,20 @@ EOL
 main() {
 
     print_header
-    # check_args "$@"
+    check_args "$@"
     check_os
     check_prereqs
     get_package_name
     configure_bindir
+
+    send_event "start_installation" "Start Tracer installation for key: ${API_KEY}"
     make_temp_dir
     download_tracer
     setup_tracer_configuration_file
     printsucc "Ended setup the tracer configuration file"
 
     printsucc "Tracer CLI has been successfully installed."
-
+    send_event "finished_installation" "Successfully installed Tracer for key: ${API_KEY}"
 
 }
 

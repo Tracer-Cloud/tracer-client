@@ -124,7 +124,7 @@ echo "Installing Tracer binary..."
 sudo cp /home/ubuntu/tracer-client/target/release/tracer /usr/local/bin/
 
 echo "Setting Up test Environment $(date)"
-su - ubuntu -c "cd /home/ubuntu/tracer-client"
+su - ubuntu -c "cd /home/ubuntu/tracer-client && git stash && git fetch && git checkout -f feature/infra_v2"
 
 echo "Running Env Setup Script"
 su - ubuntu -c "cd /home/ubuntu/tracer-client && ./deployments/scripts/setup_nextflow_test_env.sh"

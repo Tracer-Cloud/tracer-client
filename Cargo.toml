@@ -36,7 +36,6 @@ aws-config = { version = "1.1.7", features = ["behavior-version-latest"] }
 aws-sdk-s3 = "1.69.0"
 aws-sdk-pricing = "1.59.0"
 aws-credential-types = "1.2.1"
-aws-sdk-secretsmanager = "1.64.0"
 
 tracing-log = "0.2.0"
 tracing-loki = "0.2.5"
@@ -45,7 +44,6 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json"] }
 dirs = "6.0.0"
 serde-query = "0.2.0"
 itertools = "0.14.0"
-percent-encoding = "2.3.1"
 
 [dev-dependencies]
 serial_test = "3.1.1"
