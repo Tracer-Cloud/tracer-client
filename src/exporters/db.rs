@@ -43,7 +43,10 @@ impl AuroraClient {
             db_secrets.username, encoded_password, config.database_host, config.database_name
         );
 
-        println!("db secrets : {}, {}", db_secrets.username, db_secrets.password);
+        println!(
+            "db secrets : {}, {}",
+            db_secrets.username, db_secrets.password
+        );
 
         println!("db url: {}", url);
 
@@ -54,10 +57,10 @@ impl AuroraClient {
             .await
             .expect("Failed establish connection");
 
-        // sqlx::migrate!("./migrations")
-        //     .run(&pool)
-        //     .await
-        //     .expect("Failed to migrate the database");
+        sqlx::migrate!("./migrations")
+            .run(&pool)
+            .await
+            .expect("Failed to migrate the database");
 
         info!("Successfully created connection pool");
 

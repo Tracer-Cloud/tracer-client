@@ -1,6 +1,5 @@
 use crate::types::event::{attributes::EventAttributes, Event};
 use chrono::{DateTime, Utc};
-use log;
 use serde::{Deserialize, Serialize};
 
 /// Events recorder for each pipeline run

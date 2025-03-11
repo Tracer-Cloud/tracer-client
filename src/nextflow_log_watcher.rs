@@ -1,18 +1,14 @@
-use crate::events::recorder::{EventRecorder, EventType};
-use crate::types::event::attributes::EventAttributes;
-use anyhow::{Context, Result};
-use chrono::Utc;
+use crate::events::recorder::EventRecorder;
+use anyhow::Result;
 use std::collections::HashMap;
-use std::fs::{self, File};
-use std::io::{self, BufRead, BufReader, Seek, SeekFrom};
-use std::path::{Path, PathBuf};
+use std::fs::File;
+use std::io::{BufRead, BufReader};
+use std::path::PathBuf;
 use std::time::Duration;
-use tokio::time::sleep;
 use tracing::{debug, error, info, warn};
 use walkdir::WalkDir;
 
 pub struct NextflowLogWatcher {
-    last_position: u64,
     log_path: Option<PathBuf>,
     last_check: std::time::Instant,
     session_jobs: HashMap<String, Vec<String>>,
@@ -23,7 +19,6 @@ impl NextflowLogWatcher {
     pub fn new() -> Self {
         info!("Initializing NextflowLogWatcher");
         NextflowLogWatcher {
-            last_position: 0,
             log_path: None,
             last_check: std::time::Instant::now(),
             session_jobs: HashMap::new(),
@@ -127,24 +122,16 @@ impl NextflowLogWatcher {
         };
 
         info!("Successfully opened .nextflow.log at {:?}", log_path);
-        debug!("Starting to read from position {}", self.last_position);
+
+        // Clear the current session and jobs to rebuild from scratch
+        self.session_jobs.clear();
+        self.current_session = None;
 
         let mut reader = BufReader::new(file);
-
-        // Seek to the last position we read
-        if let Err(e) = reader.seek(SeekFrom::Start(self.last_position)) {
-            error!(
-                "Error seeking to position {} in log file: {}",
-                self.last_position, e
-            );
-            return Ok(());
-        }
-
-        let mut new_position = self.last_position;
         let mut line = String::new();
         let mut lines_processed = 0;
 
-        // Read new lines and process them
+        // Read all lines from the beginning
         while reader.read_line(&mut line)? > 0 {
             lines_processed += 1;
 
@@ -169,12 +156,9 @@ impl NextflowLogWatcher {
                 }
             }
 
-            new_position += line.len() as u64;
             line.clear();
         }
 
-        // Update the last position
-        self.last_position = new_position;
         info!(
             "Finished polling nextflow log. Processed {} lines.",
             lines_processed
@@ -188,10 +172,6 @@ impl NextflowLogWatcher {
         }
 
         Ok(())
-    }
-
-    pub fn get_session_jobs(&self) -> &HashMap<String, Vec<String>> {
-        &self.session_jobs
     }
 }
 
