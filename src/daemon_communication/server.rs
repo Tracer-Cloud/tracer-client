@@ -1,4 +1,4 @@
-use anyhow::{Ok, Result};
+use anyhow::Result;
 use chrono::Utc;
 use core::panic;
 use serde_json::{json, Value};
@@ -12,6 +12,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{
     config_manager::{Config, ConfigManager},
+    daemon_communication::structs::{InfoResponse, InnerInfoResponse},
     events::{recorder::EventType, send_alert_event, send_log_event, send_update_tags_event},
     extracts::process_watcher::ShortLivedProcessLog,
     tracer_client::TracerClient,
@@ -34,7 +35,7 @@ pub fn process_log_command<'a>(
 
     async fn fun<'a>(
         tracer_client: &'a Arc<Mutex<TracerClient>>,
-        service_url: &'a str,
+        _service_url: &'a str,
         api_key: &'a str,
         message: String,
     ) -> Result<String, anyhow::Error> {
@@ -48,7 +49,7 @@ pub fn process_log_command<'a>(
         );
 
         // TODO: remove
-        send_log_event(service_url, api_key, message).await
+        send_log_event(api_key, message).await
     }
 
     Some(Box::pin(fun(tracer_client, api_key, service_url, message)))
@@ -68,15 +69,15 @@ pub fn process_alert_command<'a>(
 
     async fn fun<'a>(
         tracer_client: &'a Arc<Mutex<TracerClient>>,
-        service_url: &'a str,
-        api_key: &'a str,
+        _service_url: &'a str,
+        _api_key: &'a str,
         message: String,
     ) -> Result<String, anyhow::Error> {
         let event_recorder = &mut tracer_client.lock().await.logs;
 
         event_recorder.record_event(EventType::Alert, message.clone(), None, Some(Utc::now()));
         // TODO: remove
-        send_alert_event(service_url, api_key, message).await
+        send_alert_event(message).await
     }
     Some(Box::pin(fun(tracer_client, service_url, api_key, message)))
 }
@@ -131,21 +132,13 @@ pub fn process_info_command<'a>(
     ) -> Result<String, anyhow::Error> {
         let guard = tracer_client.lock().await;
 
-        let out = guard.get_run_metadata();
+        let response_inner: Option<InnerInfoResponse> =
+            guard.get_run_metadata().map(|out| out.into());
 
-        let output = if let Some(out) = out {
-            json!({
-                "run_name": out.name,
-                "run_id": out.id,
-                "pipeline_name": guard.get_pipeline_name(),
-            })
-        } else {
-            json!({
-                "run_name": "",
-                "run_id": "",
-                "pipeline_name": "",
-            })
-        };
+        let preview = guard.process_watcher.preview_targets();
+        let preview_len = guard.process_watcher.preview_targets_count();
+
+        let output = InfoResponse::new(preview, preview_len, response_inner);
 
         stream
             .write_all(serde_json::to_string(&output)?.as_bytes())

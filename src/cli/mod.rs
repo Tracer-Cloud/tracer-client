@@ -40,9 +40,6 @@ pub enum Commands {
         /// API key for the service
         #[clap(long, short)]
         api_key: Option<String>,
-        /// URL of the service
-        #[clap(long, short)]
-        service_url: Option<String>,
         /// Interval in milliseconds for polling process information
         #[clap(long, short)]
         process_polling_interval_ms: Option<u64>,
@@ -157,13 +154,11 @@ pub async fn run_async_command(commands: Commands) -> Result<()> {
         Commands::Tag { tags } => send_update_tags_request(SOCKET_PATH, &tags).await,
         Commands::Setup {
             api_key,
-            service_url,
             process_polling_interval_ms,
             batch_submission_interval_ms,
         } => {
             setup_config(
                 &api_key,
-                &service_url,
                 &process_polling_interval_ms,
                 &batch_submission_interval_ms,
             )
