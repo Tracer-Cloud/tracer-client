@@ -35,11 +35,19 @@ pub async fn print_config_info() -> Result<()> {
     }
     let _ = writeln!(&mut output, "Daemon version: {}", env!("CARGO_PKG_VERSION"));
 
-    if let Ok(Some(info)) = daemon_status {
-        let _ = writeln!(&mut output, "Service name: {}", info.pipeline_name);
-        let _ = writeln!(&mut output, "Run name: {}", info.run_name);
-        let _ = writeln!(&mut output, "Run ID: {}", info.run_id);
-        let _ = writeln!(&mut output, "Total Run Time: {}", info.formatted_runtime());
+    if let Ok(info) = daemon_status {
+        if let Some(ref inner) = info.inner {
+            let _ = writeln!(&mut output, "Service name: {}", inner.pipeline_name);
+            let _ = writeln!(&mut output, "Run name: {}", inner.run_name);
+            let _ = writeln!(&mut output, "Run ID: {}", inner.run_id);
+            let _ = writeln!(&mut output, "Total Run Time: {}", inner.formatted_runtime());
+        }
+        let _ = writeln!(
+            &mut output,
+            "Recognized Processes({}): {}",
+            info.watched_processes_count,
+            info.watched_processes_preview()
+        );
     }
     let _ = writeln!(
         &mut output,

@@ -99,7 +99,7 @@ pub async fn send_end_run_request(socket_path: &str) -> Result<()> {
     Ok(())
 }
 
-pub async fn send_info_request(socket_path: &str) -> Result<Option<InfoResponse>> {
+pub async fn send_info_request(socket_path: &str) -> Result<InfoResponse> {
     let mut socket = UnixStream::connect(socket_path).await?;
 
     let ping_request = json!({
@@ -116,7 +116,7 @@ pub async fn send_info_request(socket_path: &str) -> Result<Option<InfoResponse>
     let mut buffer = [0; 1024];
     let n = socket.read(&mut buffer).await?;
     let response = std::str::from_utf8(&buffer[..n])?;
-    let response: Option<InfoResponse> = from_str(response)?;
+    let response: InfoResponse = from_str(response)?;
 
     Ok(response)
 }

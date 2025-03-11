@@ -61,7 +61,7 @@ pub struct TracerClient {
     process_metrics_send_interval: Duration,
     last_file_size_change_time_delta: TimeDelta,
     pub logs: EventRecorder,
-    process_watcher: ProcessWatcher,
+    pub process_watcher: ProcessWatcher,
     syslog_watcher: SyslogWatcher,
     stdout_watcher: StdoutWatcher,
     metrics_collector: SystemMetricsCollector,

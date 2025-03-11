@@ -654,6 +654,19 @@ impl ProcessWatcher {
     pub fn is_empty(&self) -> bool {
         self.seen.is_empty()
     }
+
+    // Used by info command
+    pub fn preview_targets(&self) -> HashSet<String> {
+        self.seen
+            .iter()
+            .take(10)
+            .map(|(_k, v)| v.name.clone())
+            .collect()
+    }
+
+    pub fn preview_targets_count(&self) -> usize {
+        self.seen.len()
+    }
 }
 
 #[cfg(test)]
