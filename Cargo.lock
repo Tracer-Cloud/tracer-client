@@ -4565,7 +4565,7 @@ checksum = "8df9b6e13f2d32c91b9bd719c00d1958837bc7dec474d94952798cc8e69eeec3"
 
 [[package]]
 name = "tracer"
-version = "0.2.27"
+version = "2025.2.27+1g"
 dependencies = [
  "anyhow",
  "aws-config",
