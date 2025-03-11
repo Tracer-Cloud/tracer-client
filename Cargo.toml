@@ -1,6 +1,6 @@
 [package]
 name = "tracer"
-version = "2025.2.27"
+version = "2025.2.27+234158"
 edition = "2021"
 
 [dependencies]
@@ -48,11 +48,13 @@ serde-query = "0.2.0"
 itertools = "0.14.0"
 percent-encoding = "2.3.1"
 walkdir = "2.5.0"
+colored = "3.0.0"
+
 
 [dev-dependencies]
 serial_test = "3.1.1"
 tempfile = "3.17.1"
-env_logger = "0.11.6"
+env_logger = "0.9"
 dotenv = "0.15"
 tokio-test = "0.4"
 bollard = "0.18.1"

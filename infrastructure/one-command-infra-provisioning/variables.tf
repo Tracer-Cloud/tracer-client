@@ -38,7 +38,7 @@ variable "db_name" {
 
 variable "instance_type" {
   description = "Instance type for EC2"
-  default     = "c7g.12xlarge"
+  default     = "c7g.12xlarge" #"c5.12xlarge"
 }
 
 variable "root_volume_size" {

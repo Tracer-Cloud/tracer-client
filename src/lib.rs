@@ -43,6 +43,9 @@ const SYSLOG_FILE: &str = "/var/log/syslog";
 const REPO_OWNER: &str = "davincios";
 const REPO_NAME: &str = "tracer-daemon";
 
+// TODO: remove dependency from Service url completely
+pub const DEFAULT_SERVICE_URL: &str = "https://app.tracer.bio/api";
+
 pub fn start_daemon() -> Result<()> {
     //ConfigManager::test_service_config_sync()?;
 

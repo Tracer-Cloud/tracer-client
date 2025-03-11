@@ -65,12 +65,19 @@ sudo usermod -aG docker ubuntu  # Allow `ubuntu` user to run Docker without sudo
 pkg-config --version || echo "Error: pkg-config not installed" >> "$LOG_FILE"
 dpkg -L libssl-dev | grep openssl || echo "Error: OpenSSL headers not found" >> "$LOG_FILE"
 
-# Set environment variables for OpenSSL
-echo 'export OPENSSL_DIR=/usr/lib/aarch64-linux-gnu' | sudo tee -a /etc/profile
-echo 'export OPENSSL_LIB_DIR=/usr/lib/aarch64-linux-gnu' | sudo tee -a /etc/profile
-echo 'export OPENSSL_INCLUDE_DIR=/usr/include' | sudo tee -a /etc/profile
-echo 'export PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig' | sudo tee -a /etc/profile
-source /etc/profile
+
+ARCH=$(uname -m)
+if [ "$ARCH" = "aarch64" ]; then
+    # Set environment variables for OpenSSL
+    echo "Setting OpenSSL environment variables for ARM (aarch64)..."
+    echo 'export OPENSSL_DIR=/usr/lib/aarch64-linux-gnu' | sudo tee -a /etc/profile
+    echo 'export OPENSSL_LIB_DIR=/usr/lib/aarch64-linux-gnu' | sudo tee -a /etc/profile
+    echo 'export OPENSSL_INCLUDE_DIR=/usr/include' | sudo tee -a /etc/profile
+    echo 'export PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig' | sudo tee -a /etc/profile
+    source /etc/profile
+else
+    echo "Skipping OpenSSL config for non-aarch64 architecture: $ARCH"
+fi
 
 # Install Rust for ubuntu user
 echo "Installing Rust..."
@@ -127,6 +134,12 @@ echo "Setting Up test Environment $(date)"
 su - ubuntu -c "cd /home/ubuntu/tracer-client"
 
 echo "Running Env Setup Script"
+
+# # NOTE: adding this line because some r dependencies aren't found at times on aws archives especially in arm
+# echo "Updating sources list to use the main Ubuntu archive..."
+# sudo sed -i 's|http://.*.ec2.archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list
+# sudo apt-get update
+
 su - ubuntu -c "cd /home/ubuntu/tracer-client && ./deployments/scripts/setup_nextflow_test_env.sh"
 
 echo "Installation completed successfully"
@@ -148,7 +161,9 @@ new_run_pause_ms = 600000
 file_size_not_changing_period_ms = 60000
 process_metrics_send_interval_ms = 10000
 aws_region = "us-east-2"
-db_url = "postgres://postgres:tracer-test@tracer-database.cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432/postgres"
+database_secrets_arn = "arn:aws:secretsmanager:us-east-1:395261708130:secret:rds!cluster-cd690a09-953c-42e9-9d9f-1ed0b434d226-M0wZYA"
+database_host = "tracer-cluster-v2-instance-1.cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432"
+database_name = "tracer_db"
 EOL
 
 echo "Configuration file created at /home/ubuntu/.config/tracer/tracer.toml"

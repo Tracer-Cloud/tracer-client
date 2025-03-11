@@ -12,7 +12,7 @@ variable "api_key" {
 
 variable "instance_type" {
   description = "Instance type for EC2"
-  default     = "c7g.12xlarge"
+  default     = "c7g.12xlarge" # "c5.12xlarge" 
 }
 
 variable "key_name" {
@@ -30,3 +30,9 @@ variable "root_volume_type" {
   description = "Type of the root volume"
   default     = "gp3"
 }
+
+
+# variable "ubuntu_ami_id" {
+#   description = "AMI id of ubuntu image"
+#   default     = "ami-0e1bed4f06a3b463d" # x86-64 ami
+# }

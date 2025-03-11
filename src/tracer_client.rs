@@ -15,7 +15,7 @@ use crate::extracts::{
 };
 use crate::types::cli::TracerCliInitArgs;
 use crate::types::event::attributes::EventAttributes;
-use crate::{monitor_processes_with_tracer_client, FILE_CACHE_DIR};
+use crate::{monitor_processes_with_tracer_client, DEFAULT_SERVICE_URL, FILE_CACHE_DIR};
 use crate::{SOCKET_PATH, SYSLOG_FILE};
 use anyhow::{Context, Result};
 use chrono::{DateTime, TimeDelta, Utc};
@@ -45,7 +45,7 @@ pub struct RunMetadata {
     pub last_interaction: Instant,
     pub name: String,
     pub id: String,
-    //pub pipeline_name: String,
+    pub pipeline_name: String,
     pub parent_pid: Option<Pid>,
     pub start_time: DateTime<Utc>,
 }
@@ -63,7 +63,7 @@ pub struct TracerClient {
     process_metrics_send_interval: Duration,
     last_file_size_change_time_delta: TimeDelta,
     pub logs: EventRecorder,
-    process_watcher: ProcessWatcher,
+    pub process_watcher: ProcessWatcher,
     syslog_watcher: SyslogWatcher,
     stdout_watcher: StdoutWatcher,
     metrics_collector: SystemMetricsCollector,
@@ -89,10 +89,7 @@ impl TracerClient {
         db_client: Arc<AuroraClient>,
         cli_args: TracerCliInitArgs,
     ) -> Result<TracerClient> {
-        let service_url = config.service_url.clone();
-
         println!("Initializing TracerClient with API Key: {}", config.api_key);
-        println!("Service URL: {}", service_url);
 
         let pricing_client = PricingClient::new(config.aws_init_type.clone(), "us-east-1").await;
 
@@ -252,6 +249,7 @@ impl TracerClient {
             start_time: timestamp.unwrap_or_else(Utc::now),
             name: result.run_name.clone(),
             id: result.run_id.clone(),
+            pipeline_name: self.pipeline_name.clone(),
         });
         self.logs.update_run_details(
             Some(self.pipeline_name.clone()),
@@ -334,7 +332,7 @@ impl TracerClient {
     pub async fn poll_files(&mut self) -> Result<()> {
         self.file_watcher
             .poll_files(
-                &self.config.service_url,
+                DEFAULT_SERVICE_URL,
                 &self.config.api_key,
                 &self.workflow_directory,
                 FILE_CACHE_DIR,
@@ -359,7 +357,7 @@ impl TracerClient {
 
         self.stdout_watcher
             .poll_stdout(
-                &self.config.service_url,
+                DEFAULT_SERVICE_URL,
                 &self.config.api_key,
                 stdout_lines_buffer,
                 false,
@@ -368,7 +366,7 @@ impl TracerClient {
 
         self.stdout_watcher
             .poll_stdout(
-                &self.config.service_url,
+                DEFAULT_SERVICE_URL,
                 &self.config.api_key,
                 stderr_lines_buffer,
                 true,
@@ -385,7 +383,7 @@ impl TracerClient {
     }
 
     pub fn get_service_url(&self) -> &str {
-        &self.config.service_url
+        DEFAULT_SERVICE_URL
     }
 
     pub fn get_pipeline_name(&self) -> &str {
