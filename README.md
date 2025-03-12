@@ -106,13 +106,6 @@ The S3 client initializes with the following options:
 
 ## Development
 
-### **Troubleshooting**
-
-- If you encounter the error: `failed to run custom build command for 'openssl-sys v0.9.103'` or SSL-related issues, install the required dependencies:
-  ```bash
-  sudo apt install libssl-dev pkg-config
-  ```
-
 # Docker Container Registry
 
 To speed up our CI pipeline, we utilize a custom Docker container registry on GitHub, known as the GitHub Container Registry (GCHR). This allows us to efficiently manage and deploy our Docker images.
