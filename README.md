@@ -246,60 +246,93 @@ This ensures Tracer runs continuously in the background.
 Your Tracer agent should now be running as a daemon on your Linux machine. If you encounter issues, check logs in `/tmp/tracerd.err`. 🚀
 
 
+### **Managing the Database with SQLX**
 
-## Managing the Database with sqlx
+###  📌 Overview
 
-To manage our PostgreSQL database schema and apply migrations, we use sqlx.
+We use `sqlx` to manage database schema migrations for our PostgreSQL database.  
+Unlike typical setups where migrations run automatically in the Rust binary, **our approach separates migrations from the application** to ensure stability, consistency, and prevent breaking changes across multiple developers.
 
-1. Install sqlx CLI
+### **🚨 Why We Use Manual Migrations**
+- We **use a single shared database** for development and testing.
+- Running migrations in the Rust binary can **cause issues** if multiple developers apply conflicting migrations at different times.
+- A **manual migration process** ensures everyone is on the same schema version before running the application.
+- This also prevents errors due to version mismatches in `sqlx`, which can block developers from working.
 
-If you haven’t already, install sqlx with:
+---
+
+### **🛠️ Installing SQLX CLI**
+If you haven’t already installed `sqlx`, do so with:
 
 ```bash
 cargo install sqlx-cli --no-default-features --features rustls,postgres
 ```
 
-2. Creating a New Migration
+---
 
+### **📝 Creating a New Migration**
 To create a new migration, run:
+
 ```bash
 sqlx migrate add <migration_name>
 ```
 
-This will generate two SQL files in the migrations/ directory:
-	•	{timestamp}_<migration_name>.up.sql → Contains the SQL commands to apply the migration.
-	•	{timestamp}_<migration_name>.down.sql → Contains the SQL commands to roll back the migration.
+This will generate two SQL files in the `migrations/` directory:
 
-3. Running Migrations
+- `{timestamp}_<migration_name>.up.sql` → Contains the SQL commands to apply the migration.
+- `{timestamp}_<migration_name>.down.sql` → Contains the SQL commands to roll back the migration.
 
-To apply all pending migrations to your database:
+---
+
+### **🚀 Running Migrations (Manual Approach)**
+Since we **do not run migrations automatically in the Rust binary**, we handle them using a **separate migration script**.
+
+### Setup Environmental Variables
+Before running the migration, export the necessary environment variables:
+```bash
+export DB_USER="db_user"
+export DB_PASS="password"
+export DB_HOST="dbhost.com"
+export DB_PORT="5432"
+export DB_NAME="db"
+```
+### ** Using the Migration Script**
+To apply all pending migrations to your database, use the provided script:
 
 ```bash
-sqlx migrate run
+./migrate.sh
 ```
 
-To revert the last applied migration:
+The script will:
+✅ Check if `sqlx` is installed (if not, it installs it).  
+✅ Connect to the **shared database** and apply all migrations.  
+✅ Ensure that all developers are using the same database schema.  
 
-sqlx migrate revert
+---
 
-### Important Note
+### **🔄 Rolling Back Migrations**
+If a migration is problematic, use the rollback script to **undo the last applied migration**:
 
-Note that the compiler won’t pick up new migrations if no Rust source files have changed.
-You can create a Cargo build script to work around this with:
-
-This ensures that migrations are always detected and applied when building the project.
-
-Here’s an improved version of the note with the clarification about embedding migrations:
-
-4. Embedding Migrations in Your Application
-
-Did you know you can embed your migrations in your application binary?
-This allows your application to apply migrations automatically on startup.
-
-After creating your database connection or pool, add:
-```rust
-sqlx::migrate!().run(<&your_pool OR &mut your_connection>).await?;
+```bash
+./rollback.sh
 ```
-#### Important Note:
-When embedding migrations, the compiler won’t detect new migrations unless a Rust source file has changed.
-To ensure new migrations are always included, use a Cargo build script.
+
+The rollback script:
+✅ Checks if `sqlx` is installed.  
+✅ Connects to the database and **reverts the last applied migration**.  
+✅ Allows controlled rollbacks without affecting the entire schema history.  
+
+---
+
+### **💡 How the Migration Process Works in the Code**  
+
+- This approach enforces **intentionality** around schema changes—developers must apply migrations only when necessary, reducing unintended updates.  
+- Since migrations are **manual**, developers can first test them on a separate test database before applying them to the main server.  
+- While version mismatch errors may still occur, this process helps **limit their impact** by ensuring that migrations are only run when the changes are confirmed to work.
+---
+
+### **🚀 Deployment Process**
+1. **Create a new migration** using `sqlx migrate add <migration_name>`.
+2. **Apply the migration manually** with `./migrate.sh`.
+3. **Deploy the Rust binary**, assuming the database is up-to-date.
+4. If an issue arises, **use `./rollback.sh`** to undo the last migration.

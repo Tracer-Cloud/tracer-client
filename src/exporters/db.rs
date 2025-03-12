@@ -50,11 +50,6 @@ impl AuroraClient {
             .await
             .expect("Failed establish connection");
 
-        sqlx::migrate!("./migrations")
-            .run(&pool)
-            .await
-            .expect("Failed to migrate the database");
-
         info!("Successfully created connection pool");
 
         AuroraClient { pool }
