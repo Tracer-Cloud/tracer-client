@@ -69,10 +69,7 @@ impl NextflowLogWatcher {
                 })
             {
                 let path = entry.path();
-                if path
-                    .file_name()
-                    .map_or(false, |name| name == ".nextflow.log")
-                {
+                if path.file_name().is_some_and(|name| name == ".nextflow.log") {
                     info!("Found .nextflow.log at: {:?}", path);
                     debug!(
                         "Search stats: checked {} files, skipped {} directories",

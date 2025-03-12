@@ -109,7 +109,7 @@ fn setup_logging() -> Result<()> {
         .with_thread_names(true)
         .with_target(true)
         .with_level(true)
-        .with_timer(SystemTime::default())
+        .with_timer(SystemTime)
         .with_writer(file_appender);
 
     // Set up the subscriber with our custom layer
