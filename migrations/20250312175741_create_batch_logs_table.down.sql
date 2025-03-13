@@ -1,2 +1,2 @@
 -- Add down migration script here
-DROP TABLE batch_jobs_logs;
+DROP TABLE IF EXISTS batch_jobs_logs;
