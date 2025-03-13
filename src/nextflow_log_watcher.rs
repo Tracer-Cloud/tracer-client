@@ -1,5 +1,5 @@
 use crate::events::recorder::{EventRecorder, EventType};
-use crate::types::event::attributes::system_metrics::{NextflowLog};
+use crate::types::event::attributes::system_metrics::NextflowLog;
 use crate::types::event::attributes::EventAttributes;
 use anyhow::Result;
 use chrono::Utc;
