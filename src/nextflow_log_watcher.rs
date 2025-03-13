@@ -1,5 +1,8 @@
-use crate::events::recorder::EventRecorder;
+use crate::events::recorder::{EventRecorder, EventType};
+use crate::types::event::attributes::system_metrics::{NextflowLog, SystemMetric};
+use crate::types::event::attributes::EventAttributes;
 use anyhow::Result;
+use chrono::Utc;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -168,7 +171,30 @@ impl NextflowLogWatcher {
             }
         }
 
-        Ok(())
+        // Get the jobs for the current session, if it exists
+        let jobs = self
+            .current_session
+            .as_ref()
+            .and_then(|session| self.session_jobs.get(session))
+            .cloned()
+            .unwrap_or_default();
+
+        let nextflow_log = EventAttributes::NextflowLog(NextflowLog {
+            session_uuid: self.current_session.clone(),
+            jobs_ids: Some(jobs),
+        });
+
+        let message = match &self.current_session {
+            Some(uuid) => format!("[CLI] Nextflow log event for session uuid: {}", uuid),
+            None => "[CLI] Nextflow log event - No session UUID found".to_string(),
+        };
+
+        Ok(logs.record_event(
+            EventType::NextflowLogEvent,
+            message,
+            Some(nextflow_log),
+            Some(Utc::now()),
+        ))
     }
 }
 
