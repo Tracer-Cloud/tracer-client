@@ -1,5 +1,6 @@
 use bollard::container::{InspectContainerOptions, ListContainersOptions};
 use bollard::Docker;
+use sqlx::PgPool;
 use std::process::Command;
 use tokio::time::{sleep, Duration};
 
@@ -91,4 +92,36 @@ pub async fn end_docker_compose(profile: &str) {
             String::from_utf8_lossy(&output.stderr)
         );
     }
+}
+
+async fn wait_for_db_ready(db_url: &str) -> PgPool {
+    let mut attempts = 10; // Max retries
+    while attempts > 0 {
+        match PgPool::connect(db_url).await {
+            Ok(pool) => {
+                println!("Database is ready!");
+                return pool;
+            }
+            Err(e) => {
+                println!("⏳ Waiting for DB to be ready... ({})", e);
+                sleep(Duration::from_secs(2)).await;
+                attempts -= 1;
+            }
+        }
+    }
+    panic!("failed to start!");
+}
+
+pub async fn setup_db(db_url: &str) -> PgPool {
+    println!("Running migrations...");
+    // Run migrations
+    let pool = wait_for_db_ready(db_url).await;
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .expect("Failed to run migration");
+
+    sleep(Duration::from_millis(100)).await;
+
+    pool
 }
