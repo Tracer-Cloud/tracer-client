@@ -187,13 +187,11 @@ impl TracerClient {
                 .collect_metrics(&mut self.system, &mut self.logs)
                 .context("Failed to collect metrics")?;
 
-            // FIXME: get nextflow session_uid properly
             self.db_client
                 .batch_insert_events(
                     run_name,
                     run_id,
                     &self.pipeline_name,
-                    None,
                     self.logs.get_events(),
                 )
                 .await
@@ -300,15 +298,12 @@ impl TracerClient {
             // clear events containing this run
             let run_metadata = self.current_run.as_ref().unwrap();
 
-            // FIXME: get nextflow session_uid properly
-
             if let Err(err) = self
                 .db_client
                 .batch_insert_events(
                     &run_metadata.name,
                     &run_metadata.id,
                     &self.pipeline_name,
-                    None,
                     self.logs.get_events(),
                 )
                 .await
