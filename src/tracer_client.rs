@@ -154,16 +154,24 @@ impl TracerClient {
         )
     }
 
+    // TODO: Refactor to collect required entries properly
     pub async fn submit_batched_data(&mut self) -> Result<()> {
         println!(
             "Submitting batched data for pipeline {}",
             self.pipeline_name
         );
-        let run_name = if let Some(run) = &self.current_run {
-            &run.name
-        } else {
-            "annoymous"
-        };
+
+        let run_name = self
+            .current_run
+            .as_ref()
+            .map(|st| st.name.as_str())
+            .unwrap_or("annoymous");
+
+        let run_id = self
+            .current_run
+            .as_ref()
+            .map(|st| st.id.as_str())
+            .unwrap_or("annoymous");
 
         println!("Submitting batched data for run_name {}", run_name);
 
@@ -172,9 +180,17 @@ impl TracerClient {
                 .collect_metrics(&mut self.system, &mut self.logs)
                 .context("Failed to collect metrics")?;
 
+            // FIXME: get nextflow session_uid properly
             self.db_client
-                .batch_insert_events(run_name, self.logs.get_events())
-                .await?;
+                .batch_insert_events(
+                    run_name,
+                    run_id,
+                    &self.pipeline_name,
+                    None,
+                    self.logs.get_events(),
+                )
+                .await
+                .map_err(|err| anyhow::anyhow!("Error submitting batch events {:?}", err))?;
 
             self.last_sent = Some(Instant::now());
             self.logs.clear();
@@ -277,9 +293,17 @@ impl TracerClient {
             // clear events containing this run
             let run_metadata = self.current_run.as_ref().unwrap();
 
+            // FIXME: get nextflow session_uid properly
+
             if let Err(err) = self
                 .db_client
-                .batch_insert_events(&run_metadata.name, self.logs.get_events())
+                .batch_insert_events(
+                    &run_metadata.name,
+                    &run_metadata.id,
+                    &self.pipeline_name,
+                    None,
+                    self.logs.get_events(),
+                )
                 .await
             {
                 println!("Error outputing end run logs: {err}")

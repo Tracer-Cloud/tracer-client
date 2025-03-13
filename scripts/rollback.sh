@@ -2,18 +2,25 @@
 
 set -e
 
-: "${DB_USER:?DB_USER is not set}"
-: "${DB_PASS:?DB_PASS is not set}"
-: "${DB_HOST:?DB_HOST is not set}"
-: "${DB_PORT:=5432}"
-: "${DB_NAME:=tracer_db}"
+# Check if DATABASE_URL is passed as an argument
+if [[ -n "$1" ]]; then
+    DATABASE_URL="$1"
+else
+    # Fall back to environment variables if no argument is given
+    if [[ -z "$DATABASE_URL" ]]; then
+        : "${DB_USER:?DB_USER is not set}"
+        : "${DB_PASS:?DB_PASS is not set}"
+        : "${DB_HOST:?DB_HOST is not set}"
+        : "${DB_PORT:=5432}"
+        : "${DB_NAME:=tracer_db}"
 
+        # Encode the password
+        ENCODED_PASS=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$DB_PASS'))")
 
-# Encode the password
-ENCODED_PASS=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$DB_PASS'))")
-
-# Construct the connection URL
-DATABASE_URL="postgres://${DB_USER}:${ENCODED_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+        # Construct the database URL
+        DATABASE_URL="postgres://${DB_USER}:${ENCODED_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+    fi
+fi
 
 echo "Using database URL: $DATABASE_URL"
 

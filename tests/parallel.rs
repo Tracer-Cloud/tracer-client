@@ -10,16 +10,16 @@ async fn test_parallel_mode_works() {
     // Step 1: Start Docker Compose to run the container
     common::start_docker_compose(container_name).await;
 
-    // Step 2: Monitor the container and wait for it to finish
+    // Step 1b: monitor postgres and migrate
+    let db_url = "postgres://postgres:postgres@localhost:5432/tracer_db";
+    let pool = common::setup_db(&db_url).await;
 
+    // Step 2: Monitor the container and wait for it to finish
     let docker = Docker::connect_with_local_defaults().expect("Failed to connect to Docker");
 
     common::monitor_container(&docker, container_name).await;
 
     // Step 3: Query the database and make assertions
-    let pool = PgPool::connect("postgres://postgres:postgres@localhost:5432/tracer_db")
-        .await
-        .unwrap();
 
     let job_id = "parallel-tag";
 

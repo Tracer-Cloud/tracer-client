@@ -76,15 +76,24 @@ impl AuroraClient {
         Ok(())
     }
 
+    // TODO: Verify: Is job_id same with run name because previous implementation used that. Would it
+    // remain thesame with nextflow?
     pub async fn batch_insert_events(
         &self,
-        job_id: &str,
+        run_name: &str,
+        run_id: &str,
+        pipeline_name: &str,
+        nextflow_session_uuid: Option<&str>,
         data: impl IntoIterator<Item = &Event>,
     ) -> Result<()> {
-        let query = "INSERT INTO batch_jobs_logs (data, job_id) VALUES ($1, $2)";
+        //let query = "INSERT INTO batch_jobs_logs (data, job_id) VALUES ($1, $2)";
 
-        info!("Inserting row with job_id: {}", job_id);
-        println!("Inserting row with job_id: {}", job_id);
+        let query = "
+        INSERT INTO batch_jobs_logs (data, job_id, run_name, run_id, pipeline_name, nextflow_session_uuid, job_ids)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)";
+
+        info!("Inserting row with job_id: {}", run_name);
+        println!("Inserting row with job_id: {}", run_name);
 
         let mut transaction = self
             .get_pool()
@@ -96,10 +105,15 @@ impl AuroraClient {
 
         for event in data {
             let json_data = Json(serde_json::to_value(event)?); // Convert the event to JSON
-
+            let job_ids = [run_name];
             rows_affected += sqlx::query(query)
                 .bind(json_data)
-                .bind(job_id)
+                .bind(run_name) // run name is thesame as job_id
+                .bind(run_name)
+                .bind(run_id)
+                .bind(pipeline_name)
+                .bind(nextflow_session_uuid) // Nullable field
+                .bind(job_ids)
                 .execute(&mut *transaction) // Use the transaction directly
                 .await
                 .context("Failed to insert event into database")?
@@ -111,7 +125,7 @@ impl AuroraClient {
             .await
             .context("Failed to commit transaction")?;
 
-        info!("Successfully inserted {rows_affected} rows with job_id: {job_id}");
+        info!("Successfully inserted {rows_affected} rows with job_id: {run_name}");
 
         Ok(())
     }
