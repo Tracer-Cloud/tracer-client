@@ -531,6 +531,8 @@ mod tests {
 
         // submit_batched_data
         let res = client.submit_batched_data().await;
+
+        println!("{res:?}");
         assert!(res.is_ok());
 
         // Prepare the SQL query
