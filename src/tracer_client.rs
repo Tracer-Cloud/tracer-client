@@ -402,6 +402,12 @@ impl TracerClient {
             .await
     }
 
+    pub async fn poll_nextflow_log(&mut self) -> Result<()> {
+        self.nextflow_log_watcher
+            .poll_nextflow_log(&mut self.logs, &self.workflow_directory)
+            .await
+    }
+
     pub fn refresh_sysinfo(&mut self) {
         self.system.refresh_all();
     }
