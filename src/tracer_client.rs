@@ -32,6 +32,8 @@ use config_manager::{INTERCEPTOR_STDERR_FILE, INTERCEPTOR_STDOUT_FILE};
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
+use crate::nextflow_log_watcher::NextflowLogWatcher;
+
 // NOTE: we might have to find a better alternative than passing the pipeline name to tracer client
 // directly. Currently with this approach, we do not need to generate a new pipeline name for every
 // new run.
@@ -66,6 +68,7 @@ pub struct TracerClient {
     stdout_watcher: StdoutWatcher,
     metrics_collector: SystemMetricsCollector,
     file_watcher: FileWatcher,
+    nextflow_log_watcher: NextflowLogWatcher,
     workflow_directory: String,
     current_run: Option<RunMetadata>,
     syslog_lines_buffer: LinesBufferArc,
@@ -110,15 +113,16 @@ impl TracerClient {
             current_run: None,
             syslog_watcher: SyslogWatcher::new(),
             stdout_watcher: StdoutWatcher::new(),
-            // Sub mannagers
+            // Sub managers
             logs: EventRecorder::default(),
             file_watcher,
-            workflow_directory,
+            workflow_directory: workflow_directory.clone(),
             syslog_lines_buffer: Arc::new(RwLock::new(Vec::new())),
             stdout_lines_buffer: Arc::new(RwLock::new(Vec::new())),
             stderr_lines_buffer: Arc::new(RwLock::new(Vec::new())),
             process_watcher: ProcessWatcher::new(config.targets.clone()),
             metrics_collector: SystemMetricsCollector::new(),
+            nextflow_log_watcher: NextflowLogWatcher::new(),
             db_client,
             pipeline_name: cli_args.pipeline_name,
             pricing_client,
@@ -165,28 +169,29 @@ impl TracerClient {
             .current_run
             .as_ref()
             .map(|st| st.name.as_str())
-            .unwrap_or("annoymous");
+            .unwrap_or("anonymous");
 
         let run_id = self
             .current_run
             .as_ref()
             .map(|st| st.id.as_str())
-            .unwrap_or("annoymous");
+            .unwrap_or("anonymous");
 
-        println!("Submitting batched data for run_name {}", run_name);
+        println!(
+            "Submitting batched data for pipeline {} and run_name {}",
+            self.pipeline_name, run_name
+        );
 
         if self.last_sent.is_none() || Instant::now() - self.last_sent.unwrap() >= self.interval {
             self.metrics_collector
                 .collect_metrics(&mut self.system, &mut self.logs)
                 .context("Failed to collect metrics")?;
 
-            // FIXME: get nextflow session_uid properly
             self.db_client
                 .batch_insert_events(
                     run_name,
                     run_id,
                     &self.pipeline_name,
-                    None,
                     self.logs.get_events(),
                 )
                 .await
@@ -293,15 +298,12 @@ impl TracerClient {
             // clear events containing this run
             let run_metadata = self.current_run.as_ref().unwrap();
 
-            // FIXME: get nextflow session_uid properly
-
             if let Err(err) = self
                 .db_client
                 .batch_insert_events(
                     &run_metadata.name,
                     &run_metadata.id,
                     &self.pipeline_name,
-                    None,
                     self.logs.get_events(),
                 )
                 .await
@@ -392,6 +394,12 @@ impl TracerClient {
                 stderr_lines_buffer,
                 true,
             )
+            .await
+    }
+
+    pub async fn poll_nextflow_log(&mut self) -> Result<()> {
+        self.nextflow_log_watcher
+            .poll_nextflow_log(&mut self.logs, &self.workflow_directory)
             .await
     }
 
@@ -512,7 +520,7 @@ mod tests {
 
         let mut client = TracerClient::new(config, work_dir.to_string(), db_client, cli_config)
             .await
-            .expect("Failed to create tracerclient");
+            .expect("Failed to create tracer client");
 
         client
             .start_new_run(None)
@@ -536,7 +544,7 @@ mod tests {
         assert!(res.is_ok());
 
         // Prepare the SQL query
-        let query = "SELECT data, job_id FROM batch_jobs_logs WHERE job_id = $1";
+        let query = "SELECT data, run_name FROM batch_jobs_logs WHERE run_name = $1";
 
         let db_client = client.db_client.get_pool();
 

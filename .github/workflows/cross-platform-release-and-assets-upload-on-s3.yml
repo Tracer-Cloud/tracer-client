@@ -24,10 +24,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: main
+      - uses: actions/checkout@v4.1.4
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1

@@ -8,12 +8,20 @@ pub mod events;
 pub mod exporters;
 pub mod extracts;
 
+mod nextflow_log_watcher;
 pub mod tracer_client;
 pub mod types;
 pub mod utils;
+
 use anyhow::{Context, Ok, Result};
 use daemonize::Daemonize;
 use exporters::db::AuroraClient;
+use tracing_appender::rolling::{RollingFileAppender, Rotation};
+use tracing_subscriber::{
+    fmt::{self, time::SystemTime},
+    prelude::*,
+    EnvFilter,
+};
 use types::cli::TracerCliInitArgs;
 
 use std::fs::File;
@@ -26,6 +34,7 @@ const PID_FILE: &str = "/tmp/tracerd.pid";
 const WORKING_DIR: &str = "/tmp";
 const STDOUT_FILE: &str = "/tmp/tracerd.out";
 const STDERR_FILE: &str = "/tmp/tracerd.err";
+const LOG_FILE: &str = "/tmp/daemon.log";
 const SOCKET_PATH: &str = "/tmp/tracerd.sock";
 const FILE_CACHE_DIR: &str = "/tmp/tracerd_cache";
 
@@ -63,6 +72,9 @@ pub async fn run(
     workflow_directory_path: String,
     cli_config_args: TracerCliInitArgs,
 ) -> Result<()> {
+    // Set up logging first
+    setup_logging()?;
+
     let raw_config = ConfigManager::load_config();
 
     // create the conn pool to aurora
@@ -77,7 +89,40 @@ pub async fn run(
     .await
     .context("Failed to create TracerClient")?;
 
+    println!("Pipeline Name: {:?}", client.get_pipeline_name());
+
     client.run().await
+}
+
+fn setup_logging() -> Result<()> {
+    // Set up the filter
+    let filter = EnvFilter::from("debug"); // Capture all levels from debug up
+
+    // Create a file appender that writes to daemon.log
+    let file_appender = RollingFileAppender::new(Rotation::NEVER, "/tmp", "daemon.log");
+
+    // Create a custom format for the logs
+    let file_layer = fmt::layer()
+        .with_file(true)
+        .with_line_number(true)
+        .with_thread_ids(true)
+        .with_thread_names(true)
+        .with_target(true)
+        .with_level(true)
+        .with_timer(SystemTime)
+        .with_writer(file_appender);
+
+    // Set up the subscriber with our custom layer
+    let subscriber = tracing_subscriber::registry().with(filter).with(file_layer);
+
+    // Set the subscriber as the default
+    tracing::subscriber::set_global_default(subscriber)
+        .context("Failed to set tracing subscriber")?;
+
+    // Log initialization message
+    tracing::info!("Logging system initialized. Writing to {}", LOG_FILE);
+
+    Ok(())
 }
 
 pub async fn monitor_processes_with_tracer_client(tracer_client: &mut TracerClient) -> Result<()> {
@@ -87,6 +132,7 @@ pub async fn monitor_processes_with_tracer_client(tracer_client: &mut TracerClie
     tracer_client.poll_process_metrics().await?;
     tracer_client.poll_syslog().await?;
     tracer_client.poll_stdout_stderr().await?;
+    tracer_client.poll_nextflow_log().await?;
     tracer_client.refresh_sysinfo();
     tracer_client.reset_just_started_process_flag();
     Ok(())
