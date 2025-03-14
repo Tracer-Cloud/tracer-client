@@ -52,7 +52,7 @@ pub async fn print_config_info() -> Result<()> {
     let _ = writeln!(
         &mut output,
         "Grafana Workspace URL: {}",
-        config.grafana_workspace_url
+        config.grafana_workspace_url.cyan().underline()
     );
 
     let _ = writeln!(
