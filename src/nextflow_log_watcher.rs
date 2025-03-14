@@ -140,7 +140,7 @@ impl NextflowLogWatcher {
                 if let Some(uuid) = extract_session_uuid(&line) {
                     info!("Found Session UUID: {}", uuid);
                     self.current_session = Some(uuid.clone());
-                    self.session_jobs.entry(uuid).or_insert_with(Vec::new);
+                    self.session_jobs.entry(uuid).or_default();
                 }
             }
 
@@ -189,21 +189,20 @@ impl NextflowLogWatcher {
             None => "[CLI] Nextflow log event - No session UUID found".to_string(),
         };
 
-        Ok(logs.record_event(
+        logs.record_event(
             EventType::NextflowLogEvent,
             message,
             Some(nextflow_log),
             Some(Utc::now()),
-        ))
+        );
+        Ok(())
     }
 }
 
 fn extract_session_uuid(line: &str) -> Option<String> {
-    if let Some(uuid_part) = line.split("Session UUID:").nth(1) {
-        Some(uuid_part.trim().to_string())
-    } else {
-        None
-    }
+    line.split("Session UUID:")
+        .nth(1)
+        .map(|uuid_part| uuid_part.trim().to_string())
 }
 
 fn extract_job_id(line: &str) -> Option<String> {

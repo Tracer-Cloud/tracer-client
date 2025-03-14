@@ -520,7 +520,7 @@ mod tests {
 
         let mut client = TracerClient::new(config, work_dir.to_string(), db_client, cli_config)
             .await
-            .expect("Failed to create tracerclient");
+            .expect("Failed to create tracer client");
 
         client
             .start_new_run(None)
@@ -544,7 +544,7 @@ mod tests {
         assert!(res.is_ok());
 
         // Prepare the SQL query
-        let query = "SELECT data, job_id FROM batch_jobs_logs WHERE job_id = $1";
+        let query = "SELECT data, run_name FROM batch_jobs_logs WHERE run_name = $1";
 
         let db_client = client.db_client.get_pool();
 

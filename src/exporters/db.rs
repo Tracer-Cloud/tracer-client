@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
 use log::info;
-use serde_json::Value;
 use sqlx::pool::PoolOptions;
 use sqlx::types::Json;
 use sqlx::PgPool;
@@ -60,23 +59,6 @@ impl AuroraClient {
         &self.pool
     }
 
-    pub async fn insert_row(&self, job_id: &str, data: Json<Value>) -> Result<()> {
-        let query = "INSERT INTO batch_jobs_logs (data, job_id) VALUES ($1, $2)";
-
-        info!("Inserting row with job_id: {}", job_id);
-
-        sqlx::query(query)
-            .bind(data)
-            .bind(job_id)
-            .execute(&self.pool)
-            .await
-            .context("Failed to insert row")?;
-
-        info!("Successfully inserted row with job_id: {}", job_id);
-
-        Ok(())
-    }
-
     pub async fn batch_insert_events(
         &self,
         run_name: &str,
@@ -91,8 +73,10 @@ impl AuroraClient {
         // Try to get AWS_BATCH_JOB_ID from environment, use empty string if not found
         let job_id = std::env::var("AWS_BATCH_JOB_ID").unwrap_or_default();
 
-        info!("Inserting row with job_id: {}", job_id);
-        println!("Inserting row with job_id: {}", job_id);
+        info!(
+            "Inserting row for run_name: {}, pipeline_name: {}, job_id: {}",
+            run_name, pipeline_name, job_id
+        );
 
         let mut transaction = self
             .get_pool()
