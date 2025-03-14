@@ -1,6 +1,6 @@
-# <h1 align="left">
-🦡 Tracer Documentation
-</h1>
+<h2 align="left">
+🦡 Tracer Documentation: Cloud Deployment, Linux Agent and Getting Your First Wokrflow Up and Running
+</h2>
 
 ## Table of Contents
 - 📚 [Documentation](./DOCUMENTATION.md) – Learn more about Tracer’s features and capabilities
