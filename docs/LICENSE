@@ -1,4 +1,4 @@
-Business Source License (BUSL) v1.0 – Enterprise Monetization Version
+Business Source License (BUSL) v1.0 
 
 1. License Grant
 Subject to the terms of this License, the Licensor grants the Licensee a non-exclusive, non-transferable, non-sublicensable, limited license to use, modify, and distribute the Licensed Work, provided that the following conditions are met.
@@ -12,24 +12,29 @@ Enterprise Use: Any entity with 50 or more employees or $5 million USD or more i
 Except as explicitly permitted under a separate commercial license agreement with the Licensor, the following uses of the Licensed Work are strictly prohibited:
 
 Enterprise Internal Use: Enterprises meeting the criteria in Section 2 may not use the Licensed Work internally, whether for testing, production, research, or any other internal workflow.
+
 Commercial Deployment: The Licensed Work may not be used to provide any service, software-as-a-service (SaaS), or cloud-based offering.
 Resale and Redistribution: The Licensed Work may not be sold, sublicensed, distributed, or otherwise made available to third parties.
 Self-Hosting and On-Premises Deployment: The Licensed Work may not be deployed on any organization’s internal infrastructure, including but not limited to on-premises servers, cloud infrastructure, or hybrid environments, without an explicit license.
 Modification Without Contribution: Any modification of the Licensed Work must be contributed back to the Licensor under this License and may not be retained for proprietary use.
+
 4. Compliance and Enforcement
 The Licensor reserves the right to audit any Licensee’s use of the Licensed Work to ensure compliance with this License.
 Unauthorized enterprise use will result in automatic termination of this License and may subject the Licensee to financial penalties and legal action.
 If the Licensee is found to be in violation of this License, the Licensor may demand cessation of use, financial damages, and/or a retroactive commercial licensing fee.
+
 5. Source Code Release (Optional Future Open-Source Licensing)
 The Licensed Work is not guaranteed to become open-source at any time.
 The Licensor may, at its sole discretion, release a version of the Licensed Work under an open-source license after a specified period.
 The Licensor reserves the right to extend, modify, or revoke any planned open-source release.
+
 6. Termination
 This License is automatically and immediately terminated if:
 
 The Licensee violates any of the terms outlined in Sections 2 or 3.
 The Licensee attempts to use the Licensed Work internally or commercially without a valid commercial agreement.
 The Licensor revokes the License due to non-compliance.
+
 Upon termination, the Licensee must immediately cease all use of the Licensed Work, remove any copies, and certify in writing to the Licensor that all copies have been destroyed or removed from any systems.
 
 7. No Patent Rights
