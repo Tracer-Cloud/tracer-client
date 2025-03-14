@@ -1,4 +1,8 @@
 
+<h1 align="left">
+🦡 Tracer Linux Agent
+</h1>
+
 ## How to Test Tracer:
 - Ensure you have docker running
 - Use cargo nextest run to run the tests

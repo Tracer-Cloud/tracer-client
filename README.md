@@ -21,5 +21,6 @@ tracer init --pipeline-name <YOUR_PIPELINE_NAME>
  ```
 
 ## Table of Contents
-- ![Documentation](./DOCUMENTATION.md)
-- ![Contributing](./CONTRIBUTING.md)
+- [Documentation](DOCUMENTATION.md)
+- [Contributing](docs/CONTRIBUTING.md)
+- [Examples](docs/EXAMPLES.md)
