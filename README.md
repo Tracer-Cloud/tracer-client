@@ -9,7 +9,7 @@ Tracer Linux Agent: Observability for HPC Workloads
 
 - Unlike industry agnostic monitoring agents, Tracer structures DevOps data for scientific pipelines, providing clear visibility into pipeline stages and execution runs. In environments like AWS Batch, users struggle to track which processes or containers belong to the same pipeline and frequently lose logs from failed containers, making debugging difficult.
 
-- Tracer solves this by intelligently organizing and labeling pipelines, execution runs, and steps. Because it runs directly on Linux, it requires no code changes and supports any programming language, unlike point solutions that work only with one framework (i.e. Airflow), making integration effortless.
+- Tracer solves this by intelligently organizing and labeling pipelines, execution runs, and steps. Because it runs directly on Linux, it requires no code changes and supports any programming language, unlike point solutions that work only with one framework, making integration effortless for multi workload IT environments consiting of Slurm, Airflow, Nextflow, AlphaFold or even local bash scripts.
 
 - Architected for regulated industries, it ensures enterprise-grade security, with data never leaving your infrastructure, which is not the case with solutions such as DataDog. 
 
