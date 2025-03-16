@@ -1,39 +1,86 @@
-Business Source License (BUSL) v1.0 – Enterprise Monetization Version
+Business Source License (BUSL) v1.0
 
 1. License Grant
+
 Subject to the terms of this License, the Licensor grants the Licensee a non-exclusive, non-transferable, non-sublicensable, limited license to use, modify, and distribute the Licensed Work, provided that the following conditions are met.
 
 2. Permitted Use
-Individual Use: Individuals and organizations with fewer than 50 employees and less than $5 million USD in annual revenue may use the Licensed Work solely for internal, non-commercial purposes.
 
-Enterprise Use: Any entity with 50 or more employees or $5 million USD or more in annual revenue may not use, modify, or deploy the Licensed Work for any purpose unless an explicit commercial license agreement is obtained from the Licensor.
+Usage Duration Restriction
+
+The Licensee may use the Licensed Work for a period of 30 days from the date of initial download or access ("Evaluation Period"). After this period, all usage rights under this License terminate unless a commercial license agreement is obtained from the Licensor.
+
+Individual Use
+
+Individuals and organizations with fewer than 50 employees and less than $5 million USD in annual revenue may use the Licensed Work solely for internal, non-commercial purposes within the Evaluation Period.
+
+Enterprise Use
+
+Any entity with 50 or more employees or $5 million USD or more in annual revenue may use the Licensed Work for an evaluation period of 30 days, after which a commercial license agreement must be obtained from the Licensor for continued use.
 
 3. Prohibited Uses
+
 Except as explicitly permitted under a separate commercial license agreement with the Licensor, the following uses of the Licensed Work are strictly prohibited:
 
-Enterprise Internal Use: Enterprises meeting the criteria in Section 2 may not use the Licensed Work internally, whether for testing, production, research, or any other internal workflow.
-Commercial Deployment: The Licensed Work may not be used to provide any service, software-as-a-service (SaaS), or cloud-based offering.
-Resale and Redistribution: The Licensed Work may not be sold, sublicensed, distributed, or otherwise made available to third parties.
-Self-Hosting and On-Premises Deployment: The Licensed Work may not be deployed on any organization’s internal infrastructure, including but not limited to on-premises servers, cloud infrastructure, or hybrid environments, without an explicit license.
-Modification Without Contribution: Any modification of the Licensed Work must be contributed back to the Licensor under this License and may not be retained for proprietary use.
+Enterprise Internal Use
+
+Enterprises meeting the criteria in Section 2 may not use the Licensed Work internally, whether for testing, production, research, or any other internal workflow beyond the Evaluation Period.
+
+Commercial Deployment
+
+The Licensed Work may not be used to provide any service, software-as-a-service (SaaS), or cloud-based offering beyond the Evaluation Period.
+
+Resale and Redistribution
+
+The Licensed Work may not be sold, sublicensed, distributed, or otherwise made available to third parties.
+
+Self-Hosting and On-Premises Deployment
+
+The Licensed Work may not be deployed on any organization’s internal infrastructure, including but not limited to on-premises servers, cloud infrastructure, or hybrid environments, without an explicit commercial license.
+
+Modification Without Contribution
+
+Any modification of the Licensed Work must be contributed back to the Licensor under this License and may not be retained for proprietary use.
+
 4. Compliance and Enforcement
+
 The Licensor reserves the right to audit any Licensee’s use of the Licensed Work to ensure compliance with this License.
-Unauthorized enterprise use will result in automatic termination of this License and may subject the Licensee to financial penalties and legal action.
+
+Unauthorized enterprise use or usage beyond the Evaluation Period will result in automatic termination of this License and may subject the Licensee to financial penalties and legal action.
+
 If the Licensee is found to be in violation of this License, the Licensor may demand cessation of use, financial damages, and/or a retroactive commercial licensing fee.
+
 5. Source Code Release (Optional Future Open-Source Licensing)
+
 The Licensed Work is not guaranteed to become open-source at any time.
+
 The Licensor may, at its sole discretion, release a version of the Licensed Work under an open-source license after a specified period.
+
 The Licensor reserves the right to extend, modify, or revoke any planned open-source release.
+
 6. Termination
+
 This License is automatically and immediately terminated if:
 
 The Licensee violates any of the terms outlined in Sections 2 or 3.
+
 The Licensee attempts to use the Licensed Work internally or commercially without a valid commercial agreement.
+
+The 30-day Evaluation Period expires without a commercial license purchase.
+
 The Licensor revokes the License due to non-compliance.
+
 Upon termination, the Licensee must immediately cease all use of the Licensed Work, remove any copies, and certify in writing to the Licensor that all copies have been destroyed or removed from any systems.
 
-7. No Patent Rights
+7. No Warranty and Limitation of Liability
+
+THE LICENSED WORK IS PROVIDED "AS IS," WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY CLAIMS, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE LICENSED WORK OR THE USE OF THE LICENSED WORK.
+
+8. No Patent Rights
+
 This License does not grant the Licensee any rights under any patents or patent applications held by the Licensor. Any use of patented technology within the Licensed Work requires separate written agreements.
 
-8. Governing Law
-This License shall be governed by and construed in accordance with the laws of the US, without regard to conflict of law principles. Any disputes arising under this License shall be resolved in the courts of the US.
+9. Governing Law
+
+This License shall be governed by and construed in accordance with the laws of the state of Delaware in the US, without regard to conflict of law principles. Any disputes arising under this License shall be resolved in the courts of the state of Delaware.
+
