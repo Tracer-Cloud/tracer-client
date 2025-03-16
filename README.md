@@ -12,9 +12,11 @@ What's unique is that Tracer runs directly from your Linux operating system, so 
 Architected specifically for regulated industries, Tracer ensures enterprise-grade security, keeping all data within your infrastructure while requiring no ongoing maintenance.
 
 ## Key Features 
-Gain unparalleled insights into your HPC pipelines with key performance indicators:
-- Time and cost per dataset processed: Optimize resource usage and efficiency
-- Execution cost per pipeline run: Track and control cloud spending to reduce costs. Helping you speed up pipelines and maximize your budget
+Gain unparalleled insights into your HPC pipelines with metrics that help you speed up your pipelines and maximize your budget:
+- Time and cost per dataset processed
+- Execution cost per pipeline run
+
+<em>see more features below</em>
 
 ![Tracer Dashboards](docs/images/20250316-kpi-dashboard.png)
 
