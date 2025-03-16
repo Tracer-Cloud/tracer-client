@@ -11,7 +11,7 @@ Tracer Linux Agent: Observability for HPC Workloads
 
 - Tracer solves this by intelligently organizing and labeling pipelines, execution runs, and steps. Because it runs directly on Linux, it requires no code changes and supports any programming language, unlike point solutions that work only with one framework (i.e. Airflow), making integration effortless.
 
-- Architected for regulated industries, it ensures enterprise-grade security, keeping data within your infrastructure with zero maintenance overhead.
+- Architected for regulated industries, it ensures enterprise-grade security, keeping data within your infrastructure, which is not the case with solutions such as DataDog. 
 
 ## Key Features 
 New metrics that help you speed up your pipelines and maximize your budget:
