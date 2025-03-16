@@ -1,6 +1,6 @@
-<h1 align="left">
+<h2 align="left">
 🦡 Tracer Linux Agent – Observability for High-Performance Computing (HPC) Workloads
-</h1>
+</h2>
 
 > *"The goal of Tracer's Rust agent is to equip scientists and engineers with DevOps intelligence to efficiently harness massive computational power for humanity's most critical challenges."*
 
