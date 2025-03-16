@@ -5,13 +5,11 @@ Tracer Linux Agent: Observability for HPC Workloads
 ![Tracer Banner](docs/images/tracer-banner-image.jpeg)
 
 ## What Is Tracer and Why Use It? 
-Tracer is a monitoring solution designed to optimize HPC workloads for speed and cost efficiency. It consists of a one-line install Linux agent and instant dashboards that provide real-time insights into scientific computing environments.
+- Tracer is a monitoring solution that optimizes HPC workloads for speed and cost efficiency. It features a one-line install Linux agent and instant dashboards for real-time insights into scientific computing environments.
 
-This is made possible by Tracer’s unique approach to devops data structuring. Currently users lack a structured view of individual pipeline stages and execution runs. It is difficult to determine which processes or containers belong to the same pipeline or track how performance evolves over time, espescially in environments like AWS Batch.
+- Unlike traditional tools, Tracer structures DevOps data, providing clear visibility into pipeline stages and execution runs. In environments like AWS Batch, users struggle to track which processes or containers belong to the same pipeline or how performance evolves over time. Tracer solves this by intelligently organizing and labeling pipelines, execution runs, and steps.
 
-Tracer solves this by intelligently organizing and labeling pipelines, execution runs, and individual steps. 
-
-What's unique is that Tracer runs directly from your Linux operating system, so it works with any programming language and requires no code changes, making integration into existing workflows effortless. Architected specifically for regulated industries, Tracer ensures enterprise-grade security, keeping all data within your infrastructure while requiring no ongoing maintenance.
+- Tracer runs directly on Linux, requiring no code changes and supporting any programming language, making integration effortless. Architected for regulated industries, it ensures enterprise-grade security, keeping data within your infrastructure with zero maintenance overhead.
 
 ## Key Features 
 New metrics that help you speed up your pipelines and maximize your budget:
