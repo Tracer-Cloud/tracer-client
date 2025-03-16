@@ -1,5 +1,5 @@
 <h2 align="left">
-Tracer Linux Agent: Observability for HPC Workloads
+Tracer Linux Agent: Observability for Scientific HPC Workloads
 </h2>
 
 ![Tracer Banner](docs/images/tracer-banner-image.jpeg)
