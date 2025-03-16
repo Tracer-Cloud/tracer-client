@@ -41,12 +41,12 @@ You can run a single command from this repository to provision the required infr
 cd infrastructure && terraform apply
  ```
 
-### 2.Install Tracer With One Line of Code
+### 2. Install Tracer With One Line of Code
 Run the following command to install Tracer on your Linux Ubuntu system:
 ```bash
 curl -sSL https://install.tracer.cloud/installation-script.sh | bash && source ~/.bashrc
  ```
-### 3.Initialize a Pipeline
+### 3. Initialize a Pipeline
 Set up your pipeline by specifying a name:
 ```bash
 tracer init --pipeline-name <YOUR_PIPELINE_NAME>
