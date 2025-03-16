@@ -7,7 +7,9 @@
 ![Tracer Banner](docs/images/tracer-banner-image.jpeg)
 
 ## ⚡️ Features 
-Gain unprecedented insights into your HPC pipelines with KPIs like time and cost per dataset processed and execution cost per pipeline run, helping you to speed up your piplelines and make your budgets go farther
+Gain unparalleled insights into your HPC pipelines with key performance indicators:
+- Time and cost per dataset processed: Optimize resource usage and efficiency
+- Execution cost per pipeline run: Track and control cloud spending to reduce costs. Helping you speed up pipelines and maximize your budget
 
 ![Tracer Dashboards](docs/images/20250316-kpi-dashboard.png)
 
