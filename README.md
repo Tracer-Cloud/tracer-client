@@ -1,12 +1,17 @@
 <h2 align="left">
-🦡 Tracer Linux Agent – Observability for High-Performance Computing (HPC) Workloads
+🦡 Tracer Linux Agent – Observability for HPC Workloads
 </h2>
-
-> *"The goal of Tracer's Rust agent is to equip scientists and engineers with DevOps intelligence to efficiently harness massive computational power for humanity's most critical challenges."*
 
 ![Tracer Banner](docs/images/tracer-banner-image.jpeg)
 
-## ⚡️ Features 
+## What Is Tracer and Why Use It? 
+Tracer is a monotoring solution designed to optimize HPC workloads for speed and cost efficiency. It consists of a one-line install Linux agent and instant dashboards that provide real-time insights into scientific computing environments.
+
+What's unique is that Tracer runs directly from your Linux operating system and thus works with any programming language and doesn't require any code changes, making it effortless to integrate into existing workflows.
+
+Architected specifically for regulated industries, Tracer ensures enterprise-grade security, keeping all data within your infrastructure while requiring no ongoing maintenance.
+
+## Key Features 
 Gain unparalleled insights into your HPC pipelines with key performance indicators:
 - Time and cost per dataset processed: Optimize resource usage and efficiency
 - Execution cost per pipeline run: Track and control cloud spending to reduce costs. Helping you speed up pipelines and maximize your budget
@@ -24,7 +29,7 @@ More Powerful Capabilities:
     - Q2 2025: Performance Optimization for HPC
     - H2 2025: Automated Error Database
 
-## 🚀 Quickstart Installation
+## Quickstart Installation
 ### 1. Infrastructure Setup  
 Get started in minutes. Ensure you have:
 - AWS account with access to a PostgreSQL database
@@ -55,3 +60,7 @@ Run the following command to retrieve your dashboard URL and open the link to ac
 - [🤝 Contributing](docs/CONTRIBUTING.md) – Join the community and contribute
 - [🔍 Examples](docs/EXAMPLES.md) – Explore real-world use cases 
 
+
+## Mission
+
+> *"The goal of Tracer's Rust agent is to equip scientists and engineers with DevOps intelligence to efficiently harness massive computational power for humanity's most critical challenges."*
