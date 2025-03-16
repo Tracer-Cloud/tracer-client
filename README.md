@@ -17,11 +17,6 @@
     - Speed optimization for HPC (Q2 2025)
     - Error database (H2 2025)
 
-<br />
-
-![Tracer Dashboards](docs/images/20250316-kpi-dashboard.png)
-
-
 ## 🚀 Quickstart Installation
 ### 1. Infrastructure Setup  
 Get started in minutes. Ensure you have:
@@ -45,9 +40,8 @@ Set up your pipeline by specifying a name:
 tracer init --pipeline-name <YOUR_PIPELINE_NAME>
  ```
 ### 4. View Instant Dashboards 
-Gain real-time insights into your workloads:
+Run the following command to retrieve your dashboard URL and open the link to access real-time insights into your computational workloads:
 
-<br />
 ![Tracer Dashboards](docs/images/20250316-kpi-dashboard.png)
 
 
