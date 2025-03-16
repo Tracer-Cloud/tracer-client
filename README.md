@@ -7,19 +7,20 @@
 ![Tracer Banner](docs/images/tracer-banner-image.jpeg)
 
 ## ⚡️ Features 
-- Unified Monitoring: Centralized status monitoring of your HPC pipelines in a single dashboard
-- Cost Attribution: Allocate cloud costs across pipelines, teams, and environments (dev, CI/CD, prod)
-- Optimization & Savings: Reduce compute waste and cut costs by up to 45% in computational biology workloads
-- Faster Debugging: Detect CPU, RAM, and I/O bottlenecks instantly, never lose your container logs agains
-- Airgapped Security: data remains inside your own enterprise systems
-- Upcoming Roadmap:
-    - Cost Attribution (Q1 2025)
-    - Speed optimization for HPC (Q2 2025)
-    - Error database (H2 2025)
-
-<br />
+Gain unprecedented insights into your HPC pipelines with KPIs like time and cost per dataset processed and execution cost per pipeline run, helping you to speed up your piplelines and make your budgets go farther
 
 ![Tracer Dashboards](docs/images/20250316-kpi-dashboard.png)
+
+More Powerful Capabilities:
+- Unified Monitoring: Track all your HPC pipelines in a single, centralized dashboard
+- Cost Attribution: Track cloud costs across pipelines, teams, and environments (dev, CI/CD, prod)
+- Faster Debugging: Identify CPU, RAM, and I/O bottlenecks instantly, and never lose AWS Batch container logs again
+- Optimization & Savings: Spot computional waste and cut costs by up to 45% in computational biology workloads
+- Enterprise-Grade Security: Airgapped deployment keeps all data within your infrastructure
+- Upcoming Roadmap:
+    - Q1 2025: Advanced Cost Attribution
+    - Q2 2025: Performance Optimization for HPC
+    - H2 2025: Automated Error Database
 
 ## 🚀 Quickstart Installation
 ### 1. Infrastructure Setup  
