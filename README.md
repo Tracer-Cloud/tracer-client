@@ -17,6 +17,7 @@ New metrics that help you speed up your pipelines and maximize your budget:
 - Execution duration and bottleneck identifcation for each pipeline step
 
 <br />
+
 ![Tracer Dashboards](docs/images/20250316-kpi-dashboard.png)
 
 ## ⚡️ More Powerful Capabilities:
