@@ -33,11 +33,9 @@ New metrics that help you speed up your pipelines and maximize your budget:
 
 ## Quickstart Installation
 ### 1. Infrastructure Setup  
-Get started in minutes. Ensure you have:
+You can run a single command from this repository to provision the required infrastructure:
 - AWS account with access to a PostgreSQL database
 - Grafana instance (Amazon Managed Grafana recommended)
-
-You can run a single command from this repository to provision the required infrastructure:
 
 ```bash
 cd infrastructure && terraform apply
