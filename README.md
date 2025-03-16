@@ -18,7 +18,7 @@ Gain new insights into your HPC pipelines with metrics that help you speed up yo
 
 ![Tracer Dashboards](docs/images/20250316-kpi-dashboard.png)
 
-More Powerful Capabilities:
+## ⚡️ More Powerful Capabilities:
 - Unified Monitoring: Track all your HPC pipelines in a single, centralized dashboard
 - Cost Attribution: Track cloud costs across pipelines, teams, and environments (dev, CI/CD, prod)
 - Faster Debugging: Identify CPU, RAM, and I/O bottlenecks instantly, and never lose AWS Batch container logs again
