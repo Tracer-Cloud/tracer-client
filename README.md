@@ -52,7 +52,16 @@ Set up your pipeline by specifying a name:
 tracer init --pipeline-name <YOUR_PIPELINE_NAME>
  ```
 ### 4. View Instant Dashboards 
-Run the following command to retrieve your dashboard URL and open the link to access real-time insights into your computational workloads
+Run the following command to retrieve your dashboard URL:
+
+```bash
+curl -sSL https://install.tracer.cloud/installation-script.sh | bash && source ~/.bashrc
+ ```
+
+Open the link to access real-time dashboard insights into your computational workloads:
+
+![Tracer Info](docs/images/20250316-tracer-info.png)
+
 
 ## Table of Contents
 - [🛣️ Infrastructure Setup](docs/INFRASTRUCTURE_SETUP.md) – 1 Command deployment
