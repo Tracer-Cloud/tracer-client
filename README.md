@@ -23,7 +23,6 @@ New metrics that help you speed up your pipelines and maximize your budget:
 
 ## ⚡️ More Powerful Capabilities:
 - Unified Monitoring: Track all your HPC pipelines in a single, centralized dashboard
-- Cost Attribution: Track cloud costs across pipelines, teams, and environments (dev, CI/CD, prod)
 - Faster Debugging: Identify CPU, RAM, and I/O bottlenecks instantly, and never lose AWS Batch container logs again
 - Optimization & Savings: Spot computional waste and cut costs by up to 45% in computational biology workloads
 - Enterprise-Grade Security: Airgapped deployment keeps all data within your infrastructure
