@@ -32,7 +32,18 @@ New metrics that help you speed up your pipelines and maximize your budget:
     - H2 2025: Automated Error Database
 
 ## Quickstart Installation
-### 1. Infrastructure Setup  
+### 1. Install Tracer With One Line of Code
+Run the following command to install Tracer on your Linux Ubuntu system:
+```bash
+curl -sSL https://install.tracer.cloud/installation-script.sh | bash && source ~/.bashrc
+ ```
+### 2. Initialize a Pipeline
+Set up your pipeline by specifying a name:
+```bash
+tracer init --pipeline-name <YOUR_PIPELINE_NAME>
+ ```
+ 
+### 3. Infrastructure Setup  
 You can run a single command from this repository to provision the required infrastructure:
 - AWS account with access to a PostgreSQL database
 - Grafana instance (Amazon Managed Grafana recommended)
@@ -41,21 +52,11 @@ You can run a single command from this repository to provision the required infr
 cd infrastructure && terraform apply
  ```
 
-### 2. Install Tracer With One Line of Code
-Run the following command to install Tracer on your Linux Ubuntu system:
-```bash
-curl -sSL https://install.tracer.cloud/installation-script.sh | bash && source ~/.bashrc
- ```
-### 3. Initialize a Pipeline
-Set up your pipeline by specifying a name:
-```bash
-tracer init --pipeline-name <YOUR_PIPELINE_NAME>
- ```
 ### 4. View Instant Dashboards 
 Run the following command to retrieve your dashboard URL:
 
 ```bash
-curl -sSL https://install.tracer.cloud/installation-script.sh | bash && source ~/.bashrc
+tracer info
  ```
 
 Open the link to access real-time dashboard insights into your computational workloads:
