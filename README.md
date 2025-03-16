@@ -12,15 +12,17 @@ What's unique is that Tracer runs directly from your Linux operating system, so 
 Architected specifically for regulated industries, Tracer ensures enterprise-grade security, keeping all data within your infrastructure while requiring no ongoing maintenance.
 
 ## Key Features 
-Gain unparalleled insights into your HPC pipelines with key performance indicators:
-- Time and cost per dataset processed: Optimize resource usage and efficiency
-- Execution cost per pipeline run: Track and control cloud spending to reduce costs. Helping you speed up pipelines and maximize your budget
+New metrics that help you speed up your pipelines and maximize your budget:
+- Time and cost per dataset processed
+- Execution duration and bottleneck identifcation for each pipeline step
+- Cost attribution across pipelines, teams, and environments (dev, CI/CD, prod)
+
+<br />
 
 ![Tracer Dashboards](docs/images/20250316-kpi-dashboard.png)
 
-More Powerful Capabilities:
+## ⚡️ More Powerful Capabilities:
 - Unified Monitoring: Track all your HPC pipelines in a single, centralized dashboard
-- Cost Attribution: Track cloud costs across pipelines, teams, and environments (dev, CI/CD, prod)
 - Faster Debugging: Identify CPU, RAM, and I/O bottlenecks instantly, and never lose AWS Batch container logs again
 - Optimization & Savings: Spot computional waste and cut costs by up to 45% in computational biology workloads
 - Enterprise-Grade Security: Airgapped deployment keeps all data within your infrastructure
@@ -31,11 +33,9 @@ More Powerful Capabilities:
 
 ## Quickstart Installation
 ### 1. Infrastructure Setup  
-Get started in minutes. Ensure you have:
+You can run a single command from this repository to provision the required infrastructure:
 - AWS account with access to a PostgreSQL database
 - Grafana instance (Amazon Managed Grafana recommended)
-
-You can run a single command from this repository to provision the required infrastructure:
 
 ```bash
 cd infrastructure && terraform apply
