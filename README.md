@@ -15,6 +15,7 @@ Architected specifically for regulated industries, Tracer ensures enterprise-gra
 New metrics that help you speed up your pipelines and maximize your budget:
 - Time and cost per dataset processed
 - Execution duration and bottleneck identifcation for each pipeline step
+- Cost attribution across pipelines, teams, and environments (dev, CI/CD, prod)
 
 <br />
 
