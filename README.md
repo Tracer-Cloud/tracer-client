@@ -1,5 +1,5 @@
 <h1 align="left">
-🦡 Tracer Linux Agent
+🦡 Tracer Linux Agent – Observability for High-Performance Computing (HPC) Workloads
 </h1>
 
 > *"The goal of Tracer's Rust agent is to equip scientists and engineers with DevOps intelligence to efficiently harness massive computational power for humanity's most critical challenges."*
@@ -16,6 +16,10 @@
     - Cost Attribution (Q1 2025)
     - Speed optimization for HPC (Q2 2025)
     - Error database (H2 2025)
+
+<br />
+
+![Tracer Dashboards](docs/images/20250316-kpi-dashboard.png)
 
 ## 🚀 Quickstart Installation
 ### 1. Infrastructure Setup  
@@ -40,10 +44,7 @@ Set up your pipeline by specifying a name:
 tracer init --pipeline-name <YOUR_PIPELINE_NAME>
  ```
 ### 4. View Instant Dashboards 
-Run the following command to retrieve your dashboard URL and open the link to access real-time insights into your computational workloads:
-
-![Tracer Dashboards](docs/images/20250316-kpi-dashboard.png)
-
+Run the following command to retrieve your dashboard URL and open the link to access real-time insights into your computational workloads
 
 ## Table of Contents
 - [🛣️ Infrastructure Setup](docs/INFRASTRUCTURE_SETUP.md) – 1 Command deployment
