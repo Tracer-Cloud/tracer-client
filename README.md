@@ -64,10 +64,10 @@ Open the link to access real-time dashboard insights into your computational wor
 
 
 ## Table of Contents
-- [🛣️ Infrastructure Setup](docs/INFRASTRUCTURE_SETUP.md) – 1 Command deployment
-- [📚 Documentation](DOCUMENTATION.md) – Learn more about Tracer’s capabilities
-- [🤝 Contributing](docs/CONTRIBUTING.md) – Join the community and contribute
 - [🔍 Examples](docs/EXAMPLES.md) – Explore real-world use cases 
+- [🛣️ Infrastructure Setup](docs/INFRASTRUCTURE_SETUP.md) – 1 Command deployment
+- [📚 Development](DOCUMENTATION.md) – Learn more about how to setup your development environment
+- [🤝 Contributing](docs/CONTRIBUTING.md) – Join the community and contribute
 
 
 ## Mission
