@@ -20,23 +20,22 @@ async fn test_parallel_mode_works() {
     common::monitor_container(&docker, container_name).await;
 
     // Step 3: Query the database and make assertions
+    let run_name = "parallel-tag";
 
-    let job_id = "parallel-tag";
-
-    query_and_assert_parrallel_mode(&pool, job_id).await;
+    query_and_assert_parallel_mode(&pool, run_name).await;
 
     common::end_docker_compose(container_name).await;
 }
 
-async fn query_and_assert_parrallel_mode(pool: &PgPool, job_id: &str) {
+async fn query_and_assert_parallel_mode(pool: &PgPool, run_name: &str) {
     let tools_tracked: Vec<(i64,)> = sqlx::query_as(
         r#"
             SELECT COUNT(DISTINCT data->'attributes'->'system_properties'->>'hostname') AS unique_hosts
             FROM batch_jobs_logs
-            WHERE data->>'run_name' = $1;
+            WHERE job_id = $1;
         "#,
     )
-    .bind(job_id)
+    .bind(run_name)
     .fetch_all(pool)
     .await
     .expect("failed ");
