@@ -122,7 +122,6 @@ pub async fn setup_db(db_url: &str) -> PgPool {
         .await
         .expect("Failed to drop batch_jobs_logs table");
 
-    
     // Delete the migration table if it exists
     sqlx::query("DROP TABLE IF EXISTS _sqlx_migrations")
         .execute(&pool)

@@ -39,17 +39,10 @@ async fn query_and_assert_parallel_mode(pool: &PgPool, run_name: &str) {
     .fetch_all(pool)
     .await
     .expect("failed ");
-    
-    println!("Query results:");
-    println!("Number of rows: {}", tools_tracked.len());
-    for (i, row) in tools_tracked.iter().enumerate() {
-        println!("Row {}: unique_hosts = {}", i + 1, row.0);
-    }
-    
+
     assert_eq!(tools_tracked.len(), 1);
 
     let unique_hosts = tools_tracked.first().unwrap().0;
-    println!("Unique hosts count: {}", unique_hosts);
 
     assert_eq!(unique_hosts, 2)
 }

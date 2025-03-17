@@ -35,7 +35,7 @@ async fn query_and_assert_tool_tracked(pool: &PgPool, run_name: &str) {
             SELECT DISTINCT(data->'attributes'->'process'->>'tool_name') AS tool_name
             FROM batch_jobs_logs
             WHERE 
-            job_id = $1
+            run_name = $1
             AND
             data->'attributes'->'process'->>'tool_name' IS NOT NULL;
         "#,
