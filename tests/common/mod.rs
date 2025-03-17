@@ -116,6 +116,19 @@ pub async fn setup_db(db_url: &str) -> PgPool {
     println!("Running migrations...");
     // Run migrations
     let pool = wait_for_db_ready(db_url).await;
+
+    sqlx::query("DROP TABLE IF EXISTS batch_jobs_logs")
+        .execute(&pool)
+        .await
+        .expect("Failed to drop batch_jobs_logs table");
+
+    
+    // Delete the migration table if it exists
+    sqlx::query("DROP TABLE IF EXISTS _sqlx_migrations")
+        .execute(&pool)
+        .await
+        .expect("Failed to drop migration table");
+
     sqlx::migrate!("./migrations")
         .run(&pool)
         .await
