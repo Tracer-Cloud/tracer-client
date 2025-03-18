@@ -1,6 +1,7 @@
 use anyhow::Context;
 use chrono::Utc;
 use serde_json::Value;
+use std::io::Write;
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 
@@ -22,16 +23,24 @@ impl Logger {
     }
 
     pub async fn log(&self, message: &str, context: Option<&Value>) {
+        let log_message = self.format_log_message(message, context);
+        self.write_to_log_file(&log_message).await
+    }
+
+    pub fn log_blocking(&self, message: &str, context: Option<&Value>) {
+        let log_message = self.format_log_message(message, context);
+        self.write_to_log_file_blocking(&log_message);
+    }
+
+    fn format_log_message(&self, message: &str, context: Option<&Value>) -> String {
         let timestamp = Utc::now().to_rfc3339();
-        let log_message = match context {
+        match context {
             Some(ctx) => format!(
                 "[{}] {}\nContext: {}\n----------\n",
                 timestamp, message, ctx
             ),
             None => format!("[{}] {}\n----------\n", timestamp, message),
-        };
-
-        self.write_to_log_file(&log_message).await
+        }
     }
 
     async fn write_to_log_file(&self, log_message: &str) {
@@ -51,6 +60,24 @@ impl Logger {
             .write_all(log_message.as_bytes())
             .await
             .context("Failed to write to log file");
+
+        if let Err(error) = write_result {
+            eprintln!("Failed to write to log file: {}", error);
+        }
+    }
+
+    fn write_to_log_file_blocking(&self, log_message: &str) {
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.log_file_path);
+
+        if let Err(error) = file {
+            eprintln!("Failed to open log file: {}", error);
+            return;
+        }
+
+        let write_result = file.unwrap().write_all(log_message.as_bytes());
 
         if let Err(error) = write_result {
             eprintln!("Failed to write to log file: {}", error);
