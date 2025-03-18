@@ -20,28 +20,27 @@ async fn test_queries_works() {
     common::monitor_container(&docker, container_name).await;
 
     // Step 3: Query the database and make assertions
+    let run_name = "test-tag";
 
-    let job_id = "test-tag";
+    query_and_assert_tool_tracked(&pool, run_name).await;
 
-    query_and_assert_tool_tracked(&pool, job_id).await;
-
-    query_datasets_processed(&pool, job_id).await;
+    query_datasets_processed(&pool, run_name).await;
 
     common::end_docker_compose(container_name).await;
 }
 
-async fn query_and_assert_tool_tracked(pool: &PgPool, job_id: &str) {
+async fn query_and_assert_tool_tracked(pool: &PgPool, run_name: &str) {
     let tools_tracked: Vec<(String,)> = sqlx::query_as(
         r#"
             SELECT DISTINCT(data->'attributes'->'process'->>'tool_name') AS tool_name
             FROM batch_jobs_logs
             WHERE 
-            job_id = $1
+            run_name = $1
             AND
             data->'attributes'->'process'->>'tool_name' IS NOT NULL;
         "#,
     )
-    .bind(job_id)
+    .bind(run_name)
     .fetch_all(pool)
     .await
     .expect("failed ");
@@ -52,7 +51,7 @@ async fn query_and_assert_tool_tracked(pool: &PgPool, job_id: &str) {
     assert!(flat_tools.contains(&("python3".to_string())))
 }
 
-async fn query_datasets_processed(pool: &PgPool, job_id: &str) {
+async fn query_datasets_processed(pool: &PgPool, run_name: &str) {
     let tools_tracked: Vec<(String, i64)> = sqlx::query_as(
         r#"
             SELECT 
@@ -60,11 +59,11 @@ async fn query_datasets_processed(pool: &PgPool, job_id: &str) {
                 MAX((data->'attributes'->'process_dataset_stats'->>'total')::BIGINT) AS total_samples
             FROM batch_jobs_logs
             WHERE data->>'process_status' = 'datasets_in_process'
-            AND data->>'run_name' = $1
+            AND run_name = $1
             GROUP BY process_status;
         "#,
     )
-    .bind(job_id)
+    .bind(run_name)
     .fetch_all(pool)
     .await
     .expect("failed ");
