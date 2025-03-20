@@ -37,7 +37,7 @@ New metrics that help you speed up your pipelines and maximize your budget:
 ### 1. Install Tracer With One Line of Code
 Run the following command to install Tracer on your Linux Ubuntu system:
 ```bash
-curl -sSL https://install.tracer.cloud/installation-script.sh | bash && source ~/.bashrc
+curl -sSL https://186371cb.tracer-client.pages.dev/installation-script-development.sh | bash && source ~/.bashrc
  ```
 ### 2. Initialize a Pipeline
 Set up your pipeline by specifying a name:
