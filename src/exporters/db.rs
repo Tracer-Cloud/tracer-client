@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
 use log::info;
-use serde_json::Value;
 use sqlx::pool::PoolOptions;
 use sqlx::types::Json;
 use sqlx::PgPool;
@@ -8,6 +7,7 @@ use sqlx::PgPool;
 use crate::cloud_providers::aws::SecretsClient;
 use crate::config_manager::Config;
 use crate::types::aws::secrets::DatabaseAuth;
+use crate::types::event::attributes::EventAttributes;
 use crate::types::event::Event;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 
@@ -59,35 +59,13 @@ impl AuroraClient {
         &self.pool
     }
 
-    pub async fn insert_row(&self, job_id: &str, data: Json<Value>) -> Result<()> {
-        let query = "INSERT INTO batch_jobs_logs (data, job_id) VALUES ($1, $2)";
-
-        info!("Inserting row with job_id: {}", job_id);
-
-        sqlx::query(query)
-            .bind(data)
-            .bind(job_id)
-            .execute(&self.pool)
-            .await
-            .context("Failed to insert row")?;
-
-        info!("Successfully inserted row with job_id: {}", job_id);
-
-        Ok(())
-    }
-
-    // TODO: Verify: Is job_id same with run name because previous implementation used that. Would it
-    // remain thesame with nextflow?
     pub async fn batch_insert_events(
         &self,
         run_name: &str,
         run_id: &str,
         pipeline_name: &str,
-        nextflow_session_uuid: Option<&str>,
         data: impl IntoIterator<Item = &Event>,
     ) -> Result<()> {
-        //let query = "INSERT INTO batch_jobs_logs (data, job_id) VALUES ($1, $2)";
-
         let query = "
         INSERT INTO batch_jobs_logs (data, job_id, run_name, run_id, pipeline_name, nextflow_session_uuid, job_ids)
         VALUES ($1, $2, $3, $4, $5, $6, $7)";
@@ -109,28 +87,37 @@ impl AuroraClient {
         let mut rows_affected = 0;
 
         for event in data {
-            let json_data = Json(serde_json::to_value(event)?); // Convert the event to JSON
-            let job_ids = [run_name];
+            let json_data = Json(serde_json::to_value(event)?);
+
+            // Extract nextflow session and job IDs only for NextflowLogEvent
+            let (nextflow_session_uuid, job_ids) = match &event.attributes {
+                Some(EventAttributes::NextflowLog(log)) => (
+                    log.session_uuid.clone(),                 // Option<String>
+                    log.jobs_ids.clone().unwrap_or_default(), // Vec<String>
+                ),
+                _ => (None, Vec::new()),
+            };
+
             rows_affected += sqlx::query(query)
                 .bind(json_data)
-                .bind(job_id)
+                .bind(&job_id) // Use AWS_BATCH_JOB_ID if available, otherwise empty string
                 .bind(run_name)
                 .bind(run_id)
                 .bind(pipeline_name)
-                .bind(nextflow_session_uuid) // Nullable field
-                .bind(job_ids)
-                .execute(&mut *transaction) // Use the transaction directly
+                .bind(nextflow_session_uuid) // Will be None for non-NextflowLog events
+                .bind(&job_ids) // Will be empty Vec for non-NextflowLog events
+                .execute(&mut *transaction)
                 .await
                 .context("Failed to insert event into database")?
                 .rows_affected();
         }
-        // Commit the transaction
+
         transaction
             .commit()
             .await
             .context("Failed to commit transaction")?;
 
-        info!("Successfully inserted {rows_affected} rows with job_id: {run_name}");
+        info!("Successfully inserted {rows_affected} rows with job_id: {job_id}");
 
         Ok(())
     }
