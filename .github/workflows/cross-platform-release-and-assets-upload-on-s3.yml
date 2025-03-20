@@ -20,6 +20,12 @@ jobs:
           - arch: aarch64
             target: aarch64-unknown-linux-gnu
             runner: ubuntu-22.04-arm  # Native ARM runner
+          - arch: x86_64-amazon-linux
+            target: x86_64-unknown-linux-gnu
+            runner: al2023
+          - arch: aarch64-amazon-linux
+            target: aarch64-unknown-linux-gnu
+            runner: al2023-arm64
 
     runs-on: ${{ matrix.runner }}
 
@@ -67,10 +73,10 @@ jobs:
 
       - name: Prepare binary for release
         run: |
-          mkdir -p release-files/${{ matrix.arch }}
-          cp target/${{ matrix.target }}/release/tracer release-files/${{ matrix.arch }}/tracer
-          chmod +x release-files/${{ matrix.arch }}/tracer
-          tar -czf release-files/tracer-${{ matrix.target }}.tar.gz -C release-files/${{ matrix.arch }} tracer
+          mkdir -p release-files/${{ matrix.runner }}/${{ matrix.arch }}
+          cp target/${{ matrix.target }}/release/tracer release-files/${{ matrix.runner }}/${{ matrix.arch }}/tracer
+          chmod +x release-files/${{ matrix.runner }}/${{ matrix.arch }}/tracer
+          tar -czf release-files/tracer-${{ matrix.runner }}-${{ matrix.arch }}.tar.gz -C release-files/${{ matrix.runner }}/${{ matrix.arch }} tracer
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -81,4 +87,4 @@ jobs:
 
       - name: Upload to S3
         run: |
-          aws s3 cp release-files/tracer-${{ matrix.target }}.tar.gz s3://tracer-releases/tracer-${{ matrix.target }}.tar.gz
+          aws s3 cp release-files/tracer-${{ matrix.runner }}-${{ matrix.arch }}.tar.gz s3://tracer-releases/tracer-${{ matrix.runner }}-${{ matrix.arch }}.tar.gz

@@ -92,8 +92,13 @@ impl AuroraClient {
         INSERT INTO batch_jobs_logs (data, job_id, run_name, run_id, pipeline_name, nextflow_session_uuid, job_ids)
         VALUES ($1, $2, $3, $4, $5, $6, $7)";
 
-        info!("Inserting row with job_id: {}", run_name);
-        println!("Inserting row with job_id: {}", run_name);
+        // Try to get AWS_BATCH_JOB_ID from environment, use empty string if not found
+        let job_id = std::env::var("AWS_BATCH_JOB_ID").unwrap_or_default();
+
+        info!(
+            "Inserting row for run_name: {}, pipeline_name: {}, job_id: {}",
+            run_name, pipeline_name, job_id
+        );
 
         let mut transaction = self
             .get_pool()
@@ -108,7 +113,7 @@ impl AuroraClient {
             let job_ids = [run_name];
             rows_affected += sqlx::query(query)
                 .bind(json_data)
-                .bind(run_name) // run name is thesame as job_id
+                .bind(job_id)
                 .bind(run_name)
                 .bind(run_id)
                 .bind(pipeline_name)
