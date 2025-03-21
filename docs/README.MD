@@ -44,12 +44,9 @@ make test_rnaseq
 
 
 ## Walkthrough Part 3. What To Explore Afterwards
-- View the first pipeline overview page 
+- View the first pipeline overview page. 
 - Click the current pipeline that you have just created to see an overview of all the individual pipeline runs. 
 - Click on the most recent run to see your pipeline progress. 
-
-
-
 
 
 ## Table of Contents
