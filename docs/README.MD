@@ -31,7 +31,12 @@ tracer info
 - Step 10. Run An RNA-seq Pipeline Locally:
 
 ```bash
-cd tracer-test-bioinfomatics
+su - ubuntu
+```
+```bash
+cd ~/tracer-test && cd tracer-test-bioinfomatics
+```
+```bash
 make test_rnaseq
 ```
 
