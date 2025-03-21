@@ -1,9 +1,4 @@
-<h2 align="left">
-🦡 Tracer Documentation: Cloud Deployment, Linux Agent and Getting Your First Wokrflow Up and Running
-</h2>
-
 # Tracer Tutorial: Monitoring Your First Nextflow Pipeline on AWS
-## Overview
 This tutorial guides you through setting up Tracer monitoring for a Nextflow pipeline on AWS. You'll learn how to deploy the monitoring infrastructure, launch and verify a pipeline, and visualize its execution in Grafana.
 
 ## Example Use Case
