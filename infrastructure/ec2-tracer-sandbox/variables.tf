@@ -36,3 +36,13 @@ variable "root_volume_type" {
 #   description = "AMI id of ubuntu image"
 #   default     = "ami-0e1bed4f06a3b463d" # x86-64 ami
 # }
+
+
+variable "github_token" {
+  description = "Github username, used for pulling private repos"
+  sensitive   = true
+}
+
+variable "github_username" {
+  description = "Github username, used for pulling private repos"
+}

@@ -20,10 +20,10 @@ data "aws_ami" "ubuntu" {
     # 
   }
 
-  filter {
-    name   = "architecture"
-    values = ["x86_64"]
-  }
+  # filter {
+  #   name   = "architecture"
+  #   values = ["x86_64"]
+  # }
 }
 
 # -------------------------------------
@@ -70,7 +70,9 @@ resource "aws_instance" "rust_server" {
   }
 
   user_data = templatefile("${path.module}/script-install-deps.sh", {
-    role_arn = module.ec2_common.service_role_arn
-    api_key  = var.api_key
+    role_arn        = module.ec2_common.service_role_arn
+    api_key         = var.api_key
+    github_username = var.github_username,
+    github_token    = var.github_token
   })
 }

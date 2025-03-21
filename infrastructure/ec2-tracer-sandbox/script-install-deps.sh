@@ -5,6 +5,14 @@ ROLE_ARN="${role_arn}"
 API_KEY="${api_key}"
 
 
+cat <<EOF > /tmp/env_vars.sh
+export GITHUB_USERNAME="${github_username}"
+export GITHUB_TOKEN="${github_token}"
+EOF
+
+chmod 600 /tmp/env_vars.sh  # Secure the file
+chown ubuntu:ubuntu /tmp/env_vars.sh  # Ensure 'ubuntu' user can access it
+
 echo "Using ROLE_ARN: $ROLE_ARN"
 echo "Using API_KEY: $API_KEY"
 
@@ -40,26 +48,22 @@ sudo apt install -y \
 # Add Docker's official GPG key:
 sudo apt-get update
 sudo apt-get install ca-certificates curl
-sudo install -m 0755 -d /etc/apt/keyrings
-sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-sudo chmod a+r /etc/apt/keyrings/docker.asc
 
-# Add the repository to Apt sources:
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-  $(. /etc/os-release && echo "$${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-sudo apt-get update
+echo "Installing docker"
 
+curl -fsSL https://get.docker.com -o get-docker.sh
+# Add docker group if it doesn't exist
+sudo groupadd docker 2>/dev/null || true
 
-# Install Docker and Docker Compose
-sudo apt-get install docker.io docker-compose-plugin
+# Add user to docker group
+sudo usermod -aG docker "$USER" || true
 
-# Enable Docker and add `ubuntu` user to Docker group
-echo "Setting up Docker..."
-sudo systemctl enable docker
-sudo systemctl start docker
-sudo usermod -aG docker ubuntu  # Allow `ubuntu` user to run Docker without sudo
+# Apply new group membership (this will only take effect in a new shell)
+newgrp docker << END
+echo "Switched to docker group successfully"
+END
+
+echo "moving to next steps"
 
 # Verify installed dependencies
 pkg-config --version || echo "Error: pkg-config not installed" >> "$LOG_FILE"
@@ -140,7 +144,8 @@ echo "Running Env Setup Script"
 # sudo sed -i 's|http://.*.ec2.archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list
 # sudo apt-get update
 
-su - ubuntu -c "cd /home/ubuntu/tracer-client && ./deployments/scripts/setup_nextflow_test_env.sh"
+# FIXME: Recreate AMIs to use main branch instead performing checkout in deployment script
+su - ubuntu -c "source /tmp/env_vars.sh && cd /home/ubuntu/tracer-client && git fetch && git checkout ENG-124/daemon_communication_tests_fix && ./deployments/scripts/setup_nextflow_test_env.sh"
 
 echo "Installation completed successfully"
 
