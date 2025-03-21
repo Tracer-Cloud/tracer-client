@@ -62,48 +62,6 @@ impl AuroraClient {
     pub async fn batch_insert_events(
         &self,
         run_name: &str,
-        _run_id: &str,
-        _pipeline_name: &str,
-        data: impl IntoIterator<Item = &Event>,
-    ) -> Result<()> {
-        let query = "INSERT INTO batch_jobs_logs (data, job_id) VALUES ($1, $2)";
-
-        info!("Inserting row with job_id: {}", run_name);
-        println!("Inserting row with job_id: {}", run_name);
-
-        let mut transaction = self
-            .get_pool()
-            .begin()
-            .await
-            .context("Failed to begin transaction")?;
-
-        let mut rows_affected = 0;
-
-        for event in data {
-            let json_data = Json(serde_json::to_value(event)?); // Convert the event to JSON
-
-            rows_affected += sqlx::query(query)
-                .bind(json_data)
-                .bind(run_name)
-                .execute(&mut *transaction) // Use the transaction directly
-                .await
-                .context("Failed to insert event into database")?
-                .rows_affected();
-        }
-        // Commit the transaction
-        transaction
-            .commit()
-            .await
-            .context("Failed to commit transaction")?;
-
-        info!("Successfully inserted {rows_affected} rows with job_id: {run_name}");
-
-        Ok(())
-    }
-
-    pub async fn batch_insert_events_v2(
-        &self,
-        run_name: &str,
         run_id: &str,
         pipeline_name: &str,
         data: impl IntoIterator<Item = &Event>,
