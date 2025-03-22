@@ -160,11 +160,6 @@ impl TracerClient {
 
     // TODO: Refactor to collect required entries properly
     pub async fn submit_batched_data(&mut self) -> Result<()> {
-        println!(
-            "Submitting batched data for pipeline {}",
-            self.pipeline_name
-        );
-
         let run_name = self
             .current_run
             .as_ref()
