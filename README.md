@@ -21,7 +21,7 @@ New metrics that help you speed up your pipelines and maximize your budget:
 
 <br />
 
-![Tracer Dashboards](docs/images/20250316-kpi-dashboard.png)
+<img src="docs/images/GitHubDemo1.gif" alt="Wing Demo" height="400px">
 
 ## ⚡️ More Powerful Capabilities:
 - Unified Monitoring: Track all your HPC pipelines in a single, centralized dashboard
