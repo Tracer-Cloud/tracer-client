@@ -20,7 +20,7 @@ SCRIPT_VERSION="v0.0.1"
 TRACER_VERSION="development"
 TRACER_LINUX_URL_X86_64="https://tracer-releases.s3.us-east-1.amazonaws.com/tracer-x86_64-unknown-linux-gnu.tar.gz"
 TRACER_LINUX_URL_ARM="https://tracer-releases.s3.us-east-1.amazonaws.com/tracer-aarch64-unknown-linux-gnu.tar.gz"
-
+TRACER_AMAZON_LINUX_URL_X86_64="https://tracer-releases.s3.us-east-1.amazonaws.com/tracer-x86_64-amazon-linux-gnu.tar.gz"
 TRACER_MACOS_AARCH_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-aarch64-apple-darwin.tar.gz"
 TRACER_MACOS_X86_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-x86_64-apple-darwin.tar.gz"
 
@@ -181,19 +181,37 @@ check_os() {
 
     case "$OS" in
     Linux*)
-        printinfo "Detected Linux OS."
-        case "$ARCH" in
-        x86_64)
-            TRACER_URL=$TRACER_LINUX_URL_X86_64
-            ;;
-        aarch64)
-            TRACER_URL=$TRACER_LINUX_URL_ARM
-            ;;
-        *)
-            printerror "Unsupported Linux architecture: $ARCH. Aborting."
-            exit 1
-            ;;
-        esac
+        # Check for Amazon Linux
+        if [ -f /etc/system-release ] && grep -q "Amazon Linux" /etc/system-release; then
+            printinfo "Detected Amazon Linux OS."
+            # Amazon Linux uses the same architecture detection as other Linux distributions
+            case "$ARCH" in
+            x86_64)
+                TRACER_URL=$TRACER_AMAZON_LINUX_URL_X86_64
+                ;;
+            aarch64)
+                TRACER_URL=$TRACER_LINUX_URL_ARM
+                ;;
+            *)
+                printerror "Unsupported Amazon Linux architecture: $ARCH. Aborting."
+                exit 1
+                ;;
+            esac
+        else
+            printinfo "Detected Linux OS."
+            case "$ARCH" in
+            x86_64)
+                TRACER_URL=$TRACER_LINUX_URL_X86_64
+                ;;
+            aarch64)
+                TRACER_URL=$TRACER_LINUX_URL_ARM
+                ;;
+            *)
+                printerror "Unsupported Linux architecture: $ARCH. Aborting."
+                exit 1
+                ;;
+            esac
+        fi
         ;;
     Darwin*)
         # Differentiating between ARM and x86_64 architectures on macOS
