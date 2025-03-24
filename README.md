@@ -21,7 +21,7 @@ New metrics that help you speed up your pipelines and maximize your budget:
 
 <br />
 
- <img src="./docs/images/GitHubDemo1.gif" alt="Demo of tracer" width="80%"> 
+<img src="./docs/images/GitHubDemo1.gif" alt="Demo of tracer" width="80%"> 
 
 ## ⚡️ More Powerful Capabilities:
 - Unified Monitoring: Track all your HPC pipelines in a single, centralized dashboard
