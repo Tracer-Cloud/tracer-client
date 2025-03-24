@@ -33,6 +33,6 @@ echo "Tracer binary updated successfully"
 
 source ~/.bashrc
 
-su - ubuntu -c "tracer init --pipeline-name launch-template"
+su - ubuntu -c "tracer info"
 
 echo "Tracer setup successfully $(date)"

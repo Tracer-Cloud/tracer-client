@@ -145,7 +145,7 @@ echo "Running Env Setup Script"
 # sudo apt-get update
 
 # FIXME: Recreate AMIs to use main branch instead performing checkout in deployment script
-su - ubuntu -c "source /tmp/env_vars.sh && cd /home/ubuntu/tracer-client && git fetch && git checkout ENG-124/daemon_communication_tests_fix && ./deployments/scripts/setup_nextflow_test_env.sh"
+su - ubuntu -c "source /tmp/env_vars.sh && cd /home/ubuntu/tracer-client && ./deployments/scripts/setup_nextflow_test_env.sh"
 
 echo "Installation completed successfully"
 
