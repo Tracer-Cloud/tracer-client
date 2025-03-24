@@ -47,6 +47,7 @@ mkdir -p ~/miniconda3
 wget "https://repo.anaconda.com/miniconda/$INSTALLER" -O ~/miniconda3/miniconda.sh
 
 sudo bash ~/miniconda3/miniconda.sh -b -u -p /opt/conda
+
 rm ~/miniconda3/miniconda.sh
     
 # Add Conda to PATH
@@ -56,13 +57,9 @@ echo 'export PATH="/opt/conda/bin:$PATH"' >> ~/.bashrc
 # Apply the changes to the current shell session
 source ~/.bashrc
 sudo chown -R $USER:$USER /opt/conda/
-
-
-
-
 echo "Completed Miniconda Installation..."
 
-
+source ~/.bashrc
 # Configure Conda and install Nextflow + packages
 echo "Configuring Conda and installing packages..."
 conda config --add channels defaults
@@ -122,6 +119,28 @@ conda install --quiet --yes --name base \
     cnvkit
 
 
+echo "For Andrew's pipelines extra"
+conda install -c bioconda  fq=0.12.0
+
+conda install --quiet --yes --name base \
+    trim-galore \
+    bbmap \
+    qualimap \
+    bedtools \
+    rseqc \
+    ucsc-bedclip \
+    ucsc-bedgraphtobigwig \
+    kraken2 \
+    bracken \
+    # preseq \
+
+
+
+
+
+    
+
+
 echo "Cleaning up..."
 conda clean --all --force-pkgs-dirs --yes
 
@@ -163,13 +182,16 @@ sudo chmod -R 777 "$R_LIBS_USER"
 
 echo "Installing R packages..."
 R -e "install.packages(c('BiocManager', 'ggplot2'), repos='http://cran.rstudio.com/')" || echo "R package installation (CRAN) failed, continuing..."
-R -e "BiocManager::install(c('DESeq2', 'tximport', 'apeglm', 'edgeR', 'limma', 'EnhancedVolcano'))" || echo "R package installation (Bioconductor) failed, continuing..."
+R -e "BiocManager::install(c('DESeq2', 'tximport', 'apeglm', 'edgeR', 'limma', 'EnhancedVolcano', 'dupRadar', 'tximeta', 'pheatmap'))" || echo "R package installation (Bioconductor) failed, continuing..."
+
+# consider installing R alternatives:
+conda install -c bioconda bioconductor-deseq2 bioconductor-edger r-locfit
 
 # Pin Nextflow version and verify
 # export NXF_EDGE=1
 # export NXF_VER=24.02.0-edge
 echo 'export NXF_EDGE=1' >> ~/.bashrc
-echo 'export NXF_VER=24.02.0-edge' >> ~/.bashrc
+echo 'export NXF_VER=25.02.1-edge' >> ~/.bashrc
 source ~/.bashrc
 
 
@@ -216,3 +238,12 @@ sudo chmod -R +x /workspace/nextflow_scripts
 sudo chown -R $USER:$USER /workspace/
 
 source ~/.bashrc
+
+
+# Setting Up Andrew's test pipelines
+echo "Cloning private test pipelines"
+
+cd && git clone https://$GITHUB_USERNAME:$GITHUB_TOKEN@github.com/Tracer-Cloud/tracer-test-pipelines-bioinformatics.git --recurse-submodules
+
+# download all dependencies and checkout to tweaks branch
+cd ~/tracer-test-pipelines-bioinformatics && make && git fetch && git checkout david/ami_config_fix
