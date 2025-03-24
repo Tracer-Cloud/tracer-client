@@ -93,7 +93,12 @@ resource "aws_iam_policy" "ec2_general_access" {
         Effect   = "Allow"
         Action   = ["sts:AssumeRole"]
         Resource = "*"
-      }
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["pricing:GetProducts"]
+        Resource = "*"
+      },
     ]
   })
 }

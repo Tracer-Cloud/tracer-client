@@ -209,17 +209,25 @@ pub async fn send_upload_file_request(socket_path: &str, file_path: &PathBuf) ->
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::SOCKET_PATH;
-    use serial_test::serial;
     use tokio::{io::AsyncReadExt, net::UnixListener};
 
-    fn setup_test_unix_listener() -> UnixListener {
+    fn create_tmp_socket_path() -> (tempfile::TempDir, String) {
+        let tempdir = tempfile::tempdir().expect("Failed to create temp dir");
+        std::fs::create_dir_all(tempdir.path()).expect("Failed to create temp dirs");
+        let file_path = tempdir.path().join("tracerd.sock");
+
+        std::fs::File::create(&file_path).expect("failed to create file");
+
+        (tempdir, file_path.to_str().unwrap().to_string())
+    }
+
+    fn setup_test_unix_listener(socket_path: &str) -> UnixListener {
         let _ = env_logger::builder().is_test(true).try_init();
-        if std::fs::metadata(SOCKET_PATH).is_ok() {
-            std::fs::remove_file(SOCKET_PATH).expect("Failed to remove existing socket file");
+        if std::fs::metadata(socket_path).is_ok() {
+            std::fs::remove_file(socket_path).expect("Failed to remove existing socket file");
         }
 
-        UnixListener::bind(SOCKET_PATH).expect("Failed to bind to unix socket")
+        UnixListener::bind(socket_path).expect("Failed to bind to unix socket")
     }
 
     async fn check_listener_value(listener: &UnixListener, expected_value: &str) {
@@ -231,12 +239,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[serial]
     async fn test_send_log_request() -> Result<()> {
-        let listener = setup_test_unix_listener();
+        let (_temp, socket_path) = create_tmp_socket_path();
+        let listener = setup_test_unix_listener(&socket_path);
         let message = "Test Message".to_string();
 
-        send_log_request(SOCKET_PATH, message.clone()).await?;
+        send_log_request(&socket_path, message.clone()).await?;
 
         check_listener_value(
             &listener,
@@ -253,12 +261,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[serial]
     async fn test_send_alert_request() -> Result<()> {
-        let listener = setup_test_unix_listener();
+        let (_temp, socket_path) = create_tmp_socket_path();
+        let listener = setup_test_unix_listener(&socket_path);
         let message = "Test Message".to_string();
 
-        send_alert_request(SOCKET_PATH, message.clone()).await?;
+        send_alert_request(&socket_path, message.clone()).await?;
 
         check_listener_value(
             &listener,
@@ -275,11 +283,11 @@ mod tests {
     }
 
     #[tokio::test]
-    #[serial]
     async fn test_send_terminate_request() -> Result<()> {
-        let listener = setup_test_unix_listener();
+        let (_temp, socket_path) = create_tmp_socket_path();
+        let listener = setup_test_unix_listener(&socket_path);
 
-        send_terminate_request(SOCKET_PATH).await?;
+        send_terminate_request(&socket_path).await?;
 
         check_listener_value(
             &listener,
@@ -295,11 +303,11 @@ mod tests {
     }
 
     #[tokio::test]
-    #[serial]
     async fn test_send_end_run_request() -> Result<()> {
-        let listener = setup_test_unix_listener();
+        let (_temp, socket_path) = create_tmp_socket_path();
+        let listener = setup_test_unix_listener(&socket_path);
 
-        send_end_run_request(SOCKET_PATH).await?;
+        send_end_run_request(&socket_path).await?;
 
         check_listener_value(
             &listener,
@@ -315,11 +323,11 @@ mod tests {
     }
 
     #[tokio::test]
-    #[serial]
     async fn test_send_refresh_config_request() -> Result<()> {
-        let listener = setup_test_unix_listener();
+        let (_temp, socket_path) = create_tmp_socket_path();
+        let listener = setup_test_unix_listener(&socket_path);
 
-        send_refresh_config_request(SOCKET_PATH).await?;
+        send_refresh_config_request(&socket_path).await?;
 
         check_listener_value(
             &listener,
@@ -335,12 +343,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[serial]
     async fn test_send_update_tags_request() -> Result<()> {
-        let listener = setup_test_unix_listener();
+        let (_temp, socket_path) = create_tmp_socket_path();
+        let listener = setup_test_unix_listener(&socket_path);
         let tags = vec!["tag1".to_string(), "tag2".to_string(), "tag3".to_string()];
 
-        send_update_tags_request(SOCKET_PATH, &tags).await?;
+        send_update_tags_request(&socket_path, &tags).await?;
 
         check_listener_value(
             &listener,
@@ -357,12 +365,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[serial]
     async fn test_send_upload_file_request() -> Result<()> {
-        let listener = setup_test_unix_listener();
+        let (_temp, socket_path) = create_tmp_socket_path();
+        let listener = setup_test_unix_listener(&socket_path);
         let file_path = PathBuf::from("log_outgoing_http_calls.txt".to_string());
 
-        send_upload_file_request(SOCKET_PATH, &file_path).await?;
+        send_upload_file_request(&socket_path, &file_path).await?;
 
         check_listener_value(
             &listener,

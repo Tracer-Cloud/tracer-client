@@ -37,6 +37,12 @@ su - ubuntu -c "curl -sSL https://tracer-client.pages.dev/installation-script-de
 sudo cp /home/ubuntu/.tracerbio/bin/tracer  /usr/local/bin/
 echo "Tracer binary updated successfully"
 
+# Migrate The database before starting the client
+
+ENCODED_PASS=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${database_password}'))")
+su - ubuntu -c "cd /home/ubuntu/tracer-client && git pull origin main && ./migrate.sh postgres://${database_user}:$ENCODED_PASS@${db_endpoint}/${database_name}" 
+
+# start the client
 su - ubuntu -c "tracer init --pipeline-name one-click"
 
-echo "Tracer setup successfully $(date)"
+echo "Script setup ran successfully $(date)"

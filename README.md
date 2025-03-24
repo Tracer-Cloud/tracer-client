@@ -21,7 +21,7 @@ New metrics that help you speed up your pipelines and maximize your budget:
 
 <br />
 
-![Tracer Dashboards](docs/images/20250316-kpi-dashboard.png)
+![Wing Demo](docs/images/GitHubDemo1.gif)
 
 ## ⚡️ More Powerful Capabilities:
 - Unified Monitoring: Track all your HPC pipelines in a single, centralized dashboard
@@ -67,6 +67,7 @@ Open the link to access real-time dashboard insights into your computational wor
 
 
 ## Table of Contents
+- [🎯 Tracer Tutorial](docs/README.MD) - Tracer Tutorial: Monitoring Your First Nextflow Pipeline on AWS
 - [🔍 Examples](docs/EXAMPLES.md) – Explore real-world use cases 
 - [🛣️ Infrastructure Setup](docs/INFRASTRUCTURE_SETUP.md) – 1 Command deployment
 - [📚 Development](DOCUMENTATION.md) – Learn more about how to setup your development environment

@@ -203,7 +203,7 @@ module "ec2_common" {
 
 resource "aws_instance" "rust_server" {
   depends_on             = [module.grafana_workspace, module.rds]
-  ami                    = "ami-08963412c7663a4b8"
+  ami                    = "ami-044f50cfd7c203f1d" #"ami-08963412c7663a4b8"
   instance_type          = var.instance_type
   key_name               = var.perm_key
   iam_instance_profile   = module.ec2_common.iam_instance_profile_name
@@ -231,6 +231,9 @@ resource "aws_instance" "rust_server" {
     database_secret_manager_arn = module.rds.rds_secret_arn
     database_name               = var.db_name
     db_endpoint                 = module.rds.rds_endpoint
+    database_password           = local.db_credentials["password"]
+    database_user               = var.db_username
+
   })
 }
 
