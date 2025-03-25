@@ -105,12 +105,13 @@ impl NextflowLogWatcher {
         workflow_directory: &str,
     ) -> Result<()> {
         let time_since_last_poll = self.last_poll_time.elapsed();
-        let required_interval = Duration::from_millis(crate::config_manager::ConfigManager::get_nextflow_log_polling_interval_ms());
-        
+        let required_interval = Duration::from_millis(
+            crate::config_manager::ConfigManager::get_nextflow_log_polling_interval_ms(),
+        );
+
         debug!(
             "Nextflow log polling check - Time since last poll: {:?}, Required interval: {:?}",
-            time_since_last_poll,
-            required_interval
+            time_since_last_poll, required_interval
         );
 
         // Check if enough time has passed since last poll
@@ -122,7 +123,10 @@ impl NextflowLogWatcher {
             return Ok(());
         }
 
-        info!("Starting nextflow log polling after {:?} since last poll", time_since_last_poll);
+        info!(
+            "Starting nextflow log polling after {:?} since last poll",
+            time_since_last_poll
+        );
 
         // First ensure we have a path to the log file
         let log_path = match self.find_nextflow_log(workflow_directory)? {
@@ -131,7 +135,10 @@ impl NextflowLogWatcher {
                 path
             }
             None => {
-                warn!("No .nextflow.log file found to poll in workflow directory: {}", workflow_directory);
+                warn!(
+                    "No .nextflow.log file found to poll in workflow directory: {}",
+                    workflow_directory
+                );
                 return Ok(());
             }
         };
@@ -215,7 +222,11 @@ impl NextflowLogWatcher {
         });
 
         let message = match &self.current_session {
-            Some(uuid) => format!("[CLI] Nextflow log event for session uuid: {} with {} jobs", uuid, jobs.len()),
+            Some(uuid) => format!(
+                "[CLI] Nextflow log event for session uuid: {} with {} jobs",
+                uuid,
+                jobs.len()
+            ),
             None => "[CLI] Nextflow log event - No session UUID found".to_string(),
         };
 
