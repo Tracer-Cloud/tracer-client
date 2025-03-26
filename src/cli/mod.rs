@@ -188,6 +188,8 @@ pub async fn run_async_command(commands: Commands) -> Result<()> {
 
     if result.is_err() {
         println!("Failed to send command to the daemon. Maybe the daemon is not running? If it's not, run `tracer init` to start the daemon.");
+        let message = format!("Error Processing cli command: \n {result:?}.");
+        crate::utils::debug_log::Logger::new().log_blocking(&message, None);
     } else {
         println!("Command sent successfully.")
     }

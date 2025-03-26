@@ -34,7 +34,7 @@ module "ec2_common" {
 # ---------------------------
 resource "aws_launch_template" "tracer_launch_template" {
   name_prefix   = "tracer-launch-template"
-  image_id      = "ami-044f50cfd7c203f1d" #"ami-08963412c7663a4b8"
+  image_id      = "ami-07977f6d9cbfa9ffe" #"ami-08963412c7663a4b8"
   instance_type = "c6g.2xlarge"           #"c5d.large"         
 
   key_name = var.perm_key

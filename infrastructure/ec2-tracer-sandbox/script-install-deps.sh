@@ -116,7 +116,7 @@ else
     su - ubuntu -c "cd /home/ubuntu/tracer-client && git pull"
 fi
 
-# Create /tmp/tracer directory with proper permissions
+# Create /tmp/tracer directory with proper permissions. Note this is ephemeral and needs to exists on startup
 echo "Setting up /tmp/tracer directory..."
 sudo mkdir -p /tmp/tracer
 sudo chmod 777 /tmp/tracer

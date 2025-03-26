@@ -9,6 +9,12 @@ echo "Setting up Tracer"
 # Create the directory for the config file
 mkdir -p /home/ubuntu/.config/tracer/
 
+# Create /tmp/tracer directory with proper permissions. Note this is ephemeral and needs to exists on startup
+echo "Setting up /tmp/tracer directory..."
+sudo mkdir -p /tmp/tracer
+sudo chmod 777 /tmp/tracer
+
+
 # Write the configuration to tracer.toml
 cat <<EOL > /home/ubuntu/.config/tracer/tracer.toml
 polling_interval_ms = 1500
