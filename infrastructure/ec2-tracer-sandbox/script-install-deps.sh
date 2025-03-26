@@ -116,6 +116,11 @@ else
     su - ubuntu -c "cd /home/ubuntu/tracer-client && git pull"
 fi
 
+# Create /tmp/tracer directory with proper permissions
+echo "Setting up /tmp/tracer directory..."
+sudo mkdir -p /tmp/tracer
+sudo chmod 777 /tmp/tracer
+
 cd /home/ubuntu/tracer-client
 
 # Install cargo-nextest
@@ -132,7 +137,8 @@ su - ubuntu -c "source /home/ubuntu/.cargo/env && cd /home/ubuntu/tracer-client 
 
 # Install the binary
 echo "Installing Tracer binary..."
-sudo cp /home/ubuntu/tracer-client/target/release/tracer /usr/local/bin/
+su - ubuntu -c "sudo cp /home/ubuntu/tracer-client/target/release/tracer /usr/local/bin/"
+sudo chown ubuntu:ubuntu /usr/local/bin/tracer
 
 echo "Setting Up test Environment $(date)"
 su - ubuntu -c "cd /home/ubuntu/tracer-client"
@@ -169,6 +175,8 @@ aws_region = "us-east-2"
 database_secrets_arn = "arn:aws:secretsmanager:us-east-1:395261708130:secret:rds!cluster-cd690a09-953c-42e9-9d9f-1ed0b434d226-M0wZYA"
 database_host = "tracer-cluster-v2-instance-1.cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432"
 database_name = "tracer_db"
+grafana_workspace_url = "https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com"
+
 EOL
 
 echo "Configuration file created at /home/ubuntu/.config/tracer/tracer.toml"
