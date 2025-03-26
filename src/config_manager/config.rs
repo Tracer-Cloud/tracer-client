@@ -22,6 +22,7 @@ use super::target_process::targets_list;
 const DEFAULT_API_KEY: &str = "EAjg7eHtsGnP3fTURcPz1";
 const DEFAULT_CONFIG_FILE_LOCATION_FROM_HOME: &str = ".config/tracer/tracer.toml";
 const PROCESS_POLLING_INTERVAL_MS: u64 = 5;
+const NEXTFLOW_LOG_FILE_POLLING_INTERVAL_MS: u64 = 2000;
 const BATCH_SUBMISSION_INTERVAL_MS: u64 = 10000;
 const NEW_RUN_PAUSE_MS: u64 = 10 * 60 * 1000;
 const PROCESS_METRICS_SEND_INTERVAL_MS: u64 = 10000;
@@ -80,6 +81,10 @@ impl ConfigManager {
             }
             _ => None,
         }
+    }
+
+    pub fn get_nextflow_log_polling_interval_ms() -> u64 {
+        NEXTFLOW_LOG_FILE_POLLING_INTERVAL_MS
     }
 
     fn load_config_from_file(path: &PathBuf) -> Result<Config> {

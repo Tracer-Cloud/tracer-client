@@ -14,6 +14,7 @@ use walkdir::WalkDir;
 pub struct NextflowLogWatcher {
     log_path: Option<PathBuf>,
     last_check: std::time::Instant,
+    last_poll_time: std::time::Instant,
     session_jobs: HashMap<String, Vec<String>>,
     current_session: Option<String>,
 }
@@ -24,6 +25,7 @@ impl NextflowLogWatcher {
         NextflowLogWatcher {
             log_path: None,
             last_check: std::time::Instant::now(),
+            last_poll_time: std::time::Instant::now(),
             session_jobs: HashMap::new(),
             current_session: None,
         }
@@ -102,30 +104,60 @@ impl NextflowLogWatcher {
         logs: &mut EventRecorder,
         workflow_directory: &str,
     ) -> Result<()> {
-        debug!("Starting nextflow log polling");
+        let time_since_last_poll = self.last_poll_time.elapsed();
+        let required_interval = Duration::from_millis(
+            crate::config_manager::ConfigManager::get_nextflow_log_polling_interval_ms(),
+        );
+
+        debug!(
+            "Nextflow log polling check - Time since last poll: {:?}, Required interval: {:?}",
+            time_since_last_poll, required_interval
+        );
+
+        // Check if enough time has passed since last poll
+        if time_since_last_poll < required_interval {
+            debug!(
+                "Skipping nextflow log poll - Not enough time has passed. Need to wait {:?} more",
+                required_interval - time_since_last_poll
+            );
+            return Ok(());
+        }
+
+        info!(
+            "Starting nextflow log polling after {:?} since last poll",
+            time_since_last_poll
+        );
 
         // First ensure we have a path to the log file
         let log_path = match self.find_nextflow_log(workflow_directory)? {
-            Some(path) => path,
+            Some(path) => {
+                info!("Found nextflow log file at: {:?}", path);
+                path
+            }
             None => {
-                debug!("No .nextflow.log file found to poll");
+                warn!(
+                    "No .nextflow.log file found to poll in workflow directory: {}",
+                    workflow_directory
+                );
                 return Ok(());
             }
         };
 
         let file = match File::open(&log_path) {
-            Ok(file) => file,
+            Ok(file) => {
+                debug!("Successfully opened .nextflow.log file");
+                file
+            }
             Err(e) => {
                 error!("Error opening .nextflow.log at {:?}: {}", log_path, e);
                 return Ok(());
             }
         };
 
-        info!("Successfully opened .nextflow.log at {:?}", log_path);
-
         // Clear the current session and jobs to rebuild from scratch
         self.session_jobs.clear();
         self.current_session = None;
+        debug!("Cleared previous session and jobs data");
 
         let mut reader = BufReader::new(file);
         let mut line = String::new();
@@ -163,12 +195,17 @@ impl NextflowLogWatcher {
             "Finished polling nextflow log. Processed {} lines.",
             lines_processed
         );
-        info!("Current Nextflow Sessions and Jobs:");
-        for (session, jobs) in &self.session_jobs {
-            info!("Session UUID: {}", session);
-            for (index, job) in jobs.iter().enumerate() {
-                info!("  └─ Job {}: {}", index + 1, job);
+
+        if !self.session_jobs.is_empty() {
+            info!("Current Nextflow Sessions and Jobs:");
+            for (session, jobs) in &self.session_jobs {
+                info!("Session UUID: {}", session);
+                for (index, job) in jobs.iter().enumerate() {
+                    info!("  └─ Job {}: {}", index + 1, job);
+                }
             }
+        } else {
+            debug!("No sessions or jobs found in the log file");
         }
 
         // Get the jobs for the current session, if it exists
@@ -181,20 +218,29 @@ impl NextflowLogWatcher {
 
         let nextflow_log = EventAttributes::NextflowLog(NextflowLog {
             session_uuid: self.current_session.clone(),
-            jobs_ids: Some(jobs),
+            jobs_ids: Some(jobs.clone()),
         });
 
         let message = match &self.current_session {
-            Some(uuid) => format!("[CLI] Nextflow log event for session uuid: {}", uuid),
+            Some(uuid) => format!(
+                "[CLI] Nextflow log event for session uuid: {} with {} jobs",
+                uuid,
+                jobs.len()
+            ),
             None => "[CLI] Nextflow log event - No session UUID found".to_string(),
         };
 
+        debug!("Recording nextflow log event: {}", message);
         logs.record_event(
             EventType::NextflowLogEvent,
             message,
             Some(nextflow_log),
             Some(Utc::now()),
         );
+
+        // Update the last poll time
+        self.last_poll_time = std::time::Instant::now();
+        info!("Updated last poll time to: {:?}", self.last_poll_time);
         Ok(())
     }
 }

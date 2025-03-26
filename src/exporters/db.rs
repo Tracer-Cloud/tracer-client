@@ -67,8 +67,11 @@ impl AuroraClient {
         data: impl IntoIterator<Item = &Event>,
     ) -> Result<()> {
         let query = "
-        INSERT INTO batch_jobs_logs (data, job_id, run_name, run_id, pipeline_name, nextflow_session_uuid, job_ids)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)";
+        INSERT INTO batch_jobs_logs (
+            data, job_id, run_name, run_id, pipeline_name, nextflow_session_uuid, job_ids,
+            tags, event_timestamp, ec2_cost_per_hour, cpu_usage, mem_used, processed_dataset
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)";
 
         // Try to get AWS_BATCH_JOB_ID from environment, use empty string if not found
         let job_id = std::env::var("AWS_BATCH_JOB_ID").unwrap_or_default();
@@ -90,22 +93,57 @@ impl AuroraClient {
             let json_data = Json(serde_json::to_value(event)?);
 
             // Extract nextflow session and job IDs only for NextflowLogEvent
-            let (nextflow_session_uuid, job_ids) = match &event.attributes {
+            let (nextflow_session_uuid, job_ids, event_timestamp) = match &event.attributes {
                 Some(EventAttributes::NextflowLog(log)) => (
                     log.session_uuid.clone(),                 // Option<String>
                     log.jobs_ids.clone().unwrap_or_default(), // Vec<String>
+                    event.timestamp,                          // Use event timestamp directly
                 ),
-                _ => (None, Vec::new()),
+                _ => (None, Vec::new(), event.timestamp),
             };
+
+            // Extract system metrics for CPU and memory usage
+            let (cpu_usage, mem_used) = match &event.attributes {
+                Some(EventAttributes::SystemMetric(metric)) => (
+                    Some(metric.system_cpu_utilization as f64),
+                    Some(metric.system_memory_used as f64),
+                ),
+                Some(EventAttributes::Process(process)) => (
+                    Some(process.process_cpu_utilization as f64),
+                    Some(process.process_memory_usage as f64),
+                ),
+                _ => (None, None),
+            };
+
+            // Extract EC2 cost per hour from system properties
+            let ec2_cost_per_hour = match &event.attributes {
+                Some(EventAttributes::SystemProperties(props)) => props.ec2_cost_per_hour,
+                _ => None,
+            };
+
+            // Extract processed dataset count
+            let processed_dataset = match &event.attributes {
+                Some(EventAttributes::ProcessDatasetStats(stats)) => Some(stats.total as i32),
+                _ => None,
+            };
+
+            // Convert tags to JSON value
+            let tags_json = Json(serde_json::to_value(&event.tags)?);
 
             rows_affected += sqlx::query(query)
                 .bind(json_data)
-                .bind(&job_id) // Use AWS_BATCH_JOB_ID if available, otherwise empty string
+                .bind(&job_id)
                 .bind(run_name)
                 .bind(run_id)
                 .bind(pipeline_name)
-                .bind(nextflow_session_uuid) // Will be None for non-NextflowLog events
-                .bind(&job_ids) // Will be empty Vec for non-NextflowLog events
+                .bind(nextflow_session_uuid)
+                .bind(&job_ids)
+                .bind(tags_json)
+                .bind(event_timestamp.naive_utc())
+                .bind(ec2_cost_per_hour)
+                .bind(cpu_usage)
+                .bind(mem_used)
+                .bind(processed_dataset)
                 .execute(&mut *transaction)
                 .await
                 .context("Failed to insert event into database")?
