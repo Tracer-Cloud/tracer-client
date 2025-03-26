@@ -30,13 +30,13 @@ use std::sync::Arc;
 use crate::config_manager::ConfigManager;
 use crate::tracer_client::TracerClient;
 
-const PID_FILE: &str = "/tmp/tracerd.pid";
-const WORKING_DIR: &str = "/tmp";
-const STDOUT_FILE: &str = "/tmp/tracerd.out";
-const STDERR_FILE: &str = "/tmp/tracerd.err";
-const LOG_FILE: &str = "/tmp/daemon.log";
-const SOCKET_PATH: &str = "/tmp/tracerd.sock";
-const FILE_CACHE_DIR: &str = "/tmp/tracerd_cache";
+const WORKING_DIR: &str = "/tmp/tracer/";
+const PID_FILE: &str = "/tmp/tracer/tracerd.pid";
+const STDOUT_FILE: &str = "/tmp/tracer/tracerd.out";
+const STDERR_FILE: &str = "/tmp/tracer/tracerd.err";
+const LOG_FILE: &str = "/tmp/tracer/daemon.log";
+const SOCKET_PATH: &str = "/tmp/tracer/tracerd.sock";
+const FILE_CACHE_DIR: &str = "/tmp/tracer/tracerd_cache";
 
 const SYSLOG_FILE: &str = "/var/log/syslog";
 
@@ -48,6 +48,8 @@ pub const DEFAULT_SERVICE_URL: &str = "https://app.tracer.bio/api";
 
 pub fn start_daemon() -> Result<()> {
     //ConfigManager::test_service_config_sync()?;
+
+    let _ = std::fs::create_dir_all(WORKING_DIR);
 
     let daemon = Daemonize::new();
     daemon
@@ -99,7 +101,7 @@ fn setup_logging() -> Result<()> {
     let filter = EnvFilter::from("debug"); // Capture all levels from debug up
 
     // Create a file appender that writes to daemon.log
-    let file_appender = RollingFileAppender::new(Rotation::NEVER, "/tmp", "daemon.log");
+    let file_appender = RollingFileAppender::new(Rotation::NEVER, WORKING_DIR, "daemon.log");
 
     // Create a custom format for the logs
     let file_layer = fmt::layer()

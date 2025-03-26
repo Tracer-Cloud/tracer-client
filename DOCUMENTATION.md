@@ -183,7 +183,7 @@ Tracer runs in the background as a daemon using the `daemonize` crate in Rust. T
 - **Monitor Daemon Logs for Errors**  
   Since the tracer runs as a daemon, you won't see its output in the terminal. Check logs for debugging:  
   ```bash
-  tail -f /tmp/tracerd.err
+  tail -f /tmp/tracer/tracerd.err
   ```
   This file contains runtime errors if something goes wrong.
 
@@ -203,11 +203,11 @@ use daemonize::Daemonize;
 use std::fs::File;
 
 fn main() {
-    let log_file = File::create("/tmp/tracerd.log").unwrap();
-    let error_file = File::create("/tmp/tracerd.err").unwrap();
+    let log_file = File::create("/tmp/tracer/tracerd.log").unwrap();
+    let error_file = File::create("/tmp/tracer/tracerd.err").unwrap();
 
     let daemon = Daemonize::new()
-        .pid_file("/tmp/tracerd.pid") // Store PID
+        .pid_file("/tmp/tracer/tracerd.pid") // Store PID
         .chown_pid_file(true)
         .working_directory("/") // Set working dir
         .stdout(log_file) // Redirect stdout

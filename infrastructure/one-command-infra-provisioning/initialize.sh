@@ -24,6 +24,7 @@ aws_region = "us-east-2"
 database_secrets_arn = "${database_secret_manager_arn}"
 database_host = "${db_endpoint}"
 database_name = "${database_name}"
+grafana_workspace_url = "${grafana_workspace_url}"
 EOL
 
 echo "Configuration file created at /home/ubuntu/.config/tracer/tracer.toml"
@@ -34,7 +35,8 @@ source ~/.bashrc
 echo "Updating Tracer binary..."
 sudo rm /usr/local/bin/tracer
 su - ubuntu -c "curl -sSL https://tracer-client.pages.dev/installation-script-development.sh | bash && source ~/.bashrc"
-sudo cp /home/ubuntu/.tracerbio/bin/tracer  /usr/local/bin/
+su - ubuntu -c "sudo cp /home/ubuntu/.tracerbio/bin/tracer  /usr/local/bin/"
+sudo chown ubuntu:ubuntu /usr/local/bin/tracer
 echo "Tracer binary updated successfully"
 
 # Migrate The database before starting the client

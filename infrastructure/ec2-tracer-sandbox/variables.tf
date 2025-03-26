@@ -39,10 +39,10 @@ variable "root_volume_type" {
 
 
 variable "github_token" {
-  description = "Github username, used for pulling private repos"
+  description = "Github token, used for authenticating private repos"
   sensitive   = true
 }
 
 variable "github_username" {
-  description = "Github username, used for pulling private repos"
+  description = "Github username, used for authenticating private repos"
 }

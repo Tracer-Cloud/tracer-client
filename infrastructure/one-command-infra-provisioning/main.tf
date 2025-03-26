@@ -233,6 +233,7 @@ resource "aws_instance" "rust_server" {
     db_endpoint                 = module.rds.rds_endpoint
     database_password           = local.db_credentials["password"]
     database_user               = var.db_username
+    grafana_workspace_url       = module.grafana_workspace.workspace_url
 
   })
 }
