@@ -26,6 +26,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4.1.4
 
+      - name: Update version in Cargo.toml
+        run: |
+          # Format: vYYYY.MM.DD.HH (e.g., v2025.03.27.22)
+          DATE_TAG=$(date -u +"v%Y.%m.%d.%H")
+
+          # Extract date components using cut and remove leading zeros
+          YEAR=$(echo ${DATE_TAG} | cut -d'v' -f2 | cut -d'.' -f1)
+          MONTH=$(echo ${DATE_TAG} | cut -d'.' -f2 | sed 's/^0*//')
+          DAY=$(echo ${DATE_TAG} | cut -d'.' -f3 | sed 's/^0*//')
+          HOUR=$(echo ${DATE_TAG} | cut -d'.' -f4)
+
+          # Resolve branch name from PR or fallback to ref_name
+          BRANCH="${{ github.event.pull_request.head.ref || github.ref_name }}"
+
+          # Sanitize branch name for Cargo SemVer metadata
+          BRANCH_NAME=$(echo "$BRANCH" | tr '/' '-' | tr '_' '-' | sed 's/[^a-zA-Z0-9-]//g')
+
+          # Compose SemVer-compatible version string
+          CARGO_VERSION="${YEAR}.${MONTH}.${DAY}+${HOUR}-${BRANCH_NAME}"
+
+          # Update version in Cargo.toml
+          sed -i.bak "s/^version = .*/version = \"${CARGO_VERSION}\"/" Cargo.toml
+
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
