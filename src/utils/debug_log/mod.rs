@@ -5,7 +5,7 @@ use std::io::Write;
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 
-use crate::WORKING_DIR;
+use crate::DEBUG_LOG;
 
 pub struct Logger {
     log_file_path: String,
@@ -20,7 +20,7 @@ impl Default for Logger {
 impl Logger {
     pub fn new() -> Self {
         Self {
-            log_file_path: format!("{}debug.log", WORKING_DIR),
+            log_file_path: DEBUG_LOG.to_string(),
         }
     }
 
