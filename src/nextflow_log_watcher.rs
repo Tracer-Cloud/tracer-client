@@ -7,9 +7,74 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, error, info, warn};
 use walkdir::WalkDir;
+
+//TODO: Approach:
+// - Limit search space of .nextflow.log files for possible locations: E:g $HOME, $PWD, maybe
+//  fallback to /
+// - Nextflow logs files are closer to the root directory
+// than going deeper into the tree
+//  - Seperate Scanning and log processing. Scanning is a blocking task and should be treated as
+//  such
+//  - syncronization primitive to handle updating path when the log is found
+//  - Only poll when a path is found
+//  - Keep track of last processed point in file. And Seek from there on next poll cycle
+
+pub struct NextflowLogState {
+    log_path: Option<PathBuf>,
+    waker: std::sync::Arc<tokio::sync::Notify>,
+}
+impl NextflowLogState {
+    fn find_nextflow_log(&self, sender: tokio::sync::oneshot::Sender<PathBuf>) {
+        let waker = Arc::clone(&self.waker);
+
+        tokio::task::spawn_blocking(move || loop {
+            if let Some(log_file) = Self::try_finding_nextflow_log() {
+                let _ = sender.send(log_file);
+                waker.notify_one();
+                break;
+            }
+        });
+    }
+
+    fn try_finding_nextflow_log() -> Option<PathBuf> {
+        todo!()
+    }
+
+    fn get_path(&self) -> Option<&PathBuf> {
+        self.log_path.as_ref()
+    }
+
+    async fn wait_for_log_file(&mut self, notify_channel: tokio::sync::oneshot::Receiver<PathBuf>) {
+        self.waker.notified().await;
+        if let Ok(potential_log_path) = notify_channel.await {
+            self.log_path = Some(potential_log_path)
+        }
+    }
+
+    fn spawn() -> Self {
+        let (tx, mut rx) = tokio::sync::oneshot::channel();
+        let notify = Arc::new(tokio::sync::Notify::new());
+        let state = Self {
+            log_path: None,
+            waker: notify.clone(),
+        };
+
+        state.find_nextflow_log(tx);
+
+        state
+    }
+}
+
+pub struct NextflowLogWatcherV2 {}
+impl NextflowLogWatcherV2 {
+    fn new() -> Self {
+        todo!()
+    }
+}
 
 pub struct NextflowLogWatcher {
     log_path: Option<PathBuf>,
