@@ -13,7 +13,7 @@ pub mod tracer_client;
 pub mod types;
 pub mod utils;
 
-use anyhow::{Context, Ok, Result};
+use anyhow::{Context, Result};
 use daemonize::Daemonize;
 use exporters::db::AuroraClient;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
@@ -37,6 +37,7 @@ const STDERR_FILE: &str = "/tmp/tracer/tracerd.err";
 const LOG_FILE: &str = "/tmp/tracer/daemon.log";
 const SOCKET_PATH: &str = "/tmp/tracer/tracerd.sock";
 const FILE_CACHE_DIR: &str = "/tmp/tracer/tracerd_cache";
+const DEBUG_LOG: &str = "/tmp/tracer/debug.log";
 
 const SYSLOG_FILE: &str = "/var/log/syslog";
 
@@ -47,10 +48,6 @@ const REPO_NAME: &str = "tracer-daemon";
 pub const DEFAULT_SERVICE_URL: &str = "https://app.tracer.bio/api";
 
 pub fn start_daemon() -> Result<()> {
-    //ConfigManager::test_service_config_sync()?;
-
-    let _ = std::fs::create_dir_all(WORKING_DIR);
-
     let daemon = Daemonize::new();
     daemon
         .pid_file(PID_FILE)
@@ -65,6 +62,7 @@ pub fn start_daemon() -> Result<()> {
                 .context("Failed to create stderr file")
                 .unwrap(),
         )
+        .umask(0o002)
         .start()
         .context("Failed to start daemon.")
 }
@@ -134,7 +132,7 @@ pub async fn monitor_processes_with_tracer_client(tracer_client: &mut TracerClie
     tracer_client.poll_process_metrics().await?;
     tracer_client.poll_syslog().await?;
     tracer_client.poll_stdout_stderr().await?;
-    tracer_client.poll_nextflow_log().await?;
+    //tracer_client.poll_nextflow_log().await?;
     tracer_client.refresh_sysinfo();
     tracer_client.reset_just_started_process_flag();
     Ok(())
