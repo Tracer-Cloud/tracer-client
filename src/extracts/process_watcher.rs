@@ -16,9 +16,13 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::collections::{hash_map::Entry::Vacant, HashSet};
 use std::path::Path;
+use std::str::FromStr;
 use std::time::Duration;
 use sysinfo::ProcessStatus;
 use sysinfo::{Pid, Process, System};
+use std::fs;
+use std::io::{BufRead, BufReader};
+use std::process::Command;
 
 pub struct ProcessWatcher {
     targets: Vec<Target>,
@@ -53,6 +57,13 @@ pub struct ProcessTreeNode {
     pub children: Vec<ProcessTreeNode>,
     pub parent_id: Option<Pid>,
     pub start_time: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ContainerInfo {
+    pub container_id: Option<String>,
+    pub aws_batch_job_id: Option<String>,
+    pub env_variables: HashMap<String, String>,
 }
 
 fn process_status_to_string(status: &ProcessStatus) -> String {
@@ -316,6 +327,12 @@ impl ProcessWatcher {
         display_name: Option<String>,
     ) -> ProcessProperties {
         let start_time = Utc::now();
+        
+        let container_info = ProcessWatcher::get_container_info(pid).unwrap_or(ContainerInfo {
+            container_id: None,
+            aws_batch_job_id: None,
+            env_variables: HashMap::new(),
+        });
 
         ProcessProperties {
             tool_name: display_name.unwrap_or(proc.name().to_owned()),
@@ -340,6 +357,8 @@ impl ProcessWatcher {
             process_memory_virtual: proc.virtual_memory(),
             process_status: process_status_to_string(&proc.status()),
             input_files: None,
+            container_id: container_info.container_id,
+            aws_batch_job_id: container_info.aws_batch_job_id,
         }
     }
 
@@ -377,33 +396,101 @@ impl ProcessWatcher {
     pub fn gather_short_lived_process_data(system: &System, command: &str) -> ShortLivedProcessLog {
         let process = system.processes_by_name(command).last();
         if let Some(process) = process {
+            let pid = process.pid();
+            let container_info = Self::get_container_info(&pid).unwrap_or(ContainerInfo {
+                container_id: None,
+                aws_batch_job_id: None,
+                env_variables: HashMap::new(),
+            });
+            
+            let mut properties = ProcessWatcher::gather_process_data(&process.pid(), process, None);
+            
+            // If we couldn't find container info via cgroups, try to query Docker for containers by name
+            if properties.container_id.is_none() && properties.aws_batch_job_id.is_none() {
+                if let Ok(output) = Command::new("docker")
+                    .args(["ps", "-q", "--filter", &format!("name={}", command)])
+                    .output()
+                {
+                    if output.status.success() {
+                        let container_id = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                        if !container_id.is_empty() {
+                            properties.container_id = Some(container_id.clone());
+                            
+                            // Get the AWS_BATCH_JOB_ID from the container
+                            if let Ok(env_output) = Command::new("docker")
+                                .args(["exec", &container_id, "printenv", "AWS_BATCH_JOB_ID"])
+                                .output()
+                            {
+                                if env_output.status.success() {
+                                    let batch_job_id = String::from_utf8_lossy(&env_output.stdout).trim().to_string();
+                                    if !batch_job_id.is_empty() {
+                                        properties.aws_batch_job_id = Some(batch_job_id);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
             ShortLivedProcessLog {
                 command: command.to_string(),
                 timestamp: chrono::Utc::now().to_rfc3339(),
-                properties: ProcessWatcher::gather_process_data(&process.pid(), process, None),
+                properties,
             }
         } else {
+            // Try to find the container even if the process is not visible to sysinfo
+            let mut properties = ProcessProperties {
+                tool_name: command.to_string(),
+                tool_pid: "".to_string(),
+                tool_parent_pid: "".to_string(),
+                tool_binary_path: "".to_string(),
+                tool_cmd: command.to_string(),
+                start_timestamp: chrono::Utc::now().to_rfc3339(),
+                process_cpu_utilization: 0.0,
+                process_memory_usage: 0,
+                process_memory_virtual: 0,
+                process_run_time: 0,
+                process_disk_usage_read_last_interval: 0,
+                process_disk_usage_write_last_interval: 0,
+                process_disk_usage_read_total: 0,
+                process_disk_usage_write_total: 0,
+                process_status: "Unknown".to_string(),
+                input_files: None,
+                container_id: None,
+                aws_batch_job_id: None,
+            };
+            
+            // Try to find the container by name/command
+            if let Ok(output) = Command::new("docker")
+                .args(["ps", "-q", "--filter", &format!("name={}", command)])
+                .output()
+            {
+                if output.status.success() {
+                    let container_id = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                    if !container_id.is_empty() {
+                        properties.container_id = Some(container_id.clone());
+                        
+                        // Get the AWS_BATCH_JOB_ID from the container
+                        if let Ok(env_output) = Command::new("docker")
+                            .args(["exec", &container_id, "printenv", "AWS_BATCH_JOB_ID"])
+                            .output()
+                        {
+                            if env_output.status.success() {
+                                let batch_job_id = String::from_utf8_lossy(&env_output.stdout).trim().to_string();
+                                if !batch_job_id.is_empty() {
+                                    properties.aws_batch_job_id = Some(batch_job_id);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
             ShortLivedProcessLog {
                 command: command.to_string(),
                 timestamp: chrono::Utc::now().to_rfc3339(),
-                properties: ProcessProperties {
-                    tool_name: command.to_string(),
-                    tool_pid: "".to_string(),
-                    tool_parent_pid: "".to_string(),
-                    tool_binary_path: "".to_string(),
-                    tool_cmd: command.to_string(),
-                    start_timestamp: chrono::Utc::now().to_rfc3339(),
-                    process_cpu_utilization: 0.0,
-                    process_memory_usage: 0,
-                    process_memory_virtual: 0,
-                    process_run_time: 0,
-                    process_disk_usage_read_last_interval: 0,
-                    process_disk_usage_write_last_interval: 0,
-                    process_disk_usage_read_total: 0,
-                    process_disk_usage_write_total: 0,
-                    process_status: "Unknown".to_string(),
-                    input_files: None,
-                },
+                properties,
             }
         }
     }
@@ -467,7 +554,8 @@ impl ProcessWatcher {
             arguments_to_check.push(arg);
         }
 
-        for arg in arguments_to_check {
+        // Check for files on the host system
+        for arg in &arguments_to_check {
             let file = file_watcher.get_file_by_path_suffix(arg);
             if let Some((path, file_info)) = file {
                 input_files.push(InputFile {
@@ -667,6 +755,61 @@ impl ProcessWatcher {
     pub fn preview_targets_count(&self) -> usize {
         self.seen.len()
     }
+
+    /// Get the Docker container ID that a process belongs to using cgroups info
+    pub fn get_container_info(pid: &Pid) -> Result<ContainerInfo> {
+        let mut container_info = ContainerInfo {
+            container_id: None,
+            aws_batch_job_id: None,
+            env_variables: HashMap::new(),
+        };
+        
+        // Try to read the cgroup file to get container ID
+        let cgroup_path = format!("/proc/{}/cgroup", pid);
+        if let Ok(content) = fs::read_to_string(cgroup_path) {
+            // Docker container IDs are typically found in cgroup paths
+            for line in content.lines() {
+                if line.contains("docker") {
+                    // Extract the container ID from the path
+                    let parts: Vec<&str> = line.split('/').collect();
+                    if let Some(container_part) = parts.iter().find(|part| part.starts_with("docker-")) {
+                        // Format: docker-<container_id>.scope or docker-<container_id>
+                        let container_id = container_part
+                            .trim_start_matches("docker-")
+                            .trim_end_matches(".scope");
+                        container_info.container_id = Some(container_id.to_string());
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // If we found a container ID, use Docker inspect to get environment variables
+        if let Some(container_id) = &container_info.container_id {
+            if let Ok(output) = Command::new("docker")
+                .args(["inspect", "--format", "{{range .Config.Env}}{{println .}}{{end}}", container_id])
+                .output() 
+            {
+                if output.status.success() {
+                    let env_output = String::from_utf8_lossy(&output.stdout);
+                    for line in env_output.lines() {
+                        if let Some(index) = line.find('=') {
+                            let (key, value) = line.split_at(index);
+                            let value = value.trim_start_matches('=');
+                            container_info.env_variables.insert(key.to_string(), value.to_string());
+                            
+                            // Check for AWS Batch Job ID
+                            if key == "AWS_BATCH_JOB_ID" {
+                                container_info.aws_batch_job_id = Some(value.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        Ok(container_info)
+    }
 }
 
 #[cfg(test)]
@@ -707,6 +850,8 @@ mod tests {
                 process_disk_usage_write_total: 0,
                 process_status: "test".to_string(),
                 input_files: None,
+                container_id: None,
+                aws_batch_job_id: None,
             };
 
             let node = ProcessTreeNode {
