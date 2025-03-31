@@ -116,18 +116,18 @@ We will install AWS CLI via Homebrew
       Visible in the upper right corner, just left of your username
     
         ***!!!Your default region name should be filled in as the region code!!!***
-        Region	Region Code	Region	Region Code
-        US East (N. Virginia)	      us-east-1	        |  Canada (Central)	          ca-central-1
-        US East (Ohio)	            us-east-2	        |  Europe (Frankfurt)	        eu-central-1
-        US West (N. California)	    us-west-1	        |  Europe (Ireland)	          eu-west-1
-        US West (Oregon)	          us-west-2	        |  Europe (London)	          eu-west-2
-        Asia Pacific (Hong Kong)	  ap-east-1	        |  Europe (Milan)	            eu-south-1
-        Asia Pacific (Mumbai)	      ap-south-1	      |  Europe (Paris)	            eu-west-3
-        Asia Pacific (Osaka-Local)	ap-northeast-3	  |  Europe (Stockholm)	        eu-north-1
-        Asia Pacific (Seoul)	      ap-northeast-2	  |  South America (São Paulo)	sa-east-1
-        Asia Pacific (Singapore)	  ap-southeast-1	  |  Middle East (Bahrain)	    me-south-1
-        Asia Pacific (Sydney)	      ap-southeast-2	  |  Africa (Cape Town)	        af-south-1
-        Asia Pacific (Tokyo)	      ap-northeast-1	
+        Region	                         Region Code	      Region	                    Region Code
+        US East (N. Virginia)	          us-east-1	        |  Canada (Central)	          ca-central-1
+        US East (Ohio)	               us-east-2	        |  Europe (Frankfurt)	          eu-central-1
+        US West (N. California)	     us-west-1	        |  Europe (Ireland)	          eu-west-1
+        US West (Oregon)	               us-west-2	        |  Europe (London)	          eu-west-2
+        Asia Pacific (Hong Kong)	     ap-east-1	        |  Europe (Milan)	          eu-south-1
+        Asia Pacific (Mumbai)	          ap-south-1	   |  Europe (Paris)	          eu-west-3
+        Asia Pacific (Osaka-Local)	     ap-northeast-3	   |  Europe (Stockholm)	          eu-north-1
+        Asia Pacific (Seoul)	          ap-northeast-2	   |  South America (São Paulo)	sa-east-1
+        Asia Pacific (Singapore)	     ap-southeast-1	   |  Middle East (Bahrain)	     me-south-1
+        Asia Pacific (Sydney)	          ap-southeast-2	   |  Africa (Cape Town)	          af-south-1
+        Asia Pacific (Tokyo)	          ap-northeast-1	   |
 
 d/ Default output format
      Should always be JSON
