@@ -13,17 +13,13 @@ use tokio::fs::OpenOptions;
 use tokio::io::{AsyncBufReadExt, AsyncSeekExt, BufReader, SeekFrom};
 use tokio::sync::RwLock;
 
-//TODO: Approach:
-// - Limit search space of .nextflow.log files for possible locations: E:g $HOME, $PWD, maybe
-//  fallback to /
-// - Nextflow logs files are closer to the root directory
-// than going deeper into the tree
-//  - Seperate Scanning and log processing. Scanning is a blocking task and should be treated as
-//  such
-//  - syncronization primitive to handle updating path when the log is found
-//  - Only poll when a path is found
-//  - Keep track of last processed point in file. And Seek from there on next poll cycle
-
+/// ## Approach:
+/// - Limit search space of .nextflow.log files for possible locations: E:g $HOME, $PWD, maybe fallback to
+/// - Nextflow logs files are closer to the root directory and not deeper into the tree
+/// - Seperate Scanning and log processing. Scanning is a blocking task and should be treated as such
+/// - syncronization primitive to handle updating path when the log is found
+/// - Only poll when a path is found
+/// - Keep track of last processed point in file. And Seek from there on next poll cycle
 pub struct NextflowLogState {
     search_config: LogSearchConfig,
     log_path: Arc<RwLock<Option<PathBuf>>>,
