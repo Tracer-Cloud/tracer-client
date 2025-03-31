@@ -30,6 +30,8 @@ pub struct NextflowLogState {
 }
 impl NextflowLogState {
     fn find_nextflow_log(&self) {
+        tracing::info!("finding nextflow log..");
+
         let state = Arc::clone(&self.log_path);
         let search_confg = self.search_config.clone();
         tokio::task::spawn(async move {
@@ -37,10 +39,13 @@ impl NextflowLogState {
             loop {
                 let state = Arc::clone(&state);
                 if let Some(log_path) = finder.try_find() {
+                    tracing::info!("found nextflow log in path {log_path:?}");
+
                     let mut guard = state.write().await;
                     *guard = Some(log_path);
                     break;
                 }
+                tracing::info!("nextflow log not found, sleeping...");
                 // sleep
                 tokio::time::sleep(Duration::from_secs(5)).await;
             }
