@@ -48,6 +48,8 @@ const REPO_NAME: &str = "tracer-daemon";
 pub const DEFAULT_SERVICE_URL: &str = "https://app.tracer.bio/api";
 
 pub fn start_daemon() -> Result<()> {
+    let _ = std::fs::create_dir_all(WORKING_DIR);
+
     let daemon = Daemonize::new();
     daemon
         .pid_file(PID_FILE)
