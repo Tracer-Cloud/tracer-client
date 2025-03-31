@@ -67,7 +67,7 @@ Open the link to access real-time dashboard insights into your computational wor
 
 
 ## Table of Contents
-- [🎯 Tracer Tutorial](docs/README.MD) - Tracer Tutorial: Monitoring Your First Nextflow Pipeline on AWS
+- [🎯 Tracer Tutorial](docs/README.md) - Tracer Tutorial: Monitoring Your First Nextflow Pipeline on AWS
 - [🔍 Examples](docs/EXAMPLES.md) – Explore real-world use cases 
 - [🛣️ Infrastructure Setup](docs/INFRASTRUCTURE_SETUP.md) – 1 Command deployment
 - [📚 Development](DOCUMENTATION.md) – Learn more about how to setup your development environment
