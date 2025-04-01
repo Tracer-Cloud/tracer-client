@@ -394,7 +394,7 @@ impl TracerClient {
 
     pub async fn poll_nextflow_log(&mut self) -> Result<()> {
         self.nextflow_log_watcher
-            .poll_nextflow_log(&mut self.logs, &self.workflow_directory)
+            .poll_nextflow_log(&mut self.logs)
             .await
     }
 

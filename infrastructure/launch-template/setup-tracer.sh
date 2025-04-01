@@ -6,9 +6,20 @@ echo "Setting up Tracer"
 mkdir -p /home/ubuntu/.config/tracer/
 
 # Create /tmp/tracer directory with proper permissions. Note this is ephemeral and needs to exists on startup
-echo "Setting up /tmp/tracer directory..."
-sudo mkdir -p /tmp/tracer
-sudo chmod 777 /tmp/tracer
+echo "Setting up /tmp/tracer directory and permissions..."
+# Idempotently create the tracer group
+groupadd -f tracer
+
+# Add users to tracer group
+usermod -aG tracer ubuntu
+usermod -aG tracer root
+
+# Create tracer directory with sticky group inheritance
+mkdir -p /tmp/tracer
+chown root:tracer /tmp/tracer
+chmod 2775 /tmp/tracer
+newgrp tracer
+
 
 # Write the configuration to tracer.toml
 cat <<EOL > /home/ubuntu/.config/tracer/tracer.toml

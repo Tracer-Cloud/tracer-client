@@ -13,11 +13,16 @@ This tutorial guides you through setting up Tracer monitoring for a Nextflow pip
 ## Walkthrough Part 1. Setup 
 - Step 1. Launch a new EC2 instance from the template launchers (Example: tracer-launch-template20250321113516913800000003, Launch Template ID: lt-0fe7119f40a472f97)
 - Step 2. Connect with AWS Instance Connect (you might have to wait 1 minute for the instance to provision)
-- Step 3. Verify tracer is running and installed correctly by running $tracer info, the default pipeline name is launch-template but we will now proceed and give it a unique name
-- Step 4. Stop the current pipline run and give it a unique new pipeline name such as
+- Step 3. Verify tracer is installed correctly by running  `tracer info`.
+
+- Step 4a. Change user if you're signed in as root 
 
 ```bash
-su - ubuntu && tracer init --pipeline-name rnaseq-demo-123 --tags vincent,demo
+sudo su - ubuntu
+```
+- Step 4b. Start a new pipline run and give it a unique new pipeline name such as
+```bash
+tracer init --pipeline-name rnaseq-demo-123 --tags vincent,demo
 ```
 - Step 5. Run $tracer info in your terminal after connecting. And Copy and paste the Grafana Url in a different browser tab
 ```bash
