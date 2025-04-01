@@ -95,8 +95,6 @@ impl NextflowLogWatcher {
         let start_time = tokio::time::Instant::now();
         let log_path = match self.state.get_path().await {
             None => {
-                tracing::warn!("No .nextflow.log file found to poll in workflow directory");
-                tracing::info!("Poll completed in {:?}", start_time.elapsed());
                 return Ok(());
             }
             Some(path) => path,

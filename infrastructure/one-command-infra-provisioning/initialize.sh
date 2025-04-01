@@ -22,6 +22,7 @@ usermod -aG tracer root
 mkdir -p /tmp/tracer
 chown root:tracer /tmp/tracer
 chmod 2775 /tmp/tracer
+newgrp tracer
 
 
 
