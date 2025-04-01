@@ -315,13 +315,12 @@ impl ProcessWatcher {
         let mut job_id = None;
 
         // Try to read environment variables
-        if let Ok(env) = proc.environ() {
-            for (key, value) in env {
-                if key == "AWS_BATCH_JOB_ID" {
-                    job_id = Some(value.to_string());
-                } else if key == "HOSTNAME" {
-                    // In AWS Batch, the HOSTNAME environment variable contains the container ID
-                    container_id = Some(value.to_string());
+        for env_var in proc.environ() {
+            if let Some((key, value)) = env_var.split_once('=') {
+                match key {
+                    "AWS_BATCH_JOB_ID" => job_id = Some(value.to_string()),
+                    "HOSTNAME" => container_id = Some(value.to_string()),
+                    _ => continue,
                 }
             }
         }
