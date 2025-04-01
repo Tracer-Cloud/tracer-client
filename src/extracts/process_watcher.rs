@@ -310,12 +310,33 @@ impl ProcessWatcher {
         Ok(())
     }
 
+    fn read_process_env(proc: &Process) -> (Option<String>, Option<String>) {
+        let mut container_id = None;
+        let mut job_id = None;
+
+        // Try to read environment variables
+        if let Ok(env) = proc.environ() {
+            for (key, value) in env {
+                if key == "AWS_BATCH_JOB_ID" {
+                    job_id = Some(value.to_string());
+                } else if key == "HOSTNAME" {
+                    // In AWS Batch, the HOSTNAME environment variable contains the container ID
+                    container_id = Some(value.to_string());
+                }
+            }
+        }
+
+        (container_id, job_id)
+    }
+
     pub fn gather_process_data(
         pid: &Pid,
         proc: &Process,
         display_name: Option<String>,
     ) -> ProcessProperties {
         let start_time = Utc::now();
+        let (container_id, job_id) = Self::read_process_env(proc);
+        let working_directory = proc.cwd().map(|p| p.to_string_lossy().to_string());
 
         ProcessProperties {
             tool_name: display_name.unwrap_or(proc.name().to_owned()),
@@ -340,6 +361,9 @@ impl ProcessWatcher {
             process_memory_virtual: proc.virtual_memory(),
             process_status: process_status_to_string(&proc.status()),
             input_files: None,
+            container_id,
+            job_id,
+            working_directory,
         }
     }
 
@@ -403,6 +427,9 @@ impl ProcessWatcher {
                     process_disk_usage_write_total: 0,
                     process_status: "Unknown".to_string(),
                     input_files: None,
+                    container_id: None,
+                    job_id: None,
+                    working_directory: None,
                 },
             }
         }
@@ -707,6 +734,9 @@ mod tests {
                 process_disk_usage_write_total: 0,
                 process_status: "test".to_string(),
                 input_files: None,
+                container_id: None,
+                job_id: None,
+                working_directory: None,
             };
 
             let node = ProcessTreeNode {

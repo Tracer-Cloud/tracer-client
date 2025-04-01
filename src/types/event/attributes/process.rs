@@ -27,6 +27,9 @@ pub struct ProcessProperties {
     pub process_disk_usage_write_total: u64,
     pub process_status: String,
     pub input_files: Option<Vec<InputFile>>,
+    pub container_id: Option<String>,
+    pub job_id: Option<String>,
+    pub working_directory: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
