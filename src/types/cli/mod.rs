@@ -14,4 +14,8 @@ pub struct TracerCliInitArgs {
     /// attribution: used to assign tags to a certain pipeline
     #[clap(long, value_delimiter = ',')]
     pub tags: Vec<String>,
+
+    /// Run agent as a standalone process rather than a daemon
+    #[clap(long)]
+    pub no_daemonize: bool,
 }
