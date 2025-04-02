@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use log::info;
 use sqlx::pool::PoolOptions;
 use sqlx::types::Json;
-use sqlx::{Execute, PgPool, Postgres, QueryBuilder};
+use sqlx::{PgPool, Postgres, QueryBuilder};
 use std::time::Instant;
 
 use crate::cloud_providers::aws::SecretsClient;
@@ -13,8 +13,11 @@ use crate::types::event::attributes::EventAttributes;
 use crate::types::event::Event;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use serde_json::Value;
+use sqlx::query_builder::Separated;
 use tracing::debug;
-use uuid::Uuid;
+
+const BIND_LIMIT: usize = 65535;
+
 
 pub struct AuroraClient {
     pool: PgPool,
@@ -145,43 +148,25 @@ impl AuroraClient {
         &self.pool
     }
 
+
     pub async fn batch_insert_events(
         &self,
         run_name: &str,
         run_id: &str,
         pipeline_name: &str,
-        data: impl IntoIterator<Item = &Event>,
+        data: impl IntoIterator<Item=&Event>,
+        job_id: &str,
     ) -> Result<()> {
+
         let now = Instant::now();
 
-        let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
-            "INSERT INTO batch_jobs_logs (
+        const QUERY: &str = "INSERT INTO batch_jobs_logs (
             data, job_id, run_name, run_id, pipeline_name, nextflow_session_uuid, job_ids,
-            tags, event_timestamp, ec2_cost_per_hour, cpu_usage, mem_used, processed_dataset)",
-        );
+            tags, event_timestamp, ec2_cost_per_hour, cpu_usage, mem_used, processed_dataset
+            )"; // when updating query, also update params
+        const PARAMS: usize = 13;
 
-        // Try to get AWS_BATCH_JOB_ID from environment, use empty string if not found
-        let job_id = std::env::var("AWS_BATCH_JOB_ID").unwrap_or_default();
-
-        info!(
-            "Inserting row for run_name: {}, pipeline_name: {}, job_id: {}",
-            run_name, pipeline_name, job_id
-        );
-
-        let data: Vec<_> = data
-            .into_iter()
-            .map(|e| {
-                EventInsert::try_new(
-                    e,
-                    job_id.to_string(),
-                    run_name.to_string(),
-                    run_id.to_string(),
-                    pipeline_name.to_string(),
-                )
-            })
-            .collect::<Result<Vec<_>>>()?;
-
-        query_builder.push_values(data.into_iter(), |mut b, event| {
+        fn _push_tuple(mut b: Separated<Postgres, &str>, event: EventInsert) {
             b.push_bind(event.json_data)
                 .push_bind(event.job_id)
                 .push_bind(event.run_name)
@@ -195,11 +180,68 @@ impl AuroraClient {
                 .push_bind(event.cpu_usage)
                 .push_bind(event.mem_used)
                 .push_bind(event.processed_dataset);
-        });
+        }
+        // there's an alternative, much more efficient way to push values
+        // https://github.com/launchbadge/sqlx/blob/main/FAQ.md#how-can-i-bind-an-array-to-a-values-clause-how-can-i-do-bulk-inserts
+        // however, unnest builds a tmp table from the array - and we're passing job_ids. Unnesting Arrays inside the arrays are tricky.
+        // see https://github.com/launchbadge/sqlx/issues/1945
 
-        let query = query_builder.build();
+        info!(
+            "Inserting row for run_name: {}, pipeline_name: {}, job_id: {}",
+            run_name, pipeline_name, job_id
+        );
 
-        let rows_affected = query.execute(&self.pool).await?.rows_affected();
+        let mut builder = QueryBuilder::new(QUERY);
+
+        let mut data: Vec<_> = data
+            .into_iter()
+            .map(|e| {
+                EventInsert::try_new(
+                    e,
+                    job_id.to_string(),
+                    run_name.to_string(),
+                    run_id.to_string(),
+                    pipeline_name.to_string(),
+                )
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        let rows_affected = match data.len() {
+            0 => {
+                debug!("No data to insert");
+                return Ok(());
+            }
+
+            x if x * PARAMS >= BIND_LIMIT => {
+                debug!("Using transaction to insert data");
+                let mut transaction = self.pool.begin().await?;
+
+                let mut rows_affected = 0;
+
+                while !data.is_empty() {
+                    let chunk = data.split_off(data.len().min(BIND_LIMIT / PARAMS));
+                    let query = builder.push_values(chunk, _push_tuple).build();
+
+                    let chunk_rows_affected = query.execute(&mut *transaction).await.context("Failed to insert event into database")?.rows_affected();
+                    builder.reset();
+
+                    rows_affected += chunk_rows_affected;
+                }
+
+                transaction.commit().await?;
+                rows_affected
+            }
+
+            _ => {
+                debug!("Inserting data without transaction");
+                builder.push_values(data, _push_tuple);
+
+                let query =  builder.build();
+                query.execute(&self.pool).await?.rows_affected()
+            }
+        };
+
+
         debug!(
             "Successfully inserted {rows_affected} rows with job_id: {job_id}, elapsed: {:?}",
             now.elapsed()
