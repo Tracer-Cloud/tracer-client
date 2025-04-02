@@ -5,6 +5,8 @@ use attributes::EventAttributes;
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};
 
+use super::cli::PipelineTags;
+
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Event {
     #[serde(with = "ts_seconds")]
@@ -18,5 +20,5 @@ pub struct Event {
     pub run_id: Option<String>,
     pub aws_batch_job_id: Option<String>,
     pub attributes: Option<EventAttributes>,
-    pub tags: Vec<String>,
+    pub tags: Option<PipelineTags>,
 }
