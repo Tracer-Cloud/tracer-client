@@ -18,7 +18,6 @@ use tracing::debug;
 
 const BIND_LIMIT: usize = 65535;
 
-
 pub struct AuroraClient {
     pool: PgPool,
 }
@@ -148,16 +147,14 @@ impl AuroraClient {
         &self.pool
     }
 
-
     pub async fn batch_insert_events(
         &self,
         run_name: &str,
         run_id: &str,
         pipeline_name: &str,
-        data: impl IntoIterator<Item=&Event>,
+        data: impl IntoIterator<Item = &Event>,
         job_id: &str,
     ) -> Result<()> {
-
         let now = Instant::now();
 
         const QUERY: &str = "INSERT INTO batch_jobs_logs (
@@ -222,7 +219,11 @@ impl AuroraClient {
                     let chunk = data.split_off(data.len().min(BIND_LIMIT / PARAMS));
                     let query = builder.push_values(chunk, _push_tuple).build();
 
-                    let chunk_rows_affected = query.execute(&mut *transaction).await.context("Failed to insert event into database")?.rows_affected();
+                    let chunk_rows_affected = query
+                        .execute(&mut *transaction)
+                        .await
+                        .context("Failed to insert event into database")?
+                        .rows_affected();
                     builder.reset();
 
                     rows_affected += chunk_rows_affected;
@@ -236,11 +237,10 @@ impl AuroraClient {
                 debug!("Inserting data without transaction");
                 builder.push_values(data, _push_tuple);
 
-                let query =  builder.build();
+                let query = builder.build();
                 query.execute(&self.pool).await?.rows_affected()
             }
         };
-
 
         debug!(
             "Successfully inserted {rows_affected} rows with job_id: {job_id}, elapsed: {:?}",

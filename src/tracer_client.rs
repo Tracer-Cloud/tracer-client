@@ -164,7 +164,6 @@ impl TracerClient {
         std::env::var("AWS_BATCH_JOB_ID").unwrap_or_default()
     }
 
-
     // TODO: Refactor to collect required entries properly
     pub async fn submit_batched_data(&mut self) -> Result<()> {
         let run_name = self
