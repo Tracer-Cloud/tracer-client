@@ -3,7 +3,8 @@ use chrono::{DateTime, Utc};
 use log::info;
 use sqlx::pool::PoolOptions;
 use sqlx::types::Json;
-use sqlx::{PgPool, Postgres, QueryBuilder, Execute};
+use sqlx::{Execute, PgPool, Postgres, QueryBuilder};
+use std::time::Instant;
 
 use crate::cloud_providers::aws::SecretsClient;
 use crate::config_manager::Config;
@@ -12,6 +13,7 @@ use crate::types::event::attributes::EventAttributes;
 use crate::types::event::Event;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use serde_json::Value;
+use tracing::debug;
 use uuid::Uuid;
 
 pub struct AuroraClient {
@@ -32,11 +34,17 @@ struct EventInsert {
     ec2_cost_per_hour: Option<f64>,
     cpu_usage: Option<f64>,
     mem_used: Option<f64>,
-    processed_dataset: Option<i32>
+    processed_dataset: Option<i32>,
 }
 
 impl EventInsert {
-    pub fn try_new(event: &Event, job_id: String, run_name: String, run_id: String, pipeline_name: String) -> Result<Self> {
+    pub fn try_new(
+        event: &Event,
+        job_id: String,
+        run_name: String,
+        run_id: String,
+        pipeline_name: String,
+    ) -> Result<Self> {
         let json_data = Json(serde_json::to_value(event)?);
         let (nextflow_session_uuid, job_ids, event_timestamp) = match &event.attributes {
             Some(EventAttributes::NextflowLog(log)) => (
@@ -93,8 +101,6 @@ impl EventInsert {
     }
 }
 
-
-
 impl AuroraClient {
     pub async fn new(config: &Config, pool_size: Option<u32>) -> Self {
         let secrets_client = SecretsClient::new(config.aws_init_type.clone()).await;
@@ -146,6 +152,7 @@ impl AuroraClient {
         pipeline_name: &str,
         data: impl IntoIterator<Item = &Event>,
     ) -> Result<()> {
+        let now = Instant::now();
 
         let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
             "INSERT INTO batch_jobs_logs (
@@ -161,36 +168,42 @@ impl AuroraClient {
             run_name, pipeline_name, job_id
         );
 
-        let data: Vec<_> = data.into_iter().map(|e|
-            EventInsert::try_new(e, job_id.to_string(), run_name.to_string(), run_id.to_string(), pipeline_name.to_string())
-        ).collect::<Result<Vec<_>>>()?;
+        let data: Vec<_> = data
+            .into_iter()
+            .map(|e| {
+                EventInsert::try_new(
+                    e,
+                    job_id.to_string(),
+                    run_name.to_string(),
+                    run_id.to_string(),
+                    pipeline_name.to_string(),
+                )
+            })
+            .collect::<Result<Vec<_>>>()?;
 
-
-        query_builder.push_values(
-            data.into_iter(),
-            |mut b, event| {
-
-                b.push_bind(event.json_data)
-                    .push_bind(event.job_id)
-                    .push_bind(event.run_name)
-                    .push_bind(event.run_id)
-                    .push_bind(event.pipeline_name)
-                    .push_bind(event.nextflow_session_uuid)
-                    .push_bind(event.job_ids)
-                    .push_bind(event.tags_json)
-                    .push_bind(event.event_timestamp.naive_utc())
-                    .push_bind(event.ec2_cost_per_hour)
-                    .push_bind(event.cpu_usage)
-                    .push_bind(event.mem_used)
-                    .push_bind(event.processed_dataset);
-
-            }
-        );
+        query_builder.push_values(data.into_iter(), |mut b, event| {
+            b.push_bind(event.json_data)
+                .push_bind(event.job_id)
+                .push_bind(event.run_name)
+                .push_bind(event.run_id)
+                .push_bind(event.pipeline_name)
+                .push_bind(event.nextflow_session_uuid)
+                .push_bind(event.job_ids)
+                .push_bind(event.tags_json)
+                .push_bind(event.event_timestamp.naive_utc())
+                .push_bind(event.ec2_cost_per_hour)
+                .push_bind(event.cpu_usage)
+                .push_bind(event.mem_used)
+                .push_bind(event.processed_dataset);
+        });
 
         let query = query_builder.build();
 
         let rows_affected = query.execute(&self.pool).await?.rows_affected();
-        info!("Successfully inserted {rows_affected} rows with job_id: {job_id}");
+        debug!(
+            "Successfully inserted {rows_affected} rows with job_id: {job_id}, elapsed: {:?}",
+            now.elapsed()
+        );
 
         Ok(())
     }
