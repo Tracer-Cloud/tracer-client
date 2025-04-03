@@ -5,6 +5,11 @@ use crate::events::{
     recorder::{EventRecorder, EventType},
     send_alert_event, send_log_event, send_start_run_event,
 };
+use crate::utils::upload::presigned_url_put::request_presigned_url;
+use anyhow::{Context, Result};
+use std::fs;
+use std::path::Path;
+
 use crate::exporters::db::AuroraClient;
 use crate::extracts::{
     file_watcher::FileWatcher,
@@ -15,12 +20,13 @@ use crate::extracts::{
 };
 use crate::types::cli::{PipelineTags, TracerCliInitArgs};
 use crate::types::event::attributes::EventAttributes;
+use crate::utils::{debug_log::Logger, upload::upload_to_signed_url::upload_file_to_signed_url_s3};
 use crate::SYSLOG_FILE;
 use crate::{monitor_processes_with_tracer_client, DEFAULT_SERVICE_URL, FILE_CACHE_DIR};
-use anyhow::{Context, Result};
 use axum::Router;
 use chrono::{DateTime, TimeDelta, Utc};
 use serde::Deserialize;
+use serde_json::json;
 use std::borrow::BorrowMut;
 use std::future::IntoFuture;
 use std::ops::Sub;
@@ -527,6 +533,20 @@ impl TracerClient {
         self.logs
             .record_event(EventType::Alert, alert.payload, None, Some(Utc::now()));
         Ok(())
+    }
+
+    //FIXME: Should tag updates be parts of events?... how should it be handled and stored
+    pub async fn send_update_tags_event(&self, tags: Vec<String>) -> Result<()> {
+        let _tags_entry = json!({
+            "tags": tags,
+            "message": "[CLI] Updating tags",
+            "process_type": "pipeline",
+            "process_status": "tag_update",
+            "event_type": "process_status",
+            "timestamp": Utc::now().timestamp_millis() as f64 / 1000.,
+        });
+
+        todo!()
     }
 }
 

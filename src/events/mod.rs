@@ -150,21 +150,3 @@ pub async fn send_start_run_event(
         system_properties,
     })
 }
-
-//FIXME: Should tag updates be parts of events?... how should it be handled and stored
-pub async fn send_update_tags_event(
-    _service_url: &str,
-    _api_key: &str,
-    tags: Vec<String>,
-) -> Result<String> {
-    let _tags_entry = json!({
-        "tags": tags,
-        "message": "[CLI] Updating tags",
-        "process_type": "pipeline",
-        "process_status": "tag_update",
-        "event_type": "process_status",
-        "timestamp": Utc::now().timestamp_millis() as f64 / 1000.,
-    });
-
-    todo!()
-}
