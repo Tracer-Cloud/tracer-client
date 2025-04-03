@@ -191,12 +191,11 @@ pub fn process_upload_command<'a>(
     }))
 }
 
-pub async fn run_server(
+pub fn get_server(
     tracer_client: Arc<Mutex<TracerClient>>,
-    socket_path: &str,
     cancellation_token: CancellationToken,
     config: Arc<RwLock<Config>>,
-    address: String,
+    address: &str,
 ) -> Result<actix_web::dev::Server, anyhow::Error> {
     Ok(HttpServer::new(move || {
         App::new()

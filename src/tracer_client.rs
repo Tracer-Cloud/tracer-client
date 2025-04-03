@@ -27,7 +27,7 @@ use std::time::{Duration, Instant};
 use sysinfo::{Pid, System};
 use tokio::sync::{Mutex, RwLock};
 
-use crate::daemon_communication::server::run_server;
+use crate::daemon_communication::server::get_server;
 use config_manager::{INTERCEPTOR_STDERR_FILE, INTERCEPTOR_STDOUT_FILE};
 
 use tokio::time::sleep;
@@ -442,13 +442,12 @@ impl TracerClient {
 
         let cancellation_token = CancellationToken::new();
 
-        tokio::spawn(run_server(
+        tokio::spawn(get_server(
             tracer_client.clone(),
-            SOCKET_PATH,
             cancellation_token.clone(),
             config.clone(),
-            addr,
-        ));
+            addr.as_str(),
+        )?);
 
         let syslog_lines_task = tokio::spawn(run_syslog_lines_read_thread(
             SYSLOG_FILE,
