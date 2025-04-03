@@ -13,6 +13,10 @@ pub struct TracerCliInitArgs {
 
     #[clap(flatten)]
     pub tags: PipelineTags,
+
+    /// Run agent as a standalone process rather than a daemon
+    #[clap(long)]
+    pub no_daemonize: bool,
 }
 
 #[derive(Args, Debug, Clone, serde::Serialize, serde::Deserialize)]

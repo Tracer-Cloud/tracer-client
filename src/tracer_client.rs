@@ -582,6 +582,7 @@ mod tests {
             pipeline_name: "Test Pipeline".to_string(),
             run_id: None,
             tags: tags.clone(),
+            no_daemonize: false,
         };
 
         let mut client = TracerClient::new(config, work_dir.to_string(), db_client, cli_config)
