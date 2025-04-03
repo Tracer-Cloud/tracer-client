@@ -392,7 +392,7 @@ impl FileWatcher {
     pub fn get_file_by_path_suffix(&self, path_suffix: &str) -> Option<(&String, &FileInfo)> {
         let path = self.all_files.keys().find(|path| {
             path.ends_with(path_suffix)
-                && match path.split('/').last() {
+                && match path.split('/').next_back() {
                     Some(last) => path_suffix.contains(last),
                     None => {
                         println!("Warning: Could not determine filename from path: {}", path);
