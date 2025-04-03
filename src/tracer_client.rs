@@ -13,7 +13,7 @@ use crate::extracts::{
     stdout::StdoutWatcher,
     syslog::{run_syslog_lines_read_thread, SyslogWatcher},
 };
-use crate::types::cli::TracerCliInitArgs;
+use crate::types::cli::{PipelineTags, TracerCliInitArgs};
 use crate::types::event::attributes::EventAttributes;
 use crate::{monitor_processes_with_tracer_client, DEFAULT_SERVICE_URL, FILE_CACHE_DIR};
 use crate::{SOCKET_PATH, SYSLOG_FILE};
@@ -79,7 +79,7 @@ pub struct TracerClient {
     pub pricing_client: PricingClient,
     initialization_id: Option<String>,
     config: Config,
-    tags: Vec<String>,
+    tags: PipelineTags,
 }
 
 impl TracerClient {
@@ -275,7 +275,7 @@ impl TracerClient {
             Some(self.pipeline_name.clone()),
             Some(result.run_name),
             Some(result.run_id),
-            self.tags.clone(),
+            Some(self.tags.clone()),
         );
 
         // NOTE: Do we need to output a totally new event if self.initialization_id.is_some() ?
@@ -319,7 +319,7 @@ impl TracerClient {
                 Some(self.pipeline_name.clone()),
                 None,
                 None,
-                self.tags.clone(),
+                Some(self.tags.clone()),
             );
             self.current_run = None;
         }
@@ -576,7 +576,7 @@ mod tests {
         // Create an instance of AuroraClient
         let db_client = Arc::new(AuroraClient::new(&config, Some(1)).await);
 
-        let tags = vec!["Hello".to_string(), "Test".to_string()];
+        let tags = PipelineTags::default();
 
         let cli_config = TracerCliInitArgs {
             pipeline_name: "Test Pipeline".to_string(),
@@ -605,9 +605,9 @@ mod tests {
         // assertions
         let events = client.logs.get_events();
         assert!(!events.is_empty());
-        let event_tags = events.first().unwrap().tags.clone();
-        assert_eq!(event_tags, tags);
+        let event_tags = events.first().unwrap().tags.clone().unwrap();
+        assert_eq!(event_tags.pipeline_type, tags.pipeline_type);
 
-        assert_eq!(client.tags, tags);
+        assert_eq!(client.tags.pipeline_type, tags.pipeline_type);
     }
 }
