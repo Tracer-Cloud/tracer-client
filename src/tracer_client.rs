@@ -18,16 +18,18 @@ use crate::types::event::attributes::EventAttributes;
 use crate::SYSLOG_FILE;
 use crate::{monitor_processes_with_tracer_client, DEFAULT_SERVICE_URL, FILE_CACHE_DIR};
 use anyhow::{Context, Result};
+use axum::Router;
 use chrono::{DateTime, TimeDelta, Utc};
 use serde::Deserialize;
 use std::borrow::BorrowMut;
+use std::future::IntoFuture;
 use std::ops::Sub;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use sysinfo::{Pid, System};
 use tokio::sync::{Mutex, RwLock};
 
-use crate::daemon_communication::server::get_server;
+use crate::daemon_communication::server::get_app;
 use config_manager::{INTERCEPTOR_STDERR_FILE, INTERCEPTOR_STDOUT_FILE};
 
 use tokio::time::sleep;
@@ -442,12 +444,15 @@ impl TracerClient {
 
         let cancellation_token = CancellationToken::new();
 
-        tokio::spawn(get_server(
+        let app = get_app(
             tracer_client.clone(),
             cancellation_token.clone(),
             config.clone(),
-            addr.as_str(),
-        )?);
+        );
+
+        let listener = tokio::net::TcpListener::bind(addr).await?;
+
+        tokio::spawn(axum::serve(listener, app).into_future());
 
         let syslog_lines_task = tokio::spawn(run_syslog_lines_read_thread(
             SYSLOG_FILE,

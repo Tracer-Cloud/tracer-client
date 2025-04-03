@@ -1,5 +1,6 @@
 use anyhow::Result;
 use serde_json::json;
+use std::future::IntoFuture;
 use std::{future::Future, pin::Pin, sync::Arc};
 use tokio::{
     io::AsyncWriteExt,
@@ -18,8 +19,13 @@ use crate::{
     tracer_client::TracerClient,
     utils::{debug_log::Logger, upload::upload_from_file_path},
 };
-use actix_web::web::Data;
-use actix_web::{web, App, Error, HttpResponse, HttpServer};
+
+use axum::{
+    extract::{FromRef, FromRequestParts, State},
+    http::{request::Parts, StatusCode},
+    routing::get,
+    Json, Router,
+};
 
 type ProcessOutput<'a> =
     Option<Pin<Box<dyn Future<Output = Result<String, anyhow::Error>> + 'a + Send>>>;
@@ -187,28 +193,36 @@ pub fn process_upload_command<'a>(
     }))
 }
 
-pub fn get_server(
+use axum::response::{ErrorResponse, IntoResponse};
+use axum::routing::post;
+use clap::builder::Str;
+
+#[derive(Clone)]
+struct AppState {
     tracer_client: Arc<Mutex<TracerClient>>,
     cancellation_token: CancellationToken,
     config: Arc<RwLock<Config>>,
-    address: &str,
-) -> Result<actix_web::dev::Server, anyhow::Error> {
-    Ok(HttpServer::new(move || {
-        App::new()
-            // todo: remove double arc-s
-            .app_data(Data::new(tracer_client.clone()))
-            .app_data(Data::new(cancellation_token.clone()))
-            .app_data(config.clone())
-            .service(web::resource("/log").route(web::post().to(log)))
-            .service(web::resource("/alert").route(web::post().to(alert)))
-            .service(web::resource("/terminate").route(web::post().to(terminate)))
-            .service(web::resource("/start").route(web::post().to(start)))
-    })
-    .bind(address)?
-    // to reduce the overhead
-    .workers(1)
-    .max_connections(5)
-    .run())
+}
+
+pub fn get_app(
+    tracer_client: Arc<Mutex<TracerClient>>,
+    cancellation_token: CancellationToken,
+    config: Arc<RwLock<Config>>,
+) -> Router {
+    // tracing_subscriber::fmt::init();
+
+    let state = AppState {
+        tracer_client: tracer_client.clone(),
+        cancellation_token: cancellation_token.clone(),
+        config: config.clone(),
+    };
+
+    Router::new()
+        .route("/log", post(log))
+        .route("/terminate", post(terminate))
+        .route("/start", post(start))
+        .route("/alert", post(alert))
+        .with_state(state)
 }
 
 // todo: also move:
@@ -219,54 +233,54 @@ pub fn get_server(
 // "info" => process_info_command(&tracer_client, &mut stream),
 // "upload" => process_upload_command(&service_url, &api_key, object),
 
-pub async fn terminate(cancellation_token: Data<CancellationToken>) -> Result<HttpResponse, Error> {
-    cancellation_token.cancelled().await; // todo: gracefully shutdown
-    Ok(HttpResponse::Ok().body("Daemon terminated"))
+pub async fn terminate(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
+    state.cancellation_token.cancelled().await; // todo: gracefully shutdown
+    Ok(StatusCode::ACCEPTED)
 }
 
 pub async fn log(
-    payload: web::Json<Message>,
-    tracer_client: Data<Arc<Mutex<TracerClient>>>,
-) -> Result<HttpResponse, Error> {
-    tracer_client
+    State(state): State<AppState>,
+    Json(payload): Json<Message>,
+) -> axum::response::Result<impl IntoResponse> {
+    state
+        .tracer_client
         .lock()
         .await
-        .send_log_event(payload.into_inner())
+        .send_log_event(payload)
         .await
-        .map_err(actix_web::error::ErrorInternalServerError)?;
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(HttpResponse::Ok().body("Log event processed"))
+    Ok(StatusCode::ACCEPTED)
 }
 
 pub async fn alert(
-    payload: web::Json<Message>,
-    tracer_client: Data<Arc<Mutex<TracerClient>>>,
-) -> Result<HttpResponse, Error> {
-    tracer_client
+    State(state): State<AppState>,
+    Json(payload): Json<Message>,
+) -> axum::response::Result<impl IntoResponse> {
+    state
+        .tracer_client
         .lock()
         .await
-        .send_alert_event(payload.into_inner())
+        .send_alert_event(payload)
         .await
-        .map_err(actix_web::error::ErrorInternalServerError)?;
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(HttpResponse::Ok().body("Alert event processed"))
+    Ok(StatusCode::ACCEPTED)
 }
 
-pub async fn start(tracer_client: Data<Arc<Mutex<TracerClient>>>) -> Result<HttpResponse, Error> {
-    {
-        let mut _guard = tracer_client.lock().await;
+pub async fn start(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
+    let mut _guard = state.tracer_client.lock().await;
 
-        _guard
-            .start_new_run(None)
-            .await
-            .map_err(actix_web::error::ErrorInternalServerError)?;
+    _guard
+        .start_new_run(None)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        let run_data = _guard.get_run_metadata().map(|r| RunData {
-            run_name: r.name,
-            run_id: r.id,
-            pipeline_name: _guard.get_pipeline_name().to_string(),
-        });
+    let run_data = _guard.get_run_metadata().map(|r| RunData {
+        run_name: r.name,
+        run_id: r.id,
+        pipeline_name: _guard.get_pipeline_name().to_string(),
+    });
 
-        Ok(HttpResponse::Ok().json(run_data))
-    }
+    Ok(Json(run_data))
 }
