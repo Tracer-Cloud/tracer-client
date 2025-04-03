@@ -1,6 +1,5 @@
 use anyhow::Result;
 use serde_json::json;
-use std::future::IntoFuture;
 use std::{future::Future, pin::Pin, sync::Arc};
 use tokio::{
     io::AsyncWriteExt,
@@ -19,12 +18,7 @@ use crate::{
     utils::{debug_log::Logger, upload::upload_from_file_path},
 };
 
-use axum::{
-    extract::{FromRef, FromRequestParts, State},
-    http::{request::Parts, StatusCode},
-    routing::get,
-    Json, Router,
-};
+use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
 
 type ProcessOutput<'a> =
     Option<Pin<Box<dyn Future<Output = Result<String, anyhow::Error>> + 'a + Send>>>;
@@ -87,9 +81,8 @@ pub fn process_log_short_lived_process_command<'a>(
     }))
 }
 
-use axum::response::{ErrorResponse, IntoResponse};
+use axum::response::IntoResponse;
 use axum::routing::{post, put};
-use clap::builder::Str;
 
 #[derive(Clone)]
 struct AppState {
@@ -210,7 +203,7 @@ pub async fn tag(
     State(state): State<AppState>,
     Json(payload): Json<TagData>,
 ) -> axum::response::Result<impl IntoResponse> {
-    let mut guard = state.tracer_client.lock().await;
+    let guard = state.tracer_client.lock().await;
     guard
         .send_update_tags_event(payload.names)
         .await
@@ -232,7 +225,7 @@ pub async fn log_short_lived_process_command(
 }
 
 pub async fn info(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
-    let mut guard = state.tracer_client.lock().await;
+    let guard = state.tracer_client.lock().await;
 
     let response_inner: Option<InnerInfoResponse> = guard.get_run_metadata().map(|out| out.into());
 
@@ -248,7 +241,7 @@ pub async fn upload(
     State(state): State<AppState>,
     Json(payload): Json<UploadData>,
 ) -> axum::response::Result<impl IntoResponse> {
-    let mut guard = state.tracer_client.lock().await;
+    let guard = state.tracer_client.lock().await;
 
     let logger = Logger::new();
     logger.log("server.rs//process_upload_command", None).await;
