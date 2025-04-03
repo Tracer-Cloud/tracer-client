@@ -1,11 +1,9 @@
 use anyhow::Result;
-use chrono::Utc;
-use core::panic;
-use serde_json::{json, Value};
+use serde_json::json;
 use std::{future::Future, pin::Pin, sync::Arc};
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::{UnixListener, UnixStream},
+    io::AsyncWriteExt,
+    net::UnixStream,
     sync::{Mutex, RwLock},
 };
 use tokio_util::sync::CancellationToken;
@@ -15,15 +13,13 @@ use crate::tracer_client::Message;
 use crate::{
     config_manager::{Config, ConfigManager},
     daemon_communication::structs::{InfoResponse, InnerInfoResponse},
-    events::{recorder::EventType, send_alert_event, send_log_event, send_update_tags_event},
+    events::send_update_tags_event,
     extracts::process_watcher::ShortLivedProcessLog,
-    run,
     tracer_client::TracerClient,
     utils::{debug_log::Logger, upload::upload_from_file_path},
 };
 use actix_web::web::Data;
 use actix_web::{web, App, Error, HttpResponse, HttpServer};
-use serde::Deserialize;
 
 type ProcessOutput<'a> =
     Option<Pin<Box<dyn Future<Output = Result<String, anyhow::Error>> + 'a + Send>>>;

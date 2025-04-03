@@ -15,8 +15,8 @@ use crate::extracts::{
 };
 use crate::types::cli::{PipelineTags, TracerCliInitArgs};
 use crate::types::event::attributes::EventAttributes;
+use crate::SYSLOG_FILE;
 use crate::{monitor_processes_with_tracer_client, DEFAULT_SERVICE_URL, FILE_CACHE_DIR};
-use crate::{SOCKET_PATH, SYSLOG_FILE};
 use anyhow::{Context, Result};
 use chrono::{DateTime, TimeDelta, Utc};
 use serde::Deserialize;
