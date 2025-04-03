@@ -210,11 +210,13 @@ pub async fn run_server(
             .service(web::resource("/start").route(web::post().to(start)))
     })
     .bind(address)?
+    // to reduce the overhead
+    .workers(1)
+    .max_connections(5)
     .run())
 }
 
 // todo: also move:
-// "start" => process_start_run_command(&tracer_client, &mut stream),
 // "end" => process_end_run_command(&tracer_client),
 // "refresh_config" => process_refresh_config_command(&tracer_client, &config),
 // "tag" => process_tag_command(&service_url, &api_key, object),
