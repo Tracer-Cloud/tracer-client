@@ -22,7 +22,7 @@ sudo su - ubuntu
 ```
 - Step 4b. Start a new pipline run and give it a unique new pipeline name such as
 ```bash
-tracer init --pipeline-name rnaseq-demo-123 --tags vincent,demo
+tracer init --pipeline-name rnaseq-demo-123 --environment demo --user-operator vincent --pipeline-type rnaseq
 ```
 - Step 5. Run $tracer info in your terminal after connecting. And Copy and paste the Grafana Url in a different browser tab
 ```bash

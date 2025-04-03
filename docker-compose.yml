@@ -43,7 +43,7 @@ services:
     env_file:
       - .env
     command: >
-      "set -x && tracer setup && tracer init --pipeline-name testing \   --run-id test-tag \ && ./test-files/scripts/monitor.sh && \  ./test-files/scripts/track_datasets.sh && sleep 5"
+      "set -x && tracer setup && tracer init --pipeline-name testing --run-id test-tag --environment integrations --user-operator inte --pipeline-type generic && ./test-files/scripts/monitor.sh &&  ./test-files/scripts/track_datasets.sh && sleep 5"
     depends_on:
       db:
         condition: service_healthy
@@ -53,8 +53,6 @@ services:
       USE_LOCAL_CREDENTIALS: true
       DATABASE_USER: postgres
       DATABASE_PASSWORD: postgres
-
-
 
   parallel_tests:
     build:
@@ -67,7 +65,7 @@ services:
     env_file:
       - .env
     command: >
-      "set -x && tracer setup && tracer init --pipeline-name testing \   --run-id parallel-tag \ && ./test-files/scripts/monitor.sh && \  ./test-files/scripts/track_datasets.sh && sleep 5"
+      "set -x && tracer setup && tracer init --pipeline-name testing --run-id parallel-tag --environment integrations --user-operator inte --pipeline-type generic && ./test-files/scripts/monitor.sh && \  ./test-files/scripts/track_datasets.sh && sleep 5"
     depends_on:
       db:
         condition: service_healthy
@@ -77,7 +75,6 @@ services:
       USE_LOCAL_CREDENTIALS: true
       DATABASE_USER: postgres
       DATABASE_PASSWORD: postgres
-
 
   db:
     image: postgres:13-alpine
@@ -95,4 +92,3 @@ services:
       timeout: 5s
       retries: 5
     profiles: [ parallel_tests, integrations_tests ]
-
