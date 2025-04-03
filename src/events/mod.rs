@@ -18,7 +18,7 @@ use sysinfo::System;
 use tracing::info;
 
 // FIXME: How should this be handled with the new architecture?
-pub async fn send_log_event(_api_key: &str, message: String) -> Result<String> {
+pub async fn send_log_event(_api_key: &str, message: &str) -> Result<String> {
     let _log_entry = json!({
         "message": message,
         "process_type": "pipeline",

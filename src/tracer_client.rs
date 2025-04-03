@@ -3,7 +3,7 @@ use crate::cloud_providers::aws::PricingClient;
 use crate::config_manager::{self, Config};
 use crate::events::{
     recorder::{EventRecorder, EventType},
-    send_start_run_event,
+    send_log_event, send_start_run_event,
 };
 use crate::exporters::db::AuroraClient;
 use crate::extracts::{
@@ -19,6 +19,7 @@ use crate::{monitor_processes_with_tracer_client, DEFAULT_SERVICE_URL, FILE_CACH
 use crate::{SOCKET_PATH, SYSLOG_FILE};
 use anyhow::{Context, Result};
 use chrono::{DateTime, TimeDelta, Utc};
+use serde::Deserialize;
 use std::borrow::BorrowMut;
 use std::ops::Sub;
 use std::sync::Arc;
@@ -48,6 +49,11 @@ pub struct RunMetadata {
     pub pipeline_name: String,
     pub parent_pid: Option<Pid>,
     pub start_time: DateTime<Utc>,
+}
+
+#[derive(Deserialize)]
+pub struct LogMessage {
+    message: String,
 }
 
 const RUN_COMPLICATED_PROCESS_IDENTIFICATION: bool = false;
@@ -427,6 +433,8 @@ impl TracerClient {
     }
 
     pub async fn run(self) -> Result<()> {
+        let addr = self.config.server_address.clone();
+
         let config: Arc<RwLock<config_manager::Config>> =
             Arc::new(RwLock::new(self.config.clone()));
 
@@ -439,6 +447,7 @@ impl TracerClient {
             SOCKET_PATH,
             cancellation_token.clone(),
             config.clone(),
+            addr,
         ));
 
         let syslog_lines_task = tokio::spawn(run_syslog_lines_read_thread(
@@ -492,6 +501,19 @@ impl TracerClient {
         // close the connection pool to aurora
         let guard = tracer_client.lock().await;
         let _ = guard.db_client.close().await;
+
+        Ok(())
+    }
+
+    pub async fn send_log_event(&mut self, log: LogMessage) -> Result<()> {
+        send_log_event(self.get_api_key(), &log.message).await?; // todo: remove
+
+        self.logs.record_event(
+            EventType::RunStatusMessage,
+            log.message,
+            None,
+            Some(Utc::now()),
+        );
 
         Ok(())
     }

@@ -10,6 +10,7 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 
+use crate::tracer_client::LogMessage;
 use crate::{
     config_manager::{Config, ConfigManager},
     daemon_communication::structs::{InfoResponse, InnerInfoResponse},
@@ -18,42 +19,12 @@ use crate::{
     tracer_client::TracerClient,
     utils::{debug_log::Logger, upload::upload_from_file_path},
 };
+use actix_web::web::Data;
+use actix_web::{web, App, Error, HttpResponse, HttpServer};
+use serde::Deserialize;
 
 type ProcessOutput<'a> =
     Option<Pin<Box<dyn Future<Output = Result<String, anyhow::Error>> + 'a + Send>>>;
-
-pub fn process_log_command<'a>(
-    service_url: &'a str,
-    api_key: &'a str,
-    object: &serde_json::Map<String, serde_json::Value>,
-    tracer_client: &'a Arc<Mutex<TracerClient>>,
-) -> ProcessOutput<'a> {
-    if !object.contains_key("message") {
-        return None;
-    };
-    let message = object.get("message").unwrap().as_str().unwrap().to_string();
-
-    async fn fun<'a>(
-        tracer_client: &'a Arc<Mutex<TracerClient>>,
-        _service_url: &'a str,
-        api_key: &'a str,
-        message: String,
-    ) -> Result<String, anyhow::Error> {
-        let event_recorder = &mut tracer_client.lock().await.logs;
-
-        event_recorder.record_event(
-            EventType::RunStatusMessage,
-            message.clone(),
-            None,
-            Some(Utc::now()),
-        );
-
-        // TODO: remove
-        send_log_event(api_key, message).await
-    }
-
-    Some(Box::pin(fun(tracer_client, api_key, service_url, message)))
-}
 
 pub fn process_alert_command<'a>(
     service_url: &'a str,
@@ -250,84 +221,47 @@ pub async fn run_server(
     socket_path: &str,
     cancellation_token: CancellationToken,
     config: Arc<RwLock<Config>>,
-) -> Result<(), anyhow::Error> {
-    if std::fs::metadata(socket_path).is_ok() {
-        std::fs::remove_file(socket_path)
-            .unwrap_or_else(|_| panic!("Failed to remove existing socket file"));
-    }
-    let listener = UnixListener::bind(socket_path).expect("Failed to bind to unix socket");
-    loop {
-        let (mut stream, _) = listener.accept().await.unwrap();
-
-        let mut message = String::new();
-
-        let logger = Logger::new();
-
-        let result = stream.read_to_string(&mut message).await;
-
-        if result.is_err() {
-            eprintln!("Error reading from socket: {}", result.err().unwrap());
-            continue;
-        }
-
-        let json_parse_result = serde_json::from_str(&message);
-
-        if json_parse_result.is_err() {
-            eprintln!("Error parsing JSON: {}", json_parse_result.err().unwrap());
-            continue;
-        }
-
-        let parsed: Value = json_parse_result.unwrap();
-
-        if !parsed.is_object() {
-            eprintln!("Invalid JSON received: {}", message);
-            continue;
-        }
-
-        let object = parsed.as_object().unwrap();
-
-        if !object.contains_key("command") {
-            eprintln!("Invalid JSON, no command field, received: {}", message);
-            continue;
-        }
-
-        let command = object.get("command").unwrap().as_str().unwrap();
-
-        let (service_url, api_key) = {
-            let tracer_client = tracer_client.lock().await;
-            let service_url = tracer_client.get_service_url().to_owned();
-            let api_key = tracer_client.get_api_key().to_owned();
-            (service_url, api_key)
-        };
-
-        logger
-            .log(&format!("Received command: {}, {}", command, message), None)
-            .await;
-
-        let result = match command {
-            "terminate" => {
-                cancellation_token.cancel();
-                return Ok(());
-            }
-            "log" => process_log_command(&service_url, &api_key, object, &tracer_client),
-            "alert" => process_alert_command(&service_url, &api_key, object, &tracer_client),
-            "start" => process_start_run_command(&tracer_client, &mut stream),
-            "end" => process_end_run_command(&tracer_client),
-            "refresh_config" => process_refresh_config_command(&tracer_client, &config),
-            "tag" => process_tag_command(&service_url, &api_key, object),
-            "log_short_lived_process" => {
-                process_log_short_lived_process_command(&tracer_client, object)
-            }
-            "info" => process_info_command(&tracer_client, &mut stream),
-            "upload" => process_upload_command(&service_url, &api_key, object),
-            _ => {
-                eprintln!("Invalid command: {}", command);
-                None
-            }
-        };
-
-        if let Some(future) = result {
-            future.await?;
-        }
-    }
+    address: String,
+) -> Result<actix_web::dev::Server, anyhow::Error> {
+    Ok(HttpServer::new(move || {
+        App::new()
+            // todo: remove double arc-s
+            .app_data(Data::new(tracer_client.clone()))
+            .app_data(Data::new(cancellation_token.clone()))
+            .app_data(config.clone())
+            .service(web::resource("/log").route(web::post().to(log)))
+            .service(web::resource("/terminate").route(web::post().to(terminate)))
+    })
+    .bind(address)?
+    .run())
 }
+
+// todo: also move:
+// "alert" => process_alert_command(&service_url, &api_key, object, &tracer_client),
+// "start" => process_start_run_command(&tracer_client, &mut stream),
+// "end" => process_end_run_command(&tracer_client),
+// "refresh_config" => process_refresh_config_command(&tracer_client, &config),
+// "tag" => process_tag_command(&service_url, &api_key, object),
+// "log_short_lived_process" => process_log_short_lived_process_command(&tracer_client, object)
+// "info" => process_info_command(&tracer_client, &mut stream),
+// "upload" => process_upload_command(&service_url, &api_key, object),
+
+
+pub async fn terminate(cancellation_token: Data<CancellationToken>) -> Result<HttpResponse, Error> {
+    cancellation_token.cancelled().await; // todo: gracefully shutdown
+    Ok(HttpResponse::Ok().body("Daemon terminated"))
+}
+
+pub async fn log(
+    payload: web::Json<LogMessage>,
+    tracer_client: Data<Arc<Mutex<TracerClient>>>,
+) -> Result<HttpResponse, Error> {
+    tracer_client
+        .lock()
+        .await
+        .send_log_event(payload.into_inner())
+        .await.map_err(actix_web::error::ErrorInternalServerError)?;
+
+    Ok(HttpResponse::Ok().body("Log event processed"))
+}
+
