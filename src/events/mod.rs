@@ -31,7 +31,7 @@ pub async fn send_log_event(_api_key: &str, message: &str) -> Result<String> {
 }
 
 // FIXME: same with other events, how should it be handled now?
-pub async fn send_alert_event(message: String) -> Result<String> {
+pub async fn send_alert_event(message: &str) -> Result<String> {
     let _alert_entry = json!({
         "message": message,
         "process_type": "pipeline",

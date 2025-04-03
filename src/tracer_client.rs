@@ -3,7 +3,7 @@ use crate::cloud_providers::aws::PricingClient;
 use crate::config_manager::{self, Config};
 use crate::events::{
     recorder::{EventRecorder, EventType},
-    send_log_event, send_start_run_event,
+    send_alert_event, send_log_event, send_start_run_event,
 };
 use crate::exporters::db::AuroraClient;
 use crate::extracts::{
@@ -52,8 +52,8 @@ pub struct RunMetadata {
 }
 
 #[derive(Deserialize)]
-pub struct LogMessage {
-    message: String,
+pub struct Message {
+    payload: String,
 }
 
 const RUN_COMPLICATED_PROCESS_IDENTIFICATION: bool = false;
@@ -505,16 +505,23 @@ impl TracerClient {
         Ok(())
     }
 
-    pub async fn send_log_event(&mut self, log: LogMessage) -> Result<()> {
-        send_log_event(self.get_api_key(), &log.message).await?; // todo: remove
+    pub async fn send_log_event(&mut self, log: Message) -> Result<()> {
+        send_log_event(self.get_api_key(), &log.payload).await?; // todo: remove
 
         self.logs.record_event(
             EventType::RunStatusMessage,
-            log.message,
+            log.payload,
             None,
             Some(Utc::now()),
         );
 
+        Ok(())
+    }
+
+    pub async fn send_alert_event(&mut self, alert: Message) -> Result<()> {
+        send_alert_event(&alert.payload).await?; // todo: remove
+        self.logs
+            .record_event(EventType::Alert, alert.payload, None, Some(Utc::now()));
         Ok(())
     }
 }

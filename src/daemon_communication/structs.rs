@@ -63,3 +63,10 @@ impl InnerInfoResponse {
         )
     }
 }
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct RunData {
+    pub run_name: String,
+    pub run_id: String,
+    pub pipeline_name: String,
+}
