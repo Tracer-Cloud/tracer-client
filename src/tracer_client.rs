@@ -13,7 +13,7 @@ use crate::extracts::{
     stdout::StdoutWatcher,
     syslog::{run_syslog_lines_read_thread, SyslogWatcher},
 };
-use crate::types::cli::TracerCliInitArgs;
+use crate::types::cli::{PipelineTags, TracerCliInitArgs};
 use crate::types::event::attributes::EventAttributes;
 use crate::{monitor_processes_with_tracer_client, DEFAULT_SERVICE_URL, FILE_CACHE_DIR};
 use crate::{SOCKET_PATH, SYSLOG_FILE};
@@ -49,6 +49,7 @@ pub struct RunMetadata {
 }
 
 const RUN_COMPLICATED_PROCESS_IDENTIFICATION: bool = false;
+
 const WAIT_FOR_PROCESS_BEFORE_NEW_RUN: bool = false;
 
 pub type LinesBufferArc = Arc<RwLock<Vec<String>>>;
@@ -71,19 +72,19 @@ pub struct TracerClient {
     syslog_lines_buffer: LinesBufferArc,
     stdout_lines_buffer: LinesBufferArc,
     stderr_lines_buffer: LinesBufferArc,
-    pub db_client: Arc<AuroraClient>,
+    pub db_client: AuroraClient,
     pipeline_name: String,
     pub pricing_client: PricingClient,
     initialization_id: Option<String>,
     config: Config,
-    tags: Vec<String>,
+    tags: PipelineTags,
 }
 
 impl TracerClient {
     pub async fn new(
         config: Config,
         workflow_directory: String,
-        db_client: Arc<AuroraClient>,
+        db_client: AuroraClient,
         cli_args: TracerCliInitArgs,
     ) -> Result<TracerClient> {
         println!("Initializing TracerClient with API Key: {}", config.api_key);
@@ -267,7 +268,7 @@ impl TracerClient {
             Some(self.pipeline_name.clone()),
             Some(result.run_name),
             Some(result.run_id),
-            self.tags.clone(),
+            Some(self.tags.clone()),
         );
 
         // NOTE: Do we need to output a totally new event if self.initialization_id.is_some() ?
@@ -310,7 +311,7 @@ impl TracerClient {
                 Some(self.pipeline_name.clone()),
                 None,
                 None,
-                self.tags.clone(),
+                Some(self.tags.clone()),
             );
             self.current_run = None;
         }
@@ -509,7 +510,7 @@ mod tests {
         let work_dir = temp_dir.path().to_str().unwrap();
 
         // Create an instance of AuroraClient
-        let db_client = Arc::new(AuroraClient::new(&config, Some(1)).await);
+        let db_client = AuroraClient::new(&config, Some(1)).await;
 
         let cli_config = TracerCliInitArgs::default();
 
@@ -566,14 +567,15 @@ mod tests {
         let job_id = "job-1234";
 
         // Create an instance of AuroraClient
-        let db_client = Arc::new(AuroraClient::new(&config, Some(1)).await);
+        let db_client = AuroraClient::new(&config, Some(1)).await;
 
-        let tags = vec!["Hello".to_string(), "Test".to_string()];
+        let tags = PipelineTags::default();
 
         let cli_config = TracerCliInitArgs {
             pipeline_name: "Test Pipeline".to_string(),
             run_id: None,
             tags: tags.clone(),
+            no_daemonize: false,
         };
 
         let mut client = TracerClient::new(config, work_dir.to_string(), db_client, cli_config)
@@ -596,9 +598,9 @@ mod tests {
         // assertions
         let events = client.logs.get_events();
         assert!(!events.is_empty());
-        let event_tags = events.first().unwrap().tags.clone();
-        assert_eq!(event_tags, tags);
+        let event_tags = events.first().unwrap().tags.clone().unwrap();
+        assert_eq!(event_tags.pipeline_type, tags.pipeline_type);
 
-        assert_eq!(client.tags, tags);
+        assert_eq!(client.tags.pipeline_type, tags.pipeline_type);
     }
 }

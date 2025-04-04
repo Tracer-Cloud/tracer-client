@@ -1,4 +1,7 @@
-use crate::types::event::{attributes::EventAttributes, Event};
+use crate::types::{
+    cli::PipelineTags,
+    event::{attributes::EventAttributes, Event},
+};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -9,7 +12,7 @@ pub struct EventRecorder {
     run_id: Option<String>,
     // NOTE: Tying a pipeline_name to the events recorder because, you can only start one pipeline at a time
     pipeline_name: Option<String>,
-    tags: Vec<String>,
+    tags: Option<PipelineTags>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
@@ -58,7 +61,7 @@ impl EventRecorder {
             run_id,
             run_name,
             pipeline_name,
-            tags: Vec::new(),
+            tags: None,
         }
     }
 
@@ -67,7 +70,7 @@ impl EventRecorder {
         pipeline_name: Option<String>,
         run_name: Option<String>,
         run_id: Option<String>,
-        tags: Vec<String>,
+        tags: Option<PipelineTags>,
     ) {
         self.run_name = run_name;
         self.run_id = run_id;
