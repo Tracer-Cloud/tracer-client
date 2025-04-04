@@ -25,7 +25,6 @@ use tracing_subscriber::{
 use types::cli::TracerCliInitArgs;
 
 use std::fs::File;
-use std::sync::Arc;
 
 use crate::config_manager::ConfigManager;
 use crate::tracer_client::TracerClient;
@@ -80,7 +79,7 @@ pub async fn run(
     let raw_config = ConfigManager::load_config();
 
     // create the conn pool to aurora
-    let db_client = Arc::new(AuroraClient::new(&raw_config, None).await);
+    let db_client = AuroraClient::new(&raw_config, None).await;
 
     let client = TracerClient::new(
         raw_config.clone(),
@@ -148,8 +147,6 @@ mod tests {
         types::cli::TracerCliInitArgs,
     };
 
-    use std::sync::Arc;
-
     use crate::{monitor_processes_with_tracer_client, TracerClient};
     use dotenv::dotenv;
 
@@ -170,7 +167,7 @@ mod tests {
 
         setup_env_vars(region);
 
-        let aurora_client = Arc::new(AuroraClient::new(&config, None).await);
+        let aurora_client = AuroraClient::new(&config, None).await;
 
         let mut tracer_client = TracerClient::new(
             config,
