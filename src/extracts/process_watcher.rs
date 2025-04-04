@@ -19,6 +19,7 @@ use std::path::Path;
 use std::time::Duration;
 use sysinfo::ProcessStatus;
 use sysinfo::{Pid, Process, System};
+use crate::nextflow_log_watcher::NextflowLogWatcher;
 
 pub struct ProcessWatcher {
     targets: Vec<Target>,
@@ -26,6 +27,7 @@ pub struct ProcessWatcher {
     process_tree: HashMap<Pid, ProcessTreeNode>,
     // We wanna track unique datasamples we come across when monitoring process args
     datasamples_tracker: HashSet<String>,
+    nextflow_log_watcher: NextflowLogWatcher,
 }
 
 enum ProcLastUpdate {
@@ -79,6 +81,7 @@ impl ProcessWatcher {
             seen: HashMap::new(),
             process_tree: HashMap::new(),
             datasamples_tracker: HashSet::new(),
+            nextflow_log_watcher: NextflowLogWatcher::new(),
         }
     }
 
@@ -182,6 +185,10 @@ impl ProcessWatcher {
         let mut to_remove = vec![];
         for (pid, proc) in self.seen.iter() {
             if !system.processes().contains_key(pid) {
+                // Check if this was a Nextflow process and notify the watcher
+                if proc.name.contains("nextflow") {
+                    self.nextflow_log_watcher.remove_process(*pid);
+                }
                 self.log_completed_process(pid, proc, event_logger)?;
                 to_remove.push(*pid);
             }
@@ -472,6 +479,13 @@ impl ProcessWatcher {
 
         let mut properties = Self::gather_process_data(&pid, p, Some(display_name.clone()));
 
+        // Check if this is a Nextflow process and notify the watcher
+        if display_name.contains("nextflow") {
+            if let Some(working_dir) = &properties.working_directory {
+                self.nextflow_log_watcher.add_process(pid, working_dir.clone());
+            }
+        }
+
         let cmd_arguments = p.cmd();
 
         let mut input_files = vec![];
@@ -692,6 +706,14 @@ impl ProcessWatcher {
 
     pub fn preview_targets_count(&self) -> usize {
         self.seen.len()
+    }
+
+    pub fn get_nextflow_log_watcher(&self) -> &NextflowLogWatcher {
+        &self.nextflow_log_watcher
+    }
+
+    pub fn get_nextflow_log_watcher_mut(&mut self) -> &mut NextflowLogWatcher {
+        &mut self.nextflow_log_watcher
     }
 }
 
