@@ -1,192 +1,98 @@
-use anyhow::Result;
-use std::{future::Future, pin::Pin, sync::Arc};
-use tokio::{
-    io::AsyncWriteExt,
-    sync::{Mutex, RwLock},
-};
+use crate::daemon_communication::app::get_app;
+use crate::tracer_client::TracerClient;
+use crate::{config_manager, monitor_processes_with_tracer_client, SYSLOG_FILE};
+use config_manager::{INTERCEPTOR_STDERR_FILE, INTERCEPTOR_STDOUT_FILE};
+use std::future::IntoFuture;
+use std::net::SocketAddr;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tokio::net::TcpListener;
+use tokio::sync::{Mutex, RwLock};
+
+use crate::extracts::syslog::run_syslog_lines_read_thread;
+use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
-use crate::daemon_communication::structs::{LogData, Message, RunData, TagData, UploadData};
-use crate::{
-    config_manager::{Config, ConfigManager},
-    daemon_communication::structs::{InfoResponse, InnerInfoResponse},
-    tracer_client::TracerClient,
-    utils::{debug_log::Logger, upload::upload_from_file_path},
-};
-
-use axum::response::IntoResponse;
-use axum::routing::{post, put};
-use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
-
-type ProcessOutput<'a> =
-    Option<Pin<Box<dyn Future<Output = Result<String, anyhow::Error>> + 'a + Send>>>;
-
-#[derive(Clone)]
-struct AppState {
-    tracer_client: Arc<RwLock<TracerClient>>,
-    cancellation_token: CancellationToken,
+pub struct TracerServer {
+    client: Arc<RwLock<TracerClient>>,
+    listener: TcpListener,
 }
 
-pub fn get_app(
-    tracer_client: Arc<RwLock<TracerClient>>,
-    cancellation_token: CancellationToken,
-) -> Router {
-    // tracing_subscriber::fmt::init();
+impl TracerServer {
+    pub async fn bind(client: TracerClient, addr: SocketAddr) -> anyhow::Result<Self> {
+        let listener = TcpListener::bind(addr).await?;
 
-    let state = AppState {
-        tracer_client: tracer_client.clone(),
-        cancellation_token: cancellation_token.clone(),
-    };
+        Ok(Self {
+            client: Arc::new(RwLock::new(client)),
+            listener,
+        })
+    }
 
-    Router::new()
-        .route("/log", post(log))
-        .route("/terminate", post(terminate))
-        .route("/terminate", get(terminate)) // todo: remove
-        .route("/start", post(start))
-        .route("/end", post(end))
-        .route("/alert", post(alert))
-        .route("/refresh-config", post(refresh_config))
-        .route("/tag", post(tag))
-        .route(
-            "/log-short-lived-process",
-            put(log_short_lived_process_command),
-        )
-        .route("/info", get(info))
-        .route("/upload", put(upload))
-        .with_state(state)
-}
+    pub fn listener(&self) -> &TcpListener {
+        &self.listener
+    }
 
-pub async fn terminate(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
-    state.cancellation_token.cancel(); // todo: gracefully shutdown
-    Ok("Terminating...")
-}
+    pub async fn run(self) -> anyhow::Result<()> {
+        let addr = self.listener.local_addr()?;
 
-pub async fn log(
-    State(state): State<AppState>,
-    Json(message): Json<Message>,
-) -> axum::response::Result<impl IntoResponse> {
-    state
-        .tracer_client
-        .write()
-        .await
-        .send_log_event(message.payload)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let cancellation_token = CancellationToken::new();
 
-    Ok(StatusCode::ACCEPTED)
-}
+        let app = get_app(self.client.clone(), cancellation_token.clone());
 
-pub async fn alert(
-    State(state): State<AppState>,
-    Json(message): Json<Message>,
-) -> axum::response::Result<impl IntoResponse> {
-    state
-        .tracer_client
-        .write()
-        .await
-        .send_alert_event(message.payload)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let listener = tokio::net::TcpListener::bind(addr).await?;
+        let server = tokio::spawn(axum::serve(listener, app).into_future());
 
-    Ok(StatusCode::ACCEPTED)
-}
+        let syslog_lines_task = tokio::spawn(run_syslog_lines_read_thread(
+            SYSLOG_FILE,
+            self.client.read().await.get_syslog_lines_buffer(),
+        ));
 
-pub async fn start(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
-    let mut guard = state.tracer_client.write().await;
+        let stdout_lines_task =
+            tokio::spawn(crate::extracts::stdout::run_stdout_lines_read_thread(
+                INTERCEPTOR_STDOUT_FILE,
+                INTERCEPTOR_STDERR_FILE,
+                self.client.read().await.get_stdout_stderr_lines_buffer(),
+            ));
 
-    guard
-        .start_new_run(None)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        self.client
+            .write()
+            .await
+            .borrow_mut()
+            .start_new_run(None)
+            .await?;
 
-    let run_data = guard.get_run_metadata().map(|r| RunData {
-        run_name: r.name,
-        run_id: r.id,
-        pipeline_name: guard.get_pipeline_name().to_string(),
-    });
+        // todo: to join handle
+        while !cancellation_token.is_cancelled() {
+            let start_time = Instant::now();
+            while start_time.elapsed() < self.client.read().await.batch_submission_interval_ms {
+                // either monitor or cancelled
+                monitor_processes_with_tracer_client(self.client.write().await.borrow_mut())
+                    .await?;
 
-    Ok(Json(run_data))
-}
+                sleep(self.client.read().await.batch_submission_interval_ms).await;
+                if cancellation_token.is_cancelled() {
+                    break;
+                }
+            }
 
-pub async fn end(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
-    let mut guard = state.tracer_client.write().await;
+            self.client
+                .write()
+                .await
+                .borrow_mut()
+                .submit_batched_data()
+                .await?;
 
-    guard
-        .stop_run()
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            self.client.write().await.borrow_mut().poll_files().await?;
+        }
 
-    Ok(StatusCode::ACCEPTED)
-}
+        syslog_lines_task.abort();
+        stdout_lines_task.abort();
+        server.abort();
 
-pub async fn refresh_config(
-    State(state): State<AppState>,
-) -> axum::response::Result<impl IntoResponse> {
-    let config_file = ConfigManager::load_config();
+        // close the connection pool to aurora
+        let guard = self.client.write().lock().await;
+        let _ = guard.db_client.close().await;
 
-    let mut guard = state.tracer_client.write().await;
-    guard.reload_config_file(config_file);
-
-    Ok(StatusCode::ACCEPTED)
-}
-
-pub async fn tag(
-    State(state): State<AppState>,
-    Json(payload): Json<TagData>,
-) -> axum::response::Result<impl IntoResponse> {
-    let guard = state.tracer_client.write().await;
-    guard
-        .send_update_tags_event(payload.names)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    Ok(StatusCode::ACCEPTED)
-}
-
-pub async fn log_short_lived_process_command(
-    State(state): State<AppState>,
-    Json(payload): Json<LogData>,
-) -> axum::response::Result<impl IntoResponse> {
-    let mut guard = state.tracer_client.write().await;
-    guard
-        .fill_logs_with_short_lived_process(payload.log)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    Ok(StatusCode::CREATED)
-}
-
-pub async fn info(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
-    let guard = state.tracer_client.write().await;
-
-    let response_inner: Option<InnerInfoResponse> = guard.get_run_metadata().map(|out| out.into());
-
-    let preview = guard.process_watcher.preview_targets();
-    let preview_len = guard.process_watcher.preview_targets_count();
-
-    let output = InfoResponse::new(preview, preview_len, response_inner);
-
-    Ok(Json(output))
-}
-
-pub async fn upload(
-    State(state): State<AppState>,
-    Json(payload): Json<UploadData>,
-) -> axum::response::Result<impl IntoResponse> {
-    let guard = state.tracer_client.write().await;
-
-    let logger = Logger::new();
-    logger.log("server.rs//process_upload_command", None).await;
-
-    // todo: upload should happen as a part of `TracerClient`
-    upload_from_file_path(
-        guard.get_service_url(),
-        guard.get_api_key(),
-        payload.file_path.as_str(),
-        payload.socket_path.as_deref(),
-    )
-    .await
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    logger.log("process_upload_command completed", None).await;
-    Ok(StatusCode::ACCEPTED)
+        Ok(())
+    }
 }

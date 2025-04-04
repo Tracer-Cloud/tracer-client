@@ -9,7 +9,6 @@ pub mod exporters;
 pub mod extracts;
 
 mod nextflow_log_watcher;
-pub mod server;
 pub mod tracer_client;
 pub mod types;
 pub mod utils;
@@ -29,8 +28,8 @@ use tracing_subscriber::{
 use types::cli::TracerCliInitArgs;
 
 use crate::config_manager::Config;
-use crate::server::TracerServer;
 use crate::tracer_client::TracerClient;
+use daemon_communication::server::TracerServer;
 
 const WORKING_DIR: &str = "/tmp/tracer/";
 const PID_FILE: &str = "/tmp/tracer/tracerd.pid";

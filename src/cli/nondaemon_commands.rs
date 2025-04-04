@@ -6,7 +6,7 @@ use anyhow::{Context, Result};
 use std::result::Result::Ok;
 
 use crate::config_manager::Config;
-use crate::daemon_communication::client::APIClient;
+use crate::daemon_communication::daemon_client::APIClient;
 use crate::{
     config_manager::{ConfigManager, INTERCEPTOR_STDOUT_FILE},
     FILE_CACHE_DIR, PID_FILE, REPO_NAME, REPO_OWNER, STDERR_FILE, STDOUT_FILE,

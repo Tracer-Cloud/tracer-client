@@ -11,7 +11,7 @@ use nondaemon_commands::{clean_up_after_daemon, setup_config, update_tracer};
 use std::fmt::Write;
 
 use crate::cli::nondaemon_commands::print_config_info;
-use crate::daemon_communication::client::APIClient;
+use crate::daemon_communication::daemon_client::APIClient;
 use crate::daemon_communication::structs::{Message, TagData, UploadData};
 use std::{env, fs::canonicalize};
 use sysinfo::System;
@@ -101,7 +101,6 @@ pub fn process_cli() -> Result<()> {
     let api_client = APIClient::new(format!("http://{}", config.server_address));
 
     let runtime = tokio::runtime::Runtime::new()?;
-    runtime.block_on(print_config_info(&api_client, &config))?;
 
     match cli.command {
         Commands::Init(args) => {
@@ -109,6 +108,8 @@ pub fn process_cli() -> Result<()> {
             //if test_result.is_err() {
             //    return Ok(());
             //}
+            runtime.block_on(print_config_info(&api_client, &config))?;
+
             println!("Starting daemon...");
             let current_working_directory = env::current_dir()?;
 
