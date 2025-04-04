@@ -22,6 +22,12 @@ pub struct AuroraClient {
     pool: PgPool,
 }
 
+impl AuroraClient {
+    pub fn from_pool(pool: PgPool) -> AuroraClient {
+        AuroraClient { pool: pool }
+    }
+}
+
 struct EventInsert {
     json_data: Json<Value>,
 
