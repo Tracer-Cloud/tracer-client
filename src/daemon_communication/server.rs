@@ -10,11 +10,12 @@ use tokio::net::TcpListener;
 use tokio::sync::{Mutex, RwLock};
 
 use crate::extracts::syslog::run_syslog_lines_read_thread;
+use std::borrow::BorrowMut;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
 pub struct TracerServer {
-    client: Arc<RwLock<TracerClient>>,
+    client: Arc<Mutex<TracerClient>>,
     listener: TcpListener,
 }
 
@@ -23,66 +24,77 @@ impl TracerServer {
         let listener = TcpListener::bind(addr).await?;
 
         Ok(Self {
-            client: Arc::new(RwLock::new(client)),
+            client: Arc::new(Mutex::new(client)),
             listener,
         })
     }
 
-    pub fn listener(&self) -> &TcpListener {
+    pub fn get_listener(&self) -> &TcpListener {
         &self.listener
     }
 
     pub async fn run(self) -> anyhow::Result<()> {
-        let addr = self.listener.local_addr()?;
+        let tracer_client = self.client.clone();
+
+        let config: Arc<RwLock<config_manager::Config>> =
+            Arc::new(RwLock::new(tracer_client.lock().await.config.clone()));
+
+        // todo: config shouldn't be here: it should only exist as a RW field
+        // in the client
 
         let cancellation_token = CancellationToken::new();
 
-        let app = get_app(self.client.clone(), cancellation_token.clone());
+        let app = get_app(
+            tracer_client.clone(),
+            cancellation_token.clone(),
+            config.clone(),
+        );
 
-        let listener = tokio::net::TcpListener::bind(addr).await?;
-        let server = tokio::spawn(axum::serve(listener, app).into_future());
+        let server = tokio::spawn(axum::serve(self.listener, app).into_future());
 
         let syslog_lines_task = tokio::spawn(run_syslog_lines_read_thread(
             SYSLOG_FILE,
-            self.client.read().await.get_syslog_lines_buffer(),
+            tracer_client.lock().await.get_syslog_lines_buffer(),
         ));
 
         let stdout_lines_task =
             tokio::spawn(crate::extracts::stdout::run_stdout_lines_read_thread(
                 INTERCEPTOR_STDOUT_FILE,
                 INTERCEPTOR_STDERR_FILE,
-                self.client.read().await.get_stdout_stderr_lines_buffer(),
+                tracer_client.lock().await.get_stdout_stderr_lines_buffer(),
             ));
 
-        self.client
-            .write()
+        tracer_client
+            .lock()
             .await
             .borrow_mut()
             .start_new_run(None)
             .await?;
 
-        // todo: to join handle
         while !cancellation_token.is_cancelled() {
             let start_time = Instant::now();
-            while start_time.elapsed() < self.client.read().await.batch_submission_interval_ms {
-                // either monitor or cancelled
-                monitor_processes_with_tracer_client(self.client.write().await.borrow_mut())
+            while start_time.elapsed()
+                < Duration::from_millis(config.read().await.batch_submission_interval_ms)
+            {
+                monitor_processes_with_tracer_client(tracer_client.lock().await.borrow_mut())
                     .await?;
-
-                sleep(self.client.read().await.batch_submission_interval_ms).await;
+                sleep(Duration::from_millis(
+                    config.read().await.process_polling_interval_ms,
+                ))
+                .await;
                 if cancellation_token.is_cancelled() {
                     break;
                 }
             }
 
-            self.client
-                .write()
+            tracer_client
+                .lock()
                 .await
                 .borrow_mut()
                 .submit_batched_data()
                 .await?;
 
-            self.client.write().await.borrow_mut().poll_files().await?;
+            tracer_client.lock().await.borrow_mut().poll_files().await?;
         }
 
         syslog_lines_task.abort();
@@ -90,7 +102,7 @@ impl TracerServer {
         server.abort();
 
         // close the connection pool to aurora
-        let guard = self.client.write().lock().await;
+        let guard = tracer_client.lock().await;
         let _ = guard.db_client.close().await;
 
         Ok(())

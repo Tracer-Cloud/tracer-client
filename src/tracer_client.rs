@@ -58,8 +58,6 @@ pub struct TracerClient {
     interval: Duration,
     last_interaction_new_run_duration: Duration,
     process_metrics_send_interval: Duration,
-    pub batch_submission_interval_ms: Duration,
-    pub process_polling_interval_ms: Duration,
     last_file_size_change_time_delta: TimeDelta,
     pub logs: EventRecorder,
     pub process_watcher: ProcessWatcher,
@@ -77,9 +75,8 @@ pub struct TracerClient {
     pipeline_name: String,
     pub pricing_client: PricingClient,
     initialization_id: Option<String>,
+    pub config: Config,
     tags: PipelineTags,
-
-    api_key: String,
 }
 
 impl TracerClient {
@@ -105,10 +102,6 @@ impl TracerClient {
             process_metrics_send_interval: Duration::from_millis(
                 config.process_metrics_send_interval_ms,
             ),
-            process_polling_interval_ms: Duration::from_millis(config.process_polling_interval_ms),
-            batch_submission_interval_ms: Duration::from_millis(
-                config.batch_submission_interval_ms,
-            ),
             last_file_size_change_time_delta: TimeDelta::milliseconds(
                 config.file_size_not_changing_period_ms as i64,
             ),
@@ -132,23 +125,15 @@ impl TracerClient {
             pipeline_name: cli_args.pipeline_name,
             pricing_client,
             initialization_id: cli_args.run_id,
+            config,
             tags: cli_args.tags,
-            api_key: config.api_key,
         })
     }
 
     pub fn reload_config_file(&mut self, config: Config) {
         self.interval = Duration::from_millis(config.process_polling_interval_ms);
         self.process_watcher.reload_targets(config.targets.clone());
-        self.api_key = config.api_key;
-        self.process_metrics_send_interval =
-            Duration::from_millis(config.process_metrics_send_interval_ms);
-        self.last_file_size_change_time_delta =
-            TimeDelta::milliseconds(config.file_size_not_changing_period_ms as i64);
-        self.process_polling_interval_ms =
-            Duration::from_millis(config.process_polling_interval_ms);
-
-        self.last_interaction_new_run_duration = Duration::from_millis(config.new_run_pause_ms)
+        self.config = config.clone()
     }
 
     pub fn fill_logs_with_short_lived_process(
@@ -372,7 +357,7 @@ impl TracerClient {
         self.file_watcher
             .poll_files(
                 DEFAULT_SERVICE_URL,
-                &self.api_key,
+                &self.config.api_key,
                 &self.workflow_directory,
                 FILE_CACHE_DIR,
                 self.last_file_size_change_time_delta,
