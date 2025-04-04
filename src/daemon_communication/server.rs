@@ -19,70 +19,12 @@ use crate::{
 };
 
 use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
+use axum::response::IntoResponse;
+use axum::routing::{post, put};
 
 type ProcessOutput<'a> =
     Option<Pin<Box<dyn Future<Output = Result<String, anyhow::Error>> + 'a + Send>>>;
 
-pub fn process_start_run_command<'a>(
-    tracer_client: &'a Arc<Mutex<TracerClient>>,
-    stream: &'a mut UnixStream,
-) -> ProcessOutput<'a> {
-    async fn fun<'a>(
-        tracer_client: &'a Arc<Mutex<TracerClient>>,
-        stream: &'a mut UnixStream,
-    ) -> Result<String, anyhow::Error> {
-        tracer_client.lock().await.start_new_run(None).await?;
-
-        let guard = tracer_client.lock().await;
-
-        let info = guard.get_run_metadata();
-
-        let output = if let Some(info) = info {
-            json!({
-                "run_name": info.name,
-                "run_id": info.id,
-                "pipeline_name": guard.get_pipeline_name(),
-            })
-        } else {
-            json!({
-                "run_name": "",
-                "run_id": "",
-                "pipeline_name": "",
-            })
-        };
-
-        stream
-            .write_all(serde_json::to_string(&output)?.as_bytes())
-            .await?;
-
-        stream.flush().await?;
-
-        Ok("".to_string())
-    }
-
-    Some(Box::pin(fun(tracer_client, stream)))
-}
-
-pub fn process_log_short_lived_process_command<'a>(
-    tracer_client: &'a Arc<Mutex<TracerClient>>,
-    object: &serde_json::Map<String, serde_json::Value>,
-) -> ProcessOutput<'a> {
-    if !object.contains_key("log") {
-        return None;
-    };
-
-    let log: ShortLivedProcessLog =
-        serde_json::from_value(object.get("log").unwrap().clone()).unwrap();
-
-    Some(Box::pin(async move {
-        let mut tracer_client = tracer_client.lock().await;
-        tracer_client.fill_logs_with_short_lived_process(log)?;
-        Ok("".to_string())
-    }))
-}
-
-use axum::response::IntoResponse;
-use axum::routing::{post, put};
 
 #[derive(Clone)]
 struct AppState {
