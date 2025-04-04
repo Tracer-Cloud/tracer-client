@@ -9,6 +9,7 @@ pub mod exporters;
 pub mod extracts;
 
 mod nextflow_log_watcher;
+pub mod server;
 pub mod tracer_client;
 pub mod types;
 pub mod utils;
@@ -16,6 +17,9 @@ pub mod utils;
 use anyhow::{Context, Result};
 use daemonize::Daemonize;
 use exporters::db::AuroraClient;
+use std::fs::File;
+use std::net::SocketAddr;
+use std::sync::Arc;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{
     fmt::{self, time::SystemTime},
@@ -24,10 +28,8 @@ use tracing_subscriber::{
 };
 use types::cli::TracerCliInitArgs;
 
-use std::fs::File;
-use std::sync::Arc;
-
 use crate::config_manager::Config;
+use crate::server::TracerServer;
 use crate::tracer_client::TracerClient;
 
 const WORKING_DIR: &str = "/tmp/tracer/";
@@ -91,7 +93,9 @@ pub async fn run(
 
     println!("Pipeline Name: {:?}", client.get_pipeline_name());
 
-    client.run().await
+    todo!();
+    // let addr = SocketAddr::par;
+    // TracerServer::bind(client, )
 }
 
 fn setup_logging() -> Result<()> {

@@ -23,22 +23,19 @@ type ProcessOutput<'a> =
 
 #[derive(Clone)]
 struct AppState {
-    tracer_client: Arc<Mutex<TracerClient>>,
+    tracer_client: Arc<RwLock<TracerClient>>,
     cancellation_token: CancellationToken,
-    config: Arc<RwLock<Config>>,
 }
 
 pub fn get_app(
-    tracer_client: Arc<Mutex<TracerClient>>,
+    tracer_client: Arc<RwLock<TracerClient>>,
     cancellation_token: CancellationToken,
-    config: Arc<RwLock<Config>>,
 ) -> Router {
     // tracing_subscriber::fmt::init();
 
     let state = AppState {
         tracer_client: tracer_client.clone(),
         cancellation_token: cancellation_token.clone(),
-        config: config.clone(),
     };
 
     Router::new()
@@ -70,7 +67,7 @@ pub async fn log(
 ) -> axum::response::Result<impl IntoResponse> {
     state
         .tracer_client
-        .lock()
+        .write()
         .await
         .send_log_event(message.payload)
         .await
@@ -85,7 +82,7 @@ pub async fn alert(
 ) -> axum::response::Result<impl IntoResponse> {
     state
         .tracer_client
-        .lock()
+        .write()
         .await
         .send_alert_event(message.payload)
         .await
@@ -95,7 +92,7 @@ pub async fn alert(
 }
 
 pub async fn start(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
-    let mut guard = state.tracer_client.lock().await;
+    let mut guard = state.tracer_client.write().await;
 
     guard
         .start_new_run(None)
@@ -112,7 +109,7 @@ pub async fn start(State(state): State<AppState>) -> axum::response::Result<impl
 }
 
 pub async fn end(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
-    let mut guard = state.tracer_client.lock().await;
+    let mut guard = state.tracer_client.write().await;
 
     guard
         .stop_run()
@@ -127,12 +124,8 @@ pub async fn refresh_config(
 ) -> axum::response::Result<impl IntoResponse> {
     let config_file = ConfigManager::load_config();
 
-    {
-        let mut guard = state.tracer_client.lock().await;
-        guard.reload_config_file(&config_file);
-    }
-
-    state.config.write().await.clone_from(&config_file);
+    let mut guard = state.tracer_client.write().await;
+    guard.reload_config_file(config_file);
 
     Ok(StatusCode::ACCEPTED)
 }
@@ -141,7 +134,7 @@ pub async fn tag(
     State(state): State<AppState>,
     Json(payload): Json<TagData>,
 ) -> axum::response::Result<impl IntoResponse> {
-    let guard = state.tracer_client.lock().await;
+    let guard = state.tracer_client.write().await;
     guard
         .send_update_tags_event(payload.names)
         .await
@@ -154,7 +147,7 @@ pub async fn log_short_lived_process_command(
     State(state): State<AppState>,
     Json(payload): Json<LogData>,
 ) -> axum::response::Result<impl IntoResponse> {
-    let mut guard = state.tracer_client.lock().await;
+    let mut guard = state.tracer_client.write().await;
     guard
         .fill_logs_with_short_lived_process(payload.log)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -163,7 +156,7 @@ pub async fn log_short_lived_process_command(
 }
 
 pub async fn info(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
-    let guard = state.tracer_client.lock().await;
+    let guard = state.tracer_client.write().await;
 
     let response_inner: Option<InnerInfoResponse> = guard.get_run_metadata().map(|out| out.into());
 
@@ -179,7 +172,7 @@ pub async fn upload(
     State(state): State<AppState>,
     Json(payload): Json<UploadData>,
 ) -> axum::response::Result<impl IntoResponse> {
-    let guard = state.tracer_client.lock().await;
+    let guard = state.tracer_client.write().await;
 
     let logger = Logger::new();
     logger.log("server.rs//process_upload_command", None).await;

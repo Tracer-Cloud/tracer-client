@@ -50,16 +50,13 @@ async fn setup_client(
     TracerClient::new(config, path, db_client, args).await
 }
 
-async fn get_tracer(pool: PgPool, path: String) -> Result<(TracerClient, String), anyhow::Error> {
-    // todo: generate a random port when spawning a test server
-    // this is non atomic and can be improved in many ways
-    let rand_port = rand::random::<u16>();
+async fn get_tracer(pool: PgPool, path: String) -> Result<(TracerClient, str), anyhow::Error> {
     // if already used, skip...
 
-    let server_address = format!("127.0.0.1:{}", rand_port);
+    let server_address = "127.0.0.1:0"; // 0: means port will be picked by the OS
 
     Ok((
-        setup_client(pool, server_address.clone(), path).await?,
+        setup_client(pool, server_address.to_string(), path).await?,
         server_address,
     ))
 }

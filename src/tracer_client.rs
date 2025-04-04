@@ -29,12 +29,6 @@ use std::time::{Duration, Instant};
 use sysinfo::{Pid, System};
 use tokio::sync::{Mutex, RwLock};
 
-use crate::daemon_communication::server::get_app;
-use config_manager::{INTERCEPTOR_STDERR_FILE, INTERCEPTOR_STDOUT_FILE};
-
-use tokio::time::sleep;
-use tokio_util::sync::CancellationToken;
-
 use crate::nextflow_log_watcher::NextflowLogWatcher;
 
 // NOTE: we might have to find a better alternative than passing the pipeline name to tracer client
@@ -64,6 +58,8 @@ pub struct TracerClient {
     interval: Duration,
     last_interaction_new_run_duration: Duration,
     process_metrics_send_interval: Duration,
+    pub batch_submission_interval_ms: Duration,
+    pub process_polling_interval_ms: Duration,
     last_file_size_change_time_delta: TimeDelta,
     pub logs: EventRecorder,
     pub process_watcher: ProcessWatcher,
@@ -81,8 +77,9 @@ pub struct TracerClient {
     pipeline_name: String,
     pub pricing_client: PricingClient,
     initialization_id: Option<String>,
-    config: Config,
     tags: PipelineTags,
+
+    api_key: String,
 }
 
 impl TracerClient {
@@ -102,11 +99,15 @@ impl TracerClient {
         file_watcher.prepare_cache_directory(FILE_CACHE_DIR)?;
 
         Ok(TracerClient {
-            // fixed values
+            // if putting a value to config, also update `TracerClient::reload_config_file`
             interval: Duration::from_millis(config.process_polling_interval_ms),
             last_interaction_new_run_duration: Duration::from_millis(config.new_run_pause_ms),
             process_metrics_send_interval: Duration::from_millis(
                 config.process_metrics_send_interval_ms,
+            ),
+            process_polling_interval_ms: Duration::from_millis(config.process_polling_interval_ms),
+            batch_submission_interval_ms: Duration::from_millis(
+                config.batch_submission_interval_ms,
             ),
             last_file_size_change_time_delta: TimeDelta::milliseconds(
                 config.file_size_not_changing_period_ms as i64,
@@ -131,15 +132,23 @@ impl TracerClient {
             pipeline_name: cli_args.pipeline_name,
             pricing_client,
             initialization_id: cli_args.run_id,
-            config,
             tags: cli_args.tags,
+            api_key: config.api_key,
         })
     }
 
-    pub fn reload_config_file(&mut self, config: &Config) {
+    pub fn reload_config_file(&mut self, config: Config) {
         self.interval = Duration::from_millis(config.process_polling_interval_ms);
         self.process_watcher.reload_targets(config.targets.clone());
-        self.config = config.clone()
+        self.api_key = config.api_key;
+        self.process_metrics_send_interval =
+            Duration::from_millis(config.process_metrics_send_interval_ms);
+        self.last_file_size_change_time_delta =
+            TimeDelta::milliseconds(config.file_size_not_changing_period_ms as i64);
+        self.process_polling_interval_ms =
+            Duration::from_millis(config.process_polling_interval_ms);
+
+        self.last_interaction_new_run_duration = Duration::from_millis(config.new_run_pause_ms)
     }
 
     pub fn fill_logs_with_short_lived_process(
@@ -363,7 +372,7 @@ impl TracerClient {
         self.file_watcher
             .poll_files(
                 DEFAULT_SERVICE_URL,
-                &self.config.api_key,
+                &self.api_key,
                 &self.workflow_directory,
                 FILE_CACHE_DIR,
                 self.last_file_size_change_time_delta,
@@ -428,86 +437,6 @@ impl TracerClient {
 
     pub fn get_api_key(&self) -> &str {
         &self.config.api_key
-    }
-
-    pub async fn run(self) -> Result<()> {
-        let addr = self.config.server_address.clone();
-
-        let config: Arc<RwLock<config_manager::Config>> =
-            Arc::new(RwLock::new(self.config.clone()));
-
-        let tracer_client = Arc::new(Mutex::new(self));
-
-        let cancellation_token = CancellationToken::new();
-
-        let app = get_app(
-            tracer_client.clone(),
-            cancellation_token.clone(),
-            config.clone(),
-        );
-
-        let listener = tokio::net::TcpListener::bind(addr).await?;
-
-        let server = tokio::spawn(axum::serve(listener, app).into_future());
-
-        let syslog_lines_task = tokio::spawn(run_syslog_lines_read_thread(
-            SYSLOG_FILE,
-            tracer_client.lock().await.get_syslog_lines_buffer(),
-        ));
-
-        let stdout_lines_task =
-            tokio::spawn(crate::extracts::stdout::run_stdout_lines_read_thread(
-                INTERCEPTOR_STDOUT_FILE,
-                INTERCEPTOR_STDERR_FILE,
-                tracer_client.lock().await.get_stdout_stderr_lines_buffer(),
-            ));
-
-        tracer_client
-            .lock()
-            .await
-            .borrow_mut()
-            .start_new_run(None)
-            .await?;
-
-        // todo: to join handle
-        while !cancellation_token.is_cancelled() {
-            let start_time = Instant::now();
-            while start_time.elapsed()
-                < Duration::from_millis(config.read().await.batch_submission_interval_ms)
-            {
-                // either monitor or cancelled
-                monitor_processes_with_tracer_client(tracer_client.lock().await.borrow_mut())
-                    .await?;
-
-                sleep(Duration::from_millis(
-                    config.read().await.process_polling_interval_ms,
-                ))
-                .await;
-                if cancellation_token.is_cancelled() {
-                    break;
-                }
-            }
-
-            tracer_client
-                .lock()
-                .await
-                .borrow_mut()
-                .submit_batched_data()
-                .await?;
-
-            tracer_client.lock().await.borrow_mut().poll_files().await?;
-        }
-        println!("Stopping pipeline run");
-
-        syslog_lines_task.abort();
-        stdout_lines_task.abort();
-        server.abort();
-
-        // close the connection pool to aurora
-        let guard = tracer_client.lock().await;
-        let _ = guard.db_client.close().await;
-
-        Ok(())
     }
 
     pub async fn send_log_event(&mut self, payload: String) -> Result<()> {
