@@ -158,11 +158,6 @@ impl TracerClient {
         )
     }
 
-    fn get_job_id(&self) -> String {
-        // todo: move to when initializing the client
-        // Try to get AWS_BATCH_JOB_ID from environment, use empty string if not found
-        std::env::var("AWS_BATCH_JOB_ID").unwrap_or_default()
-    }
 
     // TODO: Refactor to collect required entries properly
     pub async fn submit_batched_data(&mut self) -> Result<()> {
