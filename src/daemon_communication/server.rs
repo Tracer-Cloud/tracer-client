@@ -107,4 +107,8 @@ impl TracerServer {
 
         Ok(())
     }
+
+    pub fn local_addr(&self) -> anyhow::Result<SocketAddr> {
+        Ok(self.listener.local_addr()?)
+    }
 }
