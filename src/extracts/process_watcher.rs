@@ -15,7 +15,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::collections::{hash_map::Entry::Vacant, HashSet};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 use sysinfo::ProcessStatus;
 use sysinfo::{Pid, Process, System};
@@ -482,7 +482,7 @@ impl ProcessWatcher {
         // Check if this is a Nextflow process and notify the watcher
         if display_name.contains("nextflow") {
             if let Some(working_dir) = &properties.working_directory {
-                self.nextflow_log_watcher.add_process(pid, working_dir.clone());
+                self.nextflow_log_watcher.add_process(pid, PathBuf::from(working_dir.clone()).join(".nextflow.log"));
             }
         }
 

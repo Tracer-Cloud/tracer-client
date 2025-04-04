@@ -48,9 +48,6 @@ impl NextflowLogState {
         });
     }
 
-    async fn get_path(&self) -> Option<PathBuf> {
-        self.log_path.read().await.clone()
-    }
 
     fn new() -> Self {
         Self {
@@ -62,15 +59,9 @@ impl NextflowLogState {
 
 pub struct NextflowLogWatcher {
     state: Arc<NextflowLogState>,
-
-    session_jobs: HashMap<String, Vec<String>>,
-    current_session: Option<String>,
-
-    /// Last read position
-    last_read_position: u64,
-
-    // Add HashMap to track processes
-    processes: HashMap<Pid, String>, // Pid -> working_directory
+    session_uuid: Option<String>,
+    jobs: Vec<String>,
+    processes: HashMap<Pid, PathBuf>, // Pid -> working_directory
 }
 
 impl NextflowLogWatcher {
@@ -81,37 +72,35 @@ impl NextflowLogWatcher {
 
         Self {
             state,
-            session_jobs: HashMap::new(),
-            current_session: None,
-            last_read_position: 0,
+            session_uuid: None,
+            jobs: Vec::new(),
             processes: HashMap::new(),
         }
     }
 
     fn reset_state(&mut self) {
-        // Clear the current session and jobs to rebuild from scratch
-        self.session_jobs.clear();
-        self.current_session = None;
+        // Clear the session and jobs to rebuild from scratch
+        self.session_uuid = None;
+        self.jobs.clear();
         tracing::debug!("Cleared previous session and jobs data");
     }
 
     pub async fn poll_nextflow_log(&mut self, logs: &mut EventRecorder) -> Result<()> {
         let start_time = tokio::time::Instant::now();
-        let log_path = match self.state.get_path().await {
-            None => {
-                return Ok(());
-            }
-            Some(path) => path,
-        };
 
-        self.process_log_file(&log_path).await?;
-        self.record_event(logs);
+        let nextflow_logs_paths = self.processes.values().cloned().collect::<Vec<_>>();
+
+        for path in nextflow_logs_paths {
+            if path.exists() {
+                self.process_log_file(path.as_path(), logs).await?;
+            }
+        }
 
         tracing::info!("Poll completed in {:?}", start_time.elapsed());
         Ok(())
     }
 
-    async fn process_log_file(&mut self, log_path: &Path) -> Result<()> {
+    async fn process_log_file(&mut self, log_path: &Path, logs: &mut EventRecorder) -> Result<()> {
         let mut file = OpenOptions::new()
             .read(true)
             .open(log_path)
@@ -121,13 +110,7 @@ impl NextflowLogWatcher {
                 anyhow::anyhow!("Error opening log file: {}", err)
             })?;
 
-        // Handle file truncation
-        let metadata = file.metadata().await?;
-        if metadata.len() < self.last_read_position {
-            self.last_read_position = 0;
-        }
-
-        file.seek(SeekFrom::Start(self.last_read_position)).await?;
+        file.seek(SeekFrom::Start(0)).await?;
 
         self.reset_state();
 
@@ -143,91 +126,66 @@ impl NextflowLogWatcher {
         }
 
         tracing::info!(
-            "Finished polling nextflow log. Processed {} lines.",
+            "Finished polling nextflow log at {:?}. Processed {} lines.",
+            log_path,
             lines_processed
         );
 
-        if !self.session_jobs.is_empty() {
-            tracing::info!(
-                "Found {} sessions with {} total jobs",
-                self.session_jobs.len(),
-                self.session_jobs.values().map(|v| v.len()).sum::<usize>()
+        // Record event if we found a session
+        if let Some(session_uuid) = &self.session_uuid {
+            let message = format!(
+                "[CLI] Nextflow log event for session uuid: {} with {} jobs in file {:?}",
+                session_uuid,
+                self.jobs.len(),
+                log_path
+            );
+
+            let nextflow_log = EventAttributes::NextflowLog(NextflowLog {
+                session_uuid: Some(session_uuid.clone()),
+                jobs_ids: Some(self.jobs.clone()),
+            });
+
+            tracing::debug!("Recording nextflow log event: {}", message);
+            logs.record_event(
+                EventType::NextflowLogEvent,
+                message,
+                Some(nextflow_log),
+                Some(Utc::now()),
             );
         }
 
-        self.last_read_position = reader.seek(SeekFrom::Current(0)).await?;
-
         Ok(())
-    }
-
-    fn record_event(&mut self, logs: &mut EventRecorder) {
-        // Get the jobs for the current session, if it exists
-        let jobs = self
-            .current_session
-            .as_ref()
-            .and_then(|session| self.session_jobs.get(session))
-            .cloned()
-            .unwrap_or_default();
-
-        let message = self.current_session.as_ref().map_or_else(
-            || "[CLI] Nextflow log event - No session UUID found".to_string(),
-            |uuid| {
-                format!(
-                    "[CLI] Nextflow log event for session uuid: {} with {} jobs",
-                    uuid,
-                    jobs.len()
-                )
-            },
-        );
-
-        let nextflow_log = EventAttributes::NextflowLog(NextflowLog {
-            session_uuid: self.current_session.clone(),
-            jobs_ids: Some(jobs),
-        });
-
-        tracing::debug!("Recording nextflow log event: {}", message);
-        logs.record_event(
-            EventType::NextflowLogEvent,
-            message,
-            Some(nextflow_log),
-            Some(Utc::now()),
-        );
     }
 
     fn process_log_line(&mut self, line: &str) {
         if line.contains("Session UUID:") {
             if let Some(uuid) = extract_session_uuid(line) {
                 tracing::info!("Found Session UUID: {}", uuid);
-                self.current_session = Some(uuid.clone());
-                self.session_jobs.entry(uuid).or_default();
+                self.session_uuid = Some(uuid);
             }
         }
 
         // Check for job IDs
         if line.contains("job=") {
             if let Some(job_id) = extract_job_id(line) {
-                if let Some(session) = &self.current_session {
-                    tracing::info!("Found job ID: {} for session: {}", job_id, session);
-                    if let Some(jobs) = self.session_jobs.get_mut(session) {
-                        jobs.push(job_id);
-                    }
-                }
+                tracing::info!("Found job ID: {} for session: {:?}", job_id, self.session_uuid);
+                self.jobs.push(job_id);
             }
         }
     }
 
-    pub fn add_process(&mut self, pid: Pid, working_directory: String) {
+    pub fn add_process(&mut self, pid: Pid, working_directory: PathBuf) {
         self.processes.insert(pid, working_directory.clone());
-        tracing::info!("Added Nextflow process {} with working directory {}", pid, working_directory);
+        tracing::info!("Added Nextflow process {} with working directory {}", pid, working_directory.display());
     }
 
     pub fn remove_process(&mut self, pid: Pid) {
         if let Some(working_directory) = self.processes.remove(&pid) {
-            tracing::info!("Removed Nextflow process {} with working directory {}", pid, working_directory);
+            tracing::info!("Removed Nextflow process {} with working directory {}", pid, working_directory.display());
         }
     }
 
-    pub fn get_process_working_directory(&self, pid: Pid) -> Option<&String> {
+    pub fn get_process_working_directory(&self, pid: Pid) -> Option<&PathBuf> {
         self.processes.get(&pid)
     }
 }
