@@ -93,12 +93,15 @@ pub enum Commands {
     Version,
 }
 
-pub async fn process_cli() -> Result<()> {
+pub fn process_cli() -> Result<()> {
+    // has to be sync due to daemonizing
+
     let cli = Cli::parse();
     let config = ConfigManager::load_config();
-    let api_client = APIClient::new(config.server_address.clone());
+    let api_client = APIClient::new(format!("http://{}", config.server_address));
 
-    print_config_info(&api_client, &config).await?;
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    runtime.block_on(print_config_info(&api_client, &config))?;
 
     match cli.command {
         Commands::Init(args) => {
@@ -143,7 +146,7 @@ pub async fn process_cli() -> Result<()> {
         Commands::ApplyBashrc => ConfigManager::setup_aliases(),
         Commands::Info => Ok(()), // todo: we have info endpoint, it should be used here?
         _ => {
-            match run_async_command(cli.command, &api_client) {
+            match runtime.block_on(run_async_command(cli.command, &api_client)) {
                 Ok(_) => {
                     println!("Command sent successfully.");
                 }
@@ -161,7 +164,6 @@ pub async fn process_cli() -> Result<()> {
     }
 }
 
-#[tokio::main]
 pub async fn run_async_command(commands: Commands, api_client: &APIClient) -> Result<()> {
     match commands {
         Commands::Log { message } => {

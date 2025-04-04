@@ -42,8 +42,9 @@ pub async fn print_config_info(api_client: &APIClient, config: &Config) -> Resul
                 info.watched_processes_preview()
             )?;
         }
-        Err(_) => {
+        Err(e) => {
             writeln!(&mut output, "Daemon status: {}", "Stopped".red())?;
+            writeln!(&mut output, "Error info: {:?}", e)?;
         }
     }
 
@@ -69,6 +70,8 @@ pub async fn print_config_info(api_client: &APIClient, config: &Config) -> Resul
     )?;
 
     writeln!(&mut output, "\n===== ... =====\n\n")?;
+
+    println!("{}", output);
 
     Ok(())
 }

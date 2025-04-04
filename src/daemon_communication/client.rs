@@ -74,7 +74,7 @@ impl APIClient {
     pub async fn send_info_request(&self) -> Result<InfoResponse> {
         let data: InfoResponse = self
             .client
-            .get(self.get_url("/start"))
+            .get(self.get_url("/info"))
             .send()
             .await?
             .error_for_status()?
