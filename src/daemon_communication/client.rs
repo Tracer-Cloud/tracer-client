@@ -1,3 +1,4 @@
+use std::time::Duration;
 // src/cli.rs
 use crate::extracts::process_watcher::ShortLivedProcessLog;
 use anyhow::Result;

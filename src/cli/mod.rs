@@ -100,7 +100,7 @@ pub fn process_cli() -> Result<()> {
     let config = ConfigManager::load_config();
     let api_client = APIClient::new(format!("http://{}", config.server_address));
 
-    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let runtime = tokio::runtime::Runtime::new()?;
     runtime.block_on(print_config_info(&api_client, &config))?;
 
     match cli.command {

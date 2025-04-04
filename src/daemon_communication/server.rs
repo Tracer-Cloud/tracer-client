@@ -44,6 +44,7 @@ pub fn get_app(
     Router::new()
         .route("/log", post(log))
         .route("/terminate", post(terminate))
+        .route("/terminate", get(terminate)) // todo: remove
         .route("/start", post(start))
         .route("/end", post(end))
         .route("/alert", post(alert))
@@ -59,8 +60,8 @@ pub fn get_app(
 }
 
 pub async fn terminate(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
-    state.cancellation_token.cancelled().await; // todo: gracefully shutdown
-    Ok(StatusCode::ACCEPTED)
+    state.cancellation_token.cancel(); // todo: gracefully shutdown
+    Ok("Terminating...")
 }
 
 pub async fn log(

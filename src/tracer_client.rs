@@ -448,7 +448,7 @@ impl TracerClient {
 
         let listener = tokio::net::TcpListener::bind(addr).await?;
 
-        tokio::spawn(axum::serve(listener, app).into_future());
+        let server = tokio::spawn(axum::serve(listener, app).into_future());
 
         let syslog_lines_task = tokio::spawn(run_syslog_lines_read_thread(
             SYSLOG_FILE,
@@ -469,13 +469,16 @@ impl TracerClient {
             .start_new_run(None)
             .await?;
 
+        // todo: to join handle
         while !cancellation_token.is_cancelled() {
             let start_time = Instant::now();
             while start_time.elapsed()
                 < Duration::from_millis(config.read().await.batch_submission_interval_ms)
             {
+                // either monitor or cancelled
                 monitor_processes_with_tracer_client(tracer_client.lock().await.borrow_mut())
                     .await?;
+
                 sleep(Duration::from_millis(
                     config.read().await.process_polling_interval_ms,
                 ))
@@ -494,9 +497,11 @@ impl TracerClient {
 
             tracer_client.lock().await.borrow_mut().poll_files().await?;
         }
+        println!("Stopping pipeline run");
 
         syslog_lines_task.abort();
         stdout_lines_task.abort();
+        server.abort();
 
         // close the connection pool to aurora
         let guard = tracer_client.lock().await;

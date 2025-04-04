@@ -73,6 +73,7 @@ pub struct Config {
 pub struct ConfigManager;
 
 impl ConfigManager {
+    // todo: use a ready library for that
     fn get_config_path() -> Option<PathBuf> {
         let path = homedir::get_my_home();
 
@@ -182,6 +183,10 @@ impl ConfigManager {
 
         if let Ok(api_key) = std::env::var("TRACER_API_KEY") {
             config.api_key = api_key;
+        }
+
+        if let Ok(server_address) = std::env::var("TRACER_SERVER_ADDRESS") {
+            config.server_address = server_address;
         }
 
         config
