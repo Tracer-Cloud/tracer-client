@@ -78,10 +78,12 @@ impl TracerServer {
             {
                 monitor_processes_with_tracer_client(tracer_client.lock().await.borrow_mut())
                     .await?;
+
                 sleep(Duration::from_millis(
                     config.read().await.process_polling_interval_ms,
                 ))
                 .await;
+
                 if cancellation_token.is_cancelled() {
                     break;
                 }

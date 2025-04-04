@@ -29,7 +29,7 @@ async fn setup_client(
     let config = Config {
         api_key: "test_key".to_string(),
         process_polling_interval_ms: 100,
-        batch_submission_interval_ms: 10000000,
+        batch_submission_interval_ms: 10000000, // todo: check data in batch
         process_metrics_send_interval_ms: 10000000,
         file_size_not_changing_period_ms: 10000000,
         new_run_pause_ms: 10000000,
@@ -82,6 +82,7 @@ async fn info(pool: PgPool) {
         .unwrap();
 
     let addr = server.local_addr().unwrap();
+    println!("server listening on {}", addr);
 
     let handle = tokio::task::spawn(server.run());
     // todo: do health check N times?

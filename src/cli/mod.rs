@@ -108,7 +108,6 @@ pub fn process_cli() -> Result<()> {
             //if test_result.is_err() {
             //    return Ok(());
             //}
-            runtime.block_on(print_config_info(&api_client, &config))?;
 
             println!("Starting daemon...");
             let current_working_directory = env::current_dir()?;
@@ -119,6 +118,8 @@ pub fn process_cli() -> Result<()> {
                     println!("Failed to start daemon. Maybe the daemon is already running? If it's not, run `tracer cleanup` to clean up the previous daemon files.");
                     return Ok(());
                 }
+
+                runtime.block_on(print_config_info(&api_client, &config))?;
             }
 
             run(
@@ -145,7 +146,10 @@ pub fn process_cli() -> Result<()> {
             result
         }
         Commands::ApplyBashrc => ConfigManager::setup_aliases(),
-        Commands::Info => Ok(()), // todo: we have info endpoint, it should be used here?
+        Commands::Info => {
+            runtime.block_on(print_config_info(&api_client, &config))?;
+            Ok(())
+        } // todo: we have info endpoint, it should be used here?
         _ => {
             match runtime.block_on(run_async_command(cli.command, &api_client)) {
                 Ok(_) => {
