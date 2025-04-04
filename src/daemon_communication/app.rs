@@ -8,7 +8,6 @@ use tokio_util::sync::CancellationToken;
 
 use crate::daemon_communication::structs::{LogData, Message, RunData, TagData, UploadData};
 use crate::{
-    config_manager,
     config_manager::{Config, ConfigManager},
     daemon_communication::structs::{InfoResponse, InnerInfoResponse},
     tracer_client::TracerClient,

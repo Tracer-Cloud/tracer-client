@@ -1,6 +1,6 @@
 // src/tracer_client.rs
 use crate::cloud_providers::aws::PricingClient;
-use crate::config_manager::{self, Config};
+use crate::config_manager::Config;
 use crate::events::{
     recorder::{EventRecorder, EventType},
     send_alert_event, send_log_event, send_start_run_event,
@@ -13,21 +13,18 @@ use crate::extracts::{
     metrics::SystemMetricsCollector,
     process_watcher::{ProcessWatcher, ShortLivedProcessLog},
     stdout::StdoutWatcher,
-    syslog::{run_syslog_lines_read_thread, SyslogWatcher},
+    syslog::SyslogWatcher,
 };
 use crate::types::cli::{PipelineTags, TracerCliInitArgs};
 use crate::types::event::attributes::EventAttributes;
-use crate::SYSLOG_FILE;
-use crate::{monitor_processes_with_tracer_client, DEFAULT_SERVICE_URL, FILE_CACHE_DIR};
+use crate::{DEFAULT_SERVICE_URL, FILE_CACHE_DIR};
 use chrono::{DateTime, TimeDelta, Utc};
 use serde_json::json;
-use std::borrow::BorrowMut;
-use std::future::IntoFuture;
 use std::ops::Sub;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use sysinfo::{Pid, System};
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 
 use crate::nextflow_log_watcher::NextflowLogWatcher;
 

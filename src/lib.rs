@@ -17,7 +17,6 @@ use anyhow::{Context, Result};
 use daemonize::Daemonize;
 use exporters::db::AuroraClient;
 use std::fs::File;
-use std::net::SocketAddr;
 use std::sync::Arc;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{
@@ -29,7 +28,6 @@ use types::cli::TracerCliInitArgs;
 
 use crate::config_manager::Config;
 use crate::tracer_client::TracerClient;
-use daemon_communication::server::TracerServer;
 
 const WORKING_DIR: &str = "/tmp/tracer/";
 const PID_FILE: &str = "/tmp/tracer/tracerd.pid";
