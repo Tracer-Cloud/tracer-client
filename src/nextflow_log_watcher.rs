@@ -1,17 +1,14 @@
 use crate::events::recorder::{EventRecorder, EventType};
-use crate::extracts::fs::utils::{FileFinder, LogSearchConfig};
 use crate::types::event::attributes::system_metrics::NextflowLog;
 use crate::types::event::attributes::EventAttributes;
 use anyhow::Result;
 use chrono::Utc;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 use sysinfo::Pid;
 use tokio::fs::OpenOptions;
 use tokio::io::{AsyncBufReadExt, AsyncSeekExt, BufReader, SeekFrom};
-use tokio::sync::RwLock;
 
 /// ## Approach:
 /// - Limit search space of .nextflow.log files for possible locations: E:g $HOME, $PWD, maybe fallback to
@@ -20,47 +17,17 @@ use tokio::sync::RwLock;
 /// - syncronization primitive to handle updating path when the log is found
 /// - Only poll when a path is found
 /// - Keep track of last processed point in file. And Seek from there on next poll cycle
-pub struct NextflowLogState {
-    search_config: LogSearchConfig,
-    log_path: Arc<RwLock<Option<PathBuf>>>,
-}
-impl NextflowLogState {
-    fn find_nextflow_log(&self) {
-        tracing::info!("finding nextflow log..");
-
-        let state = Arc::clone(&self.log_path);
-        let search_confg = self.search_config.clone();
-        tokio::task::spawn(async move {
-            let finder = FileFinder::new(search_confg);
-            loop {
-                let state = Arc::clone(&state);
-                if let Some(log_path) = finder.try_find() {
-                    tracing::info!("found nextflow log in path {log_path:?}");
-
-                    let mut guard = state.write().await;
-                    *guard = Some(log_path);
-                    break;
-                }
-                tracing::info!("nextflow log not found, sleeping...");
-                // sleep
-                tokio::time::sleep(Duration::from_secs(5)).await;
-            }
-        });
-    }
-
-    fn new() -> Self {
-        Self {
-            log_path: Arc::new(RwLock::new(None)),
-            search_config: LogSearchConfig::default(),
-        }
-    }
-}
-
 pub struct NextflowLogWatcher {
     session_uuid: Option<String>,
     jobs: Vec<String>,
     processes: HashMap<Pid, PathBuf>, // Pid -> working_directory
     last_poll_time: Option<Instant>,
+}
+
+impl Default for NextflowLogWatcher {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl NextflowLogWatcher {
