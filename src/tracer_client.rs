@@ -54,11 +54,6 @@ pub struct RunMetadata {
     pub start_time: DateTime<Utc>,
 }
 
-#[derive(Deserialize)]
-pub struct Message {
-    payload: String,
-}
-
 const RUN_COMPLICATED_PROCESS_IDENTIFICATION: bool = false;
 const WAIT_FOR_PROCESS_BEFORE_NEW_RUN: bool = false;
 
@@ -510,23 +505,19 @@ impl TracerClient {
         Ok(())
     }
 
-    pub async fn send_log_event(&mut self, log: Message) -> Result<()> {
-        send_log_event(self.get_api_key(), &log.payload).await?; // todo: remove
+    pub async fn send_log_event(&mut self, payload: String) -> Result<()> {
+        send_log_event(self.get_api_key(), &payload).await?; // todo: remove
 
-        self.logs.record_event(
-            EventType::RunStatusMessage,
-            log.payload,
-            None,
-            Some(Utc::now()),
-        );
+        self.logs
+            .record_event(EventType::RunStatusMessage, payload, None, Some(Utc::now()));
 
         Ok(())
     }
 
-    pub async fn send_alert_event(&mut self, alert: Message) -> Result<()> {
-        send_alert_event(&alert.payload).await?; // todo: remove
+    pub async fn send_alert_event(&mut self, payload: String) -> Result<()> {
+        send_alert_event(&payload).await?; // todo: remove
         self.logs
-            .record_event(EventType::Alert, alert.payload, None, Some(Utc::now()));
+            .record_event(EventType::Alert, payload, None, Some(Utc::now()));
         Ok(())
     }
 

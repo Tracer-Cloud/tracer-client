@@ -1,5 +1,8 @@
 // src/cli.rs
-use anyhow::Result;
+use crate::extracts::process_watcher::ShortLivedProcessLog;
+use crate::utils::debug_log::Logger;
+use anyhow::{Context, Result};
+use http::StatusCode;
 use serde::Deserialize;
 use serde_json::{from_str, json};
 use std::path::PathBuf;
@@ -7,203 +10,130 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::UnixStream,
 };
+use tokio_stream::StreamExt;
 
-use crate::extracts::process_watcher::ShortLivedProcessLog;
-use crate::utils::debug_log::Logger;
+use super::structs::{InfoResponse, Message, RunData, TagData, UploadData};
 
-use super::structs::InfoResponse;
-
-pub async fn send_log_request(socket_path: &str, message: String) -> Result<()> {
-    let mut socket = UnixStream::connect(socket_path).await?;
-
-    let log_request = json!({
-            "command": "log",
-            "message": message
-    });
-    let log_request_json =
-        serde_json::to_string(&log_request).expect("Failed to serialize log request");
-    socket.write_all(log_request_json.as_bytes()).await?;
-
-    Ok(())
+pub struct APIClient {
+    base_uri: String,
+    client: reqwest::Client,
 }
 
-pub async fn send_alert_request(socket_path: &str, message: String) -> Result<()> {
-    let mut socket = UnixStream::connect(socket_path).await?;
-    let alert_request: serde_json::Value = json!({
-            "command": "alert",
-            "message": message
-    });
-    let alert_request_json =
-        serde_json::to_string(&alert_request).expect("Failed to serialize alrt request");
-    socket.write_all(alert_request_json.as_bytes()).await?;
-
-    Ok(())
-}
-
-pub async fn send_terminate_request(socket_path: &str) -> Result<()> {
-    let mut socket = UnixStream::connect(socket_path).await?;
-
-    let terminate_request = json!({
-            "command": "terminate"
-    });
-
-    let terminate_request_json =
-        serde_json::to_string(&terminate_request).expect("Failed to serialize terminate request");
-
-    socket.write_all(terminate_request_json.as_bytes()).await?;
-
-    Ok(())
-}
-
-pub async fn send_start_run_request(socket_path: &str) -> Result<()> {
-    let mut socket = UnixStream::connect(socket_path).await?;
-
-    let start_request = json!({
-            "command": "start"
-    });
-
-    let start_request_json =
-        serde_json::to_string(&start_request).expect("Failed to serialize start request");
-
-    socket.write_all(start_request_json.as_bytes()).await?;
-
-    socket.shutdown().await?;
-
-    #[derive(Deserialize)]
-    struct StartRunResponse {
-        run_name: String,
+impl APIClient {
+    pub fn new(base_url: String) -> Self {
+        Self {
+            base_uri: base_url,
+            client: reqwest::Client::new(), // todo: timeout, max payload?
+        }
     }
 
-    let mut buffer = [0; 1024];
-    let n = socket.read(&mut buffer).await?;
-    let response = std::str::from_utf8(&buffer[..n])?;
-    let response: StartRunResponse = from_str(response)?;
+    pub fn get_url(&self, path: &str) -> String {
+        format!("{}{}", self.base_uri, path)
+    }
 
-    println!("Started a new run with name: {}", response.run_name);
+    pub async fn send_log_request(&self, payload: Message) -> Result<()> {
+        self.client
+            .post(self.get_url("/logs"))
+            .json(&payload)
+            .send()
+            .await?
+            .error_for_status()?;
+        Ok(())
+    }
 
-    Ok(())
-}
+    pub async fn send_alert_request(&self, payload: Message) -> Result<()> {
+        self.client
+            .post(self.get_url("/alert"))
+            .json(&payload)
+            .send()
+            .await?
+            .error_for_status()?;
+        Ok(())
+    }
 
-pub async fn send_end_run_request(socket_path: &str) -> Result<()> {
-    let mut socket = UnixStream::connect(socket_path).await?;
+    pub async fn send_start_run_request(&self) -> Result<Option<RunData>> {
+        let data: Option<RunData> = self
+            .client
+            .post(self.get_url("/start"))
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?;
+        Ok(data)
+    }
 
-    let end_request = json!({
-            "command": "end"
-    });
+    pub async fn send_terminate_request(&self) -> Result<()> {
+        self.client
+            .post(self.get_url("/terminate"))
+            .send()
+            .await?
+            .error_for_status()?;
+        Ok(())
+    }
 
-    let end_request_json =
-        serde_json::to_string(&end_request).expect("Failed to serialize start request");
+    pub async fn send_end_request(&self) -> Result<()> {
+        self.client
+            .post(self.get_url("/end"))
+            .send()
+            .await?
+            .error_for_status()?;
+        Ok(())
+    }
 
-    socket.write_all(end_request_json.as_bytes()).await?;
+    pub async fn send_info_request(&self) -> Result<InfoResponse> {
+        let data: InfoResponse = self
+            .client
+            .get(self.get_url("/start"))
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?;
+        Ok(data)
+    }
 
-    Ok(())
-}
+    pub async fn send_refresh_config_request(&self) -> Result<()> {
+        self.client
+            .post(self.get_url("/refresh-config"))
+            .send()
+            .await?
+            .error_for_status()?;
+        Ok(())
+    }
 
-pub async fn send_info_request(socket_path: &str) -> Result<InfoResponse> {
-    let mut socket = UnixStream::connect(socket_path).await?;
+    pub async fn send_update_tags_request(&self, payload: TagData) -> Result<()> {
+        self.client
+            .post(self.get_url("/tag"))
+            .json(&payload)
+            .send()
+            .await?
+            .error_for_status()?;
+        Ok(())
+    }
 
-    let ping_request = json!({
-            "command": "info"
-    });
+    pub async fn send_log_short_lived_process_request(
+        &self,
+        payload: ShortLivedProcessLog,
+    ) -> Result<()> {
+        self.client
+            .put(self.get_url("/log-short-lived-process"))
+            .json(&payload)
+            .send()
+            .await?
+            .error_for_status()?;
+        Ok(())
+    }
 
-    let info_request_json =
-        serde_json::to_string(&ping_request).expect("Failed to serialize info request");
-
-    socket.write_all(info_request_json.as_bytes()).await?;
-
-    socket.shutdown().await?;
-
-    let mut buffer = [0; 1024];
-    let n = socket.read(&mut buffer).await?;
-    let response = std::str::from_utf8(&buffer[..n])?;
-    let response: InfoResponse = from_str(response)?;
-
-    Ok(response)
-}
-
-pub async fn send_refresh_config_request(socket_path: &str) -> Result<()> {
-    let mut socket = UnixStream::connect(socket_path).await?;
-
-    let setup_request = json!({
-            "command": "refresh_config"
-    });
-
-    let setup_request_json =
-        serde_json::to_string(&setup_request).expect("Failed to serialize setup request");
-
-    socket.write_all(setup_request_json.as_bytes()).await?;
-
-    Ok(())
-}
-
-pub async fn send_update_tags_request(socket_path: &str, tags: &Vec<String>) -> Result<()> {
-    let mut socket = UnixStream::connect(socket_path).await?;
-
-    let tag_request = json!({
-            "command": "tag",
-            "tags": tags
-    });
-
-    let tag_request_json =
-        serde_json::to_string(&tag_request).expect("Failed to serialize tag request");
-
-    socket.write_all(tag_request_json.as_bytes()).await?;
-
-    Ok(())
-}
-
-pub async fn send_log_short_lived_process_request(
-    socket_path: &str,
-    log: ShortLivedProcessLog,
-) -> Result<()> {
-    let mut socket = UnixStream::connect(socket_path).await?;
-
-    let log_request = json!({
-            "command": "log_short_lived_process",
-            "log": log
-    });
-
-    let log_request_json =
-        serde_json::to_string(&log_request).expect("Failed to serialize log request");
-
-    socket.write_all(log_request_json.as_bytes()).await?;
-
-    Ok(())
-}
-
-pub async fn send_upload_file_request(socket_path: &str, file_path: &PathBuf) -> Result<()> {
-    let logger = Logger::new();
-    logger
-        .log(
-            "send_upload_file_request",
-            Some(&json!({
-                "file_path": file_path,
-                "socket_path": &socket_path
-
-            })),
-        )
-        .await;
-
-    let mut socket = UnixStream::connect(socket_path).await?;
-
-    let upload_request = json!({
-        "command": "upload",
-        "file_path": file_path
-    });
-
-    let upload_request_json =
-        serde_json::to_string(&upload_request).expect("Failed to serialize upload request");
-
-    socket.write_all(upload_request_json.as_bytes()).await?;
-
-    logger
-        .log(
-            "send_upload_file_request//socket.write_all",
-            Some(&upload_request),
-        )
-        .await;
-
-    Ok(())
+    pub async fn send_upload_file_request(&self, payload: UploadData) -> Result<()> {
+        self.client
+            .put(self.get_url("/upload"))
+            .json(&payload)
+            .send()
+            .await?
+            .error_for_status()?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

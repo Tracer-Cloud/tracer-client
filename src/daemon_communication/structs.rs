@@ -4,6 +4,7 @@ use crate::extracts::process_watcher::ShortLivedProcessLog;
 use crate::tracer_client::RunMetadata;
 use chrono::{DateTime, TimeDelta, Utc};
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct InfoResponse {
@@ -84,4 +85,10 @@ pub struct LogData {
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct UploadData {
     pub file_path: String,
+    pub socket_path: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Message {
+    pub payload: String,
 }

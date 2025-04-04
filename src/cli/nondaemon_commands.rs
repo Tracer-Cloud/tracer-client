@@ -5,10 +5,11 @@ use std::process::Command;
 use anyhow::{Context, Result};
 use std::result::Result::Ok;
 
+use crate::config_manager::Config;
+use crate::daemon_communication::client::APIClient;
 use crate::{
     config_manager::{ConfigManager, INTERCEPTOR_STDOUT_FILE},
-    daemon_communication::client::{send_info_request, send_refresh_config_request},
-    FILE_CACHE_DIR, PID_FILE, REPO_NAME, REPO_OWNER, SOCKET_PATH, STDERR_FILE, STDOUT_FILE,
+    FILE_CACHE_DIR, PID_FILE, REPO_NAME, REPO_OWNER, STDERR_FILE, STDOUT_FILE,
 };
 
 pub fn clean_up_after_daemon() -> Result<()> {
@@ -20,63 +21,55 @@ pub fn clean_up_after_daemon() -> Result<()> {
     Ok(())
 }
 
-pub async fn print_config_info() -> Result<()> {
-    let config = ConfigManager::load_config();
-    let daemon_status = send_info_request(SOCKET_PATH).await;
-
+pub async fn print_config_info(api_client: &APIClient, config: &Config) -> Result<()> {
     let mut output = String::new();
-
     let _ = writeln!(&mut output, "\n\n===== Tracer Info =====\n");
 
-    if daemon_status.is_ok() {
-        let _ = writeln!(&mut output, "Daemon status: {}", "Running".green());
-    } else {
-        let _ = writeln!(&mut output, "Daemon status: {}", "Stopped".red());
-    }
-    let _ = writeln!(&mut output, "Daemon version: {}", env!("CARGO_PKG_VERSION"));
+    match api_client.send_info_request().await {
+        Ok(info) => {
+            writeln!(&mut output, "Daemon status: {}", "Running".green())?;
 
-    if let Ok(info) = daemon_status {
-        if let Some(ref inner) = info.inner {
-            let _ = writeln!(&mut output, "Service name: {}", inner.pipeline_name);
-            let _ = writeln!(&mut output, "Run name: {}", inner.run_name);
-            let _ = writeln!(&mut output, "Run ID: {}", inner.run_id);
-            let _ = writeln!(&mut output, "Total Run Time: {}", inner.formatted_runtime());
+            if let Some(ref inner) = info.inner {
+                writeln!(&mut output, "Service name: {}", inner.pipeline_name)?;
+                writeln!(&mut output, "Run name: {}", inner.run_name)?;
+                writeln!(&mut output, "Run ID: {}", inner.run_id)?;
+                writeln!(&mut output, "Total Run Time: {}", inner.formatted_runtime())?;
+            }
+            writeln!(
+                &mut output,
+                "Recognized Processes({}): {}",
+                info.watched_processes_count,
+                info.watched_processes_preview()
+            )?;
         }
-        let _ = writeln!(
-            &mut output,
-            "Recognized Processes({}): {}",
-            info.watched_processes_count,
-            info.watched_processes_preview()
-        );
+        Err(_) => {
+            writeln!(&mut output, "Daemon status: {}", "Stopped".red())?;
+        }
     }
-    let _ = writeln!(
+
+    // todo: take version from CLI
+    writeln!(&mut output, "Daemon version: {}", env!("CARGO_PKG_VERSION"))?;
+
+    writeln!(
         &mut output,
         "Grafana Workspace URL: {}",
         config.grafana_workspace_url.cyan().underline()
-    );
+    )?;
 
-    let _ = writeln!(
+    writeln!(
         &mut output,
         "Process polling interval: {} ms",
         config.process_polling_interval_ms
-    );
+    )?;
 
-    let _ = writeln!(
+    writeln!(
         &mut output,
         "Batch submission interval: {} ms",
         config.batch_submission_interval_ms
-    );
+    )?;
 
-    let _ = writeln!(&mut output, "\n===== ... =====\n\n");
+    writeln!(&mut output, "\n===== ... =====\n\n")?;
 
-    println!("{}", output);
-
-    Ok(())
-}
-
-pub fn print_config_info_sync() -> Result<()> {
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-    runtime.block_on(print_config_info())?;
     Ok(())
 }
 
@@ -91,8 +84,6 @@ pub async fn setup_config(
         batch_submission_interval_ms,
     )?;
 
-    let _ = send_refresh_config_request(SOCKET_PATH).await;
-    print_config_info().await?;
     Ok(())
 }
 

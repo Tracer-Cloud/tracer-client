@@ -8,8 +8,7 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 
-use crate::daemon_communication::structs::{LogData, RunData, TagData, UploadData};
-use crate::tracer_client::Message;
+use crate::daemon_communication::structs::{LogData, Message, RunData, TagData, UploadData};
 use crate::{
     config_manager::{Config, ConfigManager},
     daemon_communication::structs::{InfoResponse, InnerInfoResponse},
@@ -18,13 +17,12 @@ use crate::{
     utils::{debug_log::Logger, upload::upload_from_file_path},
 };
 
-use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
 use axum::response::IntoResponse;
 use axum::routing::{post, put};
+use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
 
 type ProcessOutput<'a> =
     Option<Pin<Box<dyn Future<Output = Result<String, anyhow::Error>> + 'a + Send>>>;
-
 
 #[derive(Clone)]
 struct AppState {
@@ -50,13 +48,13 @@ pub fn get_app(
         .route("/log", post(log))
         .route("/terminate", post(terminate))
         .route("/start", post(start))
-        .route("/alert", post(alert))
         .route("/end", post(end))
+        .route("/alert", post(alert))
         .route("/refresh-config", post(refresh_config))
         .route("/tag", post(tag))
         .route(
             "/log-short-lived-process",
-            post(log_short_lived_process_command),
+            put(log_short_lived_process_command),
         )
         .route("/info", get(info))
         .route("/upload", put(upload))
@@ -70,13 +68,13 @@ pub async fn terminate(State(state): State<AppState>) -> axum::response::Result<
 
 pub async fn log(
     State(state): State<AppState>,
-    Json(payload): Json<Message>,
+    Json(message): Json<Message>,
 ) -> axum::response::Result<impl IntoResponse> {
     state
         .tracer_client
         .lock()
         .await
-        .send_log_event(payload)
+        .send_log_event(message.payload)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -85,13 +83,13 @@ pub async fn log(
 
 pub async fn alert(
     State(state): State<AppState>,
-    Json(payload): Json<Message>,
+    Json(message): Json<Message>,
 ) -> axum::response::Result<impl IntoResponse> {
     state
         .tracer_client
         .lock()
         .await
-        .send_alert_event(payload)
+        .send_alert_event(message.payload)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -163,7 +161,7 @@ pub async fn log_short_lived_process_command(
         .fill_logs_with_short_lived_process(payload.log)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(StatusCode::ACCEPTED)
+    Ok(StatusCode::CREATED)
 }
 
 pub async fn info(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
@@ -193,7 +191,7 @@ pub async fn upload(
         guard.get_service_url(),
         guard.get_api_key(),
         payload.file_path.as_str(),
-        None,
+        payload.socket_path.as_deref(),
     )
     .await
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;

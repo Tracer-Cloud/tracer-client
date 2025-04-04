@@ -27,7 +27,7 @@ use types::cli::TracerCliInitArgs;
 use std::fs::File;
 use std::sync::Arc;
 
-use crate::config_manager::ConfigManager;
+use crate::config_manager::{Config, ConfigManager};
 use crate::tracer_client::TracerClient;
 
 const WORKING_DIR: &str = "/tmp/tracer/";
@@ -35,7 +35,6 @@ const PID_FILE: &str = "/tmp/tracer/tracerd.pid";
 const STDOUT_FILE: &str = "/tmp/tracer/tracerd.out";
 const STDERR_FILE: &str = "/tmp/tracer/tracerd.err";
 const LOG_FILE: &str = "/tmp/tracer/daemon.log";
-const SOCKET_PATH: &str = "/tmp/tracer/tracerd.sock";
 const FILE_CACHE_DIR: &str = "/tmp/tracer/tracerd_cache";
 const DEBUG_LOG: &str = "/tmp/tracer/debug.log";
 
@@ -73,17 +72,16 @@ pub fn start_daemon() -> Result<()> {
 pub async fn run(
     workflow_directory_path: String,
     cli_config_args: TracerCliInitArgs,
+    config: Config,
 ) -> Result<()> {
     // Set up logging first
     setup_logging()?;
 
-    let raw_config = ConfigManager::load_config();
-
     // create the conn pool to aurora
-    let db_client = Arc::new(AuroraClient::new(&raw_config, None).await);
+    let db_client = Arc::new(AuroraClient::new(&config, None).await);
 
     let client = TracerClient::new(
-        raw_config.clone(),
+        config.clone(),
         workflow_directory_path,
         db_client,
         cli_config_args,
