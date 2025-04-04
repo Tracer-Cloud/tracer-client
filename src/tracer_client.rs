@@ -157,7 +157,6 @@ impl TracerClient {
         )
     }
 
-
     // TODO: Refactor to collect required entries properly
     pub async fn submit_batched_data(&mut self) -> Result<()> {
         let run_name = self

@@ -4,6 +4,7 @@ use crate::config_manager::target_process::{
 };
 use crate::events::recorder::{EventRecorder, EventType};
 use crate::extracts::file_watcher::FileWatcher;
+use crate::nextflow_log_watcher::NextflowLogWatcher;
 use crate::types::event::attributes::process::InputFile;
 use crate::types::event::attributes::process::ProcessProperties;
 use crate::types::event::attributes::process::{CompletedProcess, DataSetsProcessed};
@@ -19,7 +20,6 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use sysinfo::ProcessStatus;
 use sysinfo::{Pid, Process, System};
-use crate::nextflow_log_watcher::NextflowLogWatcher;
 
 pub struct ProcessWatcher {
     targets: Vec<Target>,
@@ -482,7 +482,10 @@ impl ProcessWatcher {
         // Check if this is a Nextflow process and notify the watcher
         if display_name.contains("nextflow") {
             if let Some(working_dir) = &properties.working_directory {
-                self.nextflow_log_watcher.add_process(pid, PathBuf::from(working_dir.clone()).join(".nextflow.log"));
+                self.nextflow_log_watcher.add_process(
+                    pid,
+                    PathBuf::from(working_dir.clone()).join(".nextflow.log"),
+                );
             }
         }
 

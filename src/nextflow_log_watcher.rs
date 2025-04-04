@@ -8,8 +8,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::fs::OpenOptions;
 use sysinfo::Pid;
+use tokio::fs::OpenOptions;
 use tokio::io::{AsyncBufReadExt, AsyncSeekExt, BufReader, SeekFrom};
 use tokio::sync::RwLock;
 
@@ -47,7 +47,6 @@ impl NextflowLogState {
             }
         });
     }
-
 
     fn new() -> Self {
         Self {
@@ -89,7 +88,7 @@ impl NextflowLogWatcher {
 
     pub async fn poll_nextflow_log(&mut self, logs: &mut EventRecorder) -> Result<()> {
         const POLL_INTERVAL: Duration = Duration::from_secs(10);
-        
+
         let now = Instant::now();
         if let Some(last_poll) = self.last_poll_time {
             if now.duration_since(last_poll) < POLL_INTERVAL {
@@ -180,7 +179,11 @@ impl NextflowLogWatcher {
         // Check for job IDs
         if line.contains("job=") {
             if let Some(job_id) = extract_job_id(line) {
-                tracing::info!("Found job ID: {} for session: {:?}", job_id, self.session_uuid);
+                tracing::info!(
+                    "Found job ID: {} for session: {:?}",
+                    job_id,
+                    self.session_uuid
+                );
                 self.jobs.push(job_id);
             }
         }
@@ -188,12 +191,20 @@ impl NextflowLogWatcher {
 
     pub fn add_process(&mut self, pid: Pid, working_directory: PathBuf) {
         self.processes.insert(pid, working_directory.clone());
-        tracing::info!("Added Nextflow process {} with working directory {}", pid, working_directory.display());
+        tracing::info!(
+            "Added Nextflow process {} with working directory {}",
+            pid,
+            working_directory.display()
+        );
     }
 
     pub fn remove_process(&mut self, pid: Pid) {
         if let Some(working_directory) = self.processes.remove(&pid) {
-            tracing::info!("Removed Nextflow process {} with working directory {}", pid, working_directory.display());
+            tracing::info!(
+                "Removed Nextflow process {} with working directory {}",
+                pid,
+                working_directory.display()
+            );
         }
     }
 
