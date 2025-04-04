@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::fs::OpenOptions;
-
+use sysinfo::Pid;
 use tokio::io::{AsyncBufReadExt, AsyncSeekExt, BufReader, SeekFrom};
 use tokio::sync::RwLock;
 
@@ -68,6 +68,9 @@ pub struct NextflowLogWatcher {
 
     /// Last read position
     last_read_position: u64,
+
+    // Add HashMap to track processes
+    processes: HashMap<Pid, String>, // Pid -> working_directory
 }
 
 impl NextflowLogWatcher {
@@ -81,6 +84,7 @@ impl NextflowLogWatcher {
             session_jobs: HashMap::new(),
             current_session: None,
             last_read_position: 0,
+            processes: HashMap::new(),
         }
     }
 
@@ -210,6 +214,21 @@ impl NextflowLogWatcher {
                 }
             }
         }
+    }
+
+    pub fn add_process(&mut self, pid: Pid, working_directory: String) {
+        self.processes.insert(pid, working_directory.clone());
+        tracing::info!("Added Nextflow process {} with working directory {}", pid, working_directory);
+    }
+
+    pub fn remove_process(&mut self, pid: Pid) {
+        if let Some(working_directory) = self.processes.remove(&pid) {
+            tracing::info!("Removed Nextflow process {} with working directory {}", pid, working_directory);
+        }
+    }
+
+    pub fn get_process_working_directory(&self, pid: Pid) -> Option<&String> {
+        self.processes.get(&pid)
     }
 }
 
