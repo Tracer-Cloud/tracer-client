@@ -1,16 +1,6 @@
 // src/cli.rs
 use crate::extracts::process_watcher::ShortLivedProcessLog;
-use crate::utils::debug_log::Logger;
-use anyhow::{Context, Result};
-use http::StatusCode;
-use serde::Deserialize;
-use serde_json::{from_str, json};
-use std::path::PathBuf;
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::UnixStream,
-};
-use tokio_stream::StreamExt;
+use anyhow::Result;
 
 use super::structs::{InfoResponse, Message, RunData, TagData, UploadData};
 

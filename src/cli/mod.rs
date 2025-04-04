@@ -11,10 +11,8 @@ use nondaemon_commands::{clean_up_after_daemon, setup_config, update_tracer};
 use std::fmt::Write;
 
 use crate::cli::nondaemon_commands::print_config_info;
-use crate::config_manager::Config;
 use crate::daemon_communication::client::APIClient;
 use crate::daemon_communication::structs::{Message, TagData, UploadData};
-use colored::Colorize;
 use std::{env, fs::canonicalize};
 use sysinfo::System;
 

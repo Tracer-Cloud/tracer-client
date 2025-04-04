@@ -1,9 +1,7 @@
 use anyhow::Result;
-use serde_json::json;
 use std::{future::Future, pin::Pin, sync::Arc};
 use tokio::{
     io::AsyncWriteExt,
-    net::UnixStream,
     sync::{Mutex, RwLock},
 };
 use tokio_util::sync::CancellationToken;
@@ -12,7 +10,6 @@ use crate::daemon_communication::structs::{LogData, Message, RunData, TagData, U
 use crate::{
     config_manager::{Config, ConfigManager},
     daemon_communication::structs::{InfoResponse, InnerInfoResponse},
-    extracts::process_watcher::ShortLivedProcessLog,
     tracer_client::TracerClient,
     utils::{debug_log::Logger, upload::upload_from_file_path},
 };

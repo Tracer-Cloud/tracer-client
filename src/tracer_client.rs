@@ -20,7 +20,6 @@ use crate::types::event::attributes::EventAttributes;
 use crate::SYSLOG_FILE;
 use crate::{monitor_processes_with_tracer_client, DEFAULT_SERVICE_URL, FILE_CACHE_DIR};
 use chrono::{DateTime, TimeDelta, Utc};
-use serde::Deserialize;
 use serde_json::json;
 use std::borrow::BorrowMut;
 use std::future::IntoFuture;

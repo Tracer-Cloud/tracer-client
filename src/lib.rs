@@ -27,7 +27,7 @@ use types::cli::TracerCliInitArgs;
 use std::fs::File;
 use std::sync::Arc;
 
-use crate::config_manager::{Config, ConfigManager};
+use crate::config_manager::Config;
 use crate::tracer_client::TracerClient;
 
 const WORKING_DIR: &str = "/tmp/tracer/";
