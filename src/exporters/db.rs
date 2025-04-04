@@ -241,7 +241,7 @@ impl AuroraClient {
         };
 
         debug!(
-            "Successfully inserted {rows_affected} rows with job_id: {run_name}, elapsed: {:?}",
+            "Successfully inserted {rows_affected} rows with run_name: {run_name}, elapsed: {:?}",
             now.elapsed()
         );
 
