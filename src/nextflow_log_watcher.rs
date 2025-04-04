@@ -57,7 +57,6 @@ impl NextflowLogState {
 }
 
 pub struct NextflowLogWatcher {
-    state: Arc<NextflowLogState>,
     session_uuid: Option<String>,
     jobs: Vec<String>,
     processes: HashMap<Pid, PathBuf>, // Pid -> working_directory
@@ -66,12 +65,7 @@ pub struct NextflowLogWatcher {
 
 impl NextflowLogWatcher {
     pub fn new() -> Self {
-        let state = Arc::new(NextflowLogState::new());
-        let search_state = Arc::clone(&state);
-        tokio::task::spawn_blocking(move || search_state.find_nextflow_log());
-
         Self {
-            state,
             session_uuid: None,
             jobs: Vec::new(),
             processes: HashMap::new(),
