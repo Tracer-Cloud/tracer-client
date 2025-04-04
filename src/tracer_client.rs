@@ -3,8 +3,10 @@ use crate::cloud_providers::aws::PricingClient;
 use crate::config_manager::{self, Config};
 use crate::events::{
     recorder::{EventRecorder, EventType},
-    send_start_run_event,
+    send_alert_event, send_log_event, send_start_run_event,
 };
+use anyhow::{Context, Result};
+
 use crate::exporters::db::AuroraClient;
 use crate::extracts::{
     file_watcher::FileWatcher,
@@ -15,18 +17,19 @@ use crate::extracts::{
 };
 use crate::types::cli::{PipelineTags, TracerCliInitArgs};
 use crate::types::event::attributes::EventAttributes;
+use crate::SYSLOG_FILE;
 use crate::{monitor_processes_with_tracer_client, DEFAULT_SERVICE_URL, FILE_CACHE_DIR};
-use crate::{SOCKET_PATH, SYSLOG_FILE};
-use anyhow::{Context, Result};
 use chrono::{DateTime, TimeDelta, Utc};
+use serde_json::json;
 use std::borrow::BorrowMut;
+use std::future::IntoFuture;
 use std::ops::Sub;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use sysinfo::{Pid, System};
 use tokio::sync::{Mutex, RwLock};
 
-use crate::daemon_communication::server::run_server;
+use crate::daemon_communication::server::get_app;
 use config_manager::{INTERCEPTOR_STDERR_FILE, INTERCEPTOR_STDOUT_FILE};
 
 use tokio::time::sleep;
@@ -87,8 +90,9 @@ impl TracerClient {
         config: Config,
         workflow_directory: String,
         db_client: Arc<AuroraClient>,
-        cli_args: TracerCliInitArgs,
+        cli_args: TracerCliInitArgs, // todo: why Config AND TracerCliInitArgs? remove CliInitArgs
     ) -> Result<TracerClient> {
+        // todo: kinda weired that we have config with db connection AND db_client
         println!("Initializing TracerClient with API Key: {}", config.api_key);
 
         let pricing_client = PricingClient::new(config.aws_init_type.clone(), "us-east-1").await;
@@ -427,6 +431,8 @@ impl TracerClient {
     }
 
     pub async fn run(self) -> Result<()> {
+        let addr = self.config.server_address.clone();
+
         let config: Arc<RwLock<config_manager::Config>> =
             Arc::new(RwLock::new(self.config.clone()));
 
@@ -434,12 +440,15 @@ impl TracerClient {
 
         let cancellation_token = CancellationToken::new();
 
-        tokio::spawn(run_server(
+        let app = get_app(
             tracer_client.clone(),
-            SOCKET_PATH,
             cancellation_token.clone(),
             config.clone(),
-        ));
+        );
+
+        let listener = tokio::net::TcpListener::bind(addr).await?;
+
+        let server = tokio::spawn(axum::serve(listener, app).into_future());
 
         let syslog_lines_task = tokio::spawn(run_syslog_lines_read_thread(
             SYSLOG_FILE,
@@ -460,13 +469,16 @@ impl TracerClient {
             .start_new_run(None)
             .await?;
 
+        // todo: to join handle
         while !cancellation_token.is_cancelled() {
             let start_time = Instant::now();
             while start_time.elapsed()
                 < Duration::from_millis(config.read().await.batch_submission_interval_ms)
             {
+                // either monitor or cancelled
                 monitor_processes_with_tracer_client(tracer_client.lock().await.borrow_mut())
                     .await?;
+
                 sleep(Duration::from_millis(
                     config.read().await.process_polling_interval_ms,
                 ))
@@ -485,15 +497,47 @@ impl TracerClient {
 
             tracer_client.lock().await.borrow_mut().poll_files().await?;
         }
+        println!("Stopping pipeline run");
 
         syslog_lines_task.abort();
         stdout_lines_task.abort();
+        server.abort();
 
         // close the connection pool to aurora
         let guard = tracer_client.lock().await;
         let _ = guard.db_client.close().await;
 
         Ok(())
+    }
+
+    pub async fn send_log_event(&mut self, payload: String) -> Result<()> {
+        send_log_event(self.get_api_key(), &payload).await?; // todo: remove
+
+        self.logs
+            .record_event(EventType::RunStatusMessage, payload, None, Some(Utc::now()));
+
+        Ok(())
+    }
+
+    pub async fn send_alert_event(&mut self, payload: String) -> Result<()> {
+        send_alert_event(&payload).await?; // todo: remove
+        self.logs
+            .record_event(EventType::Alert, payload, None, Some(Utc::now()));
+        Ok(())
+    }
+
+    //FIXME: Should tag updates be parts of events?... how should it be handled and stored
+    pub async fn send_update_tags_event(&self, tags: Vec<String>) -> Result<()> {
+        let _tags_entry = json!({
+            "tags": tags,
+            "message": "[CLI] Updating tags",
+            "process_type": "pipeline",
+            "process_status": "tag_update",
+            "event_type": "process_status",
+            "timestamp": Utc::now().timestamp_millis() as f64 / 1000.,
+        });
+
+        todo!()
     }
 }
 

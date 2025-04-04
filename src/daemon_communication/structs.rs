@@ -1,9 +1,10 @@
 use std::collections::HashSet;
 
+use crate::extracts::process_watcher::ShortLivedProcessLog;
+use crate::tracer_client::RunMetadata;
 use chrono::{DateTime, TimeDelta, Utc};
 use itertools::Itertools;
-
-use crate::tracer_client::RunMetadata;
+use serde::{Deserialize, Serialize};
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct InfoResponse {
@@ -62,4 +63,32 @@ impl InnerInfoResponse {
             duration.num_seconds() % 60
         )
     }
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct RunData {
+    pub run_name: String,
+    pub run_id: String,
+    pub pipeline_name: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct TagData {
+    pub names: Vec<String>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct LogData {
+    pub log: ShortLivedProcessLog,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct UploadData {
+    pub file_path: String,
+    pub socket_path: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Message {
+    pub payload: String,
 }

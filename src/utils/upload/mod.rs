@@ -14,6 +14,9 @@ pub async fn upload_from_file_path(
     file_path: &str,
     custom_file_name: Option<&str>,
 ) -> Result<()> {
+    // todo: this should be split into getting the files + uploading them to tracer. Uploading should
+    // be done in `TracerClient`
+
     const MAX_FILE_SIZE: u64 = 5 * 1024 * 1024; // 5MB in bytes
 
     let logger = Logger::new();

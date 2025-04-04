@@ -18,7 +18,7 @@ use sysinfo::System;
 use tracing::info;
 
 // FIXME: How should this be handled with the new architecture?
-pub async fn send_log_event(_api_key: &str, message: String) -> Result<String> {
+pub async fn send_log_event(_api_key: &str, message: &str) -> Result<String> {
     let _log_entry = json!({
         "message": message,
         "process_type": "pipeline",
@@ -31,7 +31,7 @@ pub async fn send_log_event(_api_key: &str, message: String) -> Result<String> {
 }
 
 // FIXME: same with other events, how should it be handled now?
-pub async fn send_alert_event(message: String) -> Result<String> {
+pub async fn send_alert_event(message: &str) -> Result<String> {
     let _alert_entry = json!({
         "message": message,
         "process_type": "pipeline",
@@ -149,22 +149,4 @@ pub async fn send_start_run_event(
         run_id: run_id.clone(),
         system_properties,
     })
-}
-
-//FIXME: Should tag updates be parts of events?... how should it be handled and stored
-pub async fn send_update_tags_event(
-    _service_url: &str,
-    _api_key: &str,
-    tags: Vec<String>,
-) -> Result<String> {
-    let _tags_entry = json!({
-        "tags": tags,
-        "message": "[CLI] Updating tags",
-        "process_type": "pipeline",
-        "process_status": "tag_update",
-        "event_type": "process_status",
-        "timestamp": Utc::now().timestamp_millis() as f64 / 1000.,
-    });
-
-    todo!()
 }

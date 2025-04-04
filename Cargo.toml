@@ -49,6 +49,8 @@ itertools = "0.14.0"
 percent-encoding = "2.3.1"
 walkdir = "2.5.0"
 colored = "3.0.0"
+axum = "0.8.3"
+http = "1.2.0"
 
 
 [dev-dependencies]
@@ -58,3 +60,7 @@ env_logger = "0.9"
 dotenv = "0.15"
 tokio-test = "0.4"
 bollard = "0.18.1"
+tempdir = "0.3.7"
+assert_cmd = "2.0"
+insta = "1.42.2"
+insta-cmd = "0.6.0"
