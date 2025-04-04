@@ -17,6 +17,7 @@ use anyhow::{Context, Result};
 use daemonize::Daemonize;
 use exporters::db::AuroraClient;
 use std::fs::File;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{
@@ -27,6 +28,7 @@ use tracing_subscriber::{
 use types::cli::TracerCliInitArgs;
 
 use crate::config_manager::Config;
+use crate::daemon_communication::server::TracerServer;
 use crate::tracer_client::TracerClient;
 
 const WORKING_DIR: &str = "/tmp/tracer/";
@@ -79,20 +81,15 @@ pub async fn run(
     // create the conn pool to aurora
     let db_client = Arc::new(AuroraClient::new(&config, None).await);
 
-    let client = TracerClient::new(
-        config.clone(),
-        workflow_directory_path,
-        db_client,
-        cli_config_args,
-    )
-    .await
-    .context("Failed to create TracerClient")?;
+    let addr: SocketAddr = config.server_address.parse()?;
+
+    let client = TracerClient::new(config, workflow_directory_path, db_client, cli_config_args)
+        .await
+        .context("Failed to create TracerClient")?;
 
     println!("Pipeline Name: {:?}", client.get_pipeline_name());
 
-    todo!();
-    // let addr = SocketAddr::par;
-    // TracerServer::bind(client, )
+    TracerServer::bind(client, addr).await?.run().await
 }
 
 fn setup_logging() -> Result<()> {
