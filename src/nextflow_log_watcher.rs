@@ -7,7 +7,7 @@ use chrono::Utc;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::fs::OpenOptions;
 use sysinfo::Pid;
 use tokio::io::{AsyncBufReadExt, AsyncSeekExt, BufReader, SeekFrom};
@@ -62,6 +62,7 @@ pub struct NextflowLogWatcher {
     session_uuid: Option<String>,
     jobs: Vec<String>,
     processes: HashMap<Pid, PathBuf>, // Pid -> working_directory
+    last_poll_time: Option<Instant>,
 }
 
 impl NextflowLogWatcher {
@@ -75,6 +76,7 @@ impl NextflowLogWatcher {
             session_uuid: None,
             jobs: Vec::new(),
             processes: HashMap::new(),
+            last_poll_time: None,
         }
     }
 
@@ -86,6 +88,15 @@ impl NextflowLogWatcher {
     }
 
     pub async fn poll_nextflow_log(&mut self, logs: &mut EventRecorder) -> Result<()> {
+        const POLL_INTERVAL: Duration = Duration::from_secs(10);
+        
+        let now = Instant::now();
+        if let Some(last_poll) = self.last_poll_time {
+            if now.duration_since(last_poll) < POLL_INTERVAL {
+                return Ok(());
+            }
+        }
+
         let start_time = tokio::time::Instant::now();
 
         let nextflow_logs_paths = self.processes.values().cloned().collect::<Vec<_>>();
@@ -96,6 +107,7 @@ impl NextflowLogWatcher {
             }
         }
 
+        self.last_poll_time = Some(now);
         tracing::info!("Poll completed in {:?}", start_time.elapsed());
         Ok(())
     }
