@@ -9,7 +9,6 @@ pub struct EventRecorder {
     run_id: Option<String>,
     // NOTE: Tying a pipeline_name to the events recorder because, you can only start one pipeline at a time
     pipeline_name: Option<String>,
-    aws_batch_job_id: Option<String>,
     tags: Vec<String>,
 }
 
@@ -59,7 +58,6 @@ impl EventRecorder {
             run_id,
             run_name,
             pipeline_name,
-            aws_batch_job_id,
             tags: Vec::new(),
         }
     }
@@ -95,7 +93,6 @@ impl EventRecorder {
             run_name: self.run_name.clone(),
             run_id: self.run_id.clone(),
             pipeline_name: self.pipeline_name.clone(),
-            aws_batch_job_id: self.aws_batch_job_id.clone(),
             tags: self.tags.clone(),
         };
         self.events.push(event);
