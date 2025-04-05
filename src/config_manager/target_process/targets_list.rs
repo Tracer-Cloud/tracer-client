@@ -761,11 +761,13 @@ pub static ref TARGETS: Vec<Target> = [
         .set_filter_out(Some(OPT_CONDA_BIN_EXCEPTIONS.to_vec())),
     Target::new(TargetMatch::CommandContains(CommandContainsStruct {
         process_name: Some("java".to_string()),
-        command_content: "nextflow".to_string()
+        command_content: ".nextflow".to_string()
     }))
-    .set_display_name(DisplayName::Name("Nextflow".to_string())),
+    .set_display_name(DisplayName::Name("nextflow".to_string())),
     Target::new(TargetMatch::ProcessName("nextflow".to_string()))
-        .set_display_name(DisplayName::Name("Nextflow".to_string())),
+        .set_display_name(DisplayName::Name("nextflow".to_string())),
+    Target::new(TargetMatch::BinPathContains("nextflow".to_string()))
+        .set_display_name(DisplayName::Name("nextflow".to_string())),
 ]
 .to_vec();
 

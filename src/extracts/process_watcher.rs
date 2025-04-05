@@ -104,10 +104,15 @@ impl ProcessWatcher {
                     )
                 });
                 if let Some(target) = target {
+                    let display_name = target
+                        .get_display_name_object()
+                        .get_display_name(proc.name(), proc.cmd());
+                    
                     println!(
-                        "about to insert pid {} and name {} with command {:?}",
+                        "[{}] Caught process: pid={}, name={}, command={:?}",
+                        Utc::now(),
                         pid,
-                        proc.name(),
+                        display_name,
                         proc.cmd()
                     );
 
@@ -450,10 +455,18 @@ impl ProcessWatcher {
         target: Option<&Target>,
         file_watcher: &FileWatcher,
     ) -> Result<()> {
+        let display_name = if let Some(target) = target {
+            target
+                .get_display_name_object()
+                .get_display_name(proc.name(), proc.cmd())
+        } else {
+            proc.name().to_owned()
+        };
+
         self.seen.insert(
             pid,
             Proc {
-                name: proc.name().to_string(),
+                name: display_name.clone(),
                 start_time: Utc::now(),
                 last_update: ProcLastUpdate::RefreshesRemaining(2),
                 just_started: true,
@@ -467,20 +480,17 @@ impl ProcessWatcher {
 
         let start_time = Utc::now();
 
-        let display_name = if let Some(target) = target {
-            let name = target
-                .get_display_name_object()
-                .get_display_name(proc.name(), proc.cmd());
-
-            name
-        } else {
-            proc.name().to_owned()
-        };
-
         let mut properties = Self::gather_process_data(&pid, p, Some(display_name.clone()));
 
         // Check if this is a Nextflow process and notify the watcher
         if display_name.contains("nextflow") {
+            println!(
+                "[{}] Found Nextflow process: pid={}, name={}, working_dir={:?}",
+                Utc::now(),
+                pid,
+                display_name,
+                properties.working_directory
+            );
             if let Some(working_dir) = &properties.working_directory {
                 self.nextflow_log_watcher.add_process(
                     pid,
@@ -546,7 +556,10 @@ impl ProcessWatcher {
         let pid = proc.pid();
         let start_time = Utc::now();
 
-        let display_name = if let Some(target) = target {
+        // Get the display name from the seen processes map if it exists
+        let display_name = if let Some(seen_proc) = self.seen.get(&pid) {
+            seen_proc.name.clone()
+        } else if let Some(target) = target {
             target
                 .get_display_name_object()
                 .get_display_name(proc.name(), proc.cmd())

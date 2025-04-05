@@ -32,6 +32,7 @@ impl Default for NextflowLogWatcher {
 
 impl NextflowLogWatcher {
     pub fn new() -> Self {
+        tracing::info!("Initializing new NextflowLogWatcher");
         Self {
             session_uuid: None,
             jobs: Vec::new(),
@@ -41,10 +42,9 @@ impl NextflowLogWatcher {
     }
 
     fn reset_state(&mut self) {
-        // Clear the session and jobs to rebuild from scratch
+        tracing::info!("Resetting NextflowLogWatcher state - clearing session and jobs data");
         self.session_uuid = None;
         self.jobs.clear();
-        tracing::debug!("Cleared previous session and jobs data");
     }
 
     pub async fn poll_nextflow_log(&mut self, logs: &mut EventRecorder) -> Result<()> {
@@ -58,17 +58,22 @@ impl NextflowLogWatcher {
         }
 
         let start_time = tokio::time::Instant::now();
+        tracing::info!("Starting Nextflow log polling cycle");
 
         let nextflow_logs_paths = self.processes.values().cloned().collect::<Vec<_>>();
+        tracing::info!("Found {} Nextflow log files to process", nextflow_logs_paths.len());
 
         for path in nextflow_logs_paths {
             if path.exists() {
+                tracing::info!("Processing Nextflow log file: {:?}", path);
                 self.process_log_file(path.as_path(), logs).await?;
+            } else {
+                tracing::warn!("Nextflow log file not found: {:?}", path);
             }
         }
 
         self.last_poll_time = Some(now);
-        tracing::info!("Poll completed in {:?}", start_time.elapsed());
+        tracing::info!("Completed Nextflow log polling cycle in {:?}", start_time.elapsed());
         Ok(())
     }
 
@@ -89,21 +94,29 @@ impl NextflowLogWatcher {
         let mut reader = BufReader::new(file);
         let mut line = String::new();
         let mut lines_processed = 0;
+        let mut session_found = false;
+        let mut jobs_found = 0;
 
-        // Read all lines from last position
         while reader.read_line(&mut line).await? > 0 {
             lines_processed += 1;
+            if line.contains("Session UUID:") {
+                session_found = true;
+            }
+            if line.contains("job=") {
+                jobs_found += 1;
+            }
             self.process_log_line(&line);
             line.clear();
         }
 
         tracing::info!(
-            "Finished polling nextflow log at {:?}. Processed {} lines.",
+            "Processed Nextflow log file {:?}: {} lines, {} session(s), {} job(s)",
             log_path,
-            lines_processed
+            lines_processed,
+            if session_found { 1 } else { 0 },
+            jobs_found
         );
 
-        // Record event if we found a session
         if let Some(session_uuid) = &self.session_uuid {
             let message = format!(
                 "[CLI] Nextflow log event for session uuid: {} with {} jobs in file {:?}",
@@ -117,7 +130,7 @@ impl NextflowLogWatcher {
                 jobs_ids: Some(self.jobs.clone()),
             });
 
-            tracing::debug!("Recording nextflow log event: {}", message);
+            tracing::info!("Recording Nextflow log event: {}", message);
             logs.record_event(
                 EventType::NextflowLogEvent,
                 message,
@@ -132,16 +145,15 @@ impl NextflowLogWatcher {
     fn process_log_line(&mut self, line: &str) {
         if line.contains("Session UUID:") {
             if let Some(uuid) = extract_session_uuid(line) {
-                tracing::info!("Found Session UUID: {}", uuid);
+                tracing::info!("Found new Nextflow session UUID: {}", uuid);
                 self.session_uuid = Some(uuid);
             }
         }
 
-        // Check for job IDs
         if line.contains("job=") {
             if let Some(job_id) = extract_job_id(line) {
                 tracing::info!(
-                    "Found job ID: {} for session: {:?}",
+                    "Found Nextflow job ID: {} for session: {:?}",
                     job_id,
                     self.session_uuid
                 );
@@ -151,21 +163,23 @@ impl NextflowLogWatcher {
     }
 
     pub fn add_process(&mut self, pid: Pid, working_directory: PathBuf) {
-        self.processes.insert(pid, working_directory.clone());
         tracing::info!(
-            "Added Nextflow process {} with working directory {}",
+            "Adding new Nextflow process: pid={}, working_dir={:?}",
             pid,
-            working_directory.display()
+            working_directory
         );
+        self.processes.insert(pid, working_directory.clone());
     }
 
     pub fn remove_process(&mut self, pid: Pid) {
         if let Some(working_directory) = self.processes.remove(&pid) {
             tracing::info!(
-                "Removed Nextflow process {} with working directory {}",
+                "Removing Nextflow process: pid={}, working_dir={:?}",
                 pid,
-                working_directory.display()
+                working_directory
             );
+        } else {
+            tracing::warn!("Attempted to remove non-existent Nextflow process: pid={}", pid);
         }
     }
 
