@@ -15,6 +15,7 @@ pub enum TargetMatch {
     CommandContains(CommandContainsStruct),
     BinPathStartsWith(String),
     BinPathLastComponent(String),
+    BinPathContains(String),
 }
 
 pub fn to_lowercase(s: &str) -> Cow<str> {
@@ -50,6 +51,12 @@ pub fn bin_path_last_component_matches(expected_name: &str, bin_path: &str) -> b
     last_component_lower == name_lower
 }
 
+pub fn bin_path_contains(expected_content: &str, bin_path: &str) -> bool {
+    let bin_path_lower = to_lowercase(bin_path);
+    let expected_content_lower = to_lowercase(expected_content);
+    bin_path_lower.contains(expected_content_lower.as_ref())
+}
+
 pub fn matches_target(
     target: &TargetMatch,
     process_name: &str,
@@ -68,6 +75,7 @@ pub fn matches_target(
         TargetMatch::BinPathLastComponent(expected_name) => {
             bin_path_last_component_matches(expected_name, bin_path)
         }
+        TargetMatch::BinPathContains(content) => bin_path_contains(content, bin_path),
     }
 }
 

@@ -12,7 +12,6 @@ pub struct EventRecorder {
     run_id: Option<String>,
     // NOTE: Tying a pipeline_name to the events recorder because, you can only start one pipeline at a time
     pipeline_name: Option<String>,
-    aws_batch_job_id: Option<String>,
     tags: Option<PipelineTags>,
 }
 
@@ -57,23 +56,11 @@ impl EventRecorder {
         run_name: Option<String>,
         run_id: Option<String>,
     ) -> Self {
-        // Try to get AWS_BATCH_JOB_ID from environment
-        let aws_batch_job_id = std::env::var("AWS_BATCH_JOB_ID").ok();
-
-        if let Some(job_id) = &aws_batch_job_id {
-            println!("Found AWS Batch Job ID: {}", job_id);
-            tracing::info!("Found AWS Batch Job ID: {}", job_id);
-        } else {
-            println!("No AWS Batch Job ID found in environment");
-            tracing::debug!("No AWS Batch Job ID found in environment");
-        }
-
         EventRecorder {
             events: Vec::new(),
             run_id,
             run_name,
             pipeline_name,
-            aws_batch_job_id,
             tags: None,
         }
     }
@@ -89,14 +76,6 @@ impl EventRecorder {
         self.run_id = run_id;
         self.pipeline_name = pipeline_name;
         self.tags = tags;
-        // Check for AWS_BATCH_JOB_ID in case it wasn't available during initialization
-        let new_job_id = std::env::var("AWS_BATCH_JOB_ID").ok();
-        if new_job_id != self.aws_batch_job_id {
-            if let Some(job_id) = &new_job_id {
-                tracing::info!("Updated AWS Batch Job ID: {}", job_id);
-            }
-            self.aws_batch_job_id = new_job_id;
-        }
     }
 
     pub fn record_event(
@@ -117,7 +96,6 @@ impl EventRecorder {
             run_name: self.run_name.clone(),
             run_id: self.run_id.clone(),
             pipeline_name: self.pipeline_name.clone(),
-            aws_batch_job_id: self.aws_batch_job_id.clone(),
             tags: self.tags.clone(),
         };
         self.events.push(event);

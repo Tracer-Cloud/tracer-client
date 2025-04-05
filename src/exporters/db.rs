@@ -24,8 +24,7 @@ pub struct AuroraClient {
 
 struct EventInsert {
     json_data: Json<Value>,
-
-    job_id: String,
+    job_id: Option<String>,
     run_name: String,
     run_id: String,
     pipeline_name: String,
@@ -42,7 +41,6 @@ struct EventInsert {
 impl EventInsert {
     pub fn try_new(
         event: &Event,
-        job_id: String,
         run_name: String,
         run_id: String,
         pipeline_name: String,
@@ -58,16 +56,18 @@ impl EventInsert {
         };
 
         // Extract system metrics for CPU and memory usage
-        let (cpu_usage, mem_used) = match &event.attributes {
+        let (cpu_usage, mem_used, job_id) = match &event.attributes {
             Some(EventAttributes::SystemMetric(metric)) => (
                 Some(metric.system_cpu_utilization as f64),
                 Some(metric.system_memory_used as f64),
+                None,
             ),
             Some(EventAttributes::Process(process)) => (
                 Some(process.process_cpu_utilization as f64),
                 Some(process.process_memory_usage as f64),
+                Some(process.job_id.clone().unwrap_or_default()),
             ),
-            _ => (None, None),
+            _ => (None, None, None),
         };
 
         // Extract EC2 cost per hour from system properties
@@ -153,7 +153,6 @@ impl AuroraClient {
         run_id: &str,
         pipeline_name: &str,
         data: impl IntoIterator<Item = &Event>,
-        job_id: &str,
     ) -> Result<()> {
         let now = Instant::now();
 
@@ -184,8 +183,8 @@ impl AuroraClient {
         // see https://github.com/launchbadge/sqlx/issues/1945
 
         info!(
-            "Inserting row for run_name: {}, pipeline_name: {}, job_id: {}",
-            run_name, pipeline_name, job_id
+            "Inserting row for run_name: {}, pipeline_name: {}",
+            run_name, pipeline_name
         );
 
         let mut builder = QueryBuilder::new(QUERY);
@@ -195,7 +194,6 @@ impl AuroraClient {
             .map(|e| {
                 EventInsert::try_new(
                     e,
-                    job_id.to_string(),
                     run_name.to_string(),
                     run_id.to_string(),
                     pipeline_name.to_string(),
@@ -243,7 +241,7 @@ impl AuroraClient {
         };
 
         debug!(
-            "Successfully inserted {rows_affected} rows with job_id: {job_id}, elapsed: {:?}",
+            "Successfully inserted {rows_affected} rows with run_name: {run_name}, elapsed: {:?}",
             now.elapsed()
         );
 

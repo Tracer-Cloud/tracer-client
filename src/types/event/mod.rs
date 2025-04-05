@@ -18,7 +18,6 @@ pub struct Event {
     pub pipeline_name: Option<String>,
     pub run_name: Option<String>,
     pub run_id: Option<String>,
-    pub aws_batch_job_id: Option<String>,
     pub attributes: Option<EventAttributes>,
     pub tags: Option<PipelineTags>,
 }
