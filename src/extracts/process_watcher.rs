@@ -107,7 +107,7 @@ impl ProcessWatcher {
                     let display_name = target
                         .get_display_name_object()
                         .get_display_name(proc.name(), proc.cmd());
-                    
+
                     println!(
                         "[{}] Caught process: pid={}, name={}, command={:?}",
                         Utc::now(),

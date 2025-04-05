@@ -61,7 +61,10 @@ impl NextflowLogWatcher {
         tracing::info!("Starting Nextflow log polling cycle");
 
         let nextflow_logs_paths = self.processes.values().cloned().collect::<Vec<_>>();
-        tracing::info!("Found {} Nextflow log files to process", nextflow_logs_paths.len());
+        tracing::info!(
+            "Found {} Nextflow log files to process",
+            nextflow_logs_paths.len()
+        );
 
         for path in nextflow_logs_paths {
             if path.exists() {
@@ -73,7 +76,10 @@ impl NextflowLogWatcher {
         }
 
         self.last_poll_time = Some(now);
-        tracing::info!("Completed Nextflow log polling cycle in {:?}", start_time.elapsed());
+        tracing::info!(
+            "Completed Nextflow log polling cycle in {:?}",
+            start_time.elapsed()
+        );
         Ok(())
     }
 
@@ -179,7 +185,10 @@ impl NextflowLogWatcher {
                 working_directory
             );
         } else {
-            tracing::warn!("Attempted to remove non-existent Nextflow process: pid={}", pid);
+            tracing::warn!(
+                "Attempted to remove non-existent Nextflow process: pid={}",
+                pid
+            );
         }
     }
 
