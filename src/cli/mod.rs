@@ -9,6 +9,7 @@ use clap::{Parser, Subcommand};
 use nondaemon_commands::{clean_up_after_daemon, setup_config, update_tracer};
 
 use crate::cli::nondaemon_commands::print_config_info;
+use crate::config_manager::Config;
 use crate::daemon_communication::client::DaemonClient;
 use crate::daemon_communication::structs::{LogData, Message, TagData, UploadData};
 use std::{env, fs::canonicalize};
@@ -98,15 +99,13 @@ pub fn process_cli() -> Result<()> {
     let config = ConfigManager::load_config();
     let api_client = DaemonClient::new(format!("http://{}", config.server_address));
 
-    let runtime = tokio::runtime::Runtime::new()?;
-
     match cli.command {
         Commands::Init(args) => {
             //let test_result = ConfigManager::test_service_config_sync();
             //if test_result.is_err() {
             //    return Ok(());
             //}
-            runtime.block_on(print_config_info(&api_client, &config))?;
+            tokio::runtime::Runtime::new()?.block_on(print_config_info(&api_client, &config))?;
 
             println!("Starting daemon...");
             let current_working_directory = env::current_dir()?;
@@ -143,12 +142,12 @@ pub fn process_cli() -> Result<()> {
             result
         }
         Commands::ApplyBashrc => ConfigManager::setup_aliases(),
-        Commands::Info => {
-            runtime.block_on(print_config_info(&api_client, &config))?;
-            Ok(())
-        } // todo: we have info endpoint, it should be used here?
         _ => {
-            match runtime.block_on(run_async_command(cli.command, &api_client)) {
+            match tokio::runtime::Runtime::new()?.block_on(run_async_command(
+                cli.command,
+                &api_client,
+                &config,
+            )) {
                 Ok(_) => {
                     println!("Command sent successfully.");
                 }
@@ -166,7 +165,11 @@ pub fn process_cli() -> Result<()> {
     }
 }
 
-pub async fn run_async_command(commands: Commands, api_client: &DaemonClient) -> Result<()> {
+pub async fn run_async_command(
+    commands: Commands,
+    api_client: &DaemonClient,
+    config: &Config,
+) -> Result<()> {
     match commands {
         Commands::Log { message } => {
             let payload = Message { payload: message };
@@ -232,6 +235,9 @@ pub async fn run_async_command(commands: Commands, api_client: &DaemonClient) ->
                     api_client.send_upload_file_request(path).await?;
                 }
             }
+        }
+        Commands::Info => {
+            print_config_info(api_client, config).await?;
         }
         _ => {
             println!("Command not implemented yet");
