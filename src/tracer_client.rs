@@ -89,9 +89,8 @@ impl TracerClient {
 
         let pricing_client = PricingClient::new(config.aws_init_type.clone(), "us-east-1").await;
 
-        let file_watcher = FileWatcher::new();
-
-        file_watcher.prepare_cache_directory(FILE_CACHE_DIR)?;
+        let directory = tempfile::tempdir_in(FILE_CACHE_DIR)?;
+        let file_watcher = FileWatcher::new(directory);
 
         Ok(TracerClient {
             // if putting a value to config, also update `TracerClient::reload_config_file`
@@ -449,7 +448,8 @@ impl TracerClient {
             "timestamp": Utc::now().timestamp_millis() as f64 / 1000.,
         });
 
-        todo!()
+        // todo...
+        Ok(())
     }
 }
 

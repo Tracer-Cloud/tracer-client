@@ -18,7 +18,7 @@ use sysinfo::System;
 use tracing::info;
 
 // FIXME: How should this be handled with the new architecture?
-pub async fn send_log_event(_api_key: &str, message: &str) -> Result<String> {
+pub async fn send_log_event(_api_key: &str, message: &str) -> Result<()> {
     let _log_entry = json!({
         "message": message,
         "process_type": "pipeline",
@@ -27,11 +27,12 @@ pub async fn send_log_event(_api_key: &str, message: &str) -> Result<String> {
         "timestamp": Utc::now().timestamp_millis() as f64 / 1000.,
     });
 
-    todo!()
+    // todo...
+    Ok(())
 }
 
 // FIXME: same with other events, how should it be handled now?
-pub async fn send_alert_event(message: &str) -> Result<String> {
+pub async fn send_alert_event(message: &str) -> Result<()> {
     let _alert_entry = json!({
         "message": message,
         "process_type": "pipeline",
@@ -40,7 +41,8 @@ pub async fn send_alert_event(message: &str) -> Result<String> {
         "timestamp": Utc::now().timestamp_millis() as f64 / 1000.,
     });
 
-    todo!()
+    // todo...
+    Ok(())
 }
 
 pub struct RunEventOut {

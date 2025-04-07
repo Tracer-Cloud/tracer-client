@@ -51,11 +51,11 @@ walkdir = "2.5.0"
 colored = "3.0.0"
 axum = "0.8.3"
 http = "1.2.0"
+tempfile = "3.19.1"
 
 
 [dev-dependencies]
 serial_test = "3.1.1"
-tempfile = "3.19.1"
 env_logger = "0.9"
 dotenv = "0.15"
 bollard = "0.18.1"

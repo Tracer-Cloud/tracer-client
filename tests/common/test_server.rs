@@ -63,6 +63,7 @@ impl TestServer {
     pub async fn send_command(&self, command: &[&str]) -> Assert {
         let mut cmd = Command::cargo_bin("tracer").unwrap();
         cmd.env("TRACER_SERVER_ADDRESS", self.addr.to_string());
+        cmd.env("RUST_BACKTRACE", "1");
         cmd.args(command);
         cmd.timeout(std::time::Duration::from_secs(5));
 

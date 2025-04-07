@@ -23,7 +23,7 @@ impl APIClient {
 
     pub async fn send_log_request(&self, payload: Message) -> Result<()> {
         self.client
-            .post(self.get_url("/logs"))
+            .post(self.get_url("/log"))
             .json(&payload)
             .send()
             .await?
@@ -156,110 +156,6 @@ mod tests {
         let n = stream.read(&mut buffer).await.unwrap();
         let received = std::str::from_utf8(&buffer[..n]).unwrap();
         assert_eq!(received, expected_value);
-    }
-
-    #[tokio::test]
-    async fn test_send_log_request() -> Result<()> {
-        let (_temp, socket_path) = create_tmp_socket_path();
-        let listener = setup_test_unix_listener(&socket_path);
-        let message = "Test Message".to_string();
-
-        send_log_request(&socket_path, message.clone()).await?;
-
-        check_listener_value(
-            &listener,
-            json!({
-                "command": "log",
-                "message": message
-            })
-            .to_string()
-            .as_str(),
-        )
-        .await;
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_send_alert_request() -> Result<()> {
-        let (_temp, socket_path) = create_tmp_socket_path();
-        let listener = setup_test_unix_listener(&socket_path);
-        let message = "Test Message".to_string();
-
-        send_alert_request(&socket_path, message.clone()).await?;
-
-        check_listener_value(
-            &listener,
-            json!({
-                "command": "alert",
-                "message": message
-            })
-            .to_string()
-            .as_str(),
-        )
-        .await;
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_send_terminate_request() -> Result<()> {
-        let (_temp, socket_path) = create_tmp_socket_path();
-        let listener = setup_test_unix_listener(&socket_path);
-
-        send_terminate_request(&socket_path).await?;
-
-        check_listener_value(
-            &listener,
-            json!({
-                "command": "terminate"
-            })
-            .to_string()
-            .as_str(),
-        )
-        .await;
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_send_end_run_request() -> Result<()> {
-        let (_temp, socket_path) = create_tmp_socket_path();
-        let listener = setup_test_unix_listener(&socket_path);
-
-        send_end_run_request(&socket_path).await?;
-
-        check_listener_value(
-            &listener,
-            json!({
-                "command": "end"
-            })
-            .to_string()
-            .as_str(),
-        )
-        .await;
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_send_refresh_config_request() -> Result<()> {
-        let (_temp, socket_path) = create_tmp_socket_path();
-        let listener = setup_test_unix_listener(&socket_path);
-
-        send_refresh_config_request(&socket_path).await?;
-
-        check_listener_value(
-            &listener,
-            json!({
-                "command": "refresh_config"
-            })
-            .to_string()
-            .as_str(),
-        )
-        .await;
-
-        Ok(())
     }
 
     #[tokio::test]

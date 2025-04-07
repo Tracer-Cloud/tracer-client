@@ -172,8 +172,8 @@ impl ConfigManager {
             let loaded_config = ConfigManager::load_config_from_file(&path);
 
             loaded_config.unwrap_or_else(|err| {
-                let message = format!("Error loading config: {err:?}. \nUsing default config");
-                crate::utils::debug_log::Logger::new().log_blocking(&message, None);
+                // let message = format!("Error loading config: {err:?}. \nUsing default config");
+                // crate::utils::debug_log::Logger::new().log_blocking(&message, None);
 
                 ConfigManager::load_default_config()
             })
