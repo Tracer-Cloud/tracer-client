@@ -10,7 +10,7 @@ use nondaemon_commands::{clean_up_after_daemon, setup_config, update_tracer};
 
 use crate::cli::nondaemon_commands::print_config_info;
 use crate::daemon_communication::client::DaemonClient;
-use crate::daemon_communication::structs::{Message, TagData, UploadData};
+use crate::daemon_communication::structs::{LogData, Message, TagData, UploadData};
 use std::{env, fs::canonicalize};
 use sysinfo::System;
 
@@ -202,7 +202,9 @@ pub async fn run_async_command(commands: Commands, api_client: &DaemonClient) ->
             .await?
         }
         Commands::LogShortLivedProcess { command } => {
-            let data = ProcessWatcher::gather_short_lived_process_data(&System::new(), &command);
+            let data = LogData {
+                log: ProcessWatcher::gather_short_lived_process_data(&System::new(), &command),
+            };
             api_client
                 .send_log_short_lived_process_request(data)
                 .await?;

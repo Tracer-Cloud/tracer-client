@@ -37,7 +37,6 @@ pub fn get_app(
     Router::new()
         .route("/log", post(log))
         .route("/terminate", post(terminate))
-        .route("/terminate", get(terminate)) // todo: remove
         .route("/start", post(start))
         .route("/end", post(end))
         .route("/alert", post(alert))

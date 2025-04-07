@@ -1,8 +1,7 @@
 // src/cli.rs
-use crate::extracts::process_watcher::ShortLivedProcessLog;
 use anyhow::Result;
 
-use super::structs::{InfoResponse, Message, RunData, TagData, UploadData};
+use super::structs::{InfoResponse, LogData, Message, RunData, TagData, UploadData};
 
 pub struct DaemonClient {
     base_uri: String,
@@ -102,10 +101,7 @@ impl DaemonClient {
         Ok(())
     }
 
-    pub async fn send_log_short_lived_process_request(
-        &self,
-        payload: ShortLivedProcessLog,
-    ) -> Result<()> {
+    pub async fn send_log_short_lived_process_request(&self, payload: LogData) -> Result<()> {
         self.client
             .put(self.get_url("/log-short-lived-process"))
             .json(&payload)

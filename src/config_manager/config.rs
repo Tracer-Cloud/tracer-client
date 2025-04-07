@@ -160,7 +160,7 @@ impl ConfigManager {
                 "tracer-cluster-v2-instance-1.cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432".into(),
 
             grafana_workspace_url: DEFAULT_GRAFANA_WORKSPACE_URL.to_string(),
-            server_address: "127.0.0.1:8080".to_string(),
+            server_address: "127.0.0.1:8722".to_string(),
         }
     }
 
