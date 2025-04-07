@@ -29,7 +29,6 @@ use types::cli::TracerCliInitArgs;
 
 use crate::config_manager::Config;
 use crate::daemon_communication::server::TracerServer;
-use std::fs::File;
 
 use crate::config_manager::ConfigManager;
 use crate::tracer_client::TracerClient;

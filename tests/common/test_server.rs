@@ -43,8 +43,7 @@ impl TestServer {
             server_address,
         };
 
-        let db_client = Arc::new(AuroraClient::from_pool(pool));
-        // todo(ENG-238): remove arc, as it's already an arc inside
+        let db_client = AuroraClient::from_pool(pool);
 
         let args = TracerCliInitArgs::default();
 
