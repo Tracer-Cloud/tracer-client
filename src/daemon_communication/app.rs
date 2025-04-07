@@ -26,7 +26,7 @@ pub fn get_app(
     cancellation_token: CancellationToken,
     config: Arc<RwLock<Config>>,
 ) -> Router {
-    // tracing_subscriber::fmt::init();
+    // todo: set subscriber
 
     let state = AppState {
         tracer_client,

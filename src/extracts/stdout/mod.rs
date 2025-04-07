@@ -76,7 +76,7 @@ impl StdoutWatcher {
         let logger = Logger::new();
 
         if pending_lines.read().await.is_empty() {
-            // logger.into("No lines from stdout to send", None).await;
+            logger.log("No lines from stdout to send", None).await;
             return Ok(());
         }
 

@@ -84,7 +84,7 @@ impl TracerClient {
         db_client: AuroraClient,
         cli_args: TracerCliInitArgs, // todo: why Config AND TracerCliInitArgs? remove CliInitArgs
     ) -> Result<TracerClient> {
-        // todo: kinda weired that we have config with db connection AND db_client
+        // todo: do we need both config with db connection AND db_client?
         println!("Initializing TracerClient with API Key: {}", config.api_key);
 
         let pricing_client = PricingClient::new(config.aws_init_type.clone(), "us-east-1").await;
