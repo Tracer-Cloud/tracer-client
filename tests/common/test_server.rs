@@ -26,7 +26,7 @@ impl TestServer {
         path: String,
     ) -> Result<TracerClient, anyhow::Error> {
         let config = Config {
-            api_key: "test_key".to_string(),
+            api_key: "EAjg7eHtsGnP3fTURcPz1".to_string(),
             process_polling_interval_ms: 100,
             batch_submission_interval_ms: 10000000, // todo: check data in batch
             process_metrics_send_interval_ms: 10000000,

@@ -81,3 +81,19 @@ async fn tag(pool: PgPool) {
     server.send_command(&["terminate"]).await.success();
     server.finished().await.unwrap()
 }
+
+#[sqlx::test]
+async fn upload(pool: PgPool) {
+    let server = common::test_server::TestServer::launch(pool).await.unwrap();
+
+    server
+        .send_command(&["upload", "/Users/blaginin/jbr_err_pid1039.log"]) // random file
+        .await
+        .success()
+        .stdout(contains("Command sent successfully"));
+
+    // todo: also check tracer.logs?
+
+    server.send_command(&["terminate"]).await.success();
+    server.finished().await.unwrap()
+}
