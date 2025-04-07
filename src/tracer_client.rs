@@ -24,6 +24,7 @@ use std::ops::Sub;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use sysinfo::{Pid, System};
+use tokio::fs;
 use tokio::sync::RwLock;
 
 use crate::nextflow_log_watcher::NextflowLogWatcher;
@@ -89,6 +90,9 @@ impl TracerClient {
 
         let pricing_client = PricingClient::new(config.aws_init_type.clone(), "us-east-1").await;
 
+        fs::create_dir_all(FILE_CACHE_DIR)
+            .await
+            .context("Failed to create tmp directory")?;
         let directory = tempfile::tempdir_in(FILE_CACHE_DIR)?;
         let file_watcher = FileWatcher::new(directory);
 
