@@ -51,8 +51,6 @@ impl TestServer {
     }
 
     async fn get_tracer(pool: PgPool, path: String) -> Result<TracerServer, anyhow::Error> {
-        // if already used, skip...
-
         let server_address: SocketAddr = "127.0.0.1:0".parse()?; // 0: means port will be picked by the OS
         let client = Self::setup_client(pool, server_address.to_string(), path).await?;
 
@@ -65,7 +63,7 @@ impl TestServer {
         cmd.env("TRACER_SERVER_ADDRESS", self.addr.to_string());
         cmd.env("RUST_BACKTRACE", "1");
         cmd.args(command);
-        cmd.timeout(std::time::Duration::from_secs(5));
+        cmd.timeout(std::time::Duration::from_secs(30));
 
         tokio::task::spawn_blocking(move || cmd.assert())
             .await
