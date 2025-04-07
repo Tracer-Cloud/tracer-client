@@ -1,9 +1,5 @@
-use anyhow::Result;
-use std::{future::Future, pin::Pin, sync::Arc};
-use tokio::{
-    io::AsyncWriteExt,
-    sync::{Mutex, RwLock},
-};
+use std::sync::Arc;
+use tokio::sync::{Mutex, RwLock};
 use tokio_util::sync::CancellationToken;
 
 use crate::daemon_communication::structs::{LogData, Message, RunData, TagData, UploadData};
@@ -17,9 +13,6 @@ use crate::{
 use axum::response::IntoResponse;
 use axum::routing::{post, put};
 use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
-
-type ProcessOutput<'a> =
-    Option<Pin<Box<dyn Future<Output = Result<String, anyhow::Error>> + 'a + Send>>>;
 
 #[derive(Clone)]
 struct AppState {
@@ -59,12 +52,12 @@ pub fn get_app(
         .with_state(state)
 }
 
-pub async fn terminate(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
+async fn terminate(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
     state.cancellation_token.cancel(); // todo: gracefully shutdown
     Ok("Terminating...")
 }
 
-pub async fn log(
+async fn log(
     State(state): State<AppState>,
     Json(message): Json<Message>,
 ) -> axum::response::Result<impl IntoResponse> {
@@ -79,7 +72,7 @@ pub async fn log(
     Ok(StatusCode::ACCEPTED)
 }
 
-pub async fn alert(
+async fn alert(
     State(state): State<AppState>,
     Json(message): Json<Message>,
 ) -> axum::response::Result<impl IntoResponse> {
@@ -94,7 +87,7 @@ pub async fn alert(
     Ok(StatusCode::ACCEPTED)
 }
 
-pub async fn start(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
+async fn start(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
     let mut guard = state.tracer_client.lock().await;
 
     guard
@@ -111,7 +104,7 @@ pub async fn start(State(state): State<AppState>) -> axum::response::Result<impl
     Ok(Json(run_data))
 }
 
-pub async fn end(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
+async fn end(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
     let mut guard = state.tracer_client.lock().await;
 
     guard
@@ -122,7 +115,7 @@ pub async fn end(State(state): State<AppState>) -> axum::response::Result<impl I
     Ok(StatusCode::ACCEPTED)
 }
 
-pub async fn refresh_config(
+async fn refresh_config(
     State(state): State<AppState>,
 ) -> axum::response::Result<impl IntoResponse> {
     let config_file = ConfigManager::load_config();
@@ -137,7 +130,7 @@ pub async fn refresh_config(
     Ok(StatusCode::ACCEPTED)
 }
 
-pub async fn tag(
+async fn tag(
     State(state): State<AppState>,
     Json(payload): Json<TagData>,
 ) -> axum::response::Result<impl IntoResponse> {
@@ -150,7 +143,7 @@ pub async fn tag(
     Ok(StatusCode::ACCEPTED)
 }
 
-pub async fn log_short_lived_process_command(
+async fn log_short_lived_process_command(
     State(state): State<AppState>,
     Json(payload): Json<LogData>,
 ) -> axum::response::Result<impl IntoResponse> {
@@ -162,7 +155,7 @@ pub async fn log_short_lived_process_command(
     Ok(StatusCode::CREATED)
 }
 
-pub async fn info(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
+async fn info(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
     let guard = state.tracer_client.lock().await;
 
     let response_inner: Option<InnerInfoResponse> = guard.get_run_metadata().map(|out| out.into());
@@ -175,7 +168,7 @@ pub async fn info(State(state): State<AppState>) -> axum::response::Result<impl 
     Ok(Json(output))
 }
 
-pub async fn upload(
+async fn upload(
     State(state): State<AppState>,
     Json(payload): Json<UploadData>,
 ) -> axum::response::Result<impl IntoResponse> {

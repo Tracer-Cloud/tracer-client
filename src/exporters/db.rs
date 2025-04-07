@@ -24,7 +24,7 @@ pub struct AuroraClient {
 
 impl AuroraClient {
     pub fn from_pool(pool: PgPool) -> AuroraClient {
-        AuroraClient { pool: pool }
+        AuroraClient { pool }
     }
 }
 

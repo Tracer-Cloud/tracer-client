@@ -8,8 +8,6 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use nondaemon_commands::{clean_up_after_daemon, setup_config, update_tracer};
 
-use std::fmt::Write;
-
 use crate::cli::nondaemon_commands::print_config_info;
 use crate::daemon_communication::daemon_client::APIClient;
 use crate::daemon_communication::structs::{Message, TagData, UploadData};

@@ -356,7 +356,6 @@ impl TracerClient {
                 DEFAULT_SERVICE_URL,
                 &self.config.api_key,
                 &self.workflow_directory,
-                FILE_CACHE_DIR,
                 self.last_file_size_change_time_delta,
             )
             .await?;

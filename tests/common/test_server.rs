@@ -2,7 +2,6 @@ use assert_cmd::assert::Assert;
 use assert_cmd::Command;
 use sqlx::PgPool;
 use std::net::SocketAddr;
-use std::sync::Arc;
 use tempfile::TempDir;
 use tokio::task::JoinHandle;
 use tracer::config_manager::Config;

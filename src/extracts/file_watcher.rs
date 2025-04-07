@@ -394,7 +394,6 @@ impl FileWatcher {
         service_url: &str,
         api_key: &str,
         workflow_directory: &str,
-        file_cache_dir: &str,
         new_size_duration: TimeDelta,
     ) -> Result<()> {
         let logger = Logger::new();
