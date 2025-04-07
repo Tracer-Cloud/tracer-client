@@ -1,4 +1,3 @@
-use assert_cmd::prelude::*;
 use predicates::str::contains;
 use sqlx::PgPool;
 mod common;
