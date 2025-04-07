@@ -48,7 +48,7 @@ async fn query_and_assert_tool_tracked(pool: &PgPool, run_name: &str) {
 
     let flat_tools: Vec<String> = tools_tracked.into_iter().map(|v| v.0).collect();
 
-    assert!(flat_tools.contains(&("python3".to_string())))
+    assert!(flat_tools.contains(&("sim_fileopens.py".to_string())))
 }
 
 async fn query_datasets_processed(pool: &PgPool, run_name: &str) {
