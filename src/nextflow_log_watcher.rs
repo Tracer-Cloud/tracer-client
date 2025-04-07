@@ -174,7 +174,7 @@ impl NextflowLogWatcher {
             pid,
             working_directory
         );
-        self.processes.insert(pid, working_directory.clone());
+        self.processes.insert(pid, working_directory);
     }
 
     pub fn remove_process(&mut self, pid: Pid) {
