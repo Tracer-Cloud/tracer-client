@@ -45,6 +45,7 @@ pub struct RunMetadata {
 }
 
 const RUN_COMPLICATED_PROCESS_IDENTIFICATION: bool = false;
+
 const WAIT_FOR_PROCESS_BEFORE_NEW_RUN: bool = false;
 
 pub type LinesBufferArc = Arc<RwLock<Vec<String>>>;
@@ -68,7 +69,7 @@ pub struct TracerClient {
     syslog_lines_buffer: LinesBufferArc,
     stdout_lines_buffer: LinesBufferArc,
     stderr_lines_buffer: LinesBufferArc,
-    pub db_client: Arc<AuroraClient>,
+    pub db_client: AuroraClient,
     pipeline_name: String,
     pub pricing_client: PricingClient,
     initialization_id: Option<String>,
@@ -80,7 +81,7 @@ impl TracerClient {
     pub async fn new(
         config: Config,
         workflow_directory: String,
-        db_client: Arc<AuroraClient>,
+        db_client: AuroraClient,
         cli_args: TracerCliInitArgs, // todo: why Config AND TracerCliInitArgs? remove CliInitArgs
     ) -> Result<TracerClient> {
         // todo: kinda weired that we have config with db connection AND db_client
@@ -472,7 +473,7 @@ mod tests {
         let work_dir = temp_dir.path().to_str().unwrap();
 
         // Create an instance of AuroraClient
-        let db_client = Arc::new(AuroraClient::new(&config, Some(1)).await);
+        let db_client = AuroraClient::new(&config, Some(1)).await;
 
         let cli_config = TracerCliInitArgs::default();
 
@@ -529,7 +530,7 @@ mod tests {
         let job_id = "job-1234";
 
         // Create an instance of AuroraClient
-        let db_client = Arc::new(AuroraClient::new(&config, Some(1)).await);
+        let db_client = AuroraClient::new(&config, Some(1)).await;
 
         let tags = PipelineTags::default();
 
