@@ -6,7 +6,7 @@ use anyhow::{Context, Result};
 use std::result::Result::Ok;
 
 use crate::config_manager::Config;
-use crate::daemon_communication::daemon_client::APIClient;
+use crate::daemon_communication::client::DaemonClient;
 use crate::{
     config_manager::{ConfigManager, INTERCEPTOR_STDOUT_FILE},
     FILE_CACHE_DIR, PID_FILE, REPO_NAME, REPO_OWNER, STDERR_FILE, STDOUT_FILE,
@@ -21,7 +21,7 @@ pub fn clean_up_after_daemon() -> Result<()> {
     Ok(())
 }
 
-pub async fn print_config_info(api_client: &APIClient, config: &Config) -> Result<()> {
+pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Result<()> {
     let mut output = String::new();
     let _ = writeln!(&mut output, "\n\n===== Tracer Info =====\n");
 

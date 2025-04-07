@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 use tempfile::TempDir;
 use tokio::task::JoinHandle;
 use tracer::config_manager::Config;
-use tracer::daemon_communication::server::TracerServer;
+use tracer::daemon_communication::server::DaemonServer;
 use tracer::exporters::db::AuroraClient;
 use tracer::tracer_client::TracerClient;
 use tracer::types::aws::aws_region::AwsRegion;
@@ -49,11 +49,11 @@ impl TestServer {
         TracerClient::new(config, path, db_client, args).await
     }
 
-    async fn get_tracer(pool: PgPool, path: String) -> Result<TracerServer, anyhow::Error> {
+    async fn get_tracer(pool: PgPool, path: String) -> Result<DaemonServer, anyhow::Error> {
         let server_address: SocketAddr = "127.0.0.1:0".parse()?; // 0: means port will be picked by the OS
         let client = Self::setup_client(pool, server_address.to_string(), path).await?;
 
-        let server = TracerServer::bind(client, server_address).await?;
+        let server = DaemonServer::bind(client, server_address).await?;
         Ok(server)
     }
 

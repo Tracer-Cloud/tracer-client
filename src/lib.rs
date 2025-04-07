@@ -27,7 +27,7 @@ use tracing_subscriber::{
 use types::cli::TracerCliInitArgs;
 
 use crate::config_manager::Config;
-use crate::daemon_communication::server::TracerServer;
+use crate::daemon_communication::server::DaemonServer;
 
 use crate::tracer_client::TracerClient;
 
@@ -89,7 +89,7 @@ pub async fn run(
 
     println!("Pipeline Name: {:?}", client.get_pipeline_name());
 
-    TracerServer::bind(client, addr).await?.run().await
+    DaemonServer::bind(client, addr).await?.run().await
 }
 
 fn setup_logging() -> Result<()> {

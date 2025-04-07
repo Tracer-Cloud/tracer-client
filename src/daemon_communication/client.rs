@@ -4,12 +4,12 @@ use anyhow::Result;
 
 use super::structs::{InfoResponse, Message, RunData, TagData, UploadData};
 
-pub struct APIClient {
+pub struct DaemonClient {
     base_uri: String,
     client: reqwest::Client,
 }
 
-impl APIClient {
+impl DaemonClient {
     pub fn new(base_url: String) -> Self {
         Self {
             base_uri: base_url,

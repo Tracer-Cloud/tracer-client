@@ -14,12 +14,12 @@ use std::borrow::BorrowMut;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
-pub struct TracerServer {
+pub struct DaemonServer {
     client: Arc<Mutex<TracerClient>>,
     listener: TcpListener,
 }
 
-impl TracerServer {
+impl DaemonServer {
     pub async fn bind(client: TracerClient, addr: SocketAddr) -> anyhow::Result<Self> {
         let listener = TcpListener::bind(addr).await?;
 

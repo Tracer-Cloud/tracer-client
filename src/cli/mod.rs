@@ -9,7 +9,7 @@ use clap::{Parser, Subcommand};
 use nondaemon_commands::{clean_up_after_daemon, setup_config, update_tracer};
 
 use crate::cli::nondaemon_commands::print_config_info;
-use crate::daemon_communication::daemon_client::APIClient;
+use crate::daemon_communication::client::DaemonClient;
 use crate::daemon_communication::structs::{Message, TagData, UploadData};
 use std::{env, fs::canonicalize};
 use sysinfo::System;
@@ -96,7 +96,7 @@ pub fn process_cli() -> Result<()> {
 
     let cli = Cli::parse();
     let config = ConfigManager::load_config();
-    let api_client = APIClient::new(format!("http://{}", config.server_address));
+    let api_client = DaemonClient::new(format!("http://{}", config.server_address));
 
     let runtime = tokio::runtime::Runtime::new()?;
 
@@ -166,7 +166,7 @@ pub fn process_cli() -> Result<()> {
     }
 }
 
-pub async fn run_async_command(commands: Commands, api_client: &APIClient) -> Result<()> {
+pub async fn run_async_command(commands: Commands, api_client: &DaemonClient) -> Result<()> {
     match commands {
         Commands::Log { message } => {
             let payload = Message { payload: message };
