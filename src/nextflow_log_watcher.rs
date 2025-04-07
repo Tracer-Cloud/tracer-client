@@ -184,11 +184,6 @@ impl NextflowLogWatcher {
                 pid,
                 working_directory
             );
-        } else {
-            tracing::warn!(
-                "Attempted to remove non-existent Nextflow process: pid={}",
-                pid
-            );
         }
     }
 

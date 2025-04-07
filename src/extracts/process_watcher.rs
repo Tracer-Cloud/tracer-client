@@ -108,7 +108,7 @@ impl ProcessWatcher {
                         .get_display_name_object()
                         .get_display_name(proc.name(), proc.cmd());
 
-                    println!(
+                    tracing::info!(
                         "[{}] Caught process: pid={}, name={}, command={:?}",
                         Utc::now(),
                         pid,
@@ -312,7 +312,7 @@ impl ProcessWatcher {
             if !self.seen.contains_key(&pid) {
                 let process = system.process(pid);
                 if process.is_none() {
-                    eprintln!("[{}] Process({}) wasn't found", Utc::now(), pid);
+                    tracing::error!("[{}] Process({}) wasn't found", Utc::now(), pid);
                     continue;
                 }
                 let proc = process.unwrap();
@@ -484,7 +484,7 @@ impl ProcessWatcher {
 
         // Check if this is a Nextflow process and notify the watcher
         if display_name.contains("nextflow") {
-            println!(
+            tracing::info!(
                 "[{}] Found Nextflow process: pid={}, name={}, working_dir={:?}",
                 Utc::now(),
                 pid,
