@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -14,9 +14,9 @@ use crate::{
     types::{aws::aws_region::AwsRegion, config::AwsConfig},
 };
 
-use crate::config_manager::target_process::Target;
-
 use super::target_process::targets_list;
+use crate::config_manager::target_process::Target;
+use config::{Case, Config as RConfig, Environment, File};
 
 const DEFAULT_API_KEY: &str = "EAjg7eHtsGnP3fTURcPz1";
 const DEFAULT_CONFIG_FILE_LOCATION_FROM_HOME: &str = ".config/tracer/tracer.toml";
@@ -26,39 +26,9 @@ const BATCH_SUBMISSION_INTERVAL_MS: u64 = 10000;
 const NEW_RUN_PAUSE_MS: u64 = 10 * 60 * 1000;
 const PROCESS_METRICS_SEND_INTERVAL_MS: u64 = 10000;
 const FILE_SIZE_NOT_CHANGING_PERIOD_MS: u64 = 1000 * 60;
-const DEFAULT_GRAFANA_WORKSPACE_URL: &str =
-    "https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com";
 
-// Development database
-const DEV_DATABASE_SECRET_ARN: &str = "arn:aws:secretsmanager:us-east-1:395261708130:secret:rds!cluster-51d6638e-5975-4a26-95d3-e271ac9b2a04-dOWVVO";
-const DEV_DATABASE_HOST: &str =
-    "tracer-development-cluster.cluster-cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432";
-// Production database
-const PROD_DATABASE_SECRET_ARN: &str = "arn:aws:secretsmanager:us-east-1:395261708130:secret:rds!cluster-cd690a09-953c-42e9-9d9f-1ed0b434d226-M0wZYA";
-const PROD_DATABASE_HOST: &str =
-    "tracer-cluster-v2-instance-1.cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432";
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct ConfigFile {
-    pub api_key: String,
-    pub process_polling_interval_ms: Option<u64>,
-    pub batch_submission_interval_ms: Option<u64>,
-    pub new_run_pause_ms: Option<u64>,
-    pub file_size_not_changing_period_ms: Option<u64>,
-    pub process_metrics_send_interval_ms: Option<u64>,
-    pub targets: Option<Vec<Target>>,
-    pub aws_region: Option<String>,
-    pub aws_role_arn: Option<String>,
-    pub aws_profile: Option<String>,
-    pub database_secrets_arn: String,
-    pub database_host: String,
-    pub database_name: String,
-    pub server_address: String,
-
-    pub grafana_workspace_url: String,
-}
-
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Config {
     pub api_key: String,
     pub process_polling_interval_ms: u64,
@@ -67,6 +37,7 @@ pub struct Config {
     pub file_size_not_changing_period_ms: u64,
     pub new_run_pause_ms: u64,
     pub targets: Vec<Target>,
+
     pub aws_init_type: AwsConfig,
     pub aws_region: AwsRegion,
 
@@ -75,13 +46,12 @@ pub struct Config {
     pub database_name: String,
 
     pub grafana_workspace_url: String,
-    pub server_address: String,
+    pub server: String,
 }
 
 pub struct ConfigManager;
 
 impl ConfigManager {
-    // todo: use a ready library for that
     fn get_config_path() -> Option<PathBuf> {
         let path = homedir::get_my_home();
 
@@ -98,59 +68,12 @@ impl ConfigManager {
         NEXTFLOW_LOG_FILE_POLLING_INTERVAL_MS
     }
 
-    fn load_config_from_file(path: &PathBuf) -> Result<Config> {
-        let config = std::fs::read_to_string(path)?;
-        let config: ConfigFile = toml::from_str(&config)?;
-
-        let aws_init_type = match (config.aws_role_arn, config.aws_profile) {
-            (Some(role), None) => AwsConfig::RoleArn(role),
-            (None, Some(profile)) => AwsConfig::Profile(profile),
-            (Some(role), Some(_profie)) => AwsConfig::RoleArn(role),
-            (None, None) => AwsConfig::Env,
-        };
-
-        Ok(Config {
-            api_key: config.api_key,
-            process_polling_interval_ms: config
-                .process_polling_interval_ms
-                .unwrap_or(PROCESS_POLLING_INTERVAL_MS),
-            batch_submission_interval_ms: config
-                .batch_submission_interval_ms
-                .unwrap_or(BATCH_SUBMISSION_INTERVAL_MS),
-            new_run_pause_ms: config.new_run_pause_ms.unwrap_or(NEW_RUN_PAUSE_MS),
-            process_metrics_send_interval_ms: config
-                .process_metrics_send_interval_ms
-                .unwrap_or(PROCESS_METRICS_SEND_INTERVAL_MS),
-            file_size_not_changing_period_ms: config
-                .file_size_not_changing_period_ms
-                .unwrap_or(FILE_SIZE_NOT_CHANGING_PERIOD_MS),
-            targets: config
-                .targets
-                .unwrap_or_else(|| targets_list::TARGETS.to_vec()),
-            aws_init_type,
-            aws_region: AwsRegion::UsEast2,
-
-            database_secrets_arn: config.database_secrets_arn,
-            database_name: config.database_name,
-            database_host: config.database_host,
-
-            grafana_workspace_url: config.grafana_workspace_url,
-            server_address: config.server_address,
-        })
-    }
-
-    pub fn load_default_config() -> Config {
-        Config {
-            api_key: DEFAULT_API_KEY.to_string(),
-            process_polling_interval_ms: PROCESS_POLLING_INTERVAL_MS,
-            batch_submission_interval_ms: BATCH_SUBMISSION_INTERVAL_MS,
-            new_run_pause_ms: NEW_RUN_PAUSE_MS,
-            file_size_not_changing_period_ms: FILE_SIZE_NOT_CHANGING_PERIOD_MS,
-            targets: targets_list::TARGETS.to_vec(),
-            process_metrics_send_interval_ms: PROCESS_METRICS_SEND_INTERVAL_MS,
-            // aws_init_type: AwsConfig::Profile("me".to_string()),
-            aws_init_type: AwsConfig::Profile(
-                if std::fs::read_to_string(dirs::home_dir().unwrap().join(".aws/credentials"))
+    // TODO: add error message as to why it can't read config
+    pub fn load_config() -> Result<Config> {
+        let aws_default_profile = match dirs::home_dir() {
+            None => "default",
+            Some(path) => {
+                if std::fs::read_to_string(path.join(".aws/credentials"))
                     .unwrap_or_default()
                     .contains("[me]")
                 {
@@ -158,63 +81,58 @@ impl ConfigManager {
                 } else {
                     "default"
                 }
-                .to_string(),
-            ),
-            aws_region: "us-east-2".into(),
-
-            database_secrets_arn: if cfg!(debug_assertions) {
-                println!("using dev arn");
-                DEV_DATABASE_SECRET_ARN.into()
-            } else {
-                println!("using prod arn");
-                PROD_DATABASE_SECRET_ARN.into()
-            },
-
-            database_name: "tracer_db".into(),
-
-            database_host: if cfg!(debug_assertions) {
-                println!("using dev db");
-                DEV_DATABASE_HOST.into()
-            } else {
-                println!("using prod db");
-                PROD_DATABASE_HOST.into()
-            },
-
-            grafana_workspace_url: DEFAULT_GRAFANA_WORKSPACE_URL.to_string(),
-            server_address: "127.0.0.1:8722".to_string(),
+            }
         }
-    }
+        .to_string();
 
-    // TODO: add error message as to why it can't read config
-    pub fn load_config() -> Config {
-        let config_file_location = ConfigManager::get_config_path();
+        let mut cb = RConfig::builder()
+            .add_source(File::with_name("tracer.toml").required(false))
+            .add_source(File::with_name("tracer.dev.toml").required(false))
+            .add_source(
+                Environment::with_prefix("TRACER")
+                    .convert_case(Case::Snake)
+                    .separator("__")
+                    .prefix_separator("_"),
+            )
+            .set_default("api_key", DEFAULT_API_KEY)?
+            .set_default("process_polling_interval_ms", PROCESS_POLLING_INTERVAL_MS)?
+            .set_default("batch_submission_interval_ms", BATCH_SUBMISSION_INTERVAL_MS)?
+            .set_default("new_run_pause_ms", NEW_RUN_PAUSE_MS)?
+            .set_default(
+                "file_size_not_changing_period_ms",
+                FILE_SIZE_NOT_CHANGING_PERIOD_MS,
+            )?
+            .set_default(
+                "process_metrics_send_interval_ms",
+                PROCESS_METRICS_SEND_INTERVAL_MS,
+            )?
+            .set_default("aws_init_type", AwsConfig::Profile(aws_default_profile))?
+            .set_default("aws_region", "us-east-2")?
+            .set_default("database_name", "tracer_db")?
+            .set_default("server", "127.0.0.1:8722")?
+            .set_default::<&str, Vec<&str>>("targets", vec![])?;
 
-        let mut config = if let Some(path) = config_file_location {
-            let loaded_config = ConfigManager::load_config_from_file(&path);
-
-            loaded_config.unwrap_or_else(|err| {
-                let message = format!("Error loading config: {err:?}. \nUsing default config");
-                crate::utils::debug_log::Logger::new().log_blocking(&message, None);
-
-                ConfigManager::load_default_config()
-            })
-        } else {
-            ConfigManager::load_default_config()
-        };
-
-        if let Ok(api_key) = std::env::var("TRACER_API_KEY") {
-            config.api_key = api_key;
+        if let Some(path) = ConfigManager::get_config_path() {
+            if let Some(path) = path.to_str() {
+                cb = cb.add_source(File::with_name(path).required(false))
+            }
         }
 
-        if let Ok(server_address) = std::env::var("TRACER_SERVER_ADDRESS") {
-            config.server_address = server_address;
+        let mut config: Config = cb
+            .build()?
+            .try_deserialize()
+            .context("failed to parse config file")?;
+
+        if config.targets.is_empty() {
+            config.targets = targets_list::TARGETS.to_vec()
+            // todo: TARGETS shouldn't be specified in the code. Instead, we should have this set in the config file
         }
 
-        config
+        Ok(config)
     }
 
     pub fn setup_aliases() -> Result<()> {
-        let config = ConfigManager::load_config();
+        let config = ConfigManager::load_config()?;
         rewrite_interceptor_bashrc_file(
             env::current_exe()?,
             config
@@ -236,36 +154,12 @@ impl ConfigManager {
     }
 
     pub fn save_config(config: &Config) -> Result<()> {
-        let config_file_location = ConfigManager::get_config_path().unwrap();
-        let aws_profile = if let AwsConfig::Profile(profile) = &config.aws_init_type {
-            Some(profile.clone())
-        } else {
-            None
+        // todo: should this be async? should others be async?
+        let Some(config_file_location) = ConfigManager::get_config_path() else {
+            anyhow::bail!("Failed to get config file location");
         };
-        let aws_role_arn = if let AwsConfig::RoleArn(role) = &config.aws_init_type {
-            Some(role.clone())
-        } else {
-            None
-        };
-        let config_out = ConfigFile {
-            api_key: config.api_key.clone(),
-            new_run_pause_ms: Some(config.new_run_pause_ms),
-            file_size_not_changing_period_ms: Some(config.file_size_not_changing_period_ms),
-            process_polling_interval_ms: Some(config.process_polling_interval_ms),
-            batch_submission_interval_ms: Some(config.batch_submission_interval_ms),
-            targets: Some(config.targets.clone()),
-            process_metrics_send_interval_ms: Some(config.process_metrics_send_interval_ms),
-            aws_role_arn,
-            aws_profile,
-            aws_region: Some(config.aws_region.as_str().to_string()),
 
-            database_secrets_arn: config.database_secrets_arn.clone(),
-            database_name: config.database_name.clone(),
-            database_host: config.database_host.clone(),
-            grafana_workspace_url: config.grafana_workspace_url.clone(),
-            server_address: config.server_address.clone(),
-        };
-        let config = toml::to_string(&config_out)?;
+        let config = toml::to_string(config)?;
         std::fs::write(config_file_location, config)?;
         Ok(())
     }
@@ -275,7 +169,7 @@ impl ConfigManager {
         process_polling_interval_ms: &Option<u64>,
         batch_submission_interval_ms: &Option<u64>,
     ) -> Result<()> {
-        let mut current_config = ConfigManager::load_config();
+        let mut current_config = ConfigManager::load_config()?;
         if let Some(api_key) = api_key {
             current_config.api_key.clone_from(api_key);
         }
@@ -285,8 +179,7 @@ impl ConfigManager {
         if let Some(batch_submission_interval_ms) = batch_submission_interval_ms {
             current_config.batch_submission_interval_ms = *batch_submission_interval_ms;
         }
-        ConfigManager::save_config(&current_config)?;
-        Ok(())
+        ConfigManager::save_config(&current_config)
     }
 
     pub fn get_tracer_parquet_export_dir() -> Result<PathBuf> {
@@ -333,22 +226,7 @@ mod tests {
 
     #[test]
     fn test_default_config() {
-        env::remove_var("TRACER_API_KEY");
-        env::remove_var("TRACER_SERVICE_URL");
-        let config = ConfigManager::load_default_config();
-        assert_eq!(config.api_key, DEFAULT_API_KEY);
-        assert_eq!(
-            config.process_polling_interval_ms,
-            PROCESS_POLLING_INTERVAL_MS
-        );
-        assert_eq!(
-            config.batch_submission_interval_ms,
-            BATCH_SUBMISSION_INTERVAL_MS
-        );
-        assert_eq!(
-            config.process_metrics_send_interval_ms,
-            PROCESS_METRICS_SEND_INTERVAL_MS
-        );
+        let config = ConfigManager::load_config().unwrap();
         assert!(!config.targets.is_empty());
     }
 
