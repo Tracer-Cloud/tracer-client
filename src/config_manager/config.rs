@@ -106,7 +106,7 @@ impl ConfigManager {
                 PROCESS_METRICS_SEND_INTERVAL_MS,
             )?
             .set_default("aws_init_type", AwsConfig::Profile(aws_default_profile))?
-            .set_default("aws_region", "us-east-2")?
+            .set_default("aws_region", "us-east-1")?
             .set_default("database_name", "tracer_db")?
             .set_default("server", "127.0.0.1:8722")?
             .set_default::<&str, Vec<&str>>("targets", vec![])?;
