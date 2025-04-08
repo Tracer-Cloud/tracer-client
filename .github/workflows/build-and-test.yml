@@ -63,7 +63,7 @@ jobs:
           RUST_BACKTRACE: 1
           TRACER_DATABASE_SECRETS_ARN: ${{ secrets.TRACER_DATABASE_SECRETS_ARN }}
           TRACER_DATABASE_NAME: ${{ secrets.TRACER_DATABASE_NAME }}
-          TRACER_DATABASE_URL: ${{ secrets.TRACER_DATABASE_URL }}
+          TRACER_DATABASE_HOST: ${{ secrets.TRACER_DATABASE_HOST }}
         run: make test-tracer
 
   run-integrations:
