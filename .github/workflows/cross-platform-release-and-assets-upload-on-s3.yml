@@ -83,7 +83,7 @@ jobs:
             cargo-build-${{ matrix.target }}-stable-
 
       - name: Build the binary
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --target ${{ matrix.target }}
 
       - name: Prepare binary for release
         run: |

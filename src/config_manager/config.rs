@@ -1,4 +1,3 @@
-// src/config_manager/mod.rs
 use std::{
     env,
     path::{Path, PathBuf},
@@ -29,6 +28,15 @@ const PROCESS_METRICS_SEND_INTERVAL_MS: u64 = 10000;
 const FILE_SIZE_NOT_CHANGING_PERIOD_MS: u64 = 1000 * 60;
 const DEFAULT_GRAFANA_WORKSPACE_URL: &str =
     "https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com";
+
+// Development database
+const DEV_DATABASE_SECRET_ARN: &str = "arn:aws:secretsmanager:us-east-1:395261708130:secret:rds!cluster-51d6638e-5975-4a26-95d3-e271ac9b2a04-dOWVVO";
+const DEV_DATABASE_HOST: &str =
+    "tracer-development-cluster.cluster-cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432";
+// Production database
+const PROD_DATABASE_SECRET_ARN: &str = "arn:aws:secretsmanager:us-east-1:395261708130:secret:rds!cluster-cd690a09-953c-42e9-9d9f-1ed0b434d226-M0wZYA";
+const PROD_DATABASE_HOST: &str =
+    "tracer-cluster-v2-instance-1.cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432";
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ConfigFile {
@@ -150,12 +158,25 @@ impl ConfigManager {
             ),
             aws_region: "us-east-2".into(),
 
-            database_secrets_arn: "arn:aws:secretsmanager:us-east-1:395261708130:secret:rds!cluster-cd690a09-953c-42e9-9d9f-1ed0b434d226-M0wZYA".into(),
-            database_name: "tracer_db".into(),
-            database_host:
-                "tracer-cluster-v2-instance-1.cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432".into(),
+            database_secrets_arn: if cfg!(debug_assertions) {
+                println!("using dev arn");
+                DEV_DATABASE_SECRET_ARN.into()
+            } else {
+                println!("using prod arn");
+                PROD_DATABASE_SECRET_ARN.into()
+            },
 
-            grafana_workspace_url: DEFAULT_GRAFANA_WORKSPACE_URL.to_string()
+            database_name: "tracer_db".into(),
+
+            database_host: if cfg!(debug_assertions) {
+                println!("using dev db");
+                DEV_DATABASE_HOST.into()
+            } else {
+                println!("using prod db");
+                PROD_DATABASE_HOST.into()
+            },
+
+            grafana_workspace_url: DEFAULT_GRAFANA_WORKSPACE_URL.to_string(),
         }
     }
 
