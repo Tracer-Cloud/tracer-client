@@ -142,7 +142,7 @@ impl AuroraClient {
             .max_connections(pool_size.unwrap_or(100))
             .connect(&url)
             .await
-            .expect("Failed establish connection");
+            .context("Failed establish connection")?;
 
         info!("Successfully created connection pool");
 
