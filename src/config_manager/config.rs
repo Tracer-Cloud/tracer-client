@@ -17,7 +17,7 @@ use crate::{
 
 use super::target_process::targets_list;
 use crate::config_manager::target_process::Target;
-use config::{Config as RConfig, Environment, File};
+use config::{Case, Config as RConfig, Environment, File};
 
 const DEFAULT_API_KEY: &str = "EAjg7eHtsGnP3fTURcPz1";
 const DEFAULT_CONFIG_FILE_LOCATION_FROM_HOME: &str = ".config/tracer/tracer.toml";
@@ -48,7 +48,7 @@ pub struct Config {
     pub database_name: String,
 
     pub grafana_workspace_url: String,
-    pub server_address: String,
+    pub server: String,
 }
 
 pub struct ConfigManager;
@@ -88,7 +88,7 @@ impl ConfigManager {
         .to_string();
 
         let mut cb = RConfig::builder()
-            .add_source(Environment::with_prefix("TRACER"))
+            .add_source(Environment::with_prefix("TRACER").convert_case(Case::Lower))
             .add_source(File::with_name("tracer.toml").required(false))
 
             .set_default("api_key", DEFAULT_API_KEY)?
@@ -103,7 +103,7 @@ impl ConfigManager {
             .set_default("database_name", "tracer_db")?
             .set_default("database_host", "tracer-cluster-v2-instance-1.cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432")?
             .set_default("grafana_workspace_url", DEFAULT_GRAFANA_WORKSPACE_URL)?
-            .set_default("server_address", "127.0.0.1:8722")?
+            .set_default("server", "127.0.0.1:8722")?
             .set_default::<&str, Vec<&str>>("targets", vec![])?;
 
         if let Some(path) = ConfigManager::get_config_path() {

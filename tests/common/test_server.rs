@@ -21,7 +21,7 @@ pub struct TestServer {
 impl TestServer {
     async fn setup_client(
         pool: PgPool,
-        server_address: String,
+        server: String,
         path: String,
     ) -> Result<TracerClient, anyhow::Error> {
         let config = Config {
@@ -39,7 +39,7 @@ impl TestServer {
             database_name: "should-not-be-used".to_string(),
             // todo: sqlite / postgres in transaction mode / many schemas
             grafana_workspace_url: "".to_string(),
-            server_address,
+            server,
         };
 
         let db_client = AuroraClient::from_pool(pool);
@@ -50,16 +50,16 @@ impl TestServer {
     }
 
     async fn get_tracer(pool: PgPool, path: String) -> Result<DaemonServer, anyhow::Error> {
-        let server_address: SocketAddr = "127.0.0.1:0".parse()?; // 0: means port will be picked by the OS
-        let client = Self::setup_client(pool, server_address.to_string(), path).await?;
+        let server: SocketAddr = "127.0.0.1:0".parse()?; // 0: means port will be picked by the OS
+        let client = Self::setup_client(pool, server.to_string(), path).await?;
 
-        let server = DaemonServer::bind(client, server_address).await?;
+        let server = DaemonServer::bind(client, server).await?;
         Ok(server)
     }
 
     pub async fn send_command(&self, command: &[&str]) -> Assert {
         let mut cmd = Command::cargo_bin("tracer").unwrap();
-        cmd.env("TRACER_SERVER_ADDRESS", self.addr.to_string());
+        cmd.env("TRACER_SERVER", self.addr.to_string());
         cmd.env("RUST_BACKTRACE", "1");
         cmd.args(command);
         cmd.timeout(std::time::Duration::from_secs(30));

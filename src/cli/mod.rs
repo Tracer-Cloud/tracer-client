@@ -97,7 +97,7 @@ pub fn process_cli() -> Result<()> {
 
     let cli = Cli::parse();
     let config = ConfigManager::load_config()?;
-    let api_client = DaemonClient::new(format!("http://{}", config.server_address));
+    let api_client = DaemonClient::new(format!("http://{}", config.server));
 
     match cli.command {
         Commands::Init(args) => {

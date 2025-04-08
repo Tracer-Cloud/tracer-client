@@ -81,7 +81,7 @@ pub async fn run(
     // create the conn pool to aurora
     let db_client = AuroraClient::new(&config, None).await;
 
-    let addr: SocketAddr = config.server_address.parse()?;
+    let addr: SocketAddr = config.server.parse()?;
 
     let client = TracerClient::new(config, workflow_directory_path, db_client, cli_config_args)
         .await
