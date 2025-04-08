@@ -96,7 +96,7 @@ pub fn process_cli() -> Result<()> {
     // has to be sync due to daemonizing
 
     let cli = Cli::parse();
-    let config = ConfigManager::load_config();
+    let config = ConfigManager::load_config()?;
     let api_client = DaemonClient::new(format!("http://{}", config.server_address));
 
     match cli.command {
