@@ -14,7 +14,7 @@ on:
 
   push:
     tags:
-      - "*" # handle every tag pattern, we usually tag v0.0.1 or v2025.4.1
+      - "v*" # handle every tag pattern, we usually tag v0.0.1 or v2025.4.1
 
 jobs:
   migrate:
