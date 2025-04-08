@@ -4,6 +4,7 @@ use crate::config_manager::target_process::{
 };
 use crate::events::recorder::{EventRecorder, EventType};
 use crate::extracts::file_watcher::FileWatcher;
+use crate::nextflow_log_watcher::NextflowLogWatcher;
 use crate::types::event::attributes::process::InputFile;
 use crate::types::event::attributes::process::ProcessProperties;
 use crate::types::event::attributes::process::{CompletedProcess, DataSetsProcessed};
@@ -15,7 +16,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::collections::{hash_map::Entry::Vacant, HashSet};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 use sysinfo::ProcessStatus;
 use sysinfo::{Pid, Process, System};
@@ -26,6 +27,7 @@ pub struct ProcessWatcher {
     process_tree: HashMap<Pid, ProcessTreeNode>,
     // We wanna track unique datasamples we come across when monitoring process args
     datasamples_tracker: HashSet<String>,
+    nextflow_log_watcher: NextflowLogWatcher,
 }
 
 enum ProcLastUpdate {
@@ -79,6 +81,7 @@ impl ProcessWatcher {
             seen: HashMap::new(),
             process_tree: HashMap::new(),
             datasamples_tracker: HashSet::new(),
+            nextflow_log_watcher: NextflowLogWatcher::new(),
         }
     }
 
@@ -101,10 +104,15 @@ impl ProcessWatcher {
                     )
                 });
                 if let Some(target) = target {
-                    println!(
-                        "about to insert pid {} and name {} with command {:?}",
+                    let display_name = target
+                        .get_display_name_object()
+                        .get_display_name(proc.name(), proc.cmd());
+
+                    tracing::info!(
+                        "[{}] Caught process: pid={}, name={}, command={:?}",
+                        Utc::now(),
                         pid,
-                        proc.name(),
+                        display_name,
                         proc.cmd()
                     );
 
@@ -182,6 +190,10 @@ impl ProcessWatcher {
         let mut to_remove = vec![];
         for (pid, proc) in self.seen.iter() {
             if !system.processes().contains_key(pid) {
+                // Check if this was a Nextflow process and notify the watcher
+                if proc.name.contains("nextflow") {
+                    self.nextflow_log_watcher.remove_process(*pid);
+                }
                 self.log_completed_process(pid, proc, event_logger)?;
                 to_remove.push(*pid);
             }
@@ -300,7 +312,7 @@ impl ProcessWatcher {
             if !self.seen.contains_key(&pid) {
                 let process = system.process(pid);
                 if process.is_none() {
-                    eprintln!("[{}] Process({}) wasn't found", Utc::now(), pid);
+                    tracing::error!("[{}] Process({}) wasn't found", Utc::now(), pid);
                     continue;
                 }
                 let proc = process.unwrap();
@@ -443,10 +455,18 @@ impl ProcessWatcher {
         target: Option<&Target>,
         file_watcher: &FileWatcher,
     ) -> Result<()> {
+        let display_name = if let Some(target) = target {
+            target
+                .get_display_name_object()
+                .get_display_name(proc.name(), proc.cmd())
+        } else {
+            proc.name().to_owned()
+        };
+
         self.seen.insert(
             pid,
             Proc {
-                name: proc.name().to_string(),
+                name: display_name.clone(),
                 start_time: Utc::now(),
                 last_update: ProcLastUpdate::RefreshesRemaining(2),
                 just_started: true,
@@ -460,17 +480,24 @@ impl ProcessWatcher {
 
         let start_time = Utc::now();
 
-        let display_name = if let Some(target) = target {
-            let name = target
-                .get_display_name_object()
-                .get_display_name(proc.name(), proc.cmd());
-
-            name
-        } else {
-            proc.name().to_owned()
-        };
-
         let mut properties = Self::gather_process_data(&pid, p, Some(display_name.clone()));
+
+        // Check if this is a Nextflow process and notify the watcher
+        if display_name.contains("nextflow") {
+            tracing::info!(
+                "[{}] Found Nextflow process: pid={}, name={}, working_dir={:?}",
+                Utc::now(),
+                pid,
+                display_name,
+                properties.working_directory
+            );
+            if let Some(working_dir) = &properties.working_directory {
+                self.nextflow_log_watcher.add_process(
+                    pid,
+                    PathBuf::from(working_dir.clone()).join(".nextflow.log"),
+                );
+            }
+        }
 
         let cmd_arguments = p.cmd();
 
@@ -529,7 +556,10 @@ impl ProcessWatcher {
         let pid = proc.pid();
         let start_time = Utc::now();
 
-        let display_name = if let Some(target) = target {
+        // Get the display name from the seen processes map if it exists
+        let display_name = if let Some(seen_proc) = self.seen.get(&pid) {
+            seen_proc.name.clone()
+        } else if let Some(target) = target {
             target
                 .get_display_name_object()
                 .get_display_name(proc.name(), proc.cmd())
@@ -692,6 +722,14 @@ impl ProcessWatcher {
 
     pub fn preview_targets_count(&self) -> usize {
         self.seen.len()
+    }
+
+    pub fn get_nextflow_log_watcher(&self) -> &NextflowLogWatcher {
+        &self.nextflow_log_watcher
+    }
+
+    pub fn get_nextflow_log_watcher_mut(&mut self) -> &mut NextflowLogWatcher {
+        &mut self.nextflow_log_watcher
     }
 }
 

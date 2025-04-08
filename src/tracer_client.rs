@@ -27,8 +27,6 @@ use sysinfo::{Pid, System};
 use tokio::fs;
 use tokio::sync::RwLock;
 
-use crate::nextflow_log_watcher::NextflowLogWatcher;
-
 // NOTE: we might have to find a better alternative than passing the pipeline name to tracer client
 // directly. Currently with this approach, we do not need to generate a new pipeline name for every
 // new run.
@@ -64,7 +62,6 @@ pub struct TracerClient {
     stdout_watcher: StdoutWatcher,
     metrics_collector: SystemMetricsCollector,
     file_watcher: FileWatcher,
-    nextflow_log_watcher: NextflowLogWatcher,
     workflow_directory: String,
     current_run: Option<RunMetadata>,
     syslog_lines_buffer: LinesBufferArc,
@@ -96,6 +93,8 @@ impl TracerClient {
         let directory = tempfile::tempdir_in(FILE_CACHE_DIR)?;
         let file_watcher = FileWatcher::new(directory);
 
+        let process_watcher = ProcessWatcher::new(config.targets.clone());
+
         Ok(TracerClient {
             // if putting a value to config, also update `TracerClient::reload_config_file`
             interval: Duration::from_millis(config.process_polling_interval_ms),
@@ -119,9 +118,8 @@ impl TracerClient {
             syslog_lines_buffer: Arc::new(RwLock::new(Vec::new())),
             stdout_lines_buffer: Arc::new(RwLock::new(Vec::new())),
             stderr_lines_buffer: Arc::new(RwLock::new(Vec::new())),
-            process_watcher: ProcessWatcher::new(config.targets.clone()),
+            process_watcher,
             metrics_collector: SystemMetricsCollector::new(),
-            nextflow_log_watcher: NextflowLogWatcher::new(),
             db_client,
             pipeline_name: cli_args.pipeline_name,
             pricing_client,
@@ -157,12 +155,6 @@ impl TracerClient {
         )
     }
 
-    fn get_job_id(&self) -> String {
-        // todo: move to when initializing the client
-        // Try to get AWS_BATCH_JOB_ID from environment, use empty string if not found
-        std::env::var("AWS_BATCH_JOB_ID").unwrap_or_default()
-    }
-
     // TODO: Refactor to collect required entries properly
     pub async fn submit_batched_data(&mut self) -> Result<()> {
         let run_name = self
@@ -193,7 +185,6 @@ impl TracerClient {
                     run_id,
                     &self.pipeline_name,
                     self.logs.get_events(),
-                    self.get_job_id().as_str(),
                 )
                 .await
                 .map_err(|err| anyhow::anyhow!("Error submitting batch events {:?}", err))?;
@@ -306,7 +297,6 @@ impl TracerClient {
                     &run_metadata.id,
                     &self.pipeline_name,
                     self.logs.get_events(),
-                    self.get_job_id().as_str(),
                 )
                 .await
             {
@@ -399,7 +389,8 @@ impl TracerClient {
     }
 
     pub async fn poll_nextflow_log(&mut self) -> Result<()> {
-        self.nextflow_log_watcher
+        self.process_watcher
+            .get_nextflow_log_watcher_mut()
             .poll_nextflow_log(&mut self.logs)
             .await
     }
