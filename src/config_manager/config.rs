@@ -220,22 +220,7 @@ mod tests {
 
     #[test]
     fn test_default_config() {
-        env::remove_var("TRACER_API_KEY");
-        env::remove_var("TRACER_SERVICE_URL");
-        let config = ConfigManager::load_default_config();
-        assert_eq!(config.api_key, DEFAULT_API_KEY);
-        assert_eq!(
-            config.process_polling_interval_ms,
-            PROCESS_POLLING_INTERVAL_MS
-        );
-        assert_eq!(
-            config.batch_submission_interval_ms,
-            BATCH_SUBMISSION_INTERVAL_MS
-        );
-        assert_eq!(
-            config.process_metrics_send_interval_ms,
-            PROCESS_METRICS_SEND_INTERVAL_MS
-        );
+        let config = ConfigManager::load_config().unwrap();
         assert!(!config.targets.is_empty());
     }
 

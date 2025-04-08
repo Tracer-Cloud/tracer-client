@@ -79,7 +79,7 @@ pub async fn run(
     setup_logging()?;
 
     // create the conn pool to aurora
-    let db_client = AuroraClient::new(&config, None).await;
+    let db_client = AuroraClient::try_new(&config, None).await?;
 
     let addr: SocketAddr = config.server.parse()?;
 
@@ -148,7 +148,7 @@ mod tests {
     use dotenv::dotenv;
 
     fn load_test_config() -> Config {
-        ConfigManager::load_default_config()
+        ConfigManager::load_config().unwrap()
     }
 
     pub fn setup_env_vars(region: &str) {
@@ -164,7 +164,7 @@ mod tests {
 
         setup_env_vars(region);
 
-        let aurora_client = AuroraClient::new(&config, None).await;
+        let aurora_client = AuroraClient::try_new(&config, None).await.unwrap();
 
         let mut tracer_client = TracerClient::new(
             config,
