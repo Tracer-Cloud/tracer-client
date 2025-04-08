@@ -27,7 +27,6 @@ const NEW_RUN_PAUSE_MS: u64 = 10 * 60 * 1000;
 const PROCESS_METRICS_SEND_INTERVAL_MS: u64 = 10000;
 const FILE_SIZE_NOT_CHANGING_PERIOD_MS: u64 = 1000 * 60;
 
-
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Config {
     pub api_key: String,
