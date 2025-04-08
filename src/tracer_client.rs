@@ -460,14 +460,14 @@ mod tests {
     #[tokio::test]
     async fn test_submit_batched_data() -> Result<()> {
         // Load the configuration
-        let config = ConfigManager::load_default_config();
+        let config = ConfigManager::load_config().unwrap();
 
         let temp_dir = tempdir().expect("cant create temp dir");
 
         let work_dir = temp_dir.path().to_str().unwrap();
 
         // Create an instance of AuroraClient
-        let db_client = AuroraClient::new(&config, Some(1)).await;
+        let db_client = AuroraClient::try_new(&config, Some(1)).await?;
 
         let cli_config = TracerCliInitArgs::default();
 
@@ -516,7 +516,7 @@ mod tests {
     #[tokio::test]
     async fn test_tags_attribution_works() {
         // Load the configuration
-        let config = ConfigManager::load_default_config();
+        let config = ConfigManager::load_config().unwrap();
 
         let temp_dir = tempdir().expect("cant create temp dir");
 
@@ -524,7 +524,7 @@ mod tests {
         let job_id = "job-1234";
 
         // Create an instance of AuroraClient
-        let db_client = AuroraClient::new(&config, Some(1)).await;
+        let db_client = AuroraClient::try_new(&config, Some(1)).await.unwrap();
 
         let tags = PipelineTags::default();
 

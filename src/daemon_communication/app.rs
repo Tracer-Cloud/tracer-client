@@ -117,7 +117,9 @@ async fn end(State(state): State<AppState>) -> axum::response::Result<impl IntoR
 async fn refresh_config(
     State(state): State<AppState>,
 ) -> axum::response::Result<impl IntoResponse> {
-    let config_file = ConfigManager::load_config();
+    // todo: IO in load condig has to be async
+    let config_file =
+        ConfigManager::load_config().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     {
         let mut guard = state.tracer_client.lock().await;

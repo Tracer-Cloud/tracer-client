@@ -110,7 +110,7 @@ impl EventInsert {
 }
 
 impl AuroraClient {
-    pub async fn new(config: &Config, pool_size: Option<u32>) -> Self {
+    pub async fn try_new(config: &Config, pool_size: Option<u32>) -> Result<Self> {
         let secrets_client = SecretsClient::new(config.aws_init_type.clone()).await;
 
         // NOTE: conditional added to fix integrations tests with docker mostly
@@ -125,7 +125,7 @@ impl AuroraClient {
             secrets_client
                 .get_secrets(&config.database_secrets_arn)
                 .await
-                .expect("Failed to get secrets")
+                .context("Failed to get secrets")?
         };
 
         // encode password to escape special chars that would break url
@@ -142,11 +142,11 @@ impl AuroraClient {
             .max_connections(pool_size.unwrap_or(100))
             .connect(&url)
             .await
-            .expect("Failed establish connection");
+            .context("Failed establish connection")?;
 
         info!("Successfully created connection pool");
 
-        AuroraClient { pool }
+        Ok(AuroraClient { pool })
     }
 
     pub fn get_pool(&self) -> &PgPool {
