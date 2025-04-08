@@ -61,8 +61,9 @@ jobs:
           AWS_ENDPOINT: "https://s3.us-east-2.amazonaws.com"
           RUST_LOG: "debug"
           RUST_BACKTRACE: 1
+          TRACER_DATABASE_SECRETS_ARN: ${{ secrets.TRACER_DATABASE_SECRETS_ARN }}
+          TRACER_DATABASE_NAME: ${{ secrets.TRACER_DATABASE_NAME }}
         run: make test-tracer
-
 
   run-integrations:
       name: Build and Test Integrations
