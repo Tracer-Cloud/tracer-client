@@ -72,23 +72,39 @@ impl ConfigManager {
 
     // TODO: add error message as to why it can't read config
     pub fn load_config() -> Result<Config> {
-        let default_aws_init_type = "me"; // todo
+        let aws_default_profile = match dirs::home_dir() {
+            None => "default",
+            Some(path) => {
+                if std::fs::read_to_string(path.join(".aws/credentials"))
+                    .unwrap_or_default()
+                    .contains("[me]")
+                {
+                    "me"
+                } else {
+                    "default"
+                }
+            }
+        }
+        .to_string();
 
         let mut cb = RConfig::builder()
             .add_source(Environment::with_prefix("TRACER"))
+            .add_source(File::with_name("tracer.toml").required(false))
+
             .set_default("api_key", DEFAULT_API_KEY)?
             .set_default("process_polling_interval_ms", PROCESS_POLLING_INTERVAL_MS)?
             .set_default("batch_submission_interval_ms", BATCH_SUBMISSION_INTERVAL_MS)?
             .set_default("new_run_pause_ms", NEW_RUN_PAUSE_MS)?
             .set_default("file_size_not_changing_period_ms", FILE_SIZE_NOT_CHANGING_PERIOD_MS)?
             .set_default("process_metrics_send_interval_ms", PROCESS_METRICS_SEND_INTERVAL_MS)?
-            .set_default("aws_init_type", default_aws_init_type)?
+            .set_default("aws_init_type", AwsConfig::Profile(aws_default_profile))?
             .set_default("aws_region", "us-east-2")?
             .set_default("database_secrets_arn", "arn:aws:secretsmanager:us-east-1:395261708130:secret:rds!cluster-cd690a09-953c-42e9-9d9f-1ed0b434d226-M0wZYA")?
             .set_default("database_name", "tracer_db")?
             .set_default("database_host", "tracer-cluster-v2-instance-1.cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432")?
             .set_default("grafana_workspace_url", DEFAULT_GRAFANA_WORKSPACE_URL)?
-            .set_default("server_address", "127.0.0.1:8722")?;
+            .set_default("server_address", "127.0.0.1:8722")?
+            .set_default::<&str, Vec<&str>>("targets", vec![])?;
 
         if let Some(path) = ConfigManager::get_config_path() {
             if let Some(path) = path.to_str() {
@@ -109,7 +125,7 @@ impl ConfigManager {
         Ok(config)
     }
 
-    pub fn setup_aliases() -> anyhow::Result<()> {
+    pub fn setup_aliases() -> Result<()> {
         let config = ConfigManager::load_config()?;
         rewrite_interceptor_bashrc_file(
             env::current_exe()?,
