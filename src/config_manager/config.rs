@@ -88,7 +88,12 @@ impl ConfigManager {
         let mut cb = RConfig::builder()
             .add_source(File::with_name("tracer.toml").required(false))
             .add_source(File::with_name("tracer.dev.toml").required(false))
-            .add_source(Environment::with_prefix("TRACER").convert_case(Case::Lower))
+            .add_source(
+                Environment::with_prefix("TRACER")
+                    .convert_case(Case::Snake)
+                    .separator("__")
+                    .prefix_separator("_"),
+            )
             .set_default("api_key", DEFAULT_API_KEY)?
             .set_default("process_polling_interval_ms", PROCESS_POLLING_INTERVAL_MS)?
             .set_default("batch_submission_interval_ms", BATCH_SUBMISSION_INTERVAL_MS)?
