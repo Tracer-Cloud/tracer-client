@@ -1,36 +1,31 @@
 // src/tracer_client.rs
 use crate::cloud_providers::aws::PricingClient;
-use crate::config_manager::{self, Config};
+use crate::config_manager::Config;
 use crate::events::{
     recorder::{EventRecorder, EventType},
-    send_start_run_event,
+    send_alert_event, send_log_event, send_start_run_event,
 };
+use anyhow::{Context, Result};
+
 use crate::exporters::db::AuroraClient;
 use crate::extracts::{
     file_watcher::FileWatcher,
     metrics::SystemMetricsCollector,
     process_watcher::{ProcessWatcher, ShortLivedProcessLog},
     stdout::StdoutWatcher,
-    syslog::{run_syslog_lines_read_thread, SyslogWatcher},
+    syslog::SyslogWatcher,
 };
 use crate::types::cli::{PipelineTags, TracerCliInitArgs};
 use crate::types::event::attributes::EventAttributes;
-use crate::{monitor_processes_with_tracer_client, DEFAULT_SERVICE_URL, FILE_CACHE_DIR};
-use crate::{SOCKET_PATH, SYSLOG_FILE};
-use anyhow::{Context, Result};
+use crate::{DEFAULT_SERVICE_URL, FILE_CACHE_DIR};
 use chrono::{DateTime, TimeDelta, Utc};
-use std::borrow::BorrowMut;
+use serde_json::json;
 use std::ops::Sub;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use sysinfo::{Pid, System};
-use tokio::sync::{Mutex, RwLock};
-
-use crate::daemon_communication::server::run_server;
-use config_manager::{INTERCEPTOR_STDERR_FILE, INTERCEPTOR_STDOUT_FILE};
-
-use tokio::time::sleep;
-use tokio_util::sync::CancellationToken;
+use tokio::fs;
+use tokio::sync::RwLock;
 
 // NOTE: we might have to find a better alternative than passing the pipeline name to tracer client
 // directly. Currently with this approach, we do not need to generate a new pipeline name for every
@@ -76,7 +71,7 @@ pub struct TracerClient {
     pipeline_name: String,
     pub pricing_client: PricingClient,
     initialization_id: Option<String>,
-    config: Config,
+    pub config: Config,
     tags: PipelineTags,
 }
 
@@ -85,20 +80,23 @@ impl TracerClient {
         config: Config,
         workflow_directory: String,
         db_client: AuroraClient,
-        cli_args: TracerCliInitArgs,
+        cli_args: TracerCliInitArgs, // todo: why Config AND TracerCliInitArgs? remove CliInitArgs
     ) -> Result<TracerClient> {
+        // todo: do we need both config with db connection AND db_client?
         println!("Initializing TracerClient with API Key: {}", config.api_key);
 
         let pricing_client = PricingClient::new(config.aws_init_type.clone(), "us-east-1").await;
 
-        let file_watcher = FileWatcher::new();
-
-        file_watcher.prepare_cache_directory(FILE_CACHE_DIR)?;
+        fs::create_dir_all(FILE_CACHE_DIR)
+            .await
+            .context("Failed to create tmp directory")?;
+        let directory = tempfile::tempdir_in(FILE_CACHE_DIR)?;
+        let file_watcher = FileWatcher::new(directory);
 
         let process_watcher = ProcessWatcher::new(config.targets.clone());
 
         Ok(TracerClient {
-            // fixed values
+            // if putting a value to config, also update `TracerClient::reload_config_file`
             interval: Duration::from_millis(config.process_polling_interval_ms),
             last_interaction_new_run_duration: Duration::from_millis(config.new_run_pause_ms),
             process_metrics_send_interval: Duration::from_millis(
@@ -131,7 +129,7 @@ impl TracerClient {
         })
     }
 
-    pub fn reload_config_file(&mut self, config: &Config) {
+    pub fn reload_config_file(&mut self, config: Config) {
         self.interval = Duration::from_millis(config.process_polling_interval_ms);
         self.process_watcher.reload_targets(config.targets.clone());
         self.config = config.clone()
@@ -352,7 +350,6 @@ impl TracerClient {
                 DEFAULT_SERVICE_URL,
                 &self.config.api_key,
                 &self.workflow_directory,
-                FILE_CACHE_DIR,
                 self.last_file_size_change_time_delta,
             )
             .await?;
@@ -418,73 +415,34 @@ impl TracerClient {
         &self.config.api_key
     }
 
-    pub async fn run(self) -> Result<()> {
-        let config: Arc<RwLock<config_manager::Config>> =
-            Arc::new(RwLock::new(self.config.clone()));
+    pub async fn send_log_event(&mut self, payload: String) -> Result<()> {
+        send_log_event(self.get_api_key(), &payload).await?; // todo: remove
 
-        let tracer_client = Arc::new(Mutex::new(self));
+        self.logs
+            .record_event(EventType::RunStatusMessage, payload, None, Some(Utc::now()));
 
-        let cancellation_token = CancellationToken::new();
+        Ok(())
+    }
 
-        tokio::spawn(run_server(
-            tracer_client.clone(),
-            SOCKET_PATH,
-            cancellation_token.clone(),
-            config.clone(),
-        ));
+    pub async fn send_alert_event(&mut self, payload: String) -> Result<()> {
+        send_alert_event(&payload).await?; // todo: remove
+        self.logs
+            .record_event(EventType::Alert, payload, None, Some(Utc::now()));
+        Ok(())
+    }
 
-        let syslog_lines_task = tokio::spawn(run_syslog_lines_read_thread(
-            SYSLOG_FILE,
-            tracer_client.lock().await.get_syslog_lines_buffer(),
-        ));
+    //FIXME: Should tag updates be parts of events?... how should it be handled and stored
+    pub async fn send_update_tags_event(&self, tags: Vec<String>) -> Result<()> {
+        let _tags_entry = json!({
+            "tags": tags,
+            "message": "[CLI] Updating tags",
+            "process_type": "pipeline",
+            "process_status": "tag_update",
+            "event_type": "process_status",
+            "timestamp": Utc::now().timestamp_millis() as f64 / 1000.,
+        });
 
-        let stdout_lines_task =
-            tokio::spawn(crate::extracts::stdout::run_stdout_lines_read_thread(
-                INTERCEPTOR_STDOUT_FILE,
-                INTERCEPTOR_STDERR_FILE,
-                tracer_client.lock().await.get_stdout_stderr_lines_buffer(),
-            ));
-
-        tracer_client
-            .lock()
-            .await
-            .borrow_mut()
-            .start_new_run(None)
-            .await?;
-
-        while !cancellation_token.is_cancelled() {
-            let start_time = Instant::now();
-            while start_time.elapsed()
-                < Duration::from_millis(config.read().await.batch_submission_interval_ms)
-            {
-                monitor_processes_with_tracer_client(tracer_client.lock().await.borrow_mut())
-                    .await?;
-                sleep(Duration::from_millis(
-                    config.read().await.process_polling_interval_ms,
-                ))
-                .await;
-                if cancellation_token.is_cancelled() {
-                    break;
-                }
-            }
-
-            tracer_client
-                .lock()
-                .await
-                .borrow_mut()
-                .submit_batched_data()
-                .await?;
-
-            tracer_client.lock().await.borrow_mut().poll_files().await?;
-        }
-
-        syslog_lines_task.abort();
-        stdout_lines_task.abort();
-
-        // close the connection pool to aurora
-        let guard = tracer_client.lock().await;
-        let _ = guard.db_client.close().await;
-
+        // todo...
         Ok(())
     }
 }

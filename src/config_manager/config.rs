@@ -45,6 +45,7 @@ pub struct ConfigFile {
     pub database_secrets_arn: String,
     pub database_host: String,
     pub database_name: String,
+    pub server_address: String,
 
     pub grafana_workspace_url: String,
 }
@@ -66,11 +67,13 @@ pub struct Config {
     pub database_name: String,
 
     pub grafana_workspace_url: String,
+    pub server_address: String,
 }
 
 pub struct ConfigManager;
 
 impl ConfigManager {
+    // todo: use a ready library for that
     fn get_config_path() -> Option<PathBuf> {
         let path = homedir::get_my_home();
 
@@ -124,6 +127,7 @@ impl ConfigManager {
             database_host: config.database_host,
 
             grafana_workspace_url: config.grafana_workspace_url,
+            server_address: config.server_address,
         })
     }
 
@@ -155,7 +159,8 @@ impl ConfigManager {
             database_host:
                 "tracer-cluster-v2-instance-1.cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432".into(),
 
-            grafana_workspace_url: DEFAULT_GRAFANA_WORKSPACE_URL.to_string()
+            grafana_workspace_url: DEFAULT_GRAFANA_WORKSPACE_URL.to_string(),
+            server_address: "127.0.0.1:8722".to_string(),
         }
     }
 
@@ -178,6 +183,10 @@ impl ConfigManager {
 
         if let Ok(api_key) = std::env::var("TRACER_API_KEY") {
             config.api_key = api_key;
+        }
+
+        if let Ok(server_address) = std::env::var("TRACER_SERVER_ADDRESS") {
+            config.server_address = server_address;
         }
 
         config
@@ -233,6 +242,7 @@ impl ConfigManager {
             database_name: config.database_name.clone(),
             database_host: config.database_host.clone(),
             grafana_workspace_url: config.grafana_workspace_url.clone(),
+            server_address: config.server_address.clone(),
         };
         let config = toml::to_string(&config_out)?;
         std::fs::write(config_file_location, config)?;

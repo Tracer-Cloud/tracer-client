@@ -8,6 +8,7 @@ use lazy_static::lazy_static;
 use predicates::prelude::predicate;
 use predicates::str::RegexPredicate;
 use predicates::Predicate;
+use tempfile::TempDir;
 
 use crate::utils::debug_log::Logger;
 use crate::utils::upload::upload_from_file_path;
@@ -33,6 +34,7 @@ pub struct FileInfo {
 pub struct FileWatcher {
     watched_files: HashMap<String, WatchedFileInfo>,
     all_files: HashMap<String, FileInfo>,
+    temp_dir: TempDir,
 }
 
 pub enum FilePattern {
@@ -94,17 +96,17 @@ lazy_static! {
     ];
 }
 
-impl Default for FileWatcher {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl FileWatcher {
-    pub fn new() -> Self {
+    pub fn with_random_temp_dir() -> Result<Self> {
+        let temp_dir = TempDir::new().expect("Failed to create temporary directory");
+        Ok(Self::new(temp_dir))
+    }
+
+    pub fn new(temp_dir: TempDir) -> Self {
         Self {
             watched_files: HashMap::new(),
             all_files: HashMap::new(),
+            temp_dir,
         }
     }
 
@@ -321,12 +323,12 @@ impl FileWatcher {
         }
     }
 
-    pub fn cache_file(&self, file_cache_dir: &str, file_info: &mut WatchedFileInfo) -> Result<()> {
+    pub fn cache_file(&self, file_info: &mut WatchedFileInfo) -> Result<()> {
         if file_info.cached_path.is_none() {
             let file_name =
                 random_string::generate(CACHED_FILE_NAME_LENGTH, CACHED_FILE_NAME_CHARSET);
             file_info.cached_path = Some(
-                Path::new(file_cache_dir)
+                Path::new(self.temp_dir.path().as_os_str())
                     .join(file_name)
                     .to_str()
                     .ok_or_else(|| anyhow::anyhow!("Failed to convert cache path to string"))?
@@ -341,23 +343,6 @@ impl FileWatcher {
                 file_info.cached_path.as_ref().unwrap()
             )
         })?;
-
-        Ok(())
-    }
-
-    pub fn prepare_cache_directory(&self, file_cache_dir: &str) -> Result<()> {
-        let path = Path::new(file_cache_dir);
-        if path.exists() {
-            fs::remove_dir_all(path).with_context(|| {
-                format!(
-                    "Failed to remove existing cache directory: {}",
-                    file_cache_dir
-                )
-            })?;
-        }
-
-        fs::create_dir_all(path)
-            .with_context(|| format!("Failed to create cache directory: {}", file_cache_dir))?;
 
         Ok(())
     }
@@ -409,7 +394,6 @@ impl FileWatcher {
         service_url: &str,
         api_key: &str,
         workflow_directory: &str,
-        file_cache_dir: &str,
         new_size_duration: TimeDelta,
     ) -> Result<()> {
         let logger = Logger::new();
@@ -500,7 +484,7 @@ impl FileWatcher {
             let old_file_info = self.watched_files.get(&file_info.path);
             let update = self.check_if_file_to_update(old_file_info, Some(file_info));
             if update {
-                self.cache_file(file_cache_dir, file_info)
+                self.cache_file(file_info)
                     .with_context(|| format!("Failed to cache file: {}", file_info.path))?;
             } else if let Some(old_file_info) = old_file_info {
                 file_info.cached_path = old_file_info.cached_path.clone();
@@ -524,7 +508,7 @@ mod tests {
     #[test]
     fn test_check_if_file_to_update_no_changes() {
         let now: DateTime<Utc> = Utc::now();
-        let file_watcher = FileWatcher::new();
+        let file_watcher = FileWatcher::with_random_temp_dir().unwrap();
         let old_file_info = WatchedFileInfo {
             path: "/tmp/test.txt".to_string(),
             size: 50,
@@ -549,7 +533,7 @@ mod tests {
     #[test]
     fn test_check_if_file_to_update_new_file() {
         let now: DateTime<Utc> = Utc::now();
-        let file_watcher = FileWatcher::new();
+        let file_watcher = FileWatcher::with_random_temp_dir().unwrap();
         let old_file_info = WatchedFileInfo {
             path: "/tmp/test.txt".to_string(),
             size: 50,
