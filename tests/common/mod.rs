@@ -1,3 +1,5 @@
+pub mod test_server;
+
 use bollard::container::{InspectContainerOptions, ListContainersOptions};
 use bollard::Docker;
 use sqlx::PgPool;

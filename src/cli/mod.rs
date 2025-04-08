@@ -1,25 +1,20 @@
 // src/cli/mod.rs
 #![allow(dead_code)]
 use crate::{
-    config_manager::ConfigManager,
-    daemon_communication::client::{
-        send_alert_request, send_end_run_request, send_log_request,
-        send_log_short_lived_process_request, send_start_run_request, send_terminate_request,
-        send_update_tags_request, send_upload_file_request,
-    },
-    extracts::process_watcher::ProcessWatcher,
-    run, start_daemon,
+    config_manager::ConfigManager, extracts::process_watcher::ProcessWatcher, run, start_daemon,
     types::cli::TracerCliInitArgs,
-    SOCKET_PATH,
 };
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use nondaemon_commands::{
-    clean_up_after_daemon, print_config_info_sync, setup_config, update_tracer,
-};
+use nondaemon_commands::{clean_up_after_daemon, setup_config, update_tracer};
 
+use crate::cli::nondaemon_commands::print_config_info;
+use crate::config_manager::Config;
+use crate::daemon_communication::client::DaemonClient;
+use crate::daemon_communication::structs::{LogData, Message, TagData, UploadData};
 use std::{env, fs::canonicalize};
 use sysinfo::System;
+
 pub mod nondaemon_commands;
 
 #[derive(Parser)]
@@ -98,15 +93,20 @@ pub enum Commands {
 }
 
 pub fn process_cli() -> Result<()> {
+    // has to be sync due to daemonizing
+
     let cli = Cli::parse();
+    let config = ConfigManager::load_config();
+    let api_client = DaemonClient::new(format!("http://{}", config.server_address));
 
     match cli.command {
         Commands::Init(args) => {
-            print_config_info_sync()?;
             //let test_result = ConfigManager::test_service_config_sync();
             //if test_result.is_err() {
             //    return Ok(());
             //}
+            tokio::runtime::Runtime::new()?.block_on(print_config_info(&api_client, &config))?;
+
             println!("Starting daemon...");
             let current_working_directory = env::current_dir()?;
 
@@ -121,6 +121,7 @@ pub fn process_cli() -> Result<()> {
             run(
                 current_working_directory.to_str().unwrap().to_string(),
                 args,
+                config,
             )?;
             clean_up_after_daemon()
         }
@@ -141,21 +142,56 @@ pub fn process_cli() -> Result<()> {
             result
         }
         Commands::ApplyBashrc => ConfigManager::setup_aliases(),
-        Commands::Info => print_config_info_sync(),
-        _ => run_async_command(cli.command),
+        _ => {
+            match tokio::runtime::Runtime::new()?.block_on(run_async_command(
+                cli.command,
+                &api_client,
+                &config,
+            )) {
+                Ok(_) => {
+                    println!("Command sent successfully.");
+                }
+
+                Err(e) => {
+                    // todo: we can match on the error type (timeout, no resp, 500 etc)
+                    println!("Failed to send command to the daemon. Maybe the daemon is not running? If it's not, run `tracer init` to start the daemon.");
+                    let message = format!("Error Processing cli command: \n {e:?}.");
+                    crate::utils::debug_log::Logger::new().log_blocking(&message, None);
+                }
+            }
+
+            Ok(())
+        }
     }
 }
 
-#[tokio::main]
-pub async fn run_async_command(commands: Commands) -> Result<()> {
-    let result = match commands {
-        Commands::Log { message } => send_log_request(SOCKET_PATH, message).await,
-        Commands::Alert { message } => send_alert_request(SOCKET_PATH, message).await,
-        Commands::Terminate => send_terminate_request(SOCKET_PATH).await,
-        Commands::Start => send_start_run_request(SOCKET_PATH).await,
-        Commands::End => send_end_run_request(SOCKET_PATH).await,
-        Commands::Update => update_tracer().await,
-        Commands::Tag { tags } => send_update_tags_request(SOCKET_PATH, &tags).await,
+pub async fn run_async_command(
+    commands: Commands,
+    api_client: &DaemonClient,
+    config: &Config,
+) -> Result<()> {
+    match commands {
+        Commands::Log { message } => {
+            let payload = Message { payload: message };
+            api_client.send_log_request(payload).await?
+        }
+        Commands::Alert { message } => {
+            let payload = Message { payload: message };
+            api_client.send_alert_request(payload).await?
+        }
+        Commands::Terminate => api_client.send_terminate_request().await?,
+        Commands::Start => match api_client.send_start_run_request().await? {
+            Some(run_data) => {
+                println!("Started a new run with name: {}", run_data.run_name);
+            }
+            None => println!("Pipeline should have started"),
+        },
+        Commands::End => api_client.send_end_request().await?,
+        Commands::Update => update_tracer().await?,
+        Commands::Tag { tags } => {
+            let tags = TagData { names: tags };
+            api_client.send_update_tags_request(tags).await?;
+        }
         Commands::Setup {
             api_key,
             process_polling_interval_ms,
@@ -166,37 +202,47 @@ pub async fn run_async_command(commands: Commands) -> Result<()> {
                 &process_polling_interval_ms,
                 &batch_submission_interval_ms,
             )
-            .await
+            .await?
         }
         Commands::LogShortLivedProcess { command } => {
-            let data = ProcessWatcher::gather_short_lived_process_data(&System::new(), &command);
-            send_log_short_lived_process_request(SOCKET_PATH, data).await
+            let data = LogData {
+                log: ProcessWatcher::gather_short_lived_process_data(&System::new(), &command),
+            };
+            api_client
+                .send_log_short_lived_process_request(data)
+                .await?;
         }
         Commands::Upload { file_path } => {
             let path = canonicalize(&file_path);
-            if let Err(e) = path {
-                println!(
-                    "Failed to find the file. Please provide the full path to the file. Error: {}",
-                    e
-                );
-                return Ok(());
-            }
+            match path {
+                Err(e) => {
+                    println!(
+                        "Failed to find the file. Please provide the full path to the file. Error: {}",
+                        e
+                    );
+                    return Ok(());
+                }
+                Ok(file_path) => {
+                    let path = UploadData {
+                        file_path: file_path
+                            .as_os_str()
+                            .to_str()
+                            .unwrap_or_default()
+                            .to_string(),
+                        socket_path: None,
+                    };
 
-            send_upload_file_request(SOCKET_PATH, &path.unwrap()).await
+                    api_client.send_upload_file_request(path).await?;
+                }
+            }
+        }
+        Commands::Info => {
+            print_config_info(api_client, config).await?;
         }
         _ => {
             println!("Command not implemented yet");
-            Ok(())
         }
     };
-
-    if result.is_err() {
-        println!("Failed to send command to the daemon. Maybe the daemon is not running? If it's not, run `tracer init` to start the daemon.");
-        let message = format!("Error Processing cli command: \n {result:?}.");
-        crate::utils::debug_log::Logger::new().log_blocking(&message, None);
-    } else {
-        println!("Command sent successfully.")
-    }
 
     Ok(())
 }
