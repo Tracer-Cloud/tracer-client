@@ -39,7 +39,7 @@ tracer info
 su - ubuntu
 ```
 ```bash
-cd ~/tracer-test && cd tracer-test-pipelines-bioinformatics
+tracer-test-pipelines-bioinformatics
 ```
 ```bash
 make test_rnaseq
