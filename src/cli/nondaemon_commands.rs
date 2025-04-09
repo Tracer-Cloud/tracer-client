@@ -32,8 +32,7 @@ pub async fn wait(api_client: &DaemonClient) -> Result<()> {
         {
             // if timeout, retry
             Err(e) => {
-                if e.is_timeout() || e.is_connect() {
-                } else {
+                if !(e.is_timeout() || e.is_connect()) {
                     bail!(e)
                 }
             }
