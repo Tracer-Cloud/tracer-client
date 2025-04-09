@@ -1,17 +1,29 @@
 name: Run Database Migrations
 
+# This action runs migrations on prod or dev database depending on the triggering type.
+# If it's a release tagging it will migrate the production db
+# If it's a merge on main will run migration on the development db
 on:
   pull_request:
     types:
-      - closed 
+      - closed
     branches:
-      - "**"
+      - main
     paths:
-        - "migrations/**"
+      - "migrations/**"
+
+  push:
+    tags:
+      - "v*" # handle every tag pattern, we usually tag v0.0.1 or v2025.4.1
+
+  workflow_dispatch:
 
 jobs:
   migrate:
-    if: github.event.pull_request.merged == true  
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
     runs-on: ubuntu-latest
 
     steps:
@@ -26,14 +38,23 @@ jobs:
 
       - name: Fetch Credentials
         run: |
-          DB_SECRET=$(aws secretsmanager get-secret-value --secret-id '${{ secrets.DATABASE_SECRETS_ARN }}' --query SecretString --output text)
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "Running PRODUCTION migrations"
+            SECRET_ARN="${{ secrets.PROD_DATABASE_SECRETS_ARN }}"
+            DB_HOST="${{ secrets.PROD_DATABASE_HOST }}"
+            DB_NAME="tracer_db"
+          else
+            echo "Running DEVELOPMENT migrations"
+            SECRET_ARN="${{ secrets.DEV_DATABASE_SECRETS_ARN }}"
+            DB_HOST="${{ secrets.DEV_DATABASE_HOST }}"
+            DB_NAME="tracer_db"
+          fi
+
+          DB_SECRET=$(aws secretsmanager get-secret-value --secret-id "$SECRET_ARN" --query SecretString --output text)
           DB_USER=$(echo $DB_SECRET | jq -r '.username')
           DB_PASS=$(echo $DB_SECRET | jq -r '.password')
           ENCODED_PASS=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$DB_PASS'))")
-          DB_HOST="${{ secrets.DATABASE_HOST }}"
-          DB_NAME="tracer_db"
 
-          # Store DB URL as an environment variable
           echo "DB_URL=postgres://$DB_USER:$ENCODED_PASS@$DB_HOST/$DB_NAME" >> $GITHUB_ENV
 
       - name: Run Migrations

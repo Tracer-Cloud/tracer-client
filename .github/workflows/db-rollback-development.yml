@@ -1,4 +1,4 @@
-name: Rollback Database Migrations
+name: Rollback Database Migrations Development
 
 on:
   workflow_dispatch
@@ -19,11 +19,11 @@ jobs:
 
       - name: Fetch Credentials
         run: |
-          DB_SECRET=$(aws secretsmanager get-secret-value --secret-id '${{ secrets.DATABASE_SECRETS_ARN }}' --query SecretString --output text)
+          DB_SECRET=$(aws secretsmanager get-secret-value --secret-id '${{ secrets.DEV_DATABASE_SECRETS_ARN }}' --query SecretString --output text)
           DB_USER=$(echo $DB_SECRET | jq -r '.username')
           DB_PASS=$(echo $DB_SECRET | jq -r '.password')
           ENCODED_PASS=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$DB_PASS'))")
-          DB_HOST="${{ secrets.DATABASE_HOST }}"
+          DB_HOST="${{ secrets.DEV_DATABASE_HOST }}"
           DB_NAME="tracer_db"
 
           # Store DB URL as an environment variable
