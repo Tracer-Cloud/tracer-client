@@ -39,10 +39,7 @@ tracer info
 su - ubuntu
 ```
 ```bash
-cd tracer-test-pipelines-bioinformatics
-```
-```bash
-make test_rnaseq
+cd tracer-test-pipelines-bioinformatics && make test_rnaseq
 ```
 
 - Step 11. Navigate to Grafana, to and Validate that the Nextflow pipeline is running by going to the Grafana Dashboard: [https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com](https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com)
