@@ -102,3 +102,67 @@ jobs:
       - name: Upload to S3
         run: |
           aws s3 cp release-files/tracer-${{ matrix.target }}.tar.gz s3://tracer-releases/tracer-${{ matrix.target }}.tar.gz
+
+  build-and-release-amazon-linux:
+    permissions: write-all
+    runs-on: ubuntu-latest
+    container:
+      image: amazonlinux:2023
+
+    steps:
+      - name: Install dependencies
+        run: |
+          yum update -y
+          yum groupinstall -y "Development Tools"
+          yum install -y git gcc openssl-devel pkgconfig cmake tar gzip unzip
+
+      - name: Install Rust
+        run: |
+          curl https://sh.rustup.rs -sSf | sh -s -- -y
+          echo 'source $HOME/.cargo/env' >> ~/.bashrc
+          source $HOME/.cargo/env
+          rustup target add x86_64-unknown-linux-gnu
+
+      - uses: actions/checkout@v4
+
+      - name: Update version in Cargo.toml
+        run: |
+          DATE_TAG=$(date -u +"v%Y.%m.%d.%H")
+          YEAR=$(echo ${DATE_TAG} | cut -d'v' -f2 | cut -d'.' -f1)
+          MONTH=$(echo ${DATE_TAG} | cut -d'.' -f2 | sed 's/^0*//')
+          DAY=$(echo ${DATE_TAG} | cut -d'.' -f3 | sed 's/^0*//')
+          HOUR=$(echo ${DATE_TAG} | cut -d'.' -f4)
+          BRANCH="${{ github.event.pull_request.head.ref || github.ref_name }}"
+          BRANCH_NAME=$(echo "$BRANCH" | tr '/' '-' | tr '_' '-' | sed 's/[^a-zA-Z0-9-]//g')
+          CARGO_VERSION="${YEAR}.${MONTH}.${DAY}+${HOUR}-${BRANCH_NAME}"
+          sed -i.bak "s/^version = .*/version = \"${CARGO_VERSION}\"/" Cargo.toml
+          echo "Built version: $CARGO_VERSION"
+
+      - name: Build the binary
+        run: |
+          source $HOME/.cargo/env
+          cargo build --release
+
+      - name: Prepare binary for release
+        run: |
+          mkdir -p release-files/amazon-linux
+          cp target/release/tracer release-files/amazon-linux/tracer
+          chmod +x release-files/amazon-linux/tracer
+          tar -czf release-files/tracer-x86_64-amazon-linux-gnu.tar.gz -C release-files/amazon-linux tracer
+
+      - name: Install AWS CLI
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          ./aws/install
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Upload to S3
+        run: |
+          aws s3 cp release-files/tracer-x86_64-amazon-linux-gnu.tar.gz s3://tracer-releases/tracer-x86_64-amazon-linux-gnu.tar.gz
