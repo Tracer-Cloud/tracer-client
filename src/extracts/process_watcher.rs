@@ -2,13 +2,14 @@
 use crate::config_manager::target_process::{
     targets_list::DATA_SAMPLES_EXT, Target, TargetMatchable,
 };
-use crate::events::recorder::{EventRecorder, EventType};
+use crate::events::recorder::EventRecorder;
 use crate::extracts::file_watcher::FileWatcher;
 use crate::nextflow_log_watcher::NextflowLogWatcher;
 use crate::types::event::attributes::process::InputFile;
 use crate::types::event::attributes::process::ProcessProperties;
 use crate::types::event::attributes::process::{CompletedProcess, DataSetsProcessed};
 use crate::types::event::attributes::EventAttributes;
+use crate::types::event::ProcessStatus as TracerProcessStatus;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -385,7 +386,7 @@ impl ProcessWatcher {
     ) -> Result<()> {
         let properties = EventAttributes::Process(short_lived_process.properties.clone());
         event_logger.record_event(
-            EventType::ToolExecution,
+            TracerProcessStatus::ToolExecution,
             format!(
                 "[{}] Short lived process: {}",
                 short_lived_process.timestamp, short_lived_process.command
@@ -536,7 +537,7 @@ impl ProcessWatcher {
         properties.input_files = Some(input_files);
 
         event_logger.record_event(
-            EventType::ToolExecution,
+            TracerProcessStatus::ToolExecution,
             format!("[{}] Tool process: {}", start_time, &display_name),
             Some(EventAttributes::Process(properties)),
             None,
@@ -574,7 +575,7 @@ impl ProcessWatcher {
         ));
 
         event_logger.record_event(
-            EventType::ToolMetricEvent,
+            TracerProcessStatus::ToolMetricEvent,
             format!("[{}] Tool metric event: {}", start_time, &display_name),
             Some(properties),
             None,
@@ -668,7 +669,7 @@ impl ProcessWatcher {
         };
 
         event_logger.record_event(
-            EventType::FinishedToolExecution,
+            TracerProcessStatus::FinishedToolExecution,
             format!("[{}] {} exited", Utc::now(), &proc.name),
             Some(EventAttributes::CompletedProcess(properties)),
             None,
@@ -691,7 +692,7 @@ impl ProcessWatcher {
         };
 
         event_logger.record_event(
-            EventType::DataSamplesEvent,
+            TracerProcessStatus::DataSamplesEvent,
             format!("[{}] Samples Processed So Far", Utc::now()),
             Some(EventAttributes::ProcessDatasetStats(properties)),
             None,

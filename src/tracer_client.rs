@@ -2,8 +2,7 @@
 use crate::cloud_providers::aws::PricingClient;
 use crate::config_manager::Config;
 use crate::events::{
-    recorder::{EventRecorder, EventType},
-    send_alert_event, send_log_event, send_start_run_event,
+    recorder::EventRecorder, send_alert_event, send_log_event, send_start_run_event,
 };
 use anyhow::{Context, Result};
 
@@ -17,6 +16,7 @@ use crate::extracts::{
 };
 use crate::types::cli::{PipelineTags, TracerCliInitArgs};
 use crate::types::event::attributes::EventAttributes;
+use crate::types::event::ProcessStatus;
 use crate::{DEFAULT_SERVICE_URL, FILE_CACHE_DIR};
 use chrono::{DateTime, TimeDelta, Utc};
 use serde_json::json;
@@ -26,7 +26,6 @@ use std::time::{Duration, Instant};
 use sysinfo::{Pid, System};
 use tokio::fs;
 use tokio::sync::RwLock;
-
 // NOTE: we might have to find a better alternative than passing the pipeline name to tracer client
 // directly. Currently with this approach, we do not need to generate a new pipeline name for every
 // new run.
@@ -209,7 +208,7 @@ impl TracerClient {
             }
             if run.last_interaction.elapsed() > self.last_interaction_new_run_duration {
                 self.logs.record_event(
-                    EventType::FinishedRun,
+                    ProcessStatus::FinishedRun,
                     "Run ended due to inactivity".to_string(),
                     None,
                     None,
@@ -224,7 +223,7 @@ impl TracerClient {
                     .is_process_alive(&self.system, parent_pid)
                 {
                     self.logs.record_event(
-                        EventType::FinishedRun,
+                        ProcessStatus::FinishedRun,
                         "Run ended due to parent process termination".to_string(),
                         None,
                         None,
@@ -270,7 +269,7 @@ impl TracerClient {
 
         // NOTE: Do we need to output a totally new event if self.initialization_id.is_some() ?
         self.logs.record_event(
-            EventType::NewRun,
+            ProcessStatus::NewRun,
             "[CLI] Starting new pipeline run".to_owned(),
             Some(EventAttributes::SystemProperties(result.system_properties)),
             timestamp,
@@ -282,7 +281,7 @@ impl TracerClient {
     pub async fn stop_run(&mut self) -> Result<()> {
         if self.current_run.is_some() {
             self.logs.record_event(
-                EventType::FinishedRun,
+                ProcessStatus::FinishedRun,
                 "[CLI] Finishing pipeline run".to_owned(),
                 None,
                 Some(Utc::now()),
@@ -418,8 +417,12 @@ impl TracerClient {
     pub async fn send_log_event(&mut self, payload: String) -> Result<()> {
         send_log_event(self.get_api_key(), &payload).await?; // todo: remove
 
-        self.logs
-            .record_event(EventType::RunStatusMessage, payload, None, Some(Utc::now()));
+        self.logs.record_event(
+            ProcessStatus::RunStatusMessage,
+            payload,
+            None,
+            Some(Utc::now()),
+        );
 
         Ok(())
     }
@@ -427,7 +430,7 @@ impl TracerClient {
     pub async fn send_alert_event(&mut self, payload: String) -> Result<()> {
         send_alert_event(&payload).await?; // todo: remove
         self.logs
-            .record_event(EventType::Alert, payload, None, Some(Utc::now()));
+            .record_event(ProcessStatus::Alert, payload, None, Some(Utc::now()));
         Ok(())
     }
 
@@ -451,7 +454,6 @@ impl TracerClient {
 mod tests {
     use super::*;
     use crate::config_manager::ConfigManager;
-    use crate::events::recorder::EventType;
     use anyhow::Result;
     use serde_json::Value;
     use sqlx::types::Json;
@@ -484,7 +486,7 @@ mod tests {
 
         // Record a test event
         client.logs.record_event(
-            EventType::TestEvent,
+            ProcessStatus::TestEvent,
             format!("[submit_batched_data.rs] Test event for job {}", run_name),
             None,
             None,
@@ -546,7 +548,7 @@ mod tests {
 
         // Record a test event
         client.logs.record_event(
-            EventType::TestEvent,
+            ProcessStatus::TestEvent,
             format!("[submit_batched_data.rs] Test event for job {}", job_id),
             None,
             None,

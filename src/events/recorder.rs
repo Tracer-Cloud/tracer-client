@@ -1,9 +1,9 @@
+use crate::types::event::{EventType, ProcessStatus, ProcessType};
 use crate::types::{
     cli::PipelineTags,
     event::{attributes::EventAttributes, Event},
 };
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 
 /// Events recorder for each pipeline run
 pub struct EventRecorder {
@@ -13,41 +13,6 @@ pub struct EventRecorder {
     // NOTE: Tying a pipeline_name to the events recorder because, you can only start one pipeline at a time
     pipeline_name: Option<String>,
     tags: Option<PipelineTags>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
-pub enum EventType {
-    NewRun,
-    FinishedRun,
-    ToolExecution,
-    FinishedToolExecution,
-    ToolMetricEvent,
-    MetricEvent,
-    SyslogEvent,
-    RunStatusMessage,
-    Alert,
-    DataSamplesEvent,
-    TestEvent, // Added TestEvent variant
-    NextflowLogEvent,
-}
-
-impl EventType {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            EventType::NewRun => "new_run",
-            EventType::FinishedRun => "finished_run",
-            EventType::ToolExecution => "tool_execution",
-            EventType::FinishedToolExecution => "finished_tool_execution",
-            EventType::MetricEvent => "metric_event",
-            EventType::SyslogEvent => "syslog_event",
-            EventType::ToolMetricEvent => "tool_metric_event",
-            EventType::TestEvent => "test_event", // Handle TestEvent
-            EventType::RunStatusMessage => "run_status_message",
-            EventType::Alert => "alert",
-            EventType::DataSamplesEvent => "datasets_in_process",
-            EventType::NextflowLogEvent => "nextflow_log_event",
-        }
-    }
 }
 
 impl EventRecorder {
@@ -80,7 +45,7 @@ impl EventRecorder {
 
     pub fn record_event(
         &mut self,
-        event_type: EventType,
+        process_status: ProcessStatus,
         message: String,
         attributes: Option<EventAttributes>,
         timestamp: Option<DateTime<Utc>>,
@@ -88,9 +53,9 @@ impl EventRecorder {
         let event = Event {
             timestamp: timestamp.unwrap_or_else(Utc::now),
             message,
-            event_type: "process_status".to_owned(),
-            process_type: "pipeline".to_owned(),
-            process_status: event_type.as_str().to_owned(),
+            event_type: EventType::ProcessStatus,
+            process_type: ProcessType::Pipeline,
+            process_status,
             attributes,
             // NOTE: not a fan of constant cloning so would look for an alt
             run_name: self.run_name.clone(),
@@ -138,7 +103,7 @@ mod tests {
         let attributes = Some(EventAttributes::Other(json!({"key": "value"})));
 
         recorder.record_event(
-            EventType::ToolExecution,
+            ProcessStatus::ToolExecution,
             message.clone(),
             attributes.clone(),
             None,
@@ -148,9 +113,9 @@ mod tests {
 
         let event = &recorder.get_events()[0];
         assert_eq!(event.message, message);
-        assert_eq!(event.event_type, "process_status");
-        assert_eq!(event.process_type, "pipeline");
-        assert_eq!(event.process_status, "tool_execution");
+        assert_eq!(event.event_type, EventType::ProcessStatus);
+        assert_eq!(event.process_type, ProcessType::Pipeline);
+        assert_eq!(event.process_status, ProcessStatus::ToolExecution);
         assert!(matches!(
             event.attributes.clone().unwrap(),
             EventAttributes::Other(_)
@@ -161,7 +126,7 @@ mod tests {
     fn test_clear_events() {
         let mut recorder = EventRecorder::default();
         recorder.record_event(
-            EventType::ToolExecution,
+            ProcessStatus::ToolExecution,
             "Test event".to_string(),
             None,
             None,
@@ -174,10 +139,10 @@ mod tests {
 
     #[test]
     fn test_event_type_as_str() {
-        assert_eq!(EventType::FinishedRun.as_str(), "finished_run");
-        assert_eq!(EventType::ToolExecution.as_str(), "tool_execution");
-        assert_eq!(EventType::MetricEvent.as_str(), "metric_event");
-        assert_eq!(EventType::TestEvent.as_str(), "test_event");
+        assert_eq!(ProcessStatus::FinishedRun.as_str(), "finished_run");
+        assert_eq!(ProcessStatus::ToolExecution.as_str(), "tool_execution");
+        assert_eq!(ProcessStatus::MetricEvent.as_str(), "metric_event");
+        assert_eq!(ProcessStatus::TestEvent.as_str(), "test_event");
     }
 
     #[test]
@@ -187,7 +152,7 @@ mod tests {
         let attributes = Some(EventAttributes::Other(json!({"test_key": "test_value"})));
 
         recorder.record_event(
-            EventType::TestEvent,
+            ProcessStatus::TestEvent,
             message.clone(),
             attributes.clone(),
             None,
@@ -197,9 +162,9 @@ mod tests {
 
         let event = &recorder.get_events()[0];
         assert_eq!(event.message, message);
-        assert_eq!(event.event_type, "process_status");
-        assert_eq!(event.process_type, "pipeline");
-        assert_eq!(event.process_status, "test_event");
+        assert_eq!(event.event_type, EventType::ProcessStatus);
+        assert_eq!(event.process_type, ProcessType::Pipeline);
+        assert_eq!(event.process_status, ProcessStatus::TestEvent);
         assert!(matches!(
             event.attributes.clone().unwrap(),
             EventAttributes::Other(_)

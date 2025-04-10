@@ -4,8 +4,9 @@ use chrono::Utc;
 use std::collections::HashMap;
 use sysinfo::{Disks, System};
 
+use crate::types::event::ProcessStatus;
 use crate::{
-    events::recorder::{EventRecorder, EventType},
+    events::recorder::EventRecorder,
     types::event::{
         attributes::system_metrics::{DiskStatistic, SystemMetric},
         attributes::EventAttributes,
@@ -81,7 +82,7 @@ impl SystemMetricsCollector {
             EventAttributes::SystemMetric(Self::gather_metrics_object_attributes(system));
 
         logs.record_event(
-            EventType::MetricEvent,
+            ProcessStatus::MetricEvent,
             format!("[{}] System's resources metric", Utc::now()),
             Some(attributes),
             None,
