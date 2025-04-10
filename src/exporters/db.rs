@@ -42,7 +42,7 @@ struct EventInsert {
     cpu_usage: Option<f64>,
     mem_used: Option<f64>,
     processed_dataset: Option<i32>,
-    process_status: String
+    process_status: String,
 }
 
 impl EventInsert {
