@@ -1,6 +1,6 @@
 [package]
 name = "tracer"
-version = "2025.2.27+234158"
+version = "2025.04.10"
 edition = "2021"
 
 [dependencies]
