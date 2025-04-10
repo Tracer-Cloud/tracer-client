@@ -63,6 +63,6 @@ ENCODED_PASS=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${data
 su - ubuntu -c "cd /home/ubuntu/tracer-client && git pull origin main && ./migrate.sh postgres://${database_user}:$ENCODED_PASS@${db_endpoint}/${database_name}" 
 
 # start the client
-su - ubuntu -c "tracer init --pipeline-name one-click"
+su - ubuntu -c "tracer init --pipeline-name one-click --environment demo --user-operator John --pipeline-type generic"
 
 echo "Script setup ran successfully $(date)"
