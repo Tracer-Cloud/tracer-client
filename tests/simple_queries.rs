@@ -55,10 +55,10 @@ async fn query_datasets_processed(pool: &PgPool, run_name: &str) {
     let tools_tracked: Vec<(String, i64)> = sqlx::query_as(
         r#"
             SELECT 
-                data->>'process_status' AS process_status,
+                process_status,
                 MAX((data->'attributes'->'process_dataset_stats'->>'total')::BIGINT) AS total_samples
             FROM batch_jobs_logs
-            WHERE data->>'process_status' = 'datasets_in_process'
+            WHERE process_status = 'datasets_in_process'
             AND run_name = $1
             GROUP BY process_status;
         "#,
