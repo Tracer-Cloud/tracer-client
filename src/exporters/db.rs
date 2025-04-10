@@ -167,7 +167,8 @@ impl AuroraClient {
 
         const QUERY: &str = "INSERT INTO batch_jobs_logs (
             data, job_id, run_name, run_id, pipeline_name, nextflow_session_uuid, job_ids,
-            tags, event_timestamp, ec2_cost_per_hour, cpu_usage, mem_used, processed_dataset
+            tags, event_timestamp, ec2_cost_per_hour, cpu_usage, mem_used, processed_dataset,
+            process_status
             )"; // when updating query, also update params
         const PARAMS: usize = 13;
 
