@@ -1,6 +1,7 @@
-use crate::events::recorder::{EventRecorder, EventType};
+use crate::events::recorder::EventRecorder;
 use crate::types::event::attributes::system_metrics::NextflowLog;
 use crate::types::event::attributes::EventAttributes;
+use crate::types::event::ProcessStatus;
 use anyhow::Result;
 use chrono::Utc;
 use std::collections::HashMap;
@@ -138,7 +139,7 @@ impl NextflowLogWatcher {
 
             tracing::info!("Recording Nextflow log event: {}", message);
             logs.record_event(
-                EventType::NextflowLogEvent,
+                ProcessStatus::NextflowLogEvent,
                 message,
                 Some(nextflow_log),
                 Some(Utc::now()),

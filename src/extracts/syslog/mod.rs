@@ -10,11 +10,10 @@ use sysinfo::System;
 use tokio::sync::RwLock;
 use tokio_stream::StreamExt;
 
+use crate::types::event::ProcessStatus;
 use crate::{
-    events::recorder::{EventRecorder, EventType},
-    extracts::metrics::SystemMetricsCollector,
-    types::event::attributes::syslog::SyslogProperties,
-    utils::debug_log::Logger,
+    events::recorder::EventRecorder, extracts::metrics::SystemMetricsCollector,
+    types::event::attributes::syslog::SyslogProperties, utils::debug_log::Logger,
 };
 
 const LINES_BEFORE: usize = 2;
@@ -101,7 +100,7 @@ impl SyslogWatcher {
                 };
 
                 logs.record_event(
-                    EventType::SyslogEvent,
+                    ProcessStatus::SyslogEvent,
                     error.line.clone(),
                     Some(crate::types::event::attributes::EventAttributes::Syslog(
                         attributes,
