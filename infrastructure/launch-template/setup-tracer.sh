@@ -44,7 +44,7 @@ echo "Configuration file created at /home/ubuntu/.config/tracer/tracer.toml"
 # Install the binary
 echo "Updating Tracer binary..."
 sudo rm /usr/local/bin/tracer
-su - ubuntu -c "curl -sSL https://tracer-client.pages.dev/installation-script-development.sh | bash && source ~/.bashrc"
+su - ubuntu -c "curl -sSL https://install.tracer.cloud | bash && source ~/.bashrc"
 su - ubuntu -c "sudo cp /home/ubuntu/.tracerbio/bin/tracer  /usr/local/bin/"
 sudo chown ubuntu:ubuntu /usr/local/bin/tracer
 echo "Tracer binary updated successfully"
