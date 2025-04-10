@@ -8,10 +8,11 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use nondaemon_commands::{clean_up_after_daemon, setup_config, update_tracer};
 
-use crate::cli::nondaemon_commands::print_config_info;
+use crate::cli::nondaemon_commands::{print_config_info, wait};
 use crate::config_manager::Config;
 use crate::daemon_communication::client::DaemonClient;
 use crate::daemon_communication::structs::{LogData, Message, TagData, UploadData};
+use daemonize::Outcome;
 use std::{env, fs::canonicalize};
 use sysinfo::System;
 
@@ -101,20 +102,29 @@ pub fn process_cli() -> Result<()> {
 
     match cli.command {
         Commands::Init(args) => {
-            //let test_result = ConfigManager::test_service_config_sync();
-            //if test_result.is_err() {
-            //    return Ok(());
-            //}
-            tokio::runtime::Runtime::new()?.block_on(print_config_info(&api_client, &config))?;
-
             println!("Starting daemon...");
             let current_working_directory = env::current_dir()?;
 
             if !args.no_daemonize {
-                let result = start_daemon();
-                if result.is_err() {
-                    println!("Failed to start daemon. Maybe the daemon is already running? If it's not, run `tracer cleanup` to clean up the previous daemon files.");
-                    return Ok(());
+                match start_daemon() {
+                    Outcome::Parent(Ok(_)) => {
+                        tokio::runtime::Runtime::new()?.block_on(async {
+                            wait(&api_client).await?;
+                            println!("Daemon started!");
+                            print_config_info(&api_client, &config).await
+                        })?;
+                        println!("Daemon started successfully.");
+                        return Ok(());
+                    }
+                    Outcome::Parent(Err(e)) => {
+                        println!("Failed to start daemon. Maybe the daemon is already running? If it's not, run `tracer cleanup` to clean up the previous daemon files.");
+                        println!("{:}", e);
+                        return Ok(());
+                    }
+                    Outcome::Child(Err(e)) => {
+                        anyhow::bail!(e);
+                    }
+                    Outcome::Child(Ok(_)) => {}
                 }
             }
 

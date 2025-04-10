@@ -14,7 +14,7 @@ pub mod types;
 pub mod utils;
 
 use anyhow::{Context, Result};
-use daemonize::Daemonize;
+use daemonize::{Daemonize, Outcome};
 use exporters::db::AuroraClient;
 use std::fs::File;
 use std::net::SocketAddr;
@@ -47,7 +47,7 @@ const REPO_NAME: &str = "tracer-daemon";
 // TODO: remove dependency from Service url completely
 pub const DEFAULT_SERVICE_URL: &str = "https://app.tracer.bio/api";
 
-pub fn start_daemon() -> Result<()> {
+pub fn start_daemon() -> Outcome<()> {
     let _ = std::fs::create_dir_all(WORKING_DIR);
 
     let daemon = Daemonize::new();
@@ -65,8 +65,7 @@ pub fn start_daemon() -> Result<()> {
                 .unwrap(),
         )
         .umask(0o002)
-        .start()
-        .context("Failed to start daemon.")
+        .execute()
 }
 
 #[tokio::main]

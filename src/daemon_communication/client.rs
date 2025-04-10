@@ -5,7 +5,7 @@ use super::structs::{InfoResponse, LogData, Message, RunData, TagData, UploadDat
 
 pub struct DaemonClient {
     base_uri: String,
-    client: reqwest::Client,
+    pub client: reqwest::Client,
 }
 
 impl DaemonClient {

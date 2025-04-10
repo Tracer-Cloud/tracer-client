@@ -2,15 +2,16 @@ use colored::Colorize;
 use std::fmt::Write;
 use std::process::Command;
 
-use anyhow::{Context, Result};
-use std::result::Result::Ok;
-
 use crate::config_manager::Config;
 use crate::daemon_communication::client::DaemonClient;
 use crate::{
     config_manager::{ConfigManager, INTERCEPTOR_STDOUT_FILE},
     FILE_CACHE_DIR, PID_FILE, REPO_NAME, REPO_OWNER, STDERR_FILE, STDOUT_FILE,
 };
+use anyhow::{bail, Context, Result};
+use std::result::Result::Ok;
+use tokio::time::sleep;
+use tracing::debug;
 
 pub fn clean_up_after_daemon() -> Result<()> {
     std::fs::remove_file(PID_FILE).context("Failed to remove pid file")?;
@@ -19,6 +20,40 @@ pub fn clean_up_after_daemon() -> Result<()> {
     let _ = std::fs::remove_file(INTERCEPTOR_STDOUT_FILE).context("Failed to remove stdout file");
     std::fs::remove_dir_all(FILE_CACHE_DIR).context("Failed to remove cache directory")?;
     Ok(())
+}
+
+pub async fn wait(api_client: &DaemonClient) -> Result<()> {
+    for n in 0..5 {
+        match api_client
+            .client
+            .get(api_client.get_url("/info"))
+            .send()
+            .await
+        {
+            // if timeout, retry
+            Err(e) => {
+                if !(e.is_timeout() || e.is_connect()) {
+                    bail!(e)
+                }
+            }
+            Ok(resp) => {
+                if resp.status().is_success() {
+                    return Ok(());
+                }
+
+                debug!("Got response, retrying: {:?}", resp);
+            }
+        }
+
+        let duration = 1 << n;
+        println!(
+            "Daemon not started yet, sleep for {duration} second{:}",
+            if duration > 1 { "s" } else { "" }
+        );
+        sleep(std::time::Duration::from_secs(duration)).await;
+    }
+
+    bail!("Daemon not started yet")
 }
 
 pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Result<()> {
