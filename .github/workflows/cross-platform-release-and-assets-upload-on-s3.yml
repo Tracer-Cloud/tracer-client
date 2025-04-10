@@ -114,7 +114,7 @@ jobs:
         run: |
           yum update -y
           yum groupinstall -y "Development Tools"
-          yum install -y curl git gcc openssl-devel pkgconfig cmake tar gzip unzip
+          yum install -y git gcc openssl-devel pkgconfig cmake tar gzip unzip
 
       - name: Install Rust
         run: |
