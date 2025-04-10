@@ -42,6 +42,7 @@ struct EventInsert {
     cpu_usage: Option<f64>,
     mem_used: Option<f64>,
     processed_dataset: Option<i32>,
+    process_status: String,
 }
 
 impl EventInsert {
@@ -50,6 +51,7 @@ impl EventInsert {
         run_name: String,
         run_id: String,
         pipeline_name: String,
+        process_status: String,
     ) -> Result<Self> {
         let json_data = Json(serde_json::to_value(event)?);
         let (nextflow_session_uuid, job_ids, event_timestamp) = match &event.attributes {
@@ -105,6 +107,7 @@ impl EventInsert {
             processed_dataset,
             tags_json,
             event_timestamp,
+            process_status,
         })
     }
 }
@@ -164,7 +167,8 @@ impl AuroraClient {
 
         const QUERY: &str = "INSERT INTO batch_jobs_logs (
             data, job_id, run_name, run_id, pipeline_name, nextflow_session_uuid, job_ids,
-            tags, event_timestamp, ec2_cost_per_hour, cpu_usage, mem_used, processed_dataset
+            tags, event_timestamp, ec2_cost_per_hour, cpu_usage, mem_used, processed_dataset,
+            process_status
             )"; // when updating query, also update params
         const PARAMS: usize = 13;
 
@@ -181,7 +185,8 @@ impl AuroraClient {
                 .push_bind(event.ec2_cost_per_hour)
                 .push_bind(event.cpu_usage)
                 .push_bind(event.mem_used)
-                .push_bind(event.processed_dataset);
+                .push_bind(event.processed_dataset)
+                .push_bind(event.process_status);
         }
         // there's an alternative, much more efficient way to push values
         // https://github.com/launchbadge/sqlx/blob/main/FAQ.md#how-can-i-bind-an-array-to-a-values-clause-how-can-i-do-bulk-inserts
@@ -203,6 +208,7 @@ impl AuroraClient {
                     run_name.to_string(),
                     run_id.to_string(),
                     pipeline_name.to_string(),
+                    e.process_status.as_str().to_string(),
                 )
             })
             .collect::<Result<Vec<_>>>()?;
