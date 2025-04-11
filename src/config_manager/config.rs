@@ -87,6 +87,7 @@ impl ConfigManager {
         let mut cb = RConfig::builder()
             .add_source(File::with_name("tracer.toml").required(false))
             .add_source(File::with_name("tracer.dev.toml").required(false))
+            .add_source(File::with_name(&format!("{}/{}", dirs::home_dir().unwrap_or_default().display(), DEFAULT_CONFIG_FILE_LOCATION_FROM_HOME)).required(false))
             .add_source(
                 Environment::with_prefix("TRACER")
                     .convert_case(Case::Snake)
