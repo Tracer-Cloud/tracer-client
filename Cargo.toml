@@ -4,7 +4,7 @@ version = "2025.4.11"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.86"
+anyhow = "1.0.98"
 chrono = { version = "0.4.38", features = ["serde"] }
 clap = { version = "4.5.35", features = ["derive"] }
 daemonize = "0.5"
