@@ -12,7 +12,7 @@ async fn test_parallel_mode_works() {
 
     // Step 1b: monitor postgres and migrate
     let db_url = "postgres://postgres:postgres@localhost:5432/tracer_db";
-    let pool = common::setup_db(&db_url).await;
+    let pool = common::setup_db(db_url).await;
 
     // Step 2: Monitor the container and wait for it to finish
     let docker = Docker::connect_with_local_defaults().expect("Failed to connect to Docker");

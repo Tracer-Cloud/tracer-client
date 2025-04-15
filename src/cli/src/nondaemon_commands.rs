@@ -45,8 +45,18 @@ pub async fn wait(api_client: &DaemonClient) -> Result<()> {
         }
 
         let duration = 1 << n;
+        let attempts = match duration {
+            1 => 1,
+            2 => 2,
+            4 => 3,
+            8 => 4,
+            _ => 5,
+        };
+
         println!(
-            "Daemon not started yet, sleep for {duration} second{:}",
+            "Starting daemon... [{:.<20}] ({} second{} elapsed)",
+            ".".repeat(attempts.min(20)),
+            duration,
             if duration > 1 { "s" } else { "" }
         );
         sleep(std::time::Duration::from_secs(duration)).await;
@@ -57,53 +67,99 @@ pub async fn wait(api_client: &DaemonClient) -> Result<()> {
 
 pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Result<()> {
     let mut output = String::new();
-    let _ = writeln!(&mut output, "\n\n===== Tracer Info =====\n");
 
-    match api_client.send_info_request().await {
-        Ok(info) => {
-            writeln!(&mut output, "Daemon status: {}", "Running".green())?;
-
-            if let Some(ref inner) = info.inner {
-                writeln!(&mut output, "Service name: {}", inner.pipeline_name)?;
-                writeln!(&mut output, "Run name: {}", inner.run_name)?;
-                writeln!(&mut output, "Run ID: {}", inner.run_id)?;
-                writeln!(&mut output, "Total Run Time: {}", inner.formatted_runtime())?;
-            }
-            writeln!(
-                &mut output,
-                "Recognized Processes({}): {}",
-                info.watched_processes_count,
-                info.watched_processes_preview()
-            )?;
-        }
-        Err(e) => {
-            writeln!(&mut output, "Daemon status: {}", "Stopped".red())?;
-            writeln!(&mut output, "Error info: {:?}", e)?;
-        }
-    }
-
-    // todo: take version from CLI
-    writeln!(&mut output, "Daemon version: {}", env!("CARGO_PKG_VERSION"))?;
+    // Fixed width for the left column and separator
+    let total_header_width = 80; // Reasonable width for the header
 
     writeln!(
         &mut output,
-        "Grafana Workspace URL: {}",
-        config.grafana_workspace_url.cyan().underline()
+        "\n┌{:─^width$}┐",
+        " TRACER INFO ",
+        width = total_header_width
+    )?;
+
+    match api_client.send_info_request().await {
+        Ok(info) => {
+            writeln!(
+                &mut output,
+                "│ Daemon status:            │ {}  ",
+                "Running".green()
+            )?;
+
+            if let Some(ref inner) = info.inner {
+                writeln!(
+                    &mut output,
+                    "│ Service name:             │ {}  ",
+                    inner.pipeline_name
+                )?;
+                writeln!(
+                    &mut output,
+                    "│ Run name:                 │ {}  ",
+                    inner.run_name
+                )?;
+                writeln!(
+                    &mut output,
+                    "│ Run ID:                   │ {}  ",
+                    inner.run_id
+                )?;
+                writeln!(
+                    &mut output,
+                    "│ Total Run Time:           │ {}  ",
+                    inner.formatted_runtime()
+                )?;
+            }
+            writeln!(
+                &mut output,
+                "│ Recognized Processes:     │ {}  ",
+                format!(
+                    "{}:{}",
+                    info.watched_processes_count,
+                    info.watched_processes_preview()
+                )
+            )?;
+        }
+        Err(e) => {
+            writeln!(
+                &mut output,
+                "│ Daemon status:            │ {}  ",
+                "Stopped".red()
+            )?;
+            writeln!(&mut output, "│ Error info:               │ {:?}  ", e)?;
+        }
+    }
+
+    writeln!(
+        &mut output,
+        "│ Daemon version:           │ {}  ",
+        env!("CARGO_PKG_VERSION")
+    )?;
+
+    // Special case for Grafana URL - create clickable link with color
+    let clickable_url = format!(
+        "\u{1b}]8;;{0}\u{1b}\\{0}\u{1b}]8;;\u{1b}\\",
+        config.grafana_workspace_url
+    );
+    let colored_url = clickable_url.cyan().underline().to_string();
+
+    writeln!(
+        &mut output,
+        "│ Grafana Workspace URL:    │ {}  ",
+        colored_url
     )?;
 
     writeln!(
         &mut output,
-        "Process polling interval: {} ms",
+        "│ Process polling interval: │ {} ms  ",
         config.process_polling_interval_ms
     )?;
 
     writeln!(
         &mut output,
-        "Batch submission interval: {} ms",
+        "│ Batch submission interval:│ {} ms  ",
         config.batch_submission_interval_ms
     )?;
 
-    writeln!(&mut output, "\n===== ... =====\n\n")?;
+    writeln!(&mut output, "└{:─^width$}┘", "", width = total_header_width)?;
 
     println!("{}", output);
 

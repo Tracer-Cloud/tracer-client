@@ -126,6 +126,7 @@ impl AuroraClient {
 
             DatabaseAuth { username, password }
         } else {
+            println!("Using secrets manager");
             secrets_client
                 .get_secrets(&config.database_secrets_arn)
                 .await
