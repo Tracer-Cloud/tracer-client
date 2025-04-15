@@ -111,12 +111,9 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
             }
             writeln!(
                 &mut output,
-                "│ Recognized Processes:     │ {}  ",
-                format!(
-                    "{}:{}",
-                    info.watched_processes_count,
-                    info.watched_processes_preview()
-                )
+                "│ Recognized Processes:     │ {}:{}  ",
+                info.watched_processes_count,
+                info.watched_processes_preview()
             )?;
         }
         Err(e) => {
