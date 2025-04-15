@@ -10,7 +10,7 @@ use tracer_aws::config::PricingClient;
 use tracer_aws::types::pricing::EC2FilterBuilder;
 use tracing::info;
 // src/events/mod.rs
-use tracer_aws::aws_metadata::{get_aws_instance_metadata, AwsInstanceMetaData};
+use tracer_aws::aws_metadata::get_aws_instance_metadata;
 use tracer_common::debug_log::Logger;
 use tracer_common::event::attributes::system_metrics::SystemProperties;
 use tracer_extracts::metrics::SystemMetricsCollector;
