@@ -1,9 +1,7 @@
 use crate::server::DaemonServer;
 use anyhow::{Context, Result};
-use daemonize::{Daemonize, Outcome};
-use std::fs::File;
 use std::net::SocketAddr;
-use tracer_common::constants::{LOG_FILE, PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR};
+use tracer_common::constants::{LOG_FILE, WORKING_DIR};
 use tracer_lib::config_manager::Config;
 use tracer_lib::exporters::db::AuroraClient;
 use tracer_lib::params::TracerCliInitArgs;

@@ -2,7 +2,6 @@ use lazy_static::lazy_static;
 
 use super::{DisplayName, Target};
 use crate::target_process::target_matching::{CommandContainsStruct, TargetMatch};
-use once_cell::sync::Lazy;
 
 lazy_static! {
 
