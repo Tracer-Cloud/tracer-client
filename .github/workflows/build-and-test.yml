@@ -15,6 +15,19 @@ jobs:
     name: Build and Test
     runs-on: linux-arm64-16c-64r-600ssd-ubuntu24
 
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_DB: tracer_db
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Check out
         uses: actions/checkout@v4.1.4
@@ -64,6 +77,7 @@ jobs:
           TRACER_DATABASE_SECRETS_ARN: ${{ secrets.TRACER_DATABASE_SECRETS_ARN }}
           TRACER_DATABASE_NAME: ${{ secrets.TRACER_DATABASE_NAME }}
           TRACER_DATABASE_HOST: ${{ secrets.TRACER_DATABASE_HOST }}
+          DATABASE_URL: "postgres://postgres:postgres@postgres:5432/tracer_db"
         run: make test-tracer
 
   run-integrations:
