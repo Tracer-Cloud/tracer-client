@@ -181,12 +181,7 @@ impl TracerClient {
                     run_name,
                     run_id,
                     &self.pipeline_name,
-                    self.logs
-                        .get_events()
-                        .iter()
-                        .cloned()
-                        .into_iter()
-                        .map(|e| e.into()),
+                    self.logs.get_events().iter().cloned().map(|e| e.into()),
                 )
                 .await
                 .map_err(|err| anyhow::anyhow!("Error submitting batch events {:?}", err))?;
@@ -298,12 +293,7 @@ impl TracerClient {
                     &run_metadata.name,
                     &run_metadata.id,
                     &self.pipeline_name,
-                    self.logs
-                        .get_events()
-                        .iter()
-                        .cloned()
-                        .into_iter()
-                        .map(|e| e.into()),
+                    self.logs.get_events().iter().cloned().map(|e| e.into()),
                 )
                 .await
             {

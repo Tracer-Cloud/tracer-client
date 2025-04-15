@@ -2,9 +2,7 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use log::info;
 use sqlx::pool::PoolOptions;
-use sqlx::types::Json;
 use sqlx::{PgPool, Postgres, QueryBuilder};
-use std::time::Instant;
 
 use crate::config_manager::Config;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
