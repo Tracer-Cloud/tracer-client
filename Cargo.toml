@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["src/cli", "src/cloud_providers/aws", "src/daemon", "src/tracer_lib", "src/extracts", "src/common"]
+members = ["src/cli", "src/cloud_providers/aws", "src/daemon", "src/tracer_lib", "src/extracts", "src/common", "integration_tests"]
 
 [workspace.package]
 name = "tracer"
