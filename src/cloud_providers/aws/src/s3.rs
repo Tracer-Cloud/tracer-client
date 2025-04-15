@@ -291,7 +291,8 @@ pub mod tests {
         let test_bucket = format!("test-additional-{}", Uuid::new_v4());
         let key_1 = "exports/test_run/file1.parquet";
         let key_2 = "exports/test_run/file2.parquet";
-        let file_path = "test-files/exports/test_run/bd01d5c9-8658-4a22-b059-3d504f346f8e.parquet";
+        let file_path =
+            "../../../test-files/exports/test_run/bd01d5c9-8658-4a22-b059-3d504f346f8e.parquet";
 
         // Create bucket
         s3_client.create_bucket(&test_bucket, None).await?;
