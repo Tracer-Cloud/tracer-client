@@ -100,7 +100,7 @@ impl ConfigManager {
         } else {
             cb = cb
                 .add_source(File::with_name("tracer.toml").required(false))
-                .add_source(File::with_name("tracer.dev.toml").required(true));
+                .add_source(File::with_name("tracer.dev.toml").required(false));
         }
 
         cb = cb
@@ -127,6 +127,17 @@ impl ConfigManager {
             .set_default("database_name", "tracer_db")?
             .set_default("server", "127.0.0.1:8722")?
             .set_default::<&str, Vec<&str>>("targets", vec![])?;
+
+        #[cfg(test)] // to accommodate for different crates. Todo: any better ways to do this?
+        {
+            cb = cb
+                .add_source(File::with_name("../tracer.toml").required(false))
+                .add_source(File::with_name("../tracer.dev.toml").required(false))
+                .add_source(File::with_name("../../tracer.toml").required(false))
+                .add_source(File::with_name("../../tracer.dev.toml").required(false))
+                .add_source(File::with_name("../../../tracer.toml").required(false))
+                .add_source(File::with_name("../../../tracer.dev.toml").required(false))
+        }
 
         if let Some(path) = ConfigManager::get_config_path() {
             if let Some(path) = path.to_str() {
