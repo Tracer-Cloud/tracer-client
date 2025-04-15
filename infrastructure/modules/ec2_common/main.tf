@@ -99,6 +99,16 @@ resource "aws_iam_policy" "ec2_general_access" {
         Action   = ["pricing:GetProducts"]
         Resource = "*"
       },
+      {
+        Effect   = "Allow"
+        Action   = [
+          "batch:DescribeJobDefinitions",
+          "batch:DescribeJobs",
+          "batch:SubmitJob",
+          "batch:ListJobs"
+        ]
+        Resource = "*"
+      }
     ]
   })
 }
@@ -183,7 +193,16 @@ resource "aws_iam_role_policy" "service_access_policy" {
         Action   = ["ssm:GetParameter", "ssm:DescribeInstanceInformation", "ssm:StartSession"]
         Resource = "*"
       },
+      {
+        Effect   = "Allow"
+        Action   = [
+          "batch:DescribeJobDefinitions",
+          "batch:DescribeJobs",
+          "batch:SubmitJob",
+          "batch:ListJobs"
+        ]
+        Resource = "*"
+      }
     ]
   })
 }
-
