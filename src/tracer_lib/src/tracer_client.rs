@@ -456,13 +456,15 @@ mod tests {
     use anyhow::Result;
     use serde_json::Value;
     use sqlx::types::Json;
+    use std::path::Path;
     use tempfile::tempdir;
     use tracer_common::pipeline_tags::PipelineTags;
 
     #[tokio::test]
     async fn test_submit_batched_data() -> Result<()> {
         // Load the configuration
-        let config = ConfigManager::load_config().unwrap();
+        let path = Path::new("../../");
+        let config = ConfigManager::load_config_at(path).unwrap();
 
         let temp_dir = tempdir().expect("cant create temp dir");
 
@@ -518,7 +520,8 @@ mod tests {
     #[tokio::test]
     async fn test_tags_attribution_works() {
         // Load the configuration
-        let config = ConfigManager::load_config().unwrap();
+        let path = Path::new("../../");
+        let config = ConfigManager::load_config_at(path).unwrap();
 
         let temp_dir = tempdir().expect("cant create temp dir");
 
