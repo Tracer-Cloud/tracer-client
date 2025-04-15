@@ -157,8 +157,8 @@ impl TracerClient {
         let run_name = self
             .current_run
             .as_ref()
-            .map(|st| st.name.as_str())
-            .unwrap_or("anonymous");
+            .map(|st| st.name.to_string())
+            .unwrap_or("anonymous".into());
 
         let run_id = self
             .current_run
@@ -178,7 +178,7 @@ impl TracerClient {
 
             self.db_client
                 .batch_insert_events(
-                    run_name,
+                    &run_name,
                     run_id,
                     &self.pipeline_name,
                     self.logs.get_events().iter().cloned().map(|e| e.into()),

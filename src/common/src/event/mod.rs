@@ -35,24 +35,25 @@ pub enum ProcessStatus {
     NextflowLogEvent,
 }
 
-impl ProcessStatus {
-    pub fn as_str(&self) -> &'static str {
+impl std::fmt::Display for ProcessStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ProcessStatus::NewRun => "new_run",
-            ProcessStatus::FinishedRun => "finished_run",
-            ProcessStatus::ToolExecution => "tool_execution",
-            ProcessStatus::FinishedToolExecution => "finished_tool_execution",
-            ProcessStatus::MetricEvent => "metric_event",
-            ProcessStatus::SyslogEvent => "syslog_event",
-            ProcessStatus::ToolMetricEvent => "tool_metric_event",
-            ProcessStatus::TestEvent => "test_event", // Handle TestEvent
-            ProcessStatus::RunStatusMessage => "run_status_message",
-            ProcessStatus::Alert => "alert",
-            ProcessStatus::DataSamplesEvent => "datasets_in_process",
-            ProcessStatus::NextflowLogEvent => "nextflow_log_event",
+            ProcessStatus::NewRun => write!(f, "new_run"),
+            ProcessStatus::FinishedRun => write!(f, "finished_run"),
+            ProcessStatus::ToolExecution => write!(f, "tool_execution"),
+            ProcessStatus::FinishedToolExecution => write!(f, "finished_tool_execution"),
+            ProcessStatus::ToolMetricEvent => write!(f, "tool_metric_event"),
+            ProcessStatus::MetricEvent => write!(f, "metric_event"),
+            ProcessStatus::SyslogEvent => write!(f, "syslog_event"),
+            ProcessStatus::RunStatusMessage => write!(f, "run_status_message"),
+            ProcessStatus::Alert => write!(f, "alert"),
+            ProcessStatus::DataSamplesEvent => write!(f, "datasets_in_process"),
+            ProcessStatus::TestEvent => write!(f, "test_event"),
+            ProcessStatus::NextflowLogEvent => write!(f, "nextflow_log_event"),
         }
     }
 }
+
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Event {
     #[serde(with = "ts_seconds")]

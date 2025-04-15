@@ -161,7 +161,7 @@ impl From<OtelLog> for  {
             cpu_usage: o.cpu_usage,
             mem_used: o.mem_used,
             processed_dataset: o.processed_dataset,
-            process_status: o.process_status.as_str().to_string(),
+            process_status: o.process_status.to_string(),
 
             attributes: o.attributes.unwrap_or_else(|| json!({})),
             resource_attributes: o.resource_attributes.unwrap_or_else(|| json!({})),

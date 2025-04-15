@@ -144,10 +144,10 @@ mod tests {
 
     #[test]
     fn test_event_type_as_str() {
-        assert_eq!(ProcessStatus::FinishedRun.as_str(), "finished_run");
-        assert_eq!(ProcessStatus::ToolExecution.as_str(), "tool_execution");
-        assert_eq!(ProcessStatus::MetricEvent.as_str(), "metric_event");
-        assert_eq!(ProcessStatus::TestEvent.as_str(), "test_event");
+        assert_eq!(&ProcessStatus::FinishedRun.to_string(), "finished_run");
+        assert_eq!(&ProcessStatus::ToolExecution.to_string(), "tool_execution");
+        assert_eq!(&ProcessStatus::MetricEvent.to_string(), "metric_event");
+        assert_eq!(&ProcessStatus::TestEvent.to_string(), "test_event");
     }
 
     #[test]

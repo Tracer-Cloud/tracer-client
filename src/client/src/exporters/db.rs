@@ -180,7 +180,7 @@ impl AuroraClient {
                 .push_bind(event.body)
                 .push_bind(event.severity_text)
                 .push_bind(event.severity_number)
-                .push_bind(event.trace_id)
+                .push_bind(event.trace_id.or_else(|| Some(event.run_id.clone())))
                 .push_bind(event.span_id)
                 .push_bind(event.source_type)
                 .push_bind(event.instrumentation_version)
@@ -217,7 +217,7 @@ impl AuroraClient {
         let mut data: Vec<_> = logs
             .into_iter()
             .map(|e| {
-                let process_status = e.process_status.as_str().to_string();
+                let process_status = e.process_status.to_string();
                 EventInsert::try_new(
                     e,
                     run_name.to_string(),
