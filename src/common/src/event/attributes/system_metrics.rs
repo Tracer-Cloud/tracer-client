@@ -1,5 +1,5 @@
-use crate::event::aws_metadata::AwsInstanceMetaData;
 use std::collections::HashMap;
+use tracer_aws::aws_metadata::AwsInstanceMetaData;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct DiskStatistic {

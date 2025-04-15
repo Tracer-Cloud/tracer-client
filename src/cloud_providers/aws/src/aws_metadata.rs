@@ -28,3 +28,14 @@ impl From<InstanceMetadata> for AwsInstanceMetaData {
         }
     }
 }
+
+pub async fn get_aws_instance_metadata() -> Option<AwsInstanceMetaData> {
+    let client = ec2_instance_metadata::InstanceMetadataClient::new();
+    match client.get() {
+        Ok(metadata) => Some(metadata.into()),
+        Err(err) => {
+            println!("error getting metadata: {err}");
+            None
+        }
+    }
+}

@@ -20,6 +20,8 @@ serde = { workspace = true }
 config = { workspace = true }
 anyhow = { workspace = true }
 serde_json = { workspace = true }
+ec2_instance_metadata = { workspace = true }
+
 
 
 [dev-dependencies]

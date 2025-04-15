@@ -4757,6 +4757,7 @@ dependencies = [
  "aws-sdk-secretsmanager",
  "config",
  "dotenv",
+ "ec2_instance_metadata",
  "log",
  "serde",
  "serde-query",
@@ -4797,14 +4798,13 @@ dependencies = [
  "anyhow",
  "chrono",
  "clap",
- "ec2_instance_metadata",
  "lazy_static",
  "log",
- "once_cell",
  "reqwest",
  "serde",
  "serde_json",
  "tokio",
+ "tracer_aws",
  "url",
 ]
 

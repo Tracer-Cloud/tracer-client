@@ -10,9 +10,9 @@ use tracer_aws::config::PricingClient;
 use tracer_aws::types::pricing::EC2FilterBuilder;
 use tracing::info;
 // src/events/mod.rs
+use tracer_aws::aws_metadata::{get_aws_instance_metadata, AwsInstanceMetaData};
 use tracer_common::debug_log::Logger;
 use tracer_common::event::attributes::system_metrics::SystemProperties;
-use tracer_common::event::aws_metadata::AwsInstanceMetaData;
 use tracer_extracts::metrics::SystemMetricsCollector;
 
 // FIXME: How should this be handled with the new architecture?
@@ -47,17 +47,6 @@ pub struct RunEventOut {
     pub run_name: String,
     pub run_id: String,
     pub system_properties: SystemProperties,
-}
-
-async fn get_aws_instance_metadata() -> Option<AwsInstanceMetaData> {
-    let client = ec2_instance_metadata::InstanceMetadataClient::new();
-    match client.get() {
-        Ok(metadata) => Some(metadata.into()),
-        Err(err) => {
-            println!("error getting metadata: {err}");
-            None
-        }
-    }
 }
 
 async fn gather_system_properties(

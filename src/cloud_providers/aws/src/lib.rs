@@ -1,3 +1,4 @@
+pub mod aws_metadata;
 pub mod config;
 pub mod pricing;
 pub mod s3;

@@ -17,5 +17,4 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
 url = { workspace = true }
-ec2_instance_metadata = { workspace = true }
-once_cell = { workspace = true }
+tracer_aws = { workspace = true }
