@@ -11,11 +11,11 @@ use crate::daemon::monitor_processes_with_tracer_client;
 use std::borrow::BorrowMut;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
+use tracer_client::config_manager;
+use tracer_client::TracerClient;
 use tracer_common::constants::SYSLOG_FILE;
 use tracer_extracts::stdout::run_stdout_lines_read_thread;
 use tracer_extracts::syslog::run_syslog_lines_read_thread;
-use tracer_lib::config_manager;
-use tracer_lib::tracer_client::TracerClient;
 
 pub struct DaemonServer {
     client: Arc<Mutex<TracerClient>>,

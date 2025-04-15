@@ -5,11 +5,11 @@ use std::process::Command;
 use anyhow::{bail, Context, Result};
 use std::result::Result::Ok;
 use tokio::time::sleep;
+use tracer_client::config_manager::{Config, ConfigManager, INTERCEPTOR_STDOUT_FILE};
 use tracer_common::constants::{
     FILE_CACHE_DIR, PID_FILE, REPO_NAME, REPO_OWNER, STDERR_FILE, STDOUT_FILE,
 };
 use tracer_daemon::client::DaemonClient;
-use tracer_lib::config_manager::{Config, ConfigManager, INTERCEPTOR_STDOUT_FILE};
 use tracing::debug;
 
 pub fn clean_up_after_daemon() -> Result<()> {

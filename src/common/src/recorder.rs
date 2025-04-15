@@ -4,7 +4,7 @@ use crate::pipeline_tags::PipelineTags;
 use chrono::{DateTime, Utc};
 
 /// Events recorder for each pipeline run
-/// todo: move to tracer_lib!
+/// todo: move to client!
 pub struct EventRecorder {
     events: Vec<Event>,
     run_name: Option<String>,

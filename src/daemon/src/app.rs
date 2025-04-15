@@ -8,10 +8,10 @@ use crate::structs::{
 use axum::response::IntoResponse;
 use axum::routing::{post, put};
 use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
+use tracer_client::config_manager::{Config, ConfigManager};
+use tracer_client::TracerClient;
 use tracer_common::debug_log::Logger;
 use tracer_common::http_client::upload::upload_from_file_path;
-use tracer_lib::config_manager::{Config, ConfigManager};
-use tracer_lib::tracer_client::TracerClient;
 
 #[derive(Clone)]
 struct AppState {

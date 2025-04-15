@@ -4792,11 +4792,44 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracer_aws",
+ "tracer_client",
  "tracer_common",
  "tracer_daemon",
  "tracer_extracts",
- "tracer_lib",
  "tracing",
+]
+
+[[package]]
+name = "tracer_client"
+version = "2025.4.11"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "config",
+ "dirs",
+ "ec2_instance_metadata",
+ "homedir",
+ "log",
+ "once_cell",
+ "percent-encoding",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "sysinfo",
+ "tempfile",
+ "tokio",
+ "toml",
+ "tracer_aws",
+ "tracer_common",
+ "tracer_extracts",
+ "tracing",
+ "tracing-log",
+ "tracing-loki",
+ "tracing-subscriber",
+ "url",
+ "uuid",
 ]
 
 [[package]]
@@ -4829,9 +4862,9 @@ dependencies = [
  "serde",
  "tokio",
  "tokio-util",
+ "tracer_client",
  "tracer_common",
  "tracer_extracts",
- "tracer_lib",
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
@@ -4859,39 +4892,6 @@ dependencies = [
  "tracer_common",
  "tracing",
  "walkdir",
-]
-
-[[package]]
-name = "tracer_lib"
-version = "2025.4.11"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "config",
- "dirs",
- "ec2_instance_metadata",
- "homedir",
- "log",
- "once_cell",
- "percent-encoding",
- "rand 0.8.5",
- "serde",
- "serde_json",
- "sqlx",
- "sysinfo",
- "tempfile",
- "tokio",
- "toml",
- "tracer_aws",
- "tracer_common",
- "tracer_extracts",
- "tracing",
- "tracing-log",
- "tracing-loki",
- "tracing-subscriber",
- "url",
- "uuid",
 ]
 
 [[package]]

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["src/cli", "src/cloud_providers/aws", "src/daemon", "src/tracer_lib", "src/extracts", "src/common", "integration_tests"]
+members = ["src/cli", "src/cloud_providers/aws", "src/daemon", "src/client", "src/extracts", "src/common", "integration_tests"]
 
 [workspace.package]
 name = "tracer"
@@ -12,7 +12,7 @@ repository = "https://github.com/Tracer-Cloud/tracer-client/"
 
 [workspace.dependencies]
 tracer_aws = { path = "src/cloud_providers/aws" }
-tracer_lib = { path = "src/tracer_lib" }
+tracer_client = { path = "src/client" }
 tracer_common = { path = "src/common" }
 tracer_extracts = { path = "src/extracts" }
 tracer_daemon = { path = "src/daemon" }

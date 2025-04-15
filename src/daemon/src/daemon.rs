@@ -1,11 +1,11 @@
 use crate::server::DaemonServer;
 use anyhow::{Context, Result};
 use std::net::SocketAddr;
+use tracer_client::config_manager::Config;
+use tracer_client::exporters::db::AuroraClient;
+use tracer_client::params::TracerCliInitArgs;
+use tracer_client::TracerClient;
 use tracer_common::constants::{LOG_FILE, WORKING_DIR};
-use tracer_lib::config_manager::Config;
-use tracer_lib::exporters::db::AuroraClient;
-use tracer_lib::params::TracerCliInitArgs;
-use tracer_lib::tracer_client::TracerClient;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{
     fmt::{self, time::SystemTime},
@@ -85,10 +85,10 @@ mod tests {
     use crate::daemon::monitor_processes_with_tracer_client;
     use dotenv::dotenv;
     use std::path::Path;
-    use tracer_lib::config_manager::{Config, ConfigManager};
-    use tracer_lib::exporters::db::AuroraClient;
-    use tracer_lib::params::TracerCliInitArgs;
-    use tracer_lib::tracer_client::TracerClient;
+    use tracer_client::config_manager::{Config, ConfigManager};
+    use tracer_client::exporters::db::AuroraClient;
+    use tracer_client::params::TracerCliInitArgs;
+    use tracer_client::TracerClient;
 
     fn load_test_config() -> Config {
         let path = Path::new("../../");

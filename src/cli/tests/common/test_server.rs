@@ -6,11 +6,11 @@ use tempfile::TempDir;
 use tokio::task::JoinHandle;
 use tracer_aws::config::AwsConfig;
 use tracer_aws::types::aws_region::AwsRegion;
+use tracer_client::config_manager::Config;
+use tracer_client::exporters::db::AuroraClient;
+use tracer_client::params::TracerCliInitArgs;
+use tracer_client::TracerClient;
 use tracer_daemon::server::DaemonServer;
-use tracer_lib::config_manager::Config;
-use tracer_lib::exporters::db::AuroraClient;
-use tracer_lib::params::TracerCliInitArgs;
-use tracer_lib::tracer_client::TracerClient;
 
 pub struct TestServer {
     dir: TempDir,

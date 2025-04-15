@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use chrono::{DateTime, TimeDelta, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use tracer_client::tracer_client::RunMetadata;
 use tracer_extracts::process_watcher::ShortLivedProcessLog;
-use tracer_lib::tracer_client::RunMetadata;
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct InfoResponse {
