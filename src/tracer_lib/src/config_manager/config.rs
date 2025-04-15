@@ -67,7 +67,18 @@ impl ConfigManager {
     }
 
     // TODO: add error message as to why it can't read config
+
     pub fn load_config() -> Result<Config> {
+        if let Ok(path) = std::env::var("TRACER_CONFIG_DIR") {
+            let path = Path::new(&path);
+            ConfigManager::load_config_at(path)
+        } else {
+            let path = Path::new(".");
+            ConfigManager::load_config_at(path)
+        }
+    }
+
+    pub fn load_config_at(path: &Path) -> Result<Config> {
         let aws_default_profile = match dirs::home_dir() {
             None => "default",
             Some(path) => {
@@ -83,27 +94,15 @@ impl ConfigManager {
         }
         .to_string();
 
-        let mut cb = RConfig::builder();
-
-        if let Ok(path) = std::env::var("TRACER_CONFIG_DIR") {
-            let path = Path::new(&path);
-
-            cb = cb
-                .add_source(
-                    File::with_name(path.join("tracer.toml").to_str().context("Join path")?)
-                        .required(false),
-                )
-                .add_source(
-                    File::with_name(path.join("tracer.dev.toml").to_str().context("Join path")?)
-                        .required(false),
-                );
-        } else {
-            cb = cb
-                .add_source(File::with_name("tracer.toml").required(false))
-                .add_source(File::with_name("tracer.dev.toml").required(false));
-        }
-
-        cb = cb
+        let mut cb = RConfig::builder()
+            .add_source(
+                File::with_name(path.join("tracer.toml").to_str().context("Join path")?)
+                    .required(false),
+            )
+            .add_source(
+                File::with_name(path.join("tracer.dev.toml").to_str().context("Join path")?)
+                    .required(false),
+            )
             .add_source(
                 Environment::with_prefix("TRACER")
                     .convert_case(Case::Snake)
@@ -127,17 +126,6 @@ impl ConfigManager {
             .set_default("database_name", "tracer_db")?
             .set_default("server", "127.0.0.1:8722")?
             .set_default::<&str, Vec<&str>>("targets", vec![])?;
-
-        #[cfg(test)] // to accommodate for different crates. Todo: any better ways to do this?
-        {
-            cb = cb
-                .add_source(File::with_name("../tracer.toml").required(false))
-                .add_source(File::with_name("../tracer.dev.toml").required(false))
-                .add_source(File::with_name("../../tracer.toml").required(false))
-                .add_source(File::with_name("../../tracer.dev.toml").required(false))
-                .add_source(File::with_name("../../../tracer.toml").required(false))
-                .add_source(File::with_name("../../../tracer.dev.toml").required(false))
-        }
 
         if let Some(path) = ConfigManager::get_config_path() {
             if let Some(path) = path.to_str() {

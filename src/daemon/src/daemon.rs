@@ -84,13 +84,15 @@ pub async fn monitor_processes_with_tracer_client(tracer_client: &mut TracerClie
 mod tests {
     use crate::daemon::monitor_processes_with_tracer_client;
     use dotenv::dotenv;
+    use std::path::Path;
     use tracer_lib::config_manager::{Config, ConfigManager};
     use tracer_lib::exporters::db::AuroraClient;
     use tracer_lib::params::TracerCliInitArgs;
     use tracer_lib::tracer_client::TracerClient;
 
     fn load_test_config() -> Config {
-        ConfigManager::load_config().unwrap()
+        let path = Path::new("../../");
+        ConfigManager::load_config_at(path).unwrap()
     }
 
     pub fn setup_env_vars(region: &str) {
