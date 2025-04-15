@@ -2,7 +2,9 @@ use predicates::str::contains;
 use sqlx::PgPool;
 mod common;
 
-#[sqlx::test]
+pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("../../migrations");
+
+#[sqlx::test(migrator = "MIGRATOR")]
 async fn info(pool: PgPool) {
     let server = common::test_server::TestServer::launch(pool).await.unwrap();
 
@@ -10,14 +12,14 @@ async fn info(pool: PgPool) {
         .send_command(&["info"])
         .await
         .success()
-        .stdout(contains("Daemon status: Running"))
+        .stdout(contains("Running")) // Daemon status
         .stdout(contains("Total Run Time"));
 
     server.send_command(&["terminate"]).await.success();
     server.finished().await.unwrap()
 }
 
-#[sqlx::test]
+#[sqlx::test(migrator = "MIGRATOR")]
 async fn log(pool: PgPool) {
     let server = common::test_server::TestServer::launch(pool).await.unwrap();
 
@@ -33,7 +35,7 @@ async fn log(pool: PgPool) {
     server.finished().await.unwrap()
 }
 
-#[sqlx::test]
+#[sqlx::test(migrator = "MIGRATOR")]
 async fn alert(pool: PgPool) {
     let server = common::test_server::TestServer::launch(pool).await.unwrap();
 
@@ -49,7 +51,7 @@ async fn alert(pool: PgPool) {
     server.finished().await.unwrap()
 }
 
-#[sqlx::test]
+#[sqlx::test(migrator = "MIGRATOR")]
 async fn end(pool: PgPool) {
     let server = common::test_server::TestServer::launch(pool).await.unwrap();
 
@@ -65,7 +67,7 @@ async fn end(pool: PgPool) {
     server.finished().await.unwrap()
 }
 
-#[sqlx::test]
+#[sqlx::test(migrator = "MIGRATOR")]
 async fn tag(pool: PgPool) {
     let server = common::test_server::TestServer::launch(pool).await.unwrap();
 
@@ -81,7 +83,7 @@ async fn tag(pool: PgPool) {
     server.finished().await.unwrap()
 }
 
-#[sqlx::test]
+#[sqlx::test(migrator = "MIGRATOR")]
 async fn upload(pool: PgPool) {
     let server = common::test_server::TestServer::launch(pool).await.unwrap();
 

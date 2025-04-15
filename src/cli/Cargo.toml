@@ -28,3 +28,5 @@ tracer_daemon = { workspace = true }
 [dev-dependencies]
 bollard = { workspace = true }
 tracer_aws = { workspace = true }
+sqlx = { workspace = true }
+

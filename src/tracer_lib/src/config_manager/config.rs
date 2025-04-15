@@ -83,9 +83,27 @@ impl ConfigManager {
         }
         .to_string();
 
-        let mut cb = RConfig::builder()
-            .add_source(File::with_name("tracer.toml").required(false))
-            .add_source(File::with_name("tracer.dev.toml").required(false))
+        let mut cb = RConfig::builder();
+
+        if let Ok(path) = std::env::var("TRACER_CONFIG_DIR") {
+            let path = Path::new(&path);
+
+            cb = cb
+                .add_source(
+                    File::with_name(path.join("tracer.toml").to_str().context("Join path")?)
+                        .required(false),
+                )
+                .add_source(
+                    File::with_name(path.join("tracer.dev.toml").to_str().context("Join path")?)
+                        .required(false),
+                );
+        } else {
+            cb = cb
+                .add_source(File::with_name("tracer.toml").required(false))
+                .add_source(File::with_name("tracer.dev.toml").required(true));
+        }
+
+        cb = cb
             .add_source(
                 Environment::with_prefix("TRACER")
                     .convert_case(Case::Snake)
