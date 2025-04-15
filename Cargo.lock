@@ -811,50 +811,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bollard"
-version = "0.18.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97ccca1260af6a459d75994ad5acc1651bcabcbdbc41467cc9786519ab854c30"
-dependencies = [
- "base64 0.22.1",
- "bollard-stubs",
- "bytes",
- "futures-core",
- "futures-util",
- "hex",
- "http 1.3.1",
- "http-body-util",
- "hyper 1.6.0",
- "hyper-named-pipe",
- "hyper-util",
- "hyperlocal",
- "log",
- "pin-project-lite",
- "serde",
- "serde_derive",
- "serde_json",
- "serde_repr",
- "serde_urlencoded",
- "thiserror 2.0.12",
- "tokio",
- "tokio-util",
- "tower-service",
- "url",
- "winapi",
-]
-
-[[package]]
-name = "bollard-stubs"
-version = "1.47.1-rc.27.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f179cfbddb6e77a5472703d4b30436bff32929c0aa8a9008ecf23d1d3cdd0da"
-dependencies = [
- "serde",
- "serde_repr",
- "serde_with",
-]
-
-[[package]]
 name = "bstr"
 version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1280,7 +1236,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c9e6a11ca8224451684bc0d7d5a7adbf8f2fd6887261a1cfc3c0432f9d4068e"
 dependencies = [
  "powerfmt",
- "serde",
 ]
 
 [[package]]
@@ -1412,29 +1367,6 @@ dependencies = [
  "sec1",
  "subtle",
  "zeroize",
-]
-
-[[package]]
-name = "env_filter"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "186e05a59d4c50738528153b83b0b0194d3a29507dfec16eccd4b342903397d0"
-dependencies = [
- "log",
- "regex",
-]
-
-[[package]]
-name = "env_logger"
-version = "0.11.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13c863f0904021b108aa8b2f55046443e6b1ebde8fd4a15c399893aae4fa069f"
-dependencies = [
- "anstream",
- "anstyle",
- "env_filter",
- "jiff",
- "log",
 ]
 
 [[package]]
@@ -1731,7 +1663,7 @@ dependencies = [
  "futures-sink",
  "futures-util",
  "http 0.2.12",
- "indexmap 2.9.0",
+ "indexmap",
  "slab",
  "tokio",
  "tokio-util",
@@ -1750,18 +1682,12 @@ dependencies = [
  "futures-core",
  "futures-sink",
  "http 1.3.1",
- "indexmap 2.9.0",
+ "indexmap",
  "slab",
  "tokio",
  "tokio-util",
  "tracing",
 ]
-
-[[package]]
-name = "hashbrown"
-version = "0.12.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
 
 [[package]]
 name = "hashbrown"
@@ -1780,7 +1706,7 @@ version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7382cf6263419f2d8df38c55d7da83da5c18aef87fc7a7fc1fb1e344edfe14c1"
 dependencies = [
- "hashbrown 0.15.2",
+ "hashbrown",
 ]
 
 [[package]]
@@ -1950,21 +1876,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyper-named-pipe"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73b7d8abf35697b81a825e386fc151e0d503e8cb5fcb93cc8669c376dfd6f278"
-dependencies = [
- "hex",
- "hyper 1.6.0",
- "hyper-util",
- "pin-project-lite",
- "tokio",
- "tower-service",
- "winapi",
-]
-
-[[package]]
 name = "hyper-rustls"
 version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2031,21 +1942,6 @@ dependencies = [
  "tokio",
  "tower-service",
  "tracing",
-]
-
-[[package]]
-name = "hyperlocal"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "986c5ce3b994526b3cd75578e62554abd09f0899d6206de48b3e96ab34ccc8c7"
-dependencies = [
- "hex",
- "http-body-util",
- "hyper 1.6.0",
- "hyper-util",
- "pin-project-lite",
- "tokio",
- "tower-service",
 ]
 
 [[package]]
@@ -2224,24 +2120,12 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "1.9.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd070e393353796e801d209ad339e89596eb4c8d430d18ede6a1cced8fafbd99"
-dependencies = [
- "autocfg",
- "hashbrown 0.12.3",
- "serde",
-]
-
-[[package]]
-name = "indexmap"
 version = "2.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cea70ddb795996207ad57735b50c5982d8844f38ba9ee5f1aedcfb708a2aa11e"
 dependencies = [
  "equivalent",
- "hashbrown 0.15.2",
- "serde",
+ "hashbrown",
 ]
 
 [[package]]
@@ -2318,30 +2202,6 @@ name = "itoa"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a5f13b858c8d314ee3e8f639011f7ccefe71f97f96e50151fb991f267928e2c"
-
-[[package]]
-name = "jiff"
-version = "0.2.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5ad87c89110f55e4cd4dc2893a9790820206729eaf221555f742d540b0724a0"
-dependencies = [
- "jiff-static",
- "log",
- "portable-atomic",
- "portable-atomic-util",
- "serde",
-]
-
-[[package]]
-name = "jiff-static"
-version = "0.2.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d076d5b64a7e2fe6f0743f02c43ca4a6725c0f904203bfe276a5b3e793103605"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.100",
-]
 
 [[package]]
 name = "jobserver"
@@ -2547,7 +2407,7 @@ version = "0.12.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "234cf4f4a04dc1f57e24b96cc0cd600cf2af460d4161ac5ecdd0af8e1f3b2a38"
 dependencies = [
- "hashbrown 0.15.2",
+ "hashbrown",
 ]
 
 [[package]]
@@ -2995,21 +2855,6 @@ name = "pkg-config"
 version = "0.3.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7edddbd0b52d732b21ad9a5fab5c704c14cd949e5e9a1ec5929a24fded1b904c"
-
-[[package]]
-name = "portable-atomic"
-version = "1.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "350e9b48cbc6b0e028b0473b114454c6316e57336ee184ceab6e53f72c178b3e"
-
-[[package]]
-name = "portable-atomic-util"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8a2f0d8d040d7848a709caf78912debcc3f33ee4b3cac47d73d1e1069e83507"
-dependencies = [
- "portable-atomic",
-]
 
 [[package]]
 name = "powerfmt"
@@ -3685,15 +3530,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "scc"
-version = "2.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea091f6cac2595aa38993f04f4ee692ed43757035c36e67c180b6828356385b1"
-dependencies = [
- "sdd",
-]
-
-[[package]]
 name = "schannel"
 version = "0.1.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3727,12 +3563,6 @@ dependencies = [
  "ring 0.17.14",
  "untrusted 0.9.0",
 ]
-
-[[package]]
-name = "sdd"
-version = "3.0.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "584e070911c7017da6cb2eb0788d09f43d789029b5877d3e5ecc8acf86ceee21"
 
 [[package]]
 name = "sec1"
@@ -3892,17 +3722,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_repr"
-version = "0.1.20"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "175ee3e80ae9982737ca543e96133087cbd9a485eecc3bc4de9c1a37b47ea59c"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.100",
-]
-
-[[package]]
 name = "serde_spanned"
 version = "0.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3921,48 +3740,6 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
-]
-
-[[package]]
-name = "serde_with"
-version = "3.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d6b6f7f2fcb69f747921f79f3926bd1e203fce4fef62c268dd3abfb6d86029aa"
-dependencies = [
- "base64 0.22.1",
- "chrono",
- "hex",
- "indexmap 1.9.3",
- "indexmap 2.9.0",
- "serde",
- "serde_derive",
- "serde_json",
- "time 0.3.41",
-]
-
-[[package]]
-name = "serial_test"
-version = "3.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b258109f244e1d6891bf1053a55d63a5cd4f8f4c30cf9a1280989f80e7a1fa9"
-dependencies = [
- "futures",
- "log",
- "once_cell",
- "parking_lot",
- "scc",
- "serial_test_derive",
-]
-
-[[package]]
-name = "serial_test_derive"
-version = "3.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d69265a08751de7844521fd15003ae0a888e035773ba05695c5c759a6f89eef"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.100",
 ]
 
 [[package]]
@@ -4178,9 +3955,9 @@ dependencies = [
  "futures-intrusive",
  "futures-io",
  "futures-util",
- "hashbrown 0.15.2",
+ "hashbrown",
  "hashlink",
- "indexmap 2.9.0",
+ "indexmap",
  "log",
  "memchr",
  "once_cell",
@@ -4752,7 +4529,7 @@ version = "0.22.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17b4795ff5edd201c7cd6dca065ae59972ce77d1b80fa0a84d94950ece7d1474"
 dependencies = [
- "indexmap 2.9.0",
+ "indexmap",
  "serde",
  "serde_spanned",
  "toml_datetime",
@@ -4832,58 +4609,20 @@ version = "2025.4.11"
 dependencies = [
  "anyhow",
  "assert_cmd",
- "aws-config",
- "aws-credential-types",
- "aws-sdk-pricing",
- "aws-sdk-s3",
- "aws-sdk-secretsmanager",
- "axum",
- "bollard",
- "chrono",
  "clap",
  "colored",
- "config",
  "daemonize",
- "dirs",
- "dotenv",
- "ec2_instance_metadata",
- "env_logger",
- "homedir",
- "itertools 0.14.0",
- "lazy_static",
- "linemux",
- "log",
  "octocrab",
- "once_cell",
- "percent-encoding",
  "predicates",
- "rand 0.8.5",
- "random-string",
- "reqwest",
- "serde",
- "serde-query",
- "serde_json",
- "serial_test",
  "sqlx",
  "sysinfo",
  "tempfile",
  "tokio",
- "tokio-stream",
- "tokio-util",
- "toml",
- "tracer_aws",
  "tracer_common",
  "tracer_daemon",
  "tracer_extracts",
  "tracer_lib",
  "tracing",
- "tracing-appender",
- "tracing-log",
- "tracing-loki",
- "tracing-subscriber",
- "url",
- "uuid",
- "walkdir",
 ]
 
 [[package]]
@@ -4891,54 +4630,17 @@ name = "tracer_common"
 version = "2025.4.11"
 dependencies = [
  "anyhow",
- "assert_cmd",
- "aws-config",
- "aws-credential-types",
- "aws-sdk-pricing",
- "aws-sdk-s3",
- "aws-sdk-secretsmanager",
- "axum",
- "bollard",
  "chrono",
  "clap",
- "colored",
- "config",
- "daemonize",
- "dirs",
- "dotenv",
  "ec2_instance_metadata",
- "env_logger",
- "homedir",
- "itertools 0.14.0",
  "lazy_static",
- "linemux",
  "log",
- "octocrab",
  "once_cell",
- "percent-encoding",
- "predicates",
- "rand 0.8.5",
- "random-string",
  "reqwest",
  "serde",
- "serde-query",
  "serde_json",
- "serial_test",
- "sqlx",
- "sysinfo",
- "tempfile",
  "tokio",
- "tokio-stream",
- "tokio-util",
- "toml",
- "tracing",
- "tracing-appender",
- "tracing-log",
- "tracing-loki",
- "tracing-subscriber",
  "url",
- "uuid",
- "walkdir",
 ]
 
 [[package]]
@@ -4946,58 +4648,20 @@ name = "tracer_daemon"
 version = "2025.4.11"
 dependencies = [
  "anyhow",
- "assert_cmd",
- "aws-config",
- "aws-credential-types",
- "aws-sdk-pricing",
- "aws-sdk-s3",
- "aws-sdk-secretsmanager",
  "axum",
- "bollard",
  "chrono",
- "clap",
- "colored",
- "config",
  "daemonize",
- "dirs",
- "dotenv",
- "ec2_instance_metadata",
- "env_logger",
- "homedir",
  "itertools 0.14.0",
- "lazy_static",
- "linemux",
- "log",
- "octocrab",
- "once_cell",
- "percent-encoding",
- "predicates",
- "rand 0.8.5",
- "random-string",
  "reqwest",
  "serde",
- "serde-query",
- "serde_json",
- "serial_test",
- "sqlx",
- "sysinfo",
- "tempfile",
  "tokio",
- "tokio-stream",
  "tokio-util",
- "toml",
- "tracer_aws",
  "tracer_common",
  "tracer_extracts",
  "tracer_lib",
  "tracing",
  "tracing-appender",
- "tracing-log",
- "tracing-loki",
  "tracing-subscriber",
- "url",
- "uuid",
- "walkdir",
 ]
 
 [[package]]
@@ -5005,55 +4669,22 @@ name = "tracer_extracts"
 version = "2025.4.11"
 dependencies = [
  "anyhow",
- "assert_cmd",
- "aws-config",
- "aws-credential-types",
- "aws-sdk-pricing",
- "aws-sdk-s3",
- "aws-sdk-secretsmanager",
- "axum",
- "bollard",
  "chrono",
- "clap",
- "colored",
- "config",
- "daemonize",
  "dirs",
- "dotenv",
- "ec2_instance_metadata",
- "env_logger",
- "homedir",
  "itertools 0.14.0",
  "lazy_static",
  "linemux",
- "log",
- "octocrab",
  "once_cell",
- "percent-encoding",
  "predicates",
- "rand 0.8.5",
  "random-string",
- "reqwest",
  "serde",
- "serde-query",
  "serde_json",
- "serial_test",
- "sqlx",
  "sysinfo",
  "tempfile",
  "tokio",
  "tokio-stream",
- "tokio-util",
- "toml",
- "tracer_aws",
  "tracer_common",
  "tracing",
- "tracing-appender",
- "tracing-log",
- "tracing-loki",
- "tracing-subscriber",
- "url",
- "uuid",
  "walkdir",
 ]
 
@@ -5062,57 +4693,32 @@ name = "tracer_lib"
 version = "2025.4.11"
 dependencies = [
  "anyhow",
- "assert_cmd",
- "aws-config",
- "aws-credential-types",
- "aws-sdk-pricing",
- "aws-sdk-s3",
- "aws-sdk-secretsmanager",
- "axum",
- "bollard",
  "chrono",
  "clap",
- "colored",
  "config",
- "daemonize",
  "dirs",
- "dotenv",
  "ec2_instance_metadata",
- "env_logger",
  "homedir",
- "itertools 0.14.0",
- "lazy_static",
- "linemux",
  "log",
- "octocrab",
  "once_cell",
  "percent-encoding",
- "predicates",
  "rand 0.8.5",
- "random-string",
- "reqwest",
  "serde",
- "serde-query",
  "serde_json",
- "serial_test",
  "sqlx",
  "sysinfo",
  "tempfile",
  "tokio",
- "tokio-stream",
- "tokio-util",
  "toml",
  "tracer_aws",
  "tracer_common",
  "tracer_extracts",
  "tracing",
- "tracing-appender",
  "tracing-log",
  "tracing-loki",
  "tracing-subscriber",
  "url",
  "uuid",
- "walkdir",
 ]
 
 [[package]]
