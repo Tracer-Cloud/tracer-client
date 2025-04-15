@@ -150,7 +150,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_grep_errors() {
-        let test_file_path = "test-files/var/log/syslog";
+        let test_file_path = "../../test-files/var/log/syslog";
 
         let file = File::open(test_file_path).unwrap();
 
