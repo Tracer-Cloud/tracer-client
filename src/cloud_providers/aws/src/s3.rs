@@ -204,7 +204,6 @@ pub mod tests {
     use uuid::Uuid;
 
     pub fn setup_env_vars(region: &str) {
-        panic!();
         dotenv().ok(); // Load from .env file in development
         env::set_var("AWS_REGION", region);
     }
