@@ -161,7 +161,6 @@ impl AuroraClient {
         logs: impl IntoIterator<Item = OtelLog>,
     ) -> Result<()> {
         let now = std::time::Instant::now();
-        const PARAMS: usize = 29;
 
         const QUERY: &str = "INSERT INTO batch_jobs_logs (
                 timestamp, body, severity_text, severity_number,
@@ -174,6 +173,8 @@ impl AuroraClient {
                 process_status,
                 attributes, resource_attributes, tags
             )";
+        // when updating query, also update params
+        const PARAMS: usize = 29;
 
         fn _push_tuple(mut b: Separated<Postgres, &str>, event: EventInsert) {
             b.push_bind(event.event_timestamp.naive_utc())
@@ -206,6 +207,10 @@ impl AuroraClient {
                 .push_bind(event.resource_attributes)
                 .push_bind(event.tags);
         }
+        // there's an alternative, much more efficient way to push values
+        // https://github.com/launchbadge/sqlx/blob/main/FAQ.md#how-can-i-bind-an-array-to-a-values-clause-how-can-i-do-bulk-inserts
+        // however, unnest builds a tmp table from the array - and we're passing job_ids. Unnesting Arrays inside the arrays are tricky.
+        // see https://github.com/launchbadge/sqlx/issues/1945
 
         info!(
             "Inserting row for run_name: {}, pipeline_name: {}",
