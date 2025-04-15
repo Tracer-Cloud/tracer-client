@@ -1,19 +1,16 @@
-// src/events/mod.rs
 mod run_details;
 use anyhow::Result;
-// src/events/mod.rs
 use chrono::Utc;
 use run_details::{generate_run_id, generate_run_name};
 use serde_json::json;
 use sysinfo::System;
+use tracer_aws::aws_metadata::get_aws_instance_metadata;
 use tracer_aws::config::PricingClient;
 use tracer_aws::types::pricing::EC2FilterBuilder;
-use tracing::info;
-// src/events/mod.rs
-use tracer_aws::aws_metadata::get_aws_instance_metadata;
 use tracer_common::debug_log::Logger;
 use tracer_common::event::attributes::system_metrics::SystemProperties;
 use tracer_extracts::metrics::SystemMetricsCollector;
+use tracing::info;
 
 // FIXME: How should this be handled with the new architecture?
 pub async fn send_log_event(_api_key: &str, message: &str) -> Result<()> {
