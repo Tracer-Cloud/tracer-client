@@ -46,8 +46,18 @@ pub async fn wait(api_client: &DaemonClient) -> Result<()> {
         }
 
         let duration = 1 << n;
+        let attempts = match duration {
+            1 => 1,
+            2 => 2,
+            4 => 3,
+            8 => 4,
+            _ => 5,
+        };
+        
         println!(
-            "Daemon not started yet, sleep for {duration} second{:}",
+            "Starting daemon... [{:.<20}] ({} second{} elapsed)",
+            ".".repeat(attempts.min(20)),
+            duration,
             if duration > 1 { "s" } else { "" }
         );
         sleep(std::time::Duration::from_secs(duration)).await;
@@ -85,11 +95,11 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
 
     // todo: take version from CLI
     writeln!(&mut output, "Daemon version: {}", env!("CARGO_PKG_VERSION"))?;
-
+    
     writeln!(
         &mut output,
         "Grafana Workspace URL: {}",
-        config.grafana_workspace_url.cyan().underline()
+        format!("\u{1b}]8;;{0}\u{1b}\\{0}\u{1b}]8;;\u{1b}\\", config.grafana_workspace_url).cyan().underline()
     )?;
 
     writeln!(

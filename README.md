@@ -65,7 +65,6 @@ Open the link to access real-time dashboard insights into your computational wor
 
 ![Tracer Info](docs/images/20250316-tracer-info.png)
 
-
 ## Table of Contents
 - [🎯 Tracer Tutorial](docs/README.MD) - Tracer Tutorial: Monitoring Your First Nextflow Pipeline on AWS
 - [🔍 Examples](docs/EXAMPLES.md) – Explore real-world use cases 

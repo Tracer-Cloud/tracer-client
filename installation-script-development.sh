@@ -453,7 +453,7 @@ setup_tracer_configuration_file() {
 polling_interval_ms = 1500
 api_key = "$API_KEY"
 service_url = "https://app.tracer.bio/api"
-process_polling_interval_ms = 5
+process_polling_interval_ms = 25
 batch_submission_interval_ms = 10000
 new_run_pause_ms = 600000
 file_size_not_changing_period_ms = 60000
