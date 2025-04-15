@@ -9,7 +9,6 @@ authors = { workspace = true }
 [dependencies]
 anyhow = { workspace = true }
 chrono = { workspace = true }
-daemonize = { workspace = true }
 
 reqwest = { workspace = true }
 serde = { workspace = true }
