@@ -53,7 +53,7 @@ pub async fn wait(api_client: &DaemonClient) -> Result<()> {
             8 => 4,
             _ => 5,
         };
-        
+
         println!(
             "Starting daemon... [{:.<20}] ({} second{} elapsed)",
             ".".repeat(attempts.min(20)),
@@ -68,40 +68,80 @@ pub async fn wait(api_client: &DaemonClient) -> Result<()> {
 
 pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Result<()> {
     let mut output = String::new();
-    
+
     // Fixed width for the left column and separator
     let total_header_width = 80; // Reasonable width for the header
-    
-    writeln!(&mut output, "\n┌{:─^width$}┐", " TRACER INFO ", width = total_header_width)?;
+
+    writeln!(
+        &mut output,
+        "\n┌{:─^width$}┐",
+        " TRACER INFO ",
+        width = total_header_width
+    )?;
 
     match api_client.send_info_request().await {
         Ok(info) => {
-            writeln!(&mut output, "│ Daemon status:            │ {}  ", "Running".green())?;
+            writeln!(
+                &mut output,
+                "│ Daemon status:            │ {}  ",
+                "Running".green()
+            )?;
 
             if let Some(ref inner) = info.inner {
-                writeln!(&mut output, "│ Service name:             │ {}  ", inner.pipeline_name)?;
-                writeln!(&mut output, "│ Run name:                 │ {}  ", inner.run_name)?;
-                writeln!(&mut output, "│ Run ID:                   │ {}  ", inner.run_id)?;
-                writeln!(&mut output, "│ Total Run Time:           │ {}  ", inner.formatted_runtime())?;
+                writeln!(
+                    &mut output,
+                    "│ Service name:             │ {}  ",
+                    inner.pipeline_name
+                )?;
+                writeln!(
+                    &mut output,
+                    "│ Run name:                 │ {}  ",
+                    inner.run_name
+                )?;
+                writeln!(
+                    &mut output,
+                    "│ Run ID:                   │ {}  ",
+                    inner.run_id
+                )?;
+                writeln!(
+                    &mut output,
+                    "│ Total Run Time:           │ {}  ",
+                    inner.formatted_runtime()
+                )?;
             }
             writeln!(
                 &mut output,
                 "│ Recognized Processes:     │ {}  ",
-                format!("{}:{}", info.watched_processes_count, info.watched_processes_preview())
+                format!(
+                    "{}:{}",
+                    info.watched_processes_count,
+                    info.watched_processes_preview()
+                )
             )?;
         }
         Err(e) => {
-            writeln!(&mut output, "│ Daemon status:            │ {}  ", "Stopped".red())?;
+            writeln!(
+                &mut output,
+                "│ Daemon status:            │ {}  ",
+                "Stopped".red()
+            )?;
             writeln!(&mut output, "│ Error info:               │ {:?}  ", e)?;
         }
     }
 
-    writeln!(&mut output, "│ Daemon version:           │ {}  ", env!("CARGO_PKG_VERSION"))?;
-    
+    writeln!(
+        &mut output,
+        "│ Daemon version:           │ {}  ",
+        env!("CARGO_PKG_VERSION")
+    )?;
+
     // Special case for Grafana URL - create clickable link with color
-    let clickable_url = format!("\u{1b}]8;;{0}\u{1b}\\{0}\u{1b}]8;;\u{1b}\\", config.grafana_workspace_url);
+    let clickable_url = format!(
+        "\u{1b}]8;;{0}\u{1b}\\{0}\u{1b}]8;;\u{1b}\\",
+        config.grafana_workspace_url
+    );
     let colored_url = clickable_url.cyan().underline().to_string();
-    
+
     writeln!(
         &mut output,
         "│ Grafana Workspace URL:    │ {}  ",
