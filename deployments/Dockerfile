@@ -33,7 +33,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-cert
     && rm -rf /var/lib/apt/lists/*
 
 
-COPY --from=builder /app/target/release/tracer /usr/local/bin/
+COPY --from=builder /app/target/release/tracer_cli /usr/local/bin/tracer
 
 ENTRYPOINT ["sh", "-c"]
 

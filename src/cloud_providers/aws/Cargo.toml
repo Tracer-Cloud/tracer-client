@@ -1,0 +1,30 @@
+[package]
+name = "tracer_aws"
+
+version = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+authors = { workspace = true }
+
+[dependencies]
+aws-config = { workspace = true }
+aws-sdk-s3 = { workspace = true }
+aws-sdk-pricing = { workspace = true }
+aws-credential-types = { workspace = true }
+aws-sdk-secretsmanager = { workspace = true }
+log = { workspace = true }
+tokio = { workspace = true }
+serde-query = { workspace = true }
+serde = { workspace = true }
+config = { workspace = true }
+anyhow = { workspace = true }
+serde_json = { workspace = true }
+ec2_instance_metadata = { workspace = true }
+
+
+
+[dev-dependencies]
+dotenv = { workspace = true }
+serial_test = { workspace = true }
+uuid = { workspace = true }

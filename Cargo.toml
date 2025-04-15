@@ -1,9 +1,23 @@
-[package]
+[workspace]
+resolver = "2"
+members = ["src/cli", "src/cloud_providers/aws", "src/daemon", "src/client", "src/extracts", "src/common", "integration_tests"]
+
+[workspace.package]
 name = "tracer"
 version = "2025.4.11"
 edition = "2021"
+authors = ["Tracer <info@tracer.cloud>"]
+homepage = "http://tracer.cloud/"
+repository = "https://github.com/Tracer-Cloud/tracer-client/"
 
-[dependencies]
+[workspace.dependencies]
+tracer_aws = { path = "src/cloud_providers/aws" }
+tracer_client = { path = "src/client" }
+tracer_common = { path = "src/common" }
+tracer_extracts = { path = "src/extracts" }
+tracer_daemon = { path = "src/daemon" }
+tracer_cli = { path = "src/cli" }
+
 anyhow = "1.0.98"
 chrono = { version = "0.4.38", features = ["serde"] }
 clap = { version = "4.5.36", features = ["derive"] }
@@ -52,11 +66,10 @@ colored = "3.0.0"
 axum = "0.8.3"
 tempfile = "3.19.1"
 config = { version = "0.15.11", default-features = false, features = ["toml", "convert-case"] }
-
-
-[dev-dependencies]
 serial_test = "3.1.1"
 env_logger = "0.11"
 dotenv = "0.15"
 bollard = "0.18.1"
 assert_cmd = "2.0"
+
+
