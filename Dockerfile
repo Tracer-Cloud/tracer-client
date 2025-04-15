@@ -37,8 +37,8 @@ WORKDIR /opt/tracer/src
 RUN cargo build --release
 
 # Create symbolic link and set permissions
-RUN chmod +x /opt/tracer/src/target/release/tracer && \
-    ln -s /opt/tracer/src/target/release/tracer /usr/local/bin/tracer
+RUN chmod +x /opt/tracer/src/target/release/tracer_cli && \
+    ln -s /opt/tracer/src/target/release/tracer_cli /usr/local/bin/tracer
 
 # Add version information
 LABEL version="0.0.130"

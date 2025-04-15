@@ -148,7 +148,7 @@ su - ubuntu -c "source /home/ubuntu/.cargo/env && cd /home/ubuntu/tracer-client 
 
 # Install the binary
 echo "Installing Tracer binary..."
-su - ubuntu -c "sudo cp /home/ubuntu/tracer-client/target/release/tracer /usr/local/bin/"
+su - ubuntu -c "sudo cp /home/ubuntu/tracer-client/target/release/tracer_cli /usr/local/bin/"
 sudo chown ubuntu:ubuntu /usr/local/bin/tracer
 
 echo "Setting Up test Environment $(date)"
