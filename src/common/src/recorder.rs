@@ -92,12 +92,11 @@ impl Default for EventRecorder {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::event::attributes::process::DataSetsProcessed;
+    use crate::event::attributes::process::DataSetsProcessed;
 
     use super::*;
     use crate::event::attributes::EventAttributes;
     use crate::event::ProcessStatus;
-    use serde_json::json;
 
     #[test]
     fn test_record_event() {

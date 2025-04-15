@@ -501,7 +501,7 @@ mod tests {
         assert!(res.is_ok());
 
         // Prepare the SQL query
-        let query = "SELECT data, run_name FROM batch_jobs_logs WHERE run_name = $1";
+        let query = "SELECT attributes, run_name FROM batch_jobs_logs WHERE run_name = $1";
 
         let db_client = client.db_client.get_pool();
 

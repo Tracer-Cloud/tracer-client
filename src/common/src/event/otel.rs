@@ -2,7 +2,9 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use super::{attributes::EventAttributes, Event};
+use crate::pipeline_tags::PipelineTags;
+
+use super::{attributes::EventAttributes, Event, EventInsert, ProcessStatus};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OtelLog {
@@ -130,7 +132,7 @@ impl From<Event> for OtelLog {
     }
 }
 
-impl From<OtelLog> for  {
+impl From<OtelLog> for EventInsert {
     fn from(o: OtelLog) -> Self {
         EventInsert {
             event_timestamp: o.timestamp,
