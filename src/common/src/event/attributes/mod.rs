@@ -17,6 +17,4 @@ pub enum EventAttributes {
     SystemProperties(SystemProperties),
     ProcessDatasetStats(DataSetsProcessed),
     NextflowLog(NextflowLog),
-    // TODO: take out when done with demo
-    Other(serde_json::Value),
 }

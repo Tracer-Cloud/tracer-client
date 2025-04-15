@@ -92,6 +92,8 @@ impl Default for EventRecorder {
 
 #[cfg(test)]
 mod tests {
+    use crate::types::event::attributes::process::DataSetsProcessed;
+
     use super::*;
     use crate::event::attributes::EventAttributes;
     use crate::event::ProcessStatus;
@@ -101,8 +103,10 @@ mod tests {
     fn test_record_event() {
         let mut recorder = EventRecorder::default();
         let message = "[event_recorder.rs]Test event".to_string();
-        let attributes = Some(EventAttributes::Other(json!({"key": "value"})));
-
+        let attributes = Some(EventAttributes::ProcessDatasetStats(DataSetsProcessed {
+            datasets: "".to_string(),
+            total: 2,
+        }));
         recorder.record_event(
             ProcessStatus::ToolExecution,
             message.clone(),
@@ -119,7 +123,7 @@ mod tests {
         assert_eq!(event.process_status, ProcessStatus::ToolExecution);
         assert!(matches!(
             event.attributes.clone().unwrap(),
-            EventAttributes::Other(_)
+            EventAttributes::ProcessDatasetStats(_)
         ));
     }
 
@@ -150,7 +154,10 @@ mod tests {
     fn test_record_test_event() {
         let mut recorder = EventRecorder::default();
         let message = "Test event for testing".to_string();
-        let attributes = Some(EventAttributes::Other(json!({"test_key": "test_value"})));
+        let attributes = Some(EventAttributes::ProcessDatasetStats(DataSetsProcessed {
+            datasets: "".to_string(),
+            total: 2,
+        }));
 
         recorder.record_event(
             ProcessStatus::TestEvent,
@@ -168,7 +175,7 @@ mod tests {
         assert_eq!(event.process_status, ProcessStatus::TestEvent);
         assert!(matches!(
             event.attributes.clone().unwrap(),
-            EventAttributes::Other(_)
+            EventAttributes::ProcessDatasetStats(_)
         ));
     }
 }
