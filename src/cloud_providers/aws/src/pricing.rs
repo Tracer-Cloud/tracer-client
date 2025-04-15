@@ -157,7 +157,6 @@ impl PricingClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::config::AwsConfig;
     use aws_sdk_pricing::types::{Filter, FilterType};
     use dotenv::dotenv;
     use std::time::Duration;

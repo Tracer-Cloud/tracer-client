@@ -130,7 +130,7 @@ pub async fn setup_db(db_url: &str) -> PgPool {
         .await
         .expect("Failed to drop migration table");
 
-    sqlx::migrate!("./migrations")
+    sqlx::migrate!("../../migrations")
         .run(&pool)
         .await
         .expect("Failed to run migration");

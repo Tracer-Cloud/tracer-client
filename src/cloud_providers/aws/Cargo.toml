@@ -21,5 +21,8 @@ config = { workspace = true }
 anyhow = { workspace = true }
 serde_json = { workspace = true }
 
+
 [dev-dependencies]
 dotenv = { workspace = true }
+serial_test = { workspace = true }
+uuid = { workspace = true }

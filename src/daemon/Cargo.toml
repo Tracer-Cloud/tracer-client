@@ -25,3 +25,6 @@ axum = { workspace = true }
 tracer_common = { workspace = true }
 tracer_extracts = { workspace = true }
 tracer_lib = { workspace = true }
+
+[dev-dependencies]
+dotenv = { workspace = true }

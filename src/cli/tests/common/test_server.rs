@@ -4,13 +4,13 @@ use sqlx::PgPool;
 use std::net::SocketAddr;
 use tempfile::TempDir;
 use tokio::task::JoinHandle;
-use tracer::config_manager::Config;
-use tracer::daemon_communication::server::DaemonServer;
-use tracer::exporters::db::AuroraClient;
-use tracer::tracer_client::TracerClient;
-use tracer::types::aws::aws_region::AwsRegion;
-use tracer::types::cli::TracerCliInitArgs;
-use tracer::types::config::AwsConfig;
+use tracer_aws::config::AwsConfig;
+use tracer_aws::types::aws_region::AwsRegion;
+use tracer_daemon::server::DaemonServer;
+use tracer_lib::config_manager::Config;
+use tracer_lib::exporters::db::AuroraClient;
+use tracer_lib::params::TracerCliInitArgs;
+use tracer_lib::tracer_client::TracerClient;
 
 pub struct TestServer {
     dir: TempDir,

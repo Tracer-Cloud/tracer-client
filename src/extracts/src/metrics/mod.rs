@@ -91,7 +91,6 @@ impl SystemMetricsCollector {
 mod tests {
 
     use super::*;
-    use crate::events::recorder::EventRecorder;
 
     #[test]
     fn test_collect_metrics() {

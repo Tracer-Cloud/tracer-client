@@ -24,3 +24,7 @@ tracer_common = { workspace = true }
 tracer_extracts = { workspace = true }
 tracer_lib = { workspace = true }
 tracer_daemon = { workspace = true }
+
+[dev-dependencies]
+bollard = { workspace = true }
+tracer_aws = { workspace = true }

@@ -147,7 +147,6 @@ mod tests {
     };
 
     use super::*;
-    use crate::utils::debug_log::Logger;
 
     #[tokio::test]
     async fn test_grep_errors() {

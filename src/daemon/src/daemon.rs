@@ -84,14 +84,12 @@ pub async fn monitor_processes_with_tracer_client(tracer_client: &mut TracerClie
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        config_manager::{Config, ConfigManager},
-        exporters::db::AuroraClient,
-        types::cli::TracerCliInitArgs,
-    };
-
-    use crate::{monitor_processes_with_tracer_client, TracerClient};
+    use crate::daemon::monitor_processes_with_tracer_client;
     use dotenv::dotenv;
+    use tracer_lib::config_manager::{Config, ConfigManager};
+    use tracer_lib::exporters::db::AuroraClient;
+    use tracer_lib::params::TracerCliInitArgs;
+    use tracer_lib::tracer_client::TracerClient;
 
     fn load_test_config() -> Config {
         ConfigManager::load_config().unwrap()
