@@ -240,7 +240,8 @@ mod tests {
 
     #[test]
     fn test_default_config() {
-        let config = ConfigManager::load_config().unwrap();
+        let path = Path::new("../../");
+        let config = ConfigManager::load_config_at(path).unwrap();
         assert!(!config.targets.is_empty());
     }
 
