@@ -163,7 +163,7 @@ impl AuroraClient {
         let now = std::time::Instant::now();
         const PARAMS: usize = 29;
 
-        const QUERY: &str = "INSERT INTO otel_logs (
+        const QUERY: &str = "INSERT INTO batch_jobs_logs (
                 timestamp, body, severity_text, severity_number,
                 trace_id, span_id,
                 source_type, instrumentation_version, instrumentation_type,
