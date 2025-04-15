@@ -2,7 +2,7 @@
 
 use crate::nextflow_log_watcher::NextflowLogWatcher;
 
-use tracer_common::event::event::ProcessStatus as TracerProcessStatus;
+use tracer_common::event::ProcessStatus as TracerProcessStatus;
 
 use crate::data_samples::DATA_SAMPLES_EXT;
 use crate::file_watcher::FileWatcher;

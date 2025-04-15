@@ -14,7 +14,7 @@ use sqlx::query_builder::Separated;
 use tracer_aws::config::SecretsClient;
 use tracer_aws::types::secrets::DatabaseAuth;
 use tracer_common::event::attributes::EventAttributes;
-use tracer_common::event::event::Event;
+use tracer_common::event::Event;
 use tracing::debug;
 
 const BIND_LIMIT: usize = 65535;

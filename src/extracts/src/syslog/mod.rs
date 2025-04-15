@@ -13,7 +13,7 @@ use tokio_stream::StreamExt;
 use tracer_common::debug_log::Logger;
 use tracer_common::event::attributes::syslog::SyslogProperties;
 use tracer_common::event::attributes::EventAttributes;
-use tracer_common::event::event::ProcessStatus;
+use tracer_common::event::ProcessStatus;
 use tracer_common::recorder::EventRecorder;
 
 const LINES_BEFORE: usize = 2;

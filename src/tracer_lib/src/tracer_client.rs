@@ -17,7 +17,7 @@ use tokio::sync::RwLock;
 use tracer_aws::config::PricingClient;
 use tracer_common::constants::{DEFAULT_SERVICE_URL, FILE_CACHE_DIR};
 use tracer_common::event::attributes::EventAttributes;
-use tracer_common::event::event::ProcessStatus;
+use tracer_common::event::ProcessStatus;
 use tracer_common::pipeline_tags::PipelineTags;
 use tracer_common::recorder::EventRecorder;
 use tracer_common::types::LinesBufferArc;

@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use sysinfo::{Disks, System};
 use tracer_common::event::attributes::system_metrics::{DiskStatistic, SystemMetric};
 use tracer_common::event::attributes::EventAttributes;
-use tracer_common::event::event::ProcessStatus;
+use tracer_common::event::ProcessStatus;
 use tracer_common::recorder::EventRecorder;
 
 pub struct SystemMetricsCollector;

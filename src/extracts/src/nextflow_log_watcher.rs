@@ -8,7 +8,7 @@ use tokio::fs::OpenOptions;
 use tokio::io::{AsyncBufReadExt, AsyncSeekExt, BufReader, SeekFrom};
 use tracer_common::event::attributes::system_metrics::NextflowLog;
 use tracer_common::event::attributes::EventAttributes;
-use tracer_common::event::event::ProcessStatus;
+use tracer_common::event::ProcessStatus;
 use tracer_common::recorder::EventRecorder;
 
 /// ## Approach:

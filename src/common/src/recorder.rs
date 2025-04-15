@@ -1,5 +1,5 @@
 use crate::event::attributes::EventAttributes;
-use crate::event::event::{Event, EventType, ProcessStatus, ProcessType};
+use crate::event::{Event, EventType, ProcessStatus, ProcessType};
 use crate::pipeline_tags::PipelineTags;
 use chrono::{DateTime, Utc};
 
@@ -94,7 +94,7 @@ impl Default for EventRecorder {
 mod tests {
     use super::*;
     use crate::event::attributes::EventAttributes;
-    use crate::event::event::ProcessStatus;
+    use crate::event::ProcessStatus;
     use serde_json::json;
 
     #[test]
