@@ -17,10 +17,12 @@ make test-tracer
 ```bash
 sudo su - ubuntu && cd test-bioinformatics-packages 
 ```
-
 ```bash
-tracer init --pipeline-name aws_batch_test --environment sandbox --user-operator vincent --pipeline-type aws_batch_rnaseq &&
-make test-tracer
+tracer init --pipeline-name aws_batch_test --environment sandbox --user-operator vincent --pipeline-type aws_batch_rnaseq
+
+```
+```bash
+make test_rnaseq_aws_batch
 ```
 
 - make test_rnaseq_aws_batch
