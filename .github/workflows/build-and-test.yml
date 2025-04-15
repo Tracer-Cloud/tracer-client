@@ -78,7 +78,7 @@ jobs:
           TRACER_DATABASE_SECRETS_ARN: ${{ secrets.TRACER_DATABASE_SECRETS_ARN }}
           TRACER_DATABASE_NAME: ${{ secrets.TRACER_DATABASE_NAME }}
           TRACER_DATABASE_HOST: ${{ secrets.TRACER_DATABASE_HOST }}
-          DATABASE_URL: "postgresql://postgres:postgres@postgres:${{ job.services.postgres.ports[5432] }}/tracer_db"
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/tracer_db" # localhost since VM
         run: make test-tracer
 
   run-integrations:
