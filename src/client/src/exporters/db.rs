@@ -2,8 +2,7 @@ use anyhow::{Context, Result};
 use log::info;
 use sqlx::pool::PoolOptions;
 use sqlx::{PgPool, Postgres, QueryBuilder};
-use tracer_common::event::otel::OtelLog;
-use tracer_common::event::EventInsert;
+use tracer_common::event::{Event, EventInsert};
 
 use crate::config_manager::Config;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
@@ -75,7 +74,7 @@ impl AuroraClient {
         run_name: &str,
         run_id: &str,
         pipeline_name: &str,
-        logs: impl IntoIterator<Item = OtelLog>,
+        logs: impl IntoIterator<Item = Event>,
     ) -> Result<()> {
         let now = std::time::Instant::now();
 
@@ -130,25 +129,13 @@ impl AuroraClient {
         // see https://github.com/launchbadge/sqlx/issues/1945
 
         info!(
-            "Inserting row for run_name: {}, pipeline_name: {}",
-            run_name, pipeline_name
+            "Inserting row for run_name: {}, pipeline_name: {}, run_id: {}",
+            run_name, pipeline_name, run_id
         );
 
         let mut builder = QueryBuilder::new(QUERY);
 
-        let mut data: Vec<_> = logs
-            .into_iter()
-            .map(|e| {
-                let process_status = e.process_status.to_string();
-                EventInsert::try_new(
-                    e,
-                    run_name.to_string(),
-                    run_id.to_string(),
-                    pipeline_name.to_string(),
-                    process_status,
-                )
-            })
-            .collect::<Result<Vec<_>>>()?;
+        let mut data: Vec<_> = logs.into_iter().map(EventInsert::from).collect();
 
         let rows_affected = match data.len() {
             0 => {

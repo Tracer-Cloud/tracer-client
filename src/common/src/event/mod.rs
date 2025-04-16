@@ -1,12 +1,13 @@
 pub mod attributes;
-pub mod otel;
+
 use crate::event::attributes::EventAttributes;
 use crate::pipeline_tags::PipelineTags;
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};
-use otel::OtelLog;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
+use typed_builder::TypedBuilder;
+use uuid::Uuid;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -57,14 +58,26 @@ impl std::fmt::Display for ProcessStatus {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+fn default_span_id() -> Option<String> {
+    Some(Uuid::new_v4().to_string())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, TypedBuilder)]
+#[builder(field_defaults(default))]
 pub struct Event {
     #[serde(with = "ts_seconds")]
     pub timestamp: DateTime<Utc>,
-    pub message: String,
 
+    #[builder(setter(into))]
+    pub body: String,
+
+    #[builder(default = EventType::ProcessStatus)]
     pub event_type: EventType,
+
+    #[builder(default = ProcessType::Pipeline)]
     pub process_type: ProcessType,
+
+    #[builder(default = ProcessStatus::TestEvent)]
     pub process_status: ProcessStatus,
 
     pub pipeline_name: Option<String>,
@@ -72,6 +85,13 @@ pub struct Event {
     pub run_id: Option<String>,
     pub attributes: Option<EventAttributes>,
     pub tags: Option<PipelineTags>,
+
+    pub severity_text: Option<String>,
+    pub severity_number: Option<u8>,
+    pub trace_id: Option<String>,
+
+    #[builder(default = default_span_id())]
+    pub span_id: Option<String>,
 }
 
 // TODO: would be removed in next pr
@@ -111,50 +131,89 @@ pub struct EventInsert {
     pub tags: Value,
 }
 
-impl EventInsert {
-    pub fn try_new(
-        log: OtelLog,
-        run_name: String,
-        run_id: String,
-        pipeline_name: String,
-        process_status: String,
-    ) -> anyhow::Result<Self> {
-        Ok(EventInsert {
-            event_timestamp: log.timestamp,
-            body: log.body,
-            severity_text: log.severity_text,
-            severity_number: log.severity_number.map(|v| v as i16),
-            trace_id: log.trace_id,
-            span_id: log.span_id,
+impl From<Event> for EventInsert {
+    fn from(event: Event) -> Self {
+        let mut attributes = json!({});
+        let mut resource_attributes = json!({});
+        let mut job_id = None;
+        let mut parent_job_id = None;
+        let mut child_job_ids = None;
+        let mut workflow_engine = None;
+        let mut cpu_usage = None;
+        let mut mem_used = None;
+        let mut ec2_cost_per_hour = None;
+        let mut processed_dataset = None;
 
-            source_type: log.source_type,
-            instrumentation_version: log.instrumentation_version,
-            instrumentation_type: log.instrumentation_type,
-            environment: log.environment,
-            pipeline_type: log.pipeline_type,
-            user_operator: log.user_operator,
-            organization_id: log.organization_id,
-            department: log.department,
+        if let Some(attr) = &event.attributes {
+            match attr {
+                EventAttributes::Process(p) => {
+                    cpu_usage = Some(p.process_cpu_utilization);
+                    mem_used = Some(p.process_memory_usage as f64);
+                    job_id = p.job_id.clone();
+                    attributes = serde_json::to_value(p).unwrap_or_default();
+                }
+                EventAttributes::SystemMetric(m) => {
+                    cpu_usage = Some(m.system_cpu_utilization);
+                    mem_used = Some(m.system_memory_used as f64);
+                    attributes = serde_json::to_value(m).unwrap_or_default();
+                }
+                EventAttributes::SystemProperties(p) => {
+                    ec2_cost_per_hour = p.ec2_cost_per_hour;
+                    resource_attributes = serde_json::to_value(p).unwrap_or_default();
+                }
+                EventAttributes::ProcessDatasetStats(d) => {
+                    processed_dataset = Some(d.total as i32);
+                    attributes = serde_json::to_value(d).unwrap_or_default();
+                }
+                EventAttributes::NextflowLog(n) => {
+                    parent_job_id = n.session_uuid.clone();
+                    child_job_ids = n.jobs_ids.clone();
+                    workflow_engine = Some("nextflow".to_string());
+                    attributes = serde_json::to_value(n).unwrap_or_default();
+                }
+                EventAttributes::Syslog(s) => {
+                    attributes = serde_json::to_value(s).unwrap_or_default();
+                }
+                _ => {}
+            }
+        }
 
-            run_id,
-            run_name,
-            pipeline_name,
-            job_id: log.job_id,
-            parent_job_id: log.parent_job_id,
-            child_job_ids: log.child_job_ids,
-            workflow_engine: log.workflow_engine,
+        let tags = event.tags.clone();
 
-            ec2_cost_per_hour: log.ec2_cost_per_hour,
-            cpu_usage: log.cpu_usage,
-            mem_used: log.mem_used,
-            processed_dataset: log.processed_dataset,
-            process_status,
+        EventInsert {
+            event_timestamp: event.timestamp,
+            body: event.body,
+            severity_text: event.severity_text,
+            severity_number: event.severity_number.map(|v| v as i16),
+            trace_id: event.trace_id,
+            span_id: event.span_id,
 
-            attributes: log.attributes.unwrap_or_else(|| serde_json::json!({})),
-            resource_attributes: log
-                .resource_attributes
-                .unwrap_or_else(|| serde_json::json!({})),
-            tags: serde_json::to_value(log.tags).unwrap_or_else(|_| serde_json::json!({})),
-        })
+            source_type: "tracer-daemon".into(),
+            instrumentation_version: option_env!("CARGO_PKG_VERSION").map(|s| s.to_string()),
+            instrumentation_type: Some("TRACER_DAEMON".into()),
+            environment: tags.clone().map(|t| t.environment),
+            pipeline_type: tags.clone().map(|t| t.pipeline_type),
+            user_operator: tags.clone().map(|t| t.user_operator),
+            organization_id: tags.clone().map(|t| t.organization_id).unwrap_or_default(),
+            department: tags.clone().map(|t| t.department),
+
+            run_id: event.run_id.unwrap_or_default(),
+            run_name: event.run_name.unwrap_or_default(),
+            pipeline_name: event.pipeline_name.unwrap_or_default(),
+            job_id,
+            parent_job_id,
+            child_job_ids,
+            workflow_engine,
+
+            ec2_cost_per_hour,
+            cpu_usage,
+            mem_used,
+            processed_dataset,
+            process_status: event.process_status.to_string(),
+
+            attributes,
+            resource_attributes,
+            tags: serde_json::to_value(tags).unwrap_or_else(|_| json!({})),
+        }
     }
 }

@@ -1,5 +1,5 @@
 use crate::event::attributes::EventAttributes;
-use crate::event::{Event, EventType, ProcessStatus, ProcessType};
+use crate::event::{Event, ProcessStatus};
 use crate::pipeline_tags::PipelineTags;
 use chrono::{DateTime, Utc};
 
@@ -45,23 +45,24 @@ impl EventRecorder {
     pub fn record_event(
         &mut self,
         process_status: ProcessStatus,
-        message: String,
+        body: String,
         attributes: Option<EventAttributes>,
         timestamp: Option<DateTime<Utc>>,
     ) {
-        let event = Event {
-            timestamp: timestamp.unwrap_or_else(Utc::now),
-            message,
-            event_type: EventType::ProcessStatus,
-            process_type: ProcessType::Pipeline,
-            process_status,
-            attributes,
-            // NOTE: not a fan of constant cloning so would look for an alt
-            run_name: self.run_name.clone(),
-            run_id: self.run_id.clone(),
-            pipeline_name: self.pipeline_name.clone(),
-            tags: self.tags.clone(),
-        };
+        let event = Event::builder()
+            .body(body)
+            .timestamp(timestamp.unwrap_or_else(Utc::now))
+            .process_status(process_status)
+            .pipeline_name(self.pipeline_name.clone())
+            .run_name(self.run_name.clone())
+            .run_id(self.run_id.clone())
+            .tags(self.tags.clone())
+            .attributes(attributes)
+            .build();
+
+        self.events.push(event);
+    }
+    pub fn record_event_v2(&mut self, event: Event) {
         self.events.push(event);
     }
 
@@ -96,7 +97,7 @@ mod tests {
 
     use super::*;
     use crate::event::attributes::EventAttributes;
-    use crate::event::ProcessStatus;
+    use crate::event::{EventType, ProcessStatus, ProcessType};
 
     #[test]
     fn test_record_event() {
@@ -116,7 +117,7 @@ mod tests {
         assert_eq!(recorder.len(), 1);
 
         let event = &recorder.get_events()[0];
-        assert_eq!(event.message, message);
+        assert_eq!(event.body, message);
         assert_eq!(event.event_type, EventType::ProcessStatus);
         assert_eq!(event.process_type, ProcessType::Pipeline);
         assert_eq!(event.process_status, ProcessStatus::ToolExecution);
@@ -168,7 +169,7 @@ mod tests {
         assert_eq!(recorder.len(), 1);
 
         let event = &recorder.get_events()[0];
-        assert_eq!(event.message, message);
+        assert_eq!(event.body, message);
         assert_eq!(event.event_type, EventType::ProcessStatus);
         assert_eq!(event.process_type, ProcessType::Pipeline);
         assert_eq!(event.process_status, ProcessStatus::TestEvent);
