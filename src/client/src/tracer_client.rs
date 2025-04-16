@@ -71,7 +71,8 @@ pub struct TracerClient {
     initialization_id: Option<String>,
     pub config: Config,
     tags: PipelineTags,
-    ebpf: TracerEbpf
+    #[allow(unused)]
+    ebpf: TracerEbpf,
 }
 
 impl TracerClient {
@@ -127,7 +128,7 @@ impl TracerClient {
             initialization_id: cli_args.run_id,
             config,
             tags: cli_args.tags,
-            ebpf
+            ebpf,
         })
     }
 

@@ -17,8 +17,6 @@ impl TracerEbpf {
     }
 }
 
-
-
 pub fn load_ebpf() -> anyhow::Result<TracerEbpf> {
     env_logger::init();
 
