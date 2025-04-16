@@ -62,9 +62,6 @@ impl EventRecorder {
 
         self.events.push(event);
     }
-    pub fn record_event_v2(&mut self, event: Event) {
-        self.events.push(event);
-    }
 
     pub fn get_events(&self) -> &[Event] {
         &self.events

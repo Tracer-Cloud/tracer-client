@@ -74,7 +74,7 @@ impl AuroraClient {
         run_name: &str,
         run_id: &str,
         pipeline_name: &str,
-        logs: impl IntoIterator<Item = Event>,
+        data: impl IntoIterator<Item = &Event>,
     ) -> Result<()> {
         let now = std::time::Instant::now();
 
@@ -135,7 +135,7 @@ impl AuroraClient {
 
         let mut builder = QueryBuilder::new(QUERY);
 
-        let mut data: Vec<_> = logs.into_iter().map(EventInsert::from).collect();
+        let mut data: Vec<_> = data.into_iter().cloned().map(EventInsert::from).collect();
 
         let rows_affected = match data.len() {
             0 => {
@@ -144,17 +144,17 @@ impl AuroraClient {
             }
             x if x * PARAMS >= BIND_LIMIT => {
                 debug!("Chunked insert with transaction due to bind limit");
-                let mut tx = self.pool.begin().await?;
+                let mut transaction = self.pool.begin().await?;
                 let mut rows_affected = 0;
 
                 while !data.is_empty() {
                     let chunk: Vec<_> = data.split_off(data.len().min(BIND_LIMIT / PARAMS));
                     let query = builder.push_values(chunk, _push_tuple).build();
-                    rows_affected += query.execute(&mut *tx).await?.rows_affected();
+                    rows_affected += query.execute(&mut *transaction).await?.rows_affected();
                     builder.reset();
                 }
 
-                tx.commit().await?;
+                transaction.commit().await?;
                 rows_affected
             }
             _ => {

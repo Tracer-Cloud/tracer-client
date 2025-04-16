@@ -20,4 +20,4 @@ url = { workspace = true }
 tracer_aws = { workspace = true }
 uuid = { workspace = true }
 
-typed-builder = "0.18"
+typed-builder = { workspace = true}

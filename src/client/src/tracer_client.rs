@@ -157,8 +157,8 @@ impl TracerClient {
         let run_name = self
             .current_run
             .as_ref()
-            .map(|st| st.name.to_string())
-            .unwrap_or("anonymous".into());
+            .map(|st| st.name.as_str())
+            .unwrap_or("anonymous");
 
         let run_id = self
             .current_run
@@ -178,10 +178,10 @@ impl TracerClient {
 
             self.db_client
                 .batch_insert_events(
-                    &run_name,
+                    run_name,
                     run_id,
                     &self.pipeline_name,
-                    self.logs.get_events().iter().cloned(),
+                    self.logs.get_events(),
                 )
                 .await
                 .map_err(|err| anyhow::anyhow!("Error submitting batch events {:?}", err))?;
@@ -293,7 +293,7 @@ impl TracerClient {
                     &run_metadata.name,
                     &run_metadata.id,
                     &self.pipeline_name,
-                    self.logs.get_events().iter().cloned(),
+                    self.logs.get_events(),
                 )
                 .await
             {

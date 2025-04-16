@@ -60,3 +60,5 @@ CREATE INDEX IF NOT EXISTS idx_batch_jobs_logs_metrics ON batch_jobs_logs (
     processed_dataset
 );
 CREATE INDEX IF NOT EXISTS idx_batch_jobs_logs_process_status ON batch_jobs_logs (process_status);
+
+ANALYZE batch_jobs_logs;
