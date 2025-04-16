@@ -72,6 +72,9 @@ jobs:
           AWS_ENDPOINT: "https://s3.us-east-2.amazonaws.com"
           RUST_LOG: "debug"
           RUST_BACKTRACE: 1
+          TRACER_DATABASE_SECRETS_ARN: ${{ secrets.TRACER_DATABASE_SECRETS_ARN }}
+          TRACER_DATABASE_NAME: ${{ secrets.TRACER_DATABASE_NAME }}
+          TRACER_DATABASE_HOST: "localhost:5432"
           DATABASE_URL: "postgresql://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/tracer_db" # localhost since VM
         run: ./scripts/migrate.sh "$DATABASE_URL" && make test-tracer
 
