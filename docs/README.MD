@@ -1,5 +1,11 @@
 # Tracer Tutorial: Monitoring Your First Nextflow Pipeline on AWS
-This tutorial guides you through setting up Tracer monitoring for a Nextflow pipeline on AWS. You'll learn how to deploy the monitoring infrastructure, launch and verify a pipeline, and visualize its execution in Grafana.
+
+- This tutorial guides you through setting up Tracer monitoring for a Nextflow pipeline on AWS. 
+- You'll learn how to deploy the monitoring infrastructure, launch and verify a pipeline, and visualize its execution in Grafana.
+
+## Update 2025-04-16: Please Refer To The Tracer Test Pipelines Repository
+
+[https://github.com/Tracer-Cloud/tracer-test-pipelines-bioinformatics/tree/main/frameworks](https://github.com/Tracer-Cloud/tracer-test-pipelines-bioinformatics/tree/main/frameworks)
 
 ## Example Use Case
 - Real-time monitoring of Nextflow genomics pipelines on AWS
