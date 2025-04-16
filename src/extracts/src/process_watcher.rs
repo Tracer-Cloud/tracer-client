@@ -95,8 +95,17 @@ impl ProcessWatcher {
 
     pub fn start_ebpf(&mut self) -> Result<()> {
         self.ebpf.get_or_try_init(|| {
-            let (tx, _rx) = mpsc::channel::<Trigger>(100);
-            start_processing_events(tx.clone())
+            let (tx, mut rx) = mpsc::channel::<Trigger>(100);
+            let ebpf = start_processing_events(tx.clone())?;
+
+            tokio::spawn(async move {  // todo: move to a new class
+                while let Some(trigger) =  rx.recv().await { // todo: batching
+                    println!("received trigger: {:?}", trigger);
+                }
+            });
+
+            Ok::<TracerEbpf, anyhow::Error>(ebpf)
+
         })?;
 
         Ok(())

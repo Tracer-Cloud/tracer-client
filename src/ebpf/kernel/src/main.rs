@@ -72,6 +72,7 @@ unsafe fn try_sched_process_exec(ctx: BtfTracePointContext) -> Result<i64, i64> 
     }
 
     EVENTS.output(&ctx, &event, 0);
+    info!(&ctx, "tracepoint: sent data");
 
     Ok(0)
 }

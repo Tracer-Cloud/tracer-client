@@ -20,3 +20,31 @@ impl ProcessEnter {
         len: 0,
     };
 }
+
+#[cfg(feature = "user")]
+pub fn from_bpf_str(s: &[u8]) -> anyhow::Result<&str> {
+    let zero_pos = s.iter().position(|&x| x == 0);
+    let s = match zero_pos {
+        Some(pos) => &s[..pos],
+        None => s,
+    };
+    Ok(std::str::from_utf8(s)?)
+}
+
+#[cfg(feature = "user")]
+impl TryInto<tracer_common::trigger::Trigger> for &ProcessEnter {
+    type Error = anyhow::Error;
+
+    fn try_into(self) -> Result<tracer_common::trigger::Trigger, Self::Error> {
+        Ok(tracer_common::trigger::Trigger::Start {
+            pid: self.pid as u32,
+            file_name: from_bpf_str(self.file_name.as_slice())?.to_string(),
+            argv: self
+                .argv
+                .iter()
+                .take(self.len)
+                .map(|x| from_bpf_str(x).unwrap().to_string())
+                .collect(), // todo: improve
+        })
+    }
+}

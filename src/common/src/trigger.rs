@@ -1,3 +1,8 @@
+#[derive(Debug)]
 pub enum Trigger {
-    New,
+    Start {
+        pid: u32,
+        file_name: String,
+        argv: Vec<String>,
+    }
 }

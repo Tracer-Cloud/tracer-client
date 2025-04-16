@@ -8,7 +8,9 @@ authors = { workspace = true }
 
 [features]
 default = []
-user = ["aya"]
+user = ["aya", "tracer_common", "anyhow"]
 
 [dependencies]
 aya = { workspace = true, optional = true }
+tracer_common = { workspace = true, optional = true }
+anyhow = { workspace = true, optional = true }
