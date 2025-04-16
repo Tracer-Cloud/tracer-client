@@ -2,7 +2,6 @@ use aya::{programs::BtfTracePoint, Btf, Ebpf};
 #[rustfmt::skip]
 use log::{debug, warn};
 
-
 pub struct TracerEbpf {
     ebpf: Ebpf,
 }

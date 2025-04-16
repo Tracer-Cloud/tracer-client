@@ -39,7 +39,6 @@ impl DaemonServer {
     pub async fn run(self) -> anyhow::Result<()> {
         let tracer_client = self.client.clone();
 
-
         let config: Arc<RwLock<config_manager::Config>> =
             Arc::new(RwLock::new(tracer_client.lock().await.config.clone()));
 
