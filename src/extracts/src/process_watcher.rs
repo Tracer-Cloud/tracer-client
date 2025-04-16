@@ -9,6 +9,7 @@ use crate::file_watcher::FileWatcher;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
+use once_cell::sync::OnceCell;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -24,7 +25,7 @@ use tracer_common::event::attributes::EventAttributes;
 use tracer_common::recorder::EventRecorder;
 use tracer_common::target_process::{Target, TargetMatchable};
 use tracer_common::trigger::Trigger;
-use tracer_ebpf_user::process_events;
+use tracer_ebpf_user::{start_processing_events, TracerEbpf};
 
 pub struct ProcessWatcher {
     targets: Vec<Target>,
@@ -33,6 +34,7 @@ pub struct ProcessWatcher {
     // We want to track unique data samples we come across when monitoring process args
     datasamples_tracker: HashSet<String>,
     nextflow_log_watcher: NextflowLogWatcher,
+    ebpf: OnceCell<TracerEbpf>, // not tokio, because TracerEbpf are sync
 }
 
 enum ProcLastUpdate {
@@ -81,17 +83,23 @@ fn process_status_to_string(status: &ProcessStatus) -> String {
 
 impl ProcessWatcher {
     pub fn new(targets: Vec<Target>) -> Self {
-        // todo: move from new
-        let (tx, _rx) = mpsc::channel::<Trigger>(100);
-        tokio::spawn(process_events(tx));
-
         ProcessWatcher {
             targets,
             seen: HashMap::new(),
             process_tree: HashMap::new(),
             datasamples_tracker: HashSet::new(),
             nextflow_log_watcher: NextflowLogWatcher::new(),
+            ebpf: OnceCell::new(),
         }
+    }
+
+    pub fn start_ebpf(&mut self) -> Result<()> {
+        self.ebpf.get_or_try_init(|| {
+            let (tx, _rx) = mpsc::channel::<Trigger>(100);
+            start_processing_events(tx.clone())
+        })?;
+
+        Ok(())
     }
 
     pub fn poll_processes(

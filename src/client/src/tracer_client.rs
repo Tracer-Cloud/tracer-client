@@ -132,6 +132,10 @@ impl TracerClient {
         self.config = config.clone()
     }
 
+    pub fn start_monitoring(&mut self) -> Result<()> {
+        self.process_watcher.start_ebpf()
+    }
+
     pub fn fill_logs_with_short_lived_process(
         &mut self,
         short_lived_process_log: ShortLivedProcessLog,
@@ -238,6 +242,8 @@ impl TracerClient {
     }
 
     pub async fn start_new_run(&mut self, timestamp: Option<DateTime<Utc>>) -> Result<()> {
+        self.start_monitoring()?;
+
         if self.current_run.is_some() {
             self.stop_run().await?;
         }

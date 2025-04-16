@@ -6,6 +6,7 @@ use aya::{programs::BtfTracePoint, Btf, Ebpf};
 #[rustfmt::skip]
 use tracing::{debug, warn, info};
 use tokio::sync::mpsc::Sender;
+use tokio::task::JoinHandle;
 use tokio_util::bytes;
 use tracer_common::trigger::Trigger;
 use tracer_ebpf_common::process_enter::ProcessEnter;
@@ -17,6 +18,7 @@ async fn read_event_loop(
     let mut data = (0..30)
         .map(|_| bytes::BytesMut::with_capacity(size_of::<ProcessEnter>()))
         .collect::<Vec<_>>();
+
     loop {
         let events = buf.read_events(&mut data).await?;
         info!("read {} events=", events.read);
@@ -33,19 +35,34 @@ async fn read_event_loop(
     }
 }
 
-pub async fn process_events(tx: Sender<Trigger>) -> anyhow::Result<()> {
+pub struct TracerEbpf {
+    #[allow(unused)]
+    ebpf: aya::Ebpf,
+    handles: Vec<JoinHandle<anyhow::Result<()>>>,
+}
+
+impl Drop for TracerEbpf {
+    fn drop(&mut self) {
+        for handle in &self.handles {
+            handle.abort();
+        }
+    }
+}
+
+pub fn start_processing_events(tx: Sender<Trigger>) -> anyhow::Result<TracerEbpf> {
     let mut ebpf = load_ebpf()?;
 
     let mut events =
         AsyncPerfEventArray::try_from(ebpf.take_map("EVENTS").context("Can't open EVENTS map")?)?;
 
+    let mut handles = Vec::new();
     for cpu_id in online_cpus().unwrap() {
         let tx = tx.clone();
         let buf = events.open(cpu_id, None)?;
-        tokio::spawn(async move { read_event_loop(buf, tx).await });
+        handles.push(tokio::spawn(async move { read_event_loop(buf, tx).await }));
     }
 
-    Ok(())
+    Ok(TracerEbpf { ebpf, handles })
 }
 
 pub fn load_ebpf() -> anyhow::Result<Ebpf> {
