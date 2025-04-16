@@ -10,6 +10,7 @@ make test-tracer
 
 
 ## How To Test AWS Batch 
+- Go to the bioinformatics 
 - Spin up Sandbox with EC2 launch template
 - Go to folder test-bioinformatics-packages  and run the test file 
 
