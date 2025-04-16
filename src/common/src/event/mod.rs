@@ -40,7 +40,6 @@ pub enum ProcessStatus {
     #[serde(rename = "datasets_in_process")]
     DataSamplesEvent,
     TestEvent, // Added TestEvent variant
-    NextflowLogEvent,
 }
 
 impl std::fmt::Display for ProcessStatus {
@@ -57,7 +56,6 @@ impl std::fmt::Display for ProcessStatus {
             ProcessStatus::Alert => write!(f, "alert"),
             ProcessStatus::DataSamplesEvent => write!(f, "datasets_in_process"),
             ProcessStatus::TestEvent => write!(f, "test_event"),
-            ProcessStatus::NextflowLogEvent => write!(f, "nextflow_log_event"),
         }
     }
 }
@@ -149,6 +147,7 @@ impl TryFrom<Event> for EventInsert {
         let mut mem_used = None;
         let mut ec2_cost_per_hour = None;
         let mut processed_dataset = None;
+        let mut trace_id = None;
 
         if let Some(attr) = &event.attributes {
             match attr {
@@ -156,6 +155,7 @@ impl TryFrom<Event> for EventInsert {
                     cpu_usage = Some(p.process_cpu_utilization);
                     mem_used = Some(p.process_memory_usage as f64);
                     job_id = p.job_id.clone();
+                    trace_id = p.trace_id.clone();
                     attributes = serde_json::to_value(p)
                         .context("Failed to serialize Process attributes")?;
                 }
@@ -175,13 +175,6 @@ impl TryFrom<Event> for EventInsert {
                     attributes = serde_json::to_value(d)
                         .context("Failed to serialize ProcessDatasetStats")?;
                 }
-                EventAttributes::NextflowLog(n) => {
-                    parent_job_id = n.session_uuid.clone();
-                    child_job_ids = n.jobs_ids.clone();
-                    workflow_engine = Some("nextflow".to_string());
-                    attributes =
-                        serde_json::to_value(n).context("Failed to serialize NextflowLog")?;
-                }
                 EventAttributes::Syslog(s) => {
                     attributes =
                         serde_json::to_value(s).context("Failed to serialize Syslog attributes")?;
@@ -197,7 +190,7 @@ impl TryFrom<Event> for EventInsert {
             body: event.body,
             severity_text: event.severity_text,
             severity_number: event.severity_number.map(|v| v as i16),
-            trace_id: event.trace_id.or_else(|| event.run_id.clone()),
+            trace_id: trace_id.or_else(|| event.run_id.clone()),
             span_id: event.span_id,
 
             source_type: "tracer-daemon".into(),

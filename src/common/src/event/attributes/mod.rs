@@ -1,4 +1,3 @@
-use crate::event::attributes::system_metrics::NextflowLog;
 use process::{CompletedProcess, DataSetsProcessed, ProcessProperties};
 use syslog::SyslogProperties;
 use system_metrics::{SystemMetric, SystemProperties};
@@ -16,5 +15,4 @@ pub enum EventAttributes {
     Syslog(SyslogProperties),
     SystemProperties(SystemProperties),
     ProcessDatasetStats(DataSetsProcessed),
-    NextflowLog(NextflowLog),
 }
