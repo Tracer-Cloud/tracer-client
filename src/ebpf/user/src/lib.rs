@@ -1,22 +1,19 @@
 use anyhow::Context;
-use aya::{programs::BtfTracePoint, Btf, Ebpf};
-use aya::maps::{AsyncPerfEventArray, MapData};
 use aya::maps::perf::AsyncPerfEventArrayBuffer;
+use aya::maps::{AsyncPerfEventArray, MapData};
 use aya::util::online_cpus;
+use aya::{programs::BtfTracePoint, Btf, Ebpf};
 #[rustfmt::skip]
 use tracing::{debug, warn, info};
 use tokio::sync::mpsc::Sender;
 use tokio_util::bytes;
-use tokio_util::sync::CancellationToken;
 use tracer_common::trigger::Trigger;
 use tracer_ebpf_common::process_enter::ProcessEnter;
-
 
 async fn read_event_loop(
     mut buf: AsyncPerfEventArrayBuffer<MapData>,
     tx: Sender<Trigger>,
 ) -> anyhow::Result<()> {
-
     let mut data = (0..30)
         .map(|_| bytes::BytesMut::with_capacity(size_of::<ProcessEnter>()))
         .collect::<Vec<_>>();
@@ -50,7 +47,6 @@ pub async fn process_events(tx: Sender<Trigger>) -> anyhow::Result<()> {
 
     Ok(())
 }
-
 
 pub fn load_ebpf() -> anyhow::Result<Ebpf> {
     env_logger::init();

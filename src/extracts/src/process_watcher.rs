@@ -81,11 +81,9 @@ fn process_status_to_string(status: &ProcessStatus) -> String {
 
 impl ProcessWatcher {
     pub fn new(targets: Vec<Target>) -> Self {
-
         // todo: move from new
         let (tx, _rx) = mpsc::channel::<Trigger>(100);
         tokio::spawn(process_events(tx));
-
 
         ProcessWatcher {
             targets,

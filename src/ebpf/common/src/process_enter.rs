@@ -1,6 +1,6 @@
 // todo: check max size in kernels?
 pub const ARGS_MAX_LEN: usize = 128;
-pub const MAX_NUM_ARGS : usize = 5;
+pub const MAX_NUM_ARGS: usize = 5;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -17,6 +17,6 @@ impl ProcessEnter {
         pid: 0,
         file_name: [0; 32],
         argv: [[0; ARGS_MAX_LEN]; MAX_NUM_ARGS],
-        len: 0
+        len: 0,
     };
 }

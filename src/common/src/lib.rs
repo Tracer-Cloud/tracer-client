@@ -6,5 +6,5 @@ pub mod constants;
 pub mod debug_log;
 pub mod http_client;
 pub mod target_process;
-pub mod types;
 pub mod trigger;
+pub mod types;
