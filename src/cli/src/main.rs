@@ -1,7 +1,7 @@
+use anyhow::Context;
 use tracer_cli::process_command::process_cli;
 
-pub fn main() {
-    if let Err(err) = process_cli() {
-        eprintln!("Error processing Cli: {err}");
-    }
+pub fn main() -> anyhow::Result<()> {
+    process_cli().context("Can't process CLI command")?;
+    Ok(())
 }
