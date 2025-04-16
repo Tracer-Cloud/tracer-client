@@ -140,9 +140,9 @@ impl TryFrom<Event> for EventInsert {
         let mut attributes = json!({});
         let mut resource_attributes = json!({});
         let mut job_id = None;
-        let mut parent_job_id = None;
-        let mut child_job_ids = None;
-        let mut workflow_engine = None;
+        let parent_job_id = None;
+        let child_job_ids = None;
+        let workflow_engine = None;
         let mut cpu_usage = None;
         let mut mem_used = None;
         let mut ec2_cost_per_hour = None;
