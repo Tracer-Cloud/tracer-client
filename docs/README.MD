@@ -10,6 +10,9 @@ This tutorial guides you through setting up Tracer monitoring for a Nextflow pip
 - Verify you have tracer-launch-template[UNIQUE ID] in your AWS console under EC2/LaunchTemplates 
 - Verify you have setup Amazon Managed Grafana with a [Tracer workspace]()
 
+**Launch this template**
+https://395261708130-43caqj7s.us-east-1.console.aws.amazon.com/ec2/home?region=us-east-1#LaunchTemplateDetails:launchTemplateId=lt-068f13068fd579891
+
 ## Walkthrough Part 1. Setup 
 - Step 1. Launch a new EC2 instance from the template launchers (Example: tracer-launch-template20250321113516913800000003, Launch Template ID: lt-0fe7119f40a472f97)
 - Step 2. Connect with AWS Instance Connect (you might have to wait 1 minute for the instance to provision)
