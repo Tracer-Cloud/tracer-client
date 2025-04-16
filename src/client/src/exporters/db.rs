@@ -135,7 +135,11 @@ impl AuroraClient {
 
         let mut builder = QueryBuilder::new(QUERY);
 
-        let mut data: Vec<_> = data.into_iter().cloned().map(EventInsert::from).collect();
+        let mut data: Vec<_> = data
+            .into_iter()
+            .cloned()
+            .filter_map(|e| e.try_into().ok())
+            .collect();
 
         let rows_affected = match data.len() {
             0 => {

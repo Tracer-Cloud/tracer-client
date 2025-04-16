@@ -9,6 +9,10 @@ use serde_json::{json, Value};
 use typed_builder::TypedBuilder;
 use uuid::Uuid;
 
+use anyhow::Context;
+
+use std::convert::TryFrom;
+
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum EventType {
@@ -131,8 +135,10 @@ pub struct EventInsert {
     pub tags: Value,
 }
 
-impl From<Event> for EventInsert {
-    fn from(event: Event) -> Self {
+impl TryFrom<Event> for EventInsert {
+    type Error = anyhow::Error;
+
+    fn try_from(event: Event) -> anyhow::Result<Self> {
         let mut attributes = json!({});
         let mut resource_attributes = json!({});
         let mut job_id = None;
@@ -150,29 +156,35 @@ impl From<Event> for EventInsert {
                     cpu_usage = Some(p.process_cpu_utilization);
                     mem_used = Some(p.process_memory_usage as f64);
                     job_id = p.job_id.clone();
-                    attributes = serde_json::to_value(p).unwrap_or_default();
+                    attributes = serde_json::to_value(p)
+                        .context("Failed to serialize Process attributes")?;
                 }
                 EventAttributes::SystemMetric(m) => {
                     cpu_usage = Some(m.system_cpu_utilization);
                     mem_used = Some(m.system_memory_used as f64);
-                    attributes = serde_json::to_value(m).unwrap_or_default();
+                    attributes = serde_json::to_value(m)
+                        .context("Failed to serialize SystemMetric attributes")?;
                 }
                 EventAttributes::SystemProperties(p) => {
                     ec2_cost_per_hour = p.ec2_cost_per_hour;
-                    resource_attributes = serde_json::to_value(p).unwrap_or_default();
+                    resource_attributes =
+                        serde_json::to_value(p).context("Failed to serialize SystemProperties")?;
                 }
                 EventAttributes::ProcessDatasetStats(d) => {
                     processed_dataset = Some(d.total as i32);
-                    attributes = serde_json::to_value(d).unwrap_or_default();
+                    attributes = serde_json::to_value(d)
+                        .context("Failed to serialize ProcessDatasetStats")?;
                 }
                 EventAttributes::NextflowLog(n) => {
                     parent_job_id = n.session_uuid.clone();
                     child_job_ids = n.jobs_ids.clone();
                     workflow_engine = Some("nextflow".to_string());
-                    attributes = serde_json::to_value(n).unwrap_or_default();
+                    attributes =
+                        serde_json::to_value(n).context("Failed to serialize NextflowLog")?;
                 }
                 EventAttributes::Syslog(s) => {
-                    attributes = serde_json::to_value(s).unwrap_or_default();
+                    attributes =
+                        serde_json::to_value(s).context("Failed to serialize Syslog attributes")?;
                 }
                 _ => {}
             }
@@ -180,7 +192,7 @@ impl From<Event> for EventInsert {
 
         let tags = event.tags.clone();
 
-        EventInsert {
+        Ok(EventInsert {
             event_timestamp: event.timestamp,
             body: event.body,
             severity_text: event.severity_text,
@@ -213,7 +225,7 @@ impl From<Event> for EventInsert {
 
             attributes,
             resource_attributes,
-            tags: serde_json::to_value(tags).unwrap_or_else(|_| json!({})),
-        }
+            tags: serde_json::to_value(tags).context("Failed to serialize tags")?,
+        })
     }
 }
