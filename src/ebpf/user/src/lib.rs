@@ -1,11 +1,25 @@
-use aya::{programs::BtfTracePoint, Btf};
+use aya::{programs::BtfTracePoint, Btf, Ebpf};
 #[rustfmt::skip]
 use log::{debug, warn};
-use tokio::signal;
 
-// ok with unused
-#[allow(unused)]
-async fn load_ebpf() -> anyhow::Result<()> {
+
+pub struct TracerEbpf {
+    ebpf: Ebpf,
+}
+
+impl TracerEbpf {
+    pub fn new(ebpf: aya::Ebpf) -> Self {
+        Self { ebpf }
+    }
+
+    pub fn ebpf(&self) -> &aya::Ebpf {
+        &self.ebpf
+    }
+}
+
+
+
+pub fn load_ebpf() -> anyhow::Result<TracerEbpf> {
     env_logger::init();
 
     // Bump the memlock rlimit. This is needed for older kernels that don't use the
@@ -31,15 +45,14 @@ async fn load_ebpf() -> anyhow::Result<()> {
         // This can happen if you remove all log statements from your eBPF program.
         warn!("failed to initialize eBPF logger: {}", e);
     }
+
     let btf = Btf::from_sys_fs()?;
+
+    // todo: has_attach_point && is_compatible
+
     let program: &mut BtfTracePoint = ebpf.program_mut("sched_process_exec").unwrap().try_into()?;
     program.load("sched_process_exec", &btf)?;
     program.attach()?;
 
-    let ctrl_c = signal::ctrl_c();
-    println!("Waiting for Ctrl-C...");
-    ctrl_c.await?;
-    println!("Exiting...");
-
-    Ok(())
+    Ok(TracerEbpf::new(ebpf))
 }
