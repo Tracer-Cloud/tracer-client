@@ -185,7 +185,7 @@ impl From<Event> for EventInsert {
             body: event.body,
             severity_text: event.severity_text,
             severity_number: event.severity_number.map(|v| v as i16),
-            trace_id: event.trace_id,
+            trace_id: event.trace_id.or_else(|| event.run_id.clone()),
             span_id: event.span_id,
 
             source_type: "tracer-daemon".into(),
