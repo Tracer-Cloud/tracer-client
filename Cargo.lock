@@ -5168,11 +5168,17 @@ dependencies = [
  "aya",
  "aya-build",
  "aya-log",
+ "bytes",
  "env_logger",
  "libc",
  "log",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tracer_common",
  "tracer_ebpf_common",
  "tracer_ebpf_kernel",
+ "tracing",
 ]
 
 [[package]]
@@ -5195,6 +5201,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracer_common",
+ "tracer_ebpf_user",
  "tracing",
  "walkdir",
 ]

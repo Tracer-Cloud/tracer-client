@@ -21,7 +21,6 @@ use tracer_common::event::ProcessStatus;
 use tracer_common::pipeline_tags::PipelineTags;
 use tracer_common::recorder::EventRecorder;
 use tracer_common::types::LinesBufferArc;
-use tracer_ebpf_user::{load_ebpf, TracerEbpf};
 use tracer_extracts::file_watcher::FileWatcher;
 use tracer_extracts::metrics::SystemMetricsCollector;
 use tracer_extracts::process_watcher::{ProcessWatcher, ShortLivedProcessLog};
@@ -71,8 +70,6 @@ pub struct TracerClient {
     initialization_id: Option<String>,
     pub config: Config,
     tags: PipelineTags,
-    #[allow(unused)]
-    ebpf: TracerEbpf,
 }
 
 impl TracerClient {
@@ -94,8 +91,6 @@ impl TracerClient {
         let file_watcher = FileWatcher::new(directory);
 
         let process_watcher = ProcessWatcher::new(config.targets.clone());
-
-        let ebpf = load_ebpf()?;
 
         Ok(TracerClient {
             // if putting a value to config, also update `TracerClient::reload_config_file`
@@ -128,7 +123,6 @@ impl TracerClient {
             initialization_id: cli_args.run_id,
             config,
             tags: cli_args.tags,
-            ebpf,
         })
     }
 

@@ -16,12 +16,15 @@ use std::collections::{hash_map::Entry::Vacant, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use sysinfo::{Pid, Process, ProcessStatus, System};
+use tokio::sync::mpsc;
 use tracer_common::event::attributes::process::{
     CompletedProcess, DataSetsProcessed, InputFile, ProcessProperties,
 };
 use tracer_common::event::attributes::EventAttributes;
 use tracer_common::recorder::EventRecorder;
 use tracer_common::target_process::{Target, TargetMatchable};
+use tracer_common::trigger::Trigger;
+use tracer_ebpf_user::process_events;
 
 pub struct ProcessWatcher {
     targets: Vec<Target>,
@@ -78,6 +81,12 @@ fn process_status_to_string(status: &ProcessStatus) -> String {
 
 impl ProcessWatcher {
     pub fn new(targets: Vec<Target>) -> Self {
+
+        // todo: move from new
+        let (tx, _rx) = mpsc::channel::<Trigger>(100);
+        tokio::spawn(process_events(tx));
+
+
         ProcessWatcher {
             targets,
             seen: HashMap::new(),

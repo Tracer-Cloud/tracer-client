@@ -1,22 +1,58 @@
+use anyhow::Context;
 use aya::{programs::BtfTracePoint, Btf, Ebpf};
+use aya::maps::{AsyncPerfEventArray, MapData};
+use aya::maps::perf::AsyncPerfEventArrayBuffer;
+use aya::util::online_cpus;
 #[rustfmt::skip]
-use log::{debug, warn};
+use tracing::{debug, warn, info};
+use tokio::sync::mpsc::Sender;
+use tokio_util::bytes;
+use tokio_util::sync::CancellationToken;
+use tracer_common::trigger::Trigger;
+use tracer_ebpf_common::process_enter::ProcessEnter;
 
-pub struct TracerEbpf {
-    ebpf: Ebpf,
+
+async fn read_event_loop(
+    mut buf: AsyncPerfEventArrayBuffer<MapData>,
+    tx: Sender<Trigger>,
+) -> anyhow::Result<()> {
+
+    let mut data = (0..30)
+        .map(|_| bytes::BytesMut::with_capacity(size_of::<ProcessEnter>()))
+        .collect::<Vec<_>>();
+    loop {
+        let events = buf.read_events(&mut data).await?;
+        info!("read {} events=", events.read);
+
+        for event in &data[..events.read] {
+            let raw_event = unsafe { &*(event.as_ptr() as *const ProcessEnter) };
+            info!("raw_event: {:?}", raw_event);
+            tx.send(Trigger::New).await?;
+        }
+
+        if events.lost > 0 {
+            warn!("lost {} events", events.lost);
+        }
+    }
 }
 
-impl TracerEbpf {
-    pub fn new(ebpf: aya::Ebpf) -> Self {
-        Self { ebpf }
+pub async fn process_events(tx: Sender<Trigger>) -> anyhow::Result<()> {
+    let mut ebpf = load_ebpf()?;
+
+    let mut events =
+        AsyncPerfEventArray::try_from(ebpf.take_map("EVENTS").context("Can't open EVENTS map")?)?;
+
+    for cpu_id in online_cpus().unwrap() {
+        let tx = tx.clone();
+        let buf = events.open(cpu_id, None)?;
+        tokio::spawn(async move { read_event_loop(buf, tx).await });
     }
 
-    pub fn ebpf(&self) -> &aya::Ebpf {
-        &self.ebpf
-    }
+    Ok(())
 }
 
-pub fn load_ebpf() -> anyhow::Result<TracerEbpf> {
+
+pub fn load_ebpf() -> anyhow::Result<Ebpf> {
     env_logger::init();
 
     // Bump the memlock rlimit. This is needed for older kernels that don't use the
@@ -51,5 +87,5 @@ pub fn load_ebpf() -> anyhow::Result<TracerEbpf> {
     program.load("sched_process_exec", &btf)?;
     program.attach()?;
 
-    Ok(TracerEbpf::new(ebpf))
+    Ok(ebpf)
 }
