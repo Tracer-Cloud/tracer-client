@@ -107,6 +107,11 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
+      - name: Cache Docker images.
+        uses: ScribeMD/docker-cache@0.5.0
+        with:
+          key: ${{ runner.os }}-cargo-${{ hashFiles('tracer-client/Cargo.lock') }}
+
       - name: Set up cargo Nextest
         run: |
           which cargo-nextest || cargo install cargo-nextest
