@@ -42,7 +42,7 @@ curl -sSL https://3cb0fc95.tracer-client.pages.dev/installation-script-developme
 ### 2. Initialize a Pipeline
 Set up your pipeline by specifying a name:
 ```bash
-tracer init --pipeline-name <YOUR_PIPELINE_NAME>
+tracer init --pipeline-name airflow_test --environment sandbox_test --user-operator vincent --pipeline-type rnaseq
  ```
 
 ### 3. Infrastructure Setup  
