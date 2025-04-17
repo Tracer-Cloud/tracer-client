@@ -58,9 +58,6 @@ jobs:
         run: |
           which cargo-nextest || cargo install cargo-nextest
 
-      # - name: Copy config
-      #   run: mkdir -p $HOME/.config/tracer && cp tracer.toml $HOME/.config/tracer/tracer.toml
-
       - name: Check Formatting
         run: cargo fmt -- --check
 
