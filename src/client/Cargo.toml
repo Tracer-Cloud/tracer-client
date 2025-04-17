@@ -23,7 +23,6 @@ tracing = { workspace = true }
 url = { workspace = true }
 sqlx = { workspace = true }
 
-ec2_instance_metadata = { workspace = true }
 rand = { workspace = true }
 uuid = { workspace = true }
 once_cell = { workspace = true }
@@ -41,3 +40,4 @@ config = { workspace = true }
 
 tracer_common = { workspace = true }
 tracer_extracts = { workspace = true }
+tracer_ebpf_user = { workspace = true }

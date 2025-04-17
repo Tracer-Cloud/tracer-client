@@ -9,6 +9,7 @@ use crate::file_watcher::FileWatcher;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
+use once_cell::sync::OnceCell;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -16,12 +17,15 @@ use std::collections::{hash_map::Entry::Vacant, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use sysinfo::{Pid, Process, ProcessStatus, System};
+use tokio::sync::mpsc;
 use tracer_common::event::attributes::process::{
     CompletedProcess, DataSetsProcessed, InputFile, ProcessProperties,
 };
 use tracer_common::event::attributes::EventAttributes;
 use tracer_common::recorder::EventRecorder;
 use tracer_common::target_process::{Target, TargetMatchable};
+use tracer_common::trigger::Trigger;
+use tracer_ebpf_user::{start_processing_events, TracerEbpf};
 
 pub struct ProcessWatcher {
     targets: Vec<Target>,
@@ -30,6 +34,7 @@ pub struct ProcessWatcher {
     // We want to track unique data samples we come across when monitoring process args
     datasamples_tracker: HashSet<String>,
     nextflow_log_watcher: NextflowLogWatcher,
+    ebpf: OnceCell<TracerEbpf>, // not tokio, because TracerEbpf are sync
 }
 
 enum ProcLastUpdate {
@@ -84,7 +89,34 @@ impl ProcessWatcher {
             process_tree: HashMap::new(),
             datasamples_tracker: HashSet::new(),
             nextflow_log_watcher: NextflowLogWatcher::new(),
+            ebpf: OnceCell::new(),
         }
+    }
+
+    pub fn start_ebpf(&mut self) -> Result<()> {
+        self.ebpf.get_or_try_init(|| {
+            let (tx, mut rx) = mpsc::channel::<Trigger>(100);
+            let ebpf = start_processing_events(tx.clone())?;
+
+            // let chunk_stream = rx.chunks_timeout(100, Duration::from_millis(100));
+            // todo: use config.read().await.batch_submission_interval_ms
+
+            tokio::spawn(async move {
+                // todo: move to a new class
+
+                let mut buff: Vec<Trigger> = Vec::with_capacity(100);
+
+                loop {
+                    while rx.recv_many(&mut buff, 100).await > 0 {
+                        println!("received triggers: {:?}", buff);
+
+                        buff.clear();
+                    }
+                }
+            });
+            Ok::<TracerEbpf, anyhow::Error>(ebpf)
+        })?;
+        Ok(())
     }
 
     pub fn poll_processes(
