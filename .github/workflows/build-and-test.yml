@@ -117,6 +117,9 @@ jobs:
           echo "AWS_ENDPOINT=https://s3.us-east-2.amazonaws.com" >> .env
           echo "RUST_LOG=debug" >> .env
           echo "DATABASE_URL=postgres://postgres:postgres@db:5432/tracer_db" >> .env
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
+
 
       - name: Build Test Images
         run: |
