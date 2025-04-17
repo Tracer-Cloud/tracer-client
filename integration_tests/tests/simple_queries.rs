@@ -20,7 +20,7 @@ async fn test_queries_works() {
     let log_handle = tokio::spawn({
         let docker = docker.clone();
         async move {
-            // common::print_all_container_logs(&docker).await;
+            common::print_all_container_logs(&docker).await;
             common::dump_container_file_for_all_matching(
                 &docker,
                 container_name,
