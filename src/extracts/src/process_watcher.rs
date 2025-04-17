@@ -18,7 +18,6 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use sysinfo::{Pid, Process, ProcessStatus, System};
 use tokio::sync::mpsc;
-use tokio_stream::StreamExt;
 use tracer_common::event::attributes::process::{
     CompletedProcess, DataSetsProcessed, InputFile, ProcessProperties,
 };
@@ -104,17 +103,16 @@ impl ProcessWatcher {
 
             tokio::spawn(async move {
                 // todo: move to a new class
-                
+
                 let mut buff: Vec<Trigger> = Vec::with_capacity(100);
-                
-                loop{
+
+                loop {
                     while rx.recv_many(&mut buff, 100).await > 0 {
                         println!("received triggers: {:?}", buff);
 
                         buff.clear();
                     }
                 }
-                
             });
             Ok::<TracerEbpf, anyhow::Error>(ebpf)
         })?;

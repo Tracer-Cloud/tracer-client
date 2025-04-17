@@ -116,11 +116,9 @@ impl TargetMatchable for Target {
     }
 }
 
-
 impl TargetMatchable for Vec<TargetMatch> {
     fn matches(&self, process_name: &str, command: &str, bin_path: &str) -> bool {
         self.iter()
             .any(|target| matches_target(target, process_name, command, bin_path))
     }
 }
-

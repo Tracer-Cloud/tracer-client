@@ -20,7 +20,7 @@ impl ProcessEnter {
         file_name: [0; 32],
         argv: [[0; ARGS_MAX_LEN]; MAX_NUM_ARGS],
         len: 0,
-        comm: [0; 16]
+        comm: [0; 16],
     };
 }
 
