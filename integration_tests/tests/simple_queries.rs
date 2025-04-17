@@ -17,16 +17,34 @@ async fn test_queries_works() {
     // Step 2: Monitor the container and wait for it to finish
     let docker = Docker::connect_with_local_defaults().expect("Failed to connect to Docker");
 
+    let log_handle = tokio::spawn({
+        let docker = docker.clone();
+        async move {
+            common::print_all_container_logs(&docker).await;
+            common::dump_container_file_for_all_matching(
+                &docker,
+                container_name,
+                "/tmp/tracer/tracerd.out",
+            )
+            .await;
+            common::dump_container_file_for_all_matching(
+                &docker,
+                container_name,
+                "/tmp/tracer/tracerd.err",
+            )
+            .await;
+        }
+    });
+
     common::monitor_container(&docker, container_name).await;
 
     // Step 3: Query the database and make assertions
     let run_name = "test-tag";
+    let _ = log_handle.await;
 
     query_and_assert_tool_tracked(&pool, run_name).await;
 
     query_datasets_processed(&pool, run_name).await;
-
-    common::end_docker_compose(container_name).await;
 }
 
 async fn query_and_assert_tool_tracked(pool: &PgPool, run_name: &str) {

@@ -2255,6 +2255,7 @@ name = "integration_tests"
 version = "2025.4.11"
 dependencies = [
  "bollard",
+ "futures-util",
  "sqlx",
  "tokio",
 ]
