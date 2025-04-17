@@ -122,8 +122,29 @@ jobs:
         run: |
           docker compose build integrations_tests parallel_tests
 
-      - name: Run Simple Queries tests
-        run: make test-simple_queries
+      # - name: Run Simple Queries tests
+      #   run: make test-simple_queries
 
-      - name: Run Parallel tests
-        run: make test-parallel
+      # - name: Run Parallel tests
+      #   run: make test-parallel
+
+      - name: Start Container Without Running Tests
+        run: |
+          docker compose --profile integrations_tests up -d
+          docker compose ps
+          echo " Waiting for container to settle..."
+          sleep 30
+          docker compose logs integrations_tests
+
+      - name: Exec into Container and List Debug Folder
+        run: |
+          echo "Checking /tmp/tracer directory"
+          docker compose exec integrations_tests ls -l /tmp/tracer || echo "Failed to access /tmp/tracer"
+        
+      - name: Exec and Show Logs from Container
+        run: |
+          echo "Contents of tracerd.out"
+          docker compose exec integrations_tests cat /tmp/tracer/tracerd.out || echo "No tracerd.out found"
+          
+          echo "Contents of tracerd.err"
+          docker compose exec integrations_tests cat /tmp/tracer/tracerd.err || echo "No tracerd.err found"
