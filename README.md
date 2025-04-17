@@ -33,7 +33,13 @@ New metrics that help you speed up your pipelines and maximize your budget:
     - Q2 2025: Performance Optimization for HPC
     - H2 2025: Automated Error Database
 
-## Quickstart Installation
+## Quickstart Installation On EC2
+Prerequisites: 
+- Linux EC2 (Ubuntu or Amazon Linux),  Intel x86, c6i.2xlarge, 8 vCPUs 8, 32+ GiB RAM
+- AWS credentials exported to environment with access to RDS Postgres Database
+- Amazon Managed Grafana pointed to Database
+- Link to setting up [Nextflow sandbox](https://github.com/Tracer-Cloud/tracer-test-pipelines-bioinformatics/tree/main/frameworks/nextflow)
+
 ### 1. Install Tracer With One Line of Code
 Run the following command to install Tracer on your Linux Ubuntu system (the following installation command points to the latest development binary build from the `main` branch): 
 ```bash
