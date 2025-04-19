@@ -1,7 +1,5 @@
 // src/process_watcher.rs
 
-use crate::nextflow_log_watcher::NextflowLogWatcher;
-
 use tracer_common::event::ProcessStatus as TracerProcessStatus;
 
 use crate::data_samples::DATA_SAMPLES_EXT;
@@ -13,7 +11,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::collections::{hash_map::Entry::Vacant, HashSet};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Duration;
 use sysinfo::{Pid, Process, ProcessStatus, System};
 use tracer_common::event::attributes::process::{
@@ -29,7 +27,6 @@ pub struct ProcessWatcher {
     process_tree: HashMap<Pid, ProcessTreeNode>,
     // We want to track unique data samples we come across when monitoring process args
     datasamples_tracker: HashSet<String>,
-    nextflow_log_watcher: NextflowLogWatcher,
 }
 
 enum ProcLastUpdate {
@@ -83,7 +80,6 @@ impl ProcessWatcher {
             seen: HashMap::new(),
             process_tree: HashMap::new(),
             datasamples_tracker: HashSet::new(),
-            nextflow_log_watcher: NextflowLogWatcher::new(),
         }
     }
 
@@ -192,10 +188,6 @@ impl ProcessWatcher {
         let mut to_remove = vec![];
         for (pid, proc) in self.seen.iter() {
             if !system.processes().contains_key(pid) {
-                // Check if this was a Nextflow process and notify the watcher
-                if proc.name.contains("nextflow") {
-                    self.nextflow_log_watcher.remove_process(*pid);
-                }
                 self.log_completed_process(pid, proc, event_logger)?;
                 to_remove.push(*pid);
             }
@@ -324,9 +316,10 @@ impl ProcessWatcher {
         Ok(())
     }
 
-    fn read_process_env(proc: &Process) -> (Option<String>, Option<String>) {
+    fn read_process_env(proc: &Process) -> (Option<String>, Option<String>, Option<String>) {
         let mut container_id = None;
         let mut job_id = None;
+        let mut trace_id = None;
 
         // Try to read environment variables
         for env_var in proc.environ() {
@@ -334,12 +327,13 @@ impl ProcessWatcher {
                 match key {
                     "AWS_BATCH_JOB_ID" => job_id = Some(value.to_string()),
                     "HOSTNAME" => container_id = Some(value.to_string()),
+                    "TRACER_TRACE_ID" => trace_id = Some(value.to_string()),
                     _ => continue,
                 }
             }
         }
 
-        (container_id, job_id)
+        (container_id, job_id, trace_id)
     }
 
     pub fn gather_process_data(
@@ -348,7 +342,7 @@ impl ProcessWatcher {
         display_name: Option<String>,
     ) -> ProcessProperties {
         let start_time = Utc::now();
-        let (container_id, job_id) = Self::read_process_env(proc);
+        let (container_id, job_id, trace_id) = Self::read_process_env(proc);
         let working_directory = proc.cwd().map(|p| p.to_string_lossy().to_string());
 
         ProcessProperties {
@@ -377,6 +371,7 @@ impl ProcessWatcher {
             container_id,
             job_id,
             working_directory,
+            trace_id,
         }
     }
 
@@ -443,6 +438,7 @@ impl ProcessWatcher {
                     container_id: None,
                     job_id: None,
                     working_directory: None,
+                    trace_id: None,
                 },
             }
         }
@@ -483,23 +479,6 @@ impl ProcessWatcher {
         let start_time = Utc::now();
 
         let mut properties = Self::gather_process_data(&pid, p, Some(display_name.clone()));
-
-        // Check if this is a Nextflow process and notify the watcher
-        if display_name.contains("nextflow") {
-            tracing::info!(
-                "[{}] Found Nextflow process: pid={}, name={}, working_dir={:?}",
-                Utc::now(),
-                pid,
-                display_name,
-                properties.working_directory
-            );
-            if let Some(working_dir) = &properties.working_directory {
-                self.nextflow_log_watcher.add_process(
-                    pid,
-                    PathBuf::from(working_dir.clone()).join(".nextflow.log"),
-                );
-            }
-        }
 
         let cmd_arguments = p.cmd();
 
@@ -725,14 +704,6 @@ impl ProcessWatcher {
     pub fn preview_targets_count(&self) -> usize {
         self.seen.len()
     }
-
-    pub fn get_nextflow_log_watcher(&self) -> &NextflowLogWatcher {
-        &self.nextflow_log_watcher
-    }
-
-    pub fn get_nextflow_log_watcher_mut(&mut self) -> &mut NextflowLogWatcher {
-        &mut self.nextflow_log_watcher
-    }
 }
 
 #[cfg(test)]
@@ -776,6 +747,7 @@ mod tests {
                 container_id: None,
                 job_id: None,
                 working_directory: None,
+                trace_id: None,
             };
 
             let node = ProcessTreeNode {

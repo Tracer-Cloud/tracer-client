@@ -1,22 +1,17 @@
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
 use log::info;
 use sqlx::pool::PoolOptions;
-use sqlx::types::Json;
 use sqlx::{PgPool, Postgres, QueryBuilder};
-use std::time::Instant;
+use tracer_common::event::{Event, EventInsert};
 
 use crate::config_manager::Config;
-
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
-use serde_json::Value;
+
 use sqlx::query_builder::Separated;
 use tracer_aws::config::SecretsClient;
 use tracer_aws::types::secrets::DatabaseAuth;
-use tracer_common::event::attributes::EventAttributes;
-use tracer_common::event::Event;
-use tracing::debug;
 
+use tracing::debug;
 const BIND_LIMIT: usize = 65535;
 
 pub struct AuroraClient {
@@ -26,90 +21,6 @@ pub struct AuroraClient {
 impl AuroraClient {
     pub fn from_pool(pool: PgPool) -> AuroraClient {
         AuroraClient { pool }
-    }
-}
-
-struct EventInsert {
-    json_data: Json<Value>,
-    job_id: Option<String>,
-    run_name: String,
-    run_id: String,
-    pipeline_name: String,
-    nextflow_session_uuid: Option<String>,
-    job_ids: Vec<String>,
-    tags_json: Json<Value>,
-    event_timestamp: DateTime<Utc>,
-    ec2_cost_per_hour: Option<f64>,
-    cpu_usage: Option<f64>,
-    mem_used: Option<f64>,
-    processed_dataset: Option<i32>,
-    process_status: String,
-}
-
-impl EventInsert {
-    pub fn try_new(
-        event: &Event,
-        run_name: String,
-        run_id: String,
-        pipeline_name: String,
-        process_status: String,
-    ) -> Result<Self> {
-        let json_data = Json(serde_json::to_value(event)?);
-        let (nextflow_session_uuid, job_ids, event_timestamp) = match &event.attributes {
-            Some(EventAttributes::NextflowLog(log)) => (
-                log.session_uuid.clone(),                 // Option<String>
-                log.jobs_ids.clone().unwrap_or_default(), // Vec<String>
-                event.timestamp,                          // Use event timestamp directly
-            ),
-            _ => (None, Vec::new(), event.timestamp),
-        };
-
-        // Extract system metrics for CPU and memory usage
-        let (cpu_usage, mem_used, job_id) = match &event.attributes {
-            Some(EventAttributes::SystemMetric(metric)) => (
-                Some(metric.system_cpu_utilization as f64),
-                Some(metric.system_memory_used as f64),
-                None,
-            ),
-            Some(EventAttributes::Process(process)) => (
-                Some(process.process_cpu_utilization as f64),
-                Some(process.process_memory_usage as f64),
-                Some(process.job_id.clone().unwrap_or_default()),
-            ),
-            _ => (None, None, None),
-        };
-
-        // Extract EC2 cost per hour from system properties
-        let ec2_cost_per_hour = match &event.attributes {
-            Some(EventAttributes::SystemProperties(props)) => props.ec2_cost_per_hour,
-            _ => None,
-        };
-
-        // Extract processed dataset count
-        let processed_dataset = match &event.attributes {
-            Some(EventAttributes::ProcessDatasetStats(stats)) => Some(stats.total as i32),
-            _ => None,
-        };
-
-        // Convert tags to JSON value
-        let tags_json = Json(serde_json::to_value(&event.tags)?);
-
-        Ok(Self {
-            json_data,
-            job_id,
-            run_name,
-            run_id,
-            pipeline_name,
-            nextflow_session_uuid,
-            job_ids,
-            cpu_usage,
-            mem_used,
-            ec2_cost_per_hour,
-            processed_dataset,
-            tags_json,
-            event_timestamp,
-            process_status,
-        })
     }
 }
 
@@ -165,30 +76,52 @@ impl AuroraClient {
         pipeline_name: &str,
         data: impl IntoIterator<Item = &Event>,
     ) -> Result<()> {
-        let now = Instant::now();
+        let now = std::time::Instant::now();
 
         const QUERY: &str = "INSERT INTO batch_jobs_logs (
-            data, job_id, run_name, run_id, pipeline_name, nextflow_session_uuid, job_ids,
-            tags, event_timestamp, ec2_cost_per_hour, cpu_usage, mem_used, processed_dataset,
-            process_status
-            )"; // when updating query, also update params
-        const PARAMS: usize = 13;
+                timestamp, body, severity_text, severity_number,
+                trace_id, span_id,
+                source_type, instrumentation_version, instrumentation_type,
+                environment, pipeline_type, user_operator, organization_id, department,
+                run_id, run_name, pipeline_name,
+                job_id, parent_job_id, child_job_ids, workflow_engine,
+                ec2_cost_per_hour, cpu_usage, mem_used, processed_dataset,
+                process_status,
+                attributes, resource_attributes, tags
+            )";
+        // when updating query, also update params
+        const PARAMS: usize = 29;
 
         fn _push_tuple(mut b: Separated<Postgres, &str>, event: EventInsert) {
-            b.push_bind(event.json_data)
-                .push_bind(event.job_id)
-                .push_bind(event.run_name)
+            b.push_bind(event.event_timestamp.naive_utc())
+                .push_bind(event.body)
+                .push_bind(event.severity_text)
+                .push_bind(event.severity_number)
+                .push_bind(event.trace_id.or_else(|| Some(event.run_id.clone())))
+                .push_bind(event.span_id)
+                .push_bind(event.source_type)
+                .push_bind(event.instrumentation_version)
+                .push_bind(event.instrumentation_type)
+                .push_bind(event.environment)
+                .push_bind(event.pipeline_type)
+                .push_bind(event.user_operator)
+                .push_bind(event.organization_id)
+                .push_bind(event.department)
                 .push_bind(event.run_id)
+                .push_bind(event.run_name)
                 .push_bind(event.pipeline_name)
-                .push_bind(event.nextflow_session_uuid)
-                .push_bind(event.job_ids)
-                .push_bind(event.tags_json)
-                .push_bind(event.event_timestamp.naive_utc())
+                .push_bind(event.job_id)
+                .push_bind(event.parent_job_id)
+                .push_bind(event.child_job_ids)
+                .push_bind(event.workflow_engine)
                 .push_bind(event.ec2_cost_per_hour)
                 .push_bind(event.cpu_usage)
                 .push_bind(event.mem_used)
                 .push_bind(event.processed_dataset)
-                .push_bind(event.process_status);
+                .push_bind(event.process_status)
+                .push_bind(event.attributes)
+                .push_bind(event.resource_attributes)
+                .push_bind(event.tags);
         }
         // there's an alternative, much more efficient way to push values
         // https://github.com/launchbadge/sqlx/blob/main/FAQ.md#how-can-i-bind-an-array-to-a-values-clause-how-can-i-do-bulk-inserts
@@ -196,55 +129,38 @@ impl AuroraClient {
         // see https://github.com/launchbadge/sqlx/issues/1945
 
         info!(
-            "Inserting row for run_name: {}, pipeline_name: {}",
-            run_name, pipeline_name
+            "Inserting row for run_name: {}, pipeline_name: {}, run_id: {}",
+            run_name, pipeline_name, run_id
         );
 
         let mut builder = QueryBuilder::new(QUERY);
 
         let mut data: Vec<_> = data
             .into_iter()
-            .map(|e| {
-                EventInsert::try_new(
-                    e,
-                    run_name.to_string(),
-                    run_id.to_string(),
-                    pipeline_name.to_string(),
-                    e.process_status.as_str().to_string(),
-                )
-            })
-            .collect::<Result<Vec<_>>>()?;
+            .cloned()
+            .filter_map(|e| e.try_into().ok())
+            .collect();
 
         let rows_affected = match data.len() {
             0 => {
                 debug!("No data to insert");
                 return Ok(());
             }
-
             x if x * PARAMS >= BIND_LIMIT => {
-                debug!("Using transaction to insert data");
+                debug!("Chunked insert with transaction due to bind limit");
                 let mut transaction = self.pool.begin().await?;
-
                 let mut rows_affected = 0;
 
                 while !data.is_empty() {
-                    let chunk = data.split_off(data.len().min(BIND_LIMIT / PARAMS));
+                    let chunk: Vec<_> = data.split_off(data.len().min(BIND_LIMIT / PARAMS));
                     let query = builder.push_values(chunk, _push_tuple).build();
-
-                    let chunk_rows_affected = query
-                        .execute(&mut *transaction)
-                        .await
-                        .context("Failed to insert event into database")?
-                        .rows_affected();
+                    rows_affected += query.execute(&mut *transaction).await?.rows_affected();
                     builder.reset();
-
-                    rows_affected += chunk_rows_affected;
                 }
 
                 transaction.commit().await?;
                 rows_affected
             }
-
             _ => {
                 debug!("Inserting data without transaction");
                 builder.push_values(data, _push_tuple);

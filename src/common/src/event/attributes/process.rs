@@ -30,6 +30,7 @@ pub struct ProcessProperties {
     pub container_id: Option<String>,
     pub job_id: Option<String>,
     pub working_directory: Option<String>,
+    pub trace_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

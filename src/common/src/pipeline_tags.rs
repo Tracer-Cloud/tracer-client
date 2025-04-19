@@ -22,6 +22,10 @@ pub struct PipelineTags {
     #[clap(long, default_value = "Oncology")]
     pub team: String,
 
+    /// Organization ID
+    #[clap(long)]
+    pub organization_id: Option<String>,
+
     /// Others: Any other tag you'd like to specify
     #[clap(long, value_delimiter = ',')]
     pub others: Vec<String>,
@@ -35,6 +39,7 @@ impl Default for PipelineTags {
             user_operator: "tracer_user".into(),
             department: "dev".into(),
             team: "dev".into(),
+            organization_id: None,
             others: vec![],
         }
     }
