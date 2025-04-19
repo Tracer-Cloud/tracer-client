@@ -73,4 +73,5 @@ bollard = "0.18.1"
 assert_cmd = "2.0"
 
 typed-builder = "0.18"
+futures-util = "0.3"
 
