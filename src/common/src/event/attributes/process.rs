@@ -44,4 +44,5 @@ pub struct CompletedProcess {
 pub struct DataSetsProcessed {
     pub datasets: String,
     pub total: u64,
+    pub trace_id: Option<String>,
 }

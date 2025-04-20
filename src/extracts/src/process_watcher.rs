@@ -6,7 +6,6 @@ use crate::data_samples::DATA_SAMPLES_EXT;
 use crate::file_watcher::FileWatcher;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use itertools::Itertools;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -25,8 +24,7 @@ pub struct ProcessWatcher {
     targets: Vec<Target>,
     seen: HashMap<Pid, Proc>,
     process_tree: HashMap<Pid, ProcessTreeNode>,
-    // We want to track unique data samples we come across when monitoring process args
-    datasamples_tracker: HashSet<String>,
+    datasamples_tracker: HashMap<String, HashSet<String>>, // this hashmap groups datasets by the nextflow session uuid
 }
 
 enum ProcLastUpdate {
@@ -79,7 +77,7 @@ impl ProcessWatcher {
             targets,
             seen: HashMap::new(),
             process_tree: HashMap::new(),
-            datasamples_tracker: HashSet::new(),
+            datasamples_tracker: HashMap::new(),
         }
     }
 
@@ -519,11 +517,11 @@ impl ProcessWatcher {
         event_logger.record_event(
             TracerProcessStatus::ToolExecution,
             format!("[{}] Tool process: {}", start_time, &display_name),
-            Some(EventAttributes::Process(properties)),
+            Some(EventAttributes::Process(properties.clone())),
             None,
         );
 
-        self.log_datasets_in_process(event_logger, cmd_arguments);
+        self.log_datasets_in_process(event_logger, cmd_arguments, properties);
 
         Ok(())
     }
@@ -659,16 +657,32 @@ impl ProcessWatcher {
     }
 
     /// Logs the unique datasets processed or in process
-    fn log_datasets_in_process(&mut self, event_logger: &mut EventRecorder, cmd: &[String]) {
+    fn log_datasets_in_process(
+        &mut self,
+        event_logger: &mut EventRecorder,
+        cmd: &[String],
+        properties: ProcessProperties,
+    ) {
+        let trace_id: Option<String> = properties.trace_id.clone();
+
         for arg in cmd.iter() {
             if DATA_SAMPLES_EXT.iter().any(|ext| arg.ends_with(ext)) {
-                self.datasamples_tracker.insert(arg.clone());
+                self.datasamples_tracker
+                    .entry(trace_id.clone().unwrap_or_default())
+                    .or_insert_with(HashSet::new)
+                    .insert(arg.clone());
             }
         }
 
+        // TODO change this logic
         let properties = DataSetsProcessed {
-            datasets: self.datasamples_tracker.iter().join(", "),
+            datasets: self
+                .datasamples_tracker
+                .get(&trace_id.clone().unwrap_or_default())
+                .map(|set| set.iter().cloned().collect::<Vec<_>>().join(", "))
+                .unwrap_or_default(),
             total: self.datasamples_tracker.len() as u64,
+            trace_id,
         };
 
         event_logger.record_event(
@@ -798,7 +812,7 @@ mod tests {
         let mut events_logger = EventRecorder::default();
 
         let mut process_watcher = ProcessWatcher::new(vec![]);
-        process_watcher.log_datasets_in_process(&mut events_logger, &command);
+        process_watcher.log_datasets_in_process(&mut events_logger, &command); //TODO fix tests
         assert_eq!(process_watcher.datasamples_tracker.len(), 2);
 
         let command: Vec<String> =
@@ -807,7 +821,7 @@ mod tests {
                 .map(String::from)
                 .collect();
 
-        process_watcher.log_datasets_in_process(&mut events_logger, &command);
+        process_watcher.log_datasets_in_process(&mut events_logger, &command); // TODO fix tests
         assert_eq!(process_watcher.datasamples_tracker.len(), 4);
     }
 }

@@ -103,6 +103,7 @@ mod tests {
         let attributes = Some(EventAttributes::ProcessDatasetStats(DataSetsProcessed {
             datasets: "".to_string(),
             total: 2,
+            trace_id: None,
         }));
         recorder.record_event(
             ProcessStatus::ToolExecution,
@@ -154,6 +155,7 @@ mod tests {
         let attributes = Some(EventAttributes::ProcessDatasetStats(DataSetsProcessed {
             datasets: "".to_string(),
             total: 2,
+            trace_id: None,
         }));
 
         recorder.record_event(
