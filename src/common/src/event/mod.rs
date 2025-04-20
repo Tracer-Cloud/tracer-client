@@ -174,7 +174,7 @@ impl TryFrom<Event> for EventInsert {
                     processed_dataset = Some(d.total as i32);
                     attributes = serde_json::to_value(d)
                         .context("Failed to serialize ProcessDatasetStats")?;
-                    trace_id = Option::from(d.trace_id.clone())
+                    trace_id = d.trace_id.clone()
                 }
                 EventAttributes::Syslog(s) => {
                     attributes =
