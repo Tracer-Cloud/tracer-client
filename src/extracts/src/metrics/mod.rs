@@ -6,19 +6,15 @@ use sysinfo::{Disks, System};
 use tracer_common::event::attributes::system_metrics::{DiskStatistic, SystemMetric};
 use tracer_common::event::attributes::EventAttributes;
 use tracer_common::event::ProcessStatus;
-use tracer_common::recorder::EventRecorder;
+use tracer_common::recorder::StructLogRecorder;
 
-pub struct SystemMetricsCollector;
-
-impl Default for SystemMetricsCollector {
-    fn default() -> Self {
-        Self::new()
-    }
+pub struct SystemMetricsCollector {
+    log_recorder: StructLogRecorder,
 }
 
 impl SystemMetricsCollector {
-    pub fn new() -> Self {
-        SystemMetricsCollector
+    pub fn new(log_recorder: StructLogRecorder) -> Self {
+        Self { log_recorder }
     }
 
     pub fn gather_disk_data() -> HashMap<String, DiskStatistic> {
@@ -72,16 +68,18 @@ impl SystemMetricsCollector {
         }
     }
 
-    pub fn collect_metrics(&self, system: &mut System, logs: &mut EventRecorder) -> Result<()> {
+    pub async fn collect_metrics(&self, system: &mut System) -> Result<()> {
         let attributes =
             EventAttributes::SystemMetric(Self::gather_metrics_object_attributes(system));
 
-        logs.record_event(
-            ProcessStatus::MetricEvent,
-            format!("[{}] System's resources metric", Utc::now()),
-            Some(attributes),
-            None,
-        );
+        self.log_recorder
+            .log(
+                ProcessStatus::MetricEvent,
+                format!("[{}] System's resources metric", Utc::now()),
+                Some(attributes),
+                None,
+            )
+            .await?;
 
         Ok(())
     }

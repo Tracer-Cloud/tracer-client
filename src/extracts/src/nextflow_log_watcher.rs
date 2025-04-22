@@ -9,7 +9,7 @@ use tokio::io::{AsyncBufReadExt, AsyncSeekExt, BufReader, SeekFrom};
 use tracer_common::event::attributes::system_metrics::NextflowLog;
 use tracer_common::event::attributes::EventAttributes;
 use tracer_common::event::ProcessStatus;
-use tracer_common::recorder::EventRecorder;
+use tracer_common::recorder::StructLogRecorder;
 
 /// ## Approach:
 /// - Limit search space of .nextflow.log files for possible locations: E:g $HOME, $PWD, maybe fallback to
@@ -23,22 +23,19 @@ pub struct NextflowLogWatcher {
     jobs: Vec<String>,
     processes: HashMap<Pid, PathBuf>, // Pid -> working_directory
     last_poll_time: Option<Instant>,
-}
 
-impl Default for NextflowLogWatcher {
-    fn default() -> Self {
-        Self::new()
-    }
+    log_recorder: StructLogRecorder,
 }
 
 impl NextflowLogWatcher {
-    pub fn new() -> Self {
+    pub fn new(log_recorder: StructLogRecorder) -> Self {
         tracing::info!("Initializing new NextflowLogWatcher");
         Self {
             session_uuid: None,
             jobs: Vec::new(),
             processes: HashMap::new(),
             last_poll_time: None,
+            log_recorder,
         }
     }
 
@@ -48,7 +45,7 @@ impl NextflowLogWatcher {
         self.jobs.clear();
     }
 
-    pub async fn poll_nextflow_log(&mut self, logs: &mut EventRecorder) -> Result<()> {
+    pub async fn poll_nextflow_log(&mut self) -> Result<()> {
         const POLL_INTERVAL: Duration = Duration::from_secs(10);
 
         let now = Instant::now();
@@ -70,7 +67,7 @@ impl NextflowLogWatcher {
         for path in nextflow_logs_paths {
             if path.exists() {
                 tracing::info!("Processing Nextflow log file: {:?}", path);
-                self.process_log_file(path.as_path(), logs).await?;
+                self.process_log_file(path.as_path()).await?;
             } else {
                 tracing::warn!("Nextflow log file not found: {:?}", path);
             }
@@ -84,7 +81,7 @@ impl NextflowLogWatcher {
         Ok(())
     }
 
-    async fn process_log_file(&mut self, log_path: &Path, logs: &mut EventRecorder) -> Result<()> {
+    async fn process_log_file(&mut self, log_path: &Path) -> Result<()> {
         let mut file = OpenOptions::new()
             .read(true)
             .open(log_path)
@@ -138,12 +135,14 @@ impl NextflowLogWatcher {
             });
 
             tracing::info!("Recording Nextflow log event: {}", message);
-            logs.record_event(
-                ProcessStatus::NextflowLogEvent,
-                message,
-                Some(nextflow_log),
-                Some(Utc::now()),
-            );
+            self.log_recorder
+                .log(
+                    ProcessStatus::NextflowLogEvent,
+                    message,
+                    Some(nextflow_log),
+                    Some(Utc::now()),
+                )
+                .await?;
         }
 
         Ok(())

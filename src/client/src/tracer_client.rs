@@ -11,36 +11,28 @@ use serde_json::json;
 use std::ops::Sub;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use sysinfo::{Pid, System};
+use sysinfo::System;
 use tokio::fs;
-use tokio::sync::RwLock;
+use tokio::sync::mpsc::Receiver;
+use tokio::sync::{mpsc, RwLock};
 use tracer_aws::config::PricingClient;
 use tracer_common::constants::{DEFAULT_SERVICE_URL, FILE_CACHE_DIR};
+use tracer_common::current_run::{PipelineMetadata, Run};
 use tracer_common::event::attributes::EventAttributes;
-use tracer_common::event::ProcessStatus;
-use tracer_common::pipeline_tags::PipelineTags;
-use tracer_common::recorder::EventRecorder;
+use tracer_common::event::{Event, ProcessStatus};
+use tracer_common::recorder::StructLogRecorder;
 use tracer_common::types::LinesBufferArc;
 use tracer_extracts::file_watcher::FileWatcher;
 use tracer_extracts::metrics::SystemMetricsCollector;
 use tracer_extracts::process_watcher::{ProcessWatcher, ShortLivedProcessLog};
 use tracer_extracts::stdout::StdoutWatcher;
 use tracer_extracts::syslog::SyslogWatcher;
+use tracing::info;
 // NOTE: we might have to find a better alternative than passing the pipeline name to tracer client
 // directly. Currently with this approach, we do not need to generate a new pipeline name for every
 // new run.
 // But this also means that a system can setup tracer agent and exec
 // multiple pipelines
-
-#[derive(Clone)]
-pub struct RunMetadata {
-    pub last_interaction: Instant,
-    pub name: String,
-    pub id: String,
-    pub pipeline_name: String,
-    pub parent_pid: Option<Pid>,
-    pub start_time: DateTime<Utc>,
-}
 
 const RUN_COMPLICATED_PROCESS_IDENTIFICATION: bool = false;
 
@@ -53,7 +45,6 @@ pub struct TracerClient {
     last_interaction_new_run_duration: Duration,
     process_metrics_send_interval: Duration,
     last_file_size_change_time_delta: TimeDelta,
-    pub logs: EventRecorder,
     pub process_watcher: ProcessWatcher,
     syslog_watcher: SyslogWatcher,
     stdout_watcher: StdoutWatcher,
@@ -61,17 +52,21 @@ pub struct TracerClient {
     file_watcher: FileWatcher,
     workflow_directory: String,
 
-    current_run: Arc<RwLock<Option<RunMetadata>>>,
+    pipeline: Arc<RwLock<PipelineMetadata>>,
 
     syslog_lines_buffer: LinesBufferArc,
     stdout_lines_buffer: LinesBufferArc,
     stderr_lines_buffer: LinesBufferArc,
     pub db_client: AuroraClient,
-    pipeline_name: String,
     pub pricing_client: PricingClient,
-    initialization_id: Option<String>,
     pub config: Config,
-    tags: PipelineTags,
+
+    log_recorder: StructLogRecorder,
+    rx: Receiver<Event>,
+
+    // todo: remove completly
+    initialization_id: Option<String>,
+    pipeline_name: String,
 }
 
 impl TracerClient {
@@ -92,7 +87,17 @@ impl TracerClient {
         let directory = tempfile::tempdir_in(FILE_CACHE_DIR)?;
         let file_watcher = FileWatcher::new(directory);
 
-        let process_watcher = ProcessWatcher::new(config.targets.clone());
+        let pipeline = Arc::new(RwLock::new(PipelineMetadata {
+            pipeline_name: cli_args.pipeline_name.clone(),
+            run: None,
+            tags: cli_args.tags,
+        }));
+
+        let (tx, rx) = mpsc::channel::<Event>(100);
+
+        let log_recorder = StructLogRecorder::new(pipeline.clone(), tx.clone());
+
+        let process_watcher = ProcessWatcher::new(config.targets.clone(), log_recorder.clone());
 
         Ok(TracerClient {
             // if putting a value to config, also update `TracerClient::reload_config_file`
@@ -108,25 +113,26 @@ impl TracerClient {
             system: System::new_all(),
             last_sent: None,
 
-            current_run: Arc::new(RwLock::new(None)),
+            pipeline,
 
-            syslog_watcher: SyslogWatcher::new(),
+            syslog_watcher: SyslogWatcher::new(log_recorder.clone()),
             stdout_watcher: StdoutWatcher::new(),
             // Sub managers
-            logs: EventRecorder::default(),
             file_watcher,
             workflow_directory: workflow_directory.clone(),
             syslog_lines_buffer: Arc::new(RwLock::new(Vec::new())),
             stdout_lines_buffer: Arc::new(RwLock::new(Vec::new())),
             stderr_lines_buffer: Arc::new(RwLock::new(Vec::new())),
             process_watcher,
-            metrics_collector: SystemMetricsCollector::new(),
+            metrics_collector: SystemMetricsCollector::new(log_recorder.clone()),
             db_client,
-            pipeline_name: cli_args.pipeline_name,
             pricing_client,
-            initialization_id: cli_args.run_id,
             config,
-            tags: cli_args.tags,
+            log_recorder,
+            rx,
+
+            pipeline_name: cli_args.pipeline_name,
+            initialization_id: cli_args.run_id,
         })
     }
 
@@ -140,12 +146,13 @@ impl TracerClient {
         self.process_watcher.start_ebpf()
     }
 
-    pub fn fill_logs_with_short_lived_process(
+    pub async fn fill_logs_with_short_lived_process(
         &mut self,
         short_lived_process_log: ShortLivedProcessLog,
     ) -> Result<()> {
         self.process_watcher
-            .fill_logs_with_short_lived_process(short_lived_process_log, &mut self.logs)?;
+            .fill_logs_with_short_lived_process(short_lived_process_log)
+            .await?;
         Ok(())
     }
 
@@ -162,37 +169,43 @@ impl TracerClient {
 
     // TODO: Refactor to collect required entries properly
     pub async fn submit_batched_data(&mut self) -> Result<()> {
-        let run = self.current_run.read().await;
+        let pipeline = self.pipeline.read().await;
 
-        let run_name = run
+        let run_name = pipeline
+            .run
             .as_ref()
             .map(|st| st.name.as_str())
             .unwrap_or("anonymous");
 
-        let run_id = run.as_ref().map(|st| st.id.as_str()).unwrap_or("anonymous");
+        let run_id = pipeline
+            .run
+            .as_ref()
+            .map(|st| st.id.as_str())
+            .unwrap_or("anonymous");
 
-        println!(
+        info!(
             "Submitting batched data for pipeline {} and run_name {}",
             self.pipeline_name, run_name
         );
 
         if self.last_sent.is_none() || Instant::now() - self.last_sent.unwrap() >= self.interval {
             self.metrics_collector
-                .collect_metrics(&mut self.system, &mut self.logs)
+                .collect_metrics(&mut self.system)
+                .await
                 .context("Failed to collect metrics")?;
 
-            self.db_client
-                .batch_insert_events(
-                    run_name,
-                    run_id,
-                    &self.pipeline_name,
-                    self.logs.get_events(),
-                )
-                .await
-                .map_err(|err| anyhow::anyhow!("Error submitting batch events {:?}", err))?;
+            // todo:
+            // self.db_client
+            //     .batch_insert_events(
+            //         run_name,
+            //         run_id,
+            //         &self.pipeline_name,
+            //         self.logs.get_events(),
+            //     )
+            //     .await
+            //     .map_err(|err| anyhow::anyhow!("Error submitting batch events {:?}", err))?;
 
             self.last_sent = Some(Instant::now());
-            self.logs.clear();
 
             Ok(())
         } else {
@@ -200,45 +213,53 @@ impl TracerClient {
         }
     }
 
-    pub fn get_run_metadata(&self) -> Arc<RwLock<Option<RunMetadata>>> {
-        self.current_run.clone()
+    pub fn get_run_metadata(&self) -> Arc<RwLock<PipelineMetadata>> {
+        self.pipeline.clone()
     }
 
     pub async fn run_cleanup(&mut self) -> Result<()> {
-        let mut current_run = self.current_run.write().await;
+        let mut pipeline = self.pipeline.write().await;
 
-        if let Some(run) = current_run.as_ref() {
+        if let Some(run) = pipeline.run.as_mut() {
             if !RUN_COMPLICATED_PROCESS_IDENTIFICATION {
                 return Ok(());
             }
             if run.last_interaction.elapsed() > self.last_interaction_new_run_duration {
-                self.logs.record_event(
-                    ProcessStatus::FinishedRun,
-                    "Run ended due to inactivity".to_string(),
-                    None,
-                    None,
-                );
-                *current_run = None;
+                self.log_recorder
+                    .log_with_metadata(
+                        ProcessStatus::FinishedRun,
+                        "Run ended due to inactivity".to_string(),
+                        None,
+                        None,
+                        &pipeline,
+                    )
+                    .await?;
+                pipeline.run = None;
             } else if run.parent_pid.is_none() && !self.process_watcher.is_empty() {
-                current_run.as_mut().unwrap().parent_pid =
-                    self.process_watcher.get_parent_pid(Some(run.start_time));
+                run.parent_pid = self
+                    .process_watcher
+                    .get_parent_pid(Some(run.start_time))
+                    .map(|pid| pid.into());
             } else if run.parent_pid.is_some() {
                 let parent_pid = run.parent_pid.unwrap();
                 if !self
                     .process_watcher
-                    .is_process_alive(&self.system, parent_pid)
+                    .is_process_alive(&self.system, parent_pid.into())
                 {
-                    self.logs.record_event(
-                        ProcessStatus::FinishedRun,
-                        "Run ended due to parent process termination".to_string(),
-                        None,
-                        None,
-                    );
-                    *current_run = None;
+                    self.log_recorder
+                        .log_with_metadata(
+                            ProcessStatus::FinishedRun,
+                            "Run ended due to parent process termination".to_string(),
+                            None,
+                            None,
+                            &pipeline,
+                        )
+                        .await?;
+                    pipeline.run = None;
                 }
             }
         } else if !WAIT_FOR_PROCESS_BEFORE_NEW_RUN || !self.process_watcher.is_empty() {
-            drop(current_run);
+            drop(pipeline);
             let earliest_process_time = self.process_watcher.get_earliest_process_time();
             self.start_new_run(Some(earliest_process_time.sub(Duration::from_millis(1))))
                 .await?;
@@ -249,7 +270,7 @@ impl TracerClient {
     pub async fn start_new_run(&mut self, timestamp: Option<DateTime<Utc>>) -> Result<()> {
         self.start_monitoring()?;
 
-        if self.current_run.read().await.is_some() {
+        if self.pipeline.read().await.run.is_some() {
             self.stop_run().await?;
         }
 
@@ -261,77 +282,67 @@ impl TracerClient {
         )
         .await?;
 
-        *self.current_run.write().await = Some(RunMetadata {
+        self.pipeline.write().await.run = Some(Run {
             last_interaction: Instant::now(),
             parent_pid: None,
             start_time: timestamp.unwrap_or_else(Utc::now),
             name: result.run_name.clone(),
             id: result.run_id.clone(),
-            pipeline_name: self.pipeline_name.clone(),
         });
 
-        self.logs.update_run_details(
-            Some(self.pipeline_name.clone()),
-            Some(result.run_name),
-            Some(result.run_id),
-            Some(self.tags.clone()),
-        );
-
         // NOTE: Do we need to output a totally new event if self.initialization_id.is_some() ?
-        self.logs.record_event(
-            ProcessStatus::NewRun,
-            "[CLI] Starting new pipeline run".to_owned(),
-            Some(EventAttributes::SystemProperties(result.system_properties)),
-            timestamp,
-        );
+        self.log_recorder
+            .log(
+                ProcessStatus::NewRun,
+                "[CLI] Starting new pipeline run".to_owned(),
+                Some(EventAttributes::SystemProperties(result.system_properties)),
+                timestamp,
+            )
+            .await?;
 
         Ok(())
     }
 
     pub async fn stop_run(&mut self) -> Result<()> {
-        if let Some(run) = self.current_run.write().await.take() {
-            self.logs.record_event(
-                ProcessStatus::FinishedRun,
-                "[CLI] Finishing pipeline run".to_owned(),
-                None,
-                Some(Utc::now()),
-            );
+        let mut pipeline = self.pipeline.write().await;
 
-            if let Err(err) = self
-                .db_client
-                .batch_insert_events(
-                    &run.name,
-                    &run.id,
-                    &self.pipeline_name,
-                    self.logs.get_events(),
+        if pipeline.run.is_none() {
+            self.log_recorder
+                .log_with_metadata(
+                    ProcessStatus::FinishedRun,
+                    "[CLI] Finishing pipeline run".to_owned(),
+                    None,
+                    Some(Utc::now()),
+                    &pipeline,
                 )
-                .await
-            {
-                println!("Error outputing end run logs: {err}")
-            };
-            self.logs.clear();
+                .await?;
 
-            self.logs.update_run_details(
-                Some(self.pipeline_name.clone()),
-                None,
-                None,
-                Some(self.tags.clone()),
-            );
+            pipeline.run = None;
         }
 
         Ok(())
     }
 
+    // todo:
+    // self
+    //     .db_client
+    //     .batch_insert_events(
+    //         &run.name,
+    //         &run.id,
+    //         &self.pipeline_name,
+    //         self(),
+    //     )
+    //     .await?;
+    //
+
     /// These functions require logs and the system
     pub async fn poll_processes(&mut self) -> Result<()> {
-        self.process_watcher.poll_processes(
-            &mut self.system,
-            &mut self.logs,
-            &self.file_watcher,
-        )?;
+        self.process_watcher
+            .poll_processes(&mut self.system, &self.file_watcher)
+            .await?;
 
         if !self.process_watcher.is_empty() {
-            if let Some(run) = self.current_run.write().await.as_mut() {
+            if let Some(run) = self.pipeline.write().await.run.as_mut() {
                 run.last_interaction = Instant::now();
             }
         }
@@ -340,17 +351,16 @@ impl TracerClient {
     }
 
     pub async fn poll_process_metrics(&mut self) -> Result<()> {
-        self.process_watcher.poll_process_metrics(
-            &self.system,
-            &mut self.logs,
-            self.process_metrics_send_interval,
-        )?;
+        self.process_watcher
+            .poll_process_metrics(&self.system, self.process_metrics_send_interval)
+            .await?;
         Ok(())
     }
 
     pub async fn remove_completed_processes(&mut self) -> Result<()> {
         self.process_watcher
-            .remove_completed_processes(&mut self.system, &mut self.logs)?;
+            .remove_completed_processes(&mut self.system)
+            .await?;
         Ok(())
     }
 
@@ -368,11 +378,7 @@ impl TracerClient {
 
     pub async fn poll_syslog(&mut self) -> Result<()> {
         self.syslog_watcher
-            .poll_syslog(
-                self.get_syslog_lines_buffer(),
-                &mut self.system,
-                &mut self.logs,
-            )
+            .poll_syslog(self.get_syslog_lines_buffer(), &mut self.system)
             .await
     }
 
@@ -401,7 +407,7 @@ impl TracerClient {
     pub async fn poll_nextflow_log(&mut self) -> Result<()> {
         self.process_watcher
             .get_nextflow_log_watcher_mut()
-            .poll_nextflow_log(&mut self.logs)
+            .poll_nextflow_log()
             .await
     }
 
@@ -428,20 +434,23 @@ impl TracerClient {
     pub async fn send_log_event(&mut self, payload: String) -> Result<()> {
         send_log_event(self.get_api_key(), &payload).await?; // todo: remove
 
-        self.logs.record_event(
-            ProcessStatus::RunStatusMessage,
-            payload,
-            None,
-            Some(Utc::now()),
-        );
+        self.log_recorder
+            .log(
+                ProcessStatus::RunStatusMessage,
+                payload,
+                None,
+                Some(Utc::now()),
+            )
+            .await?;
 
         Ok(())
     }
 
     pub async fn send_alert_event(&mut self, payload: String) -> Result<()> {
         send_alert_event(&payload).await?; // todo: remove
-        self.logs
-            .record_event(ProcessStatus::Alert, payload, None, Some(Utc::now()));
+        self.log_recorder
+            .log(ProcessStatus::Alert, payload, None, Some(Utc::now()))
+            .await?;
         Ok(())
     }
 
@@ -497,7 +506,7 @@ mod tests {
             .await
             .expect("Error starting new run");
 
-        let run_name = client.current_run.clone().unwrap().name;
+        let run_name = client.pipeline.clone().unwrap().name;
 
         // Record a test event
         client.logs.record_event(

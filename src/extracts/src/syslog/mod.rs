@@ -14,7 +14,7 @@ use tracer_common::debug_log::Logger;
 use tracer_common::event::attributes::syslog::SyslogProperties;
 use tracer_common::event::attributes::EventAttributes;
 use tracer_common::event::ProcessStatus;
-use tracer_common::recorder::EventRecorder;
+use tracer_common::recorder::StructLogRecorder;
 
 const LINES_BEFORE: usize = 2;
 
@@ -29,6 +29,7 @@ pub struct ErrorDefinition {
 
 pub struct SyslogWatcher {
     pub last_lines: Vec<String>,
+    log_recorder: StructLogRecorder,
 }
 
 pub async fn run_syslog_lines_read_thread(
@@ -63,16 +64,11 @@ pub async fn run_syslog_lines_read_thread(
     }
 }
 
-impl Default for SyslogWatcher {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl SyslogWatcher {
-    pub fn new() -> SyslogWatcher {
+    pub fn new(log_recorder: StructLogRecorder) -> SyslogWatcher {
         SyslogWatcher {
             last_lines: Vec::new(),
+            log_recorder,
         }
     }
 
@@ -80,7 +76,6 @@ impl SyslogWatcher {
         &mut self,
         pending_lines: Arc<RwLock<Vec<String>>>,
         system: &mut System,
-        logs: &mut EventRecorder,
     ) -> Result<()> {
         let mut lines = pending_lines.write().await;
         let errors = self.grep_pattern_errors(&lines).unwrap();
@@ -99,12 +94,14 @@ impl SyslogWatcher {
                     file_previous_logs: error.lines_before,
                 };
 
-                logs.record_event(
-                    ProcessStatus::SyslogEvent,
-                    error.line.clone(),
-                    Some(EventAttributes::Syslog(attributes)),
-                    None,
-                );
+                self.log_recorder
+                    .log(
+                        ProcessStatus::SyslogEvent,
+                        error.line.clone(),
+                        Some(EventAttributes::Syslog(attributes)),
+                        None,
+                    )
+                    .await?;
             }
         }
         Ok(())

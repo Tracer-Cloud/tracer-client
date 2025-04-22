@@ -22,7 +22,7 @@ use tracer_common::event::attributes::process::{
     CompletedProcess, DataSetsProcessed, InputFile, ProcessProperties,
 };
 use tracer_common::event::attributes::EventAttributes;
-use tracer_common::recorder::EventRecorder;
+use tracer_common::recorder::StructLogRecorder;
 use tracer_common::target_process::{Target, TargetMatchable};
 use tracer_common::trigger::Trigger;
 use tracer_ebpf_user::{start_processing_events, TracerEbpf};
@@ -34,7 +34,9 @@ pub struct ProcessWatcher {
     // We want to track unique data samples we come across when monitoring process args
     datasamples_tracker: HashSet<String>,
     nextflow_log_watcher: NextflowLogWatcher,
-    ebpf: OnceCell<TracerEbpf>, // not tokio, because TracerEbpf are sync
+    ebpf: OnceCell<TracerEbpf>, // not tokio, because TracerEbpf is sync
+
+    log_recorder: StructLogRecorder,
 }
 
 enum ProcLastUpdate {
@@ -82,14 +84,15 @@ fn process_status_to_string(status: &ProcessStatus) -> String {
 }
 
 impl ProcessWatcher {
-    pub fn new(targets: Vec<Target>) -> Self {
+    pub fn new(targets: Vec<Target>, log_recorder: StructLogRecorder) -> Self {
         ProcessWatcher {
             targets,
             seen: HashMap::new(),
             process_tree: HashMap::new(),
             datasamples_tracker: HashSet::new(),
-            nextflow_log_watcher: NextflowLogWatcher::new(),
+            nextflow_log_watcher: NextflowLogWatcher::new(log_recorder.clone()),
             ebpf: OnceCell::new(),
+            log_recorder,
         }
     }
 
@@ -119,10 +122,9 @@ impl ProcessWatcher {
         Ok(())
     }
 
-    pub fn poll_processes(
+    pub async fn poll_processes(
         &mut self,
         system: &mut System,
-        event_logger: &mut EventRecorder,
         file_watcher: &FileWatcher,
     ) -> Result<()> {
         for (pid, proc) in system.processes().iter() {
@@ -150,14 +152,8 @@ impl ProcessWatcher {
                         proc.cmd()
                     );
 
-                    self.add_new_process(
-                        *pid,
-                        proc,
-                        system,
-                        event_logger,
-                        Some(&target.clone()),
-                        file_watcher,
-                    )?;
+                    self.add_new_process(*pid, proc, system, Some(&target.clone()), file_watcher)
+                        .await?;
                 }
             }
         }
@@ -169,17 +165,16 @@ impl ProcessWatcher {
                 .filter(|target| target.should_be_merged_with_parents())
                 .cloned()
                 .collect(),
-            event_logger,
             file_watcher,
-        )?;
+        )
+        .await?;
 
         Ok(())
     }
 
-    pub fn poll_process_metrics(
+    pub async fn poll_process_metrics(
         &mut self,
         system: &System,
-        event_logger: &mut EventRecorder,
         process_metrics_send_interval: Duration,
     ) -> Result<()> {
         for (pid, proc) in system.processes().iter() {
@@ -190,7 +185,7 @@ impl ProcessWatcher {
                             self.seen.get_mut(pid).unwrap().last_update =
                                 ProcLastUpdate::RefreshesRemaining(refresh_count - 1);
                         } else {
-                            self.add_process_metrics(proc, event_logger, None)?;
+                            self.add_process_metrics(proc, None).await?;
                             self.seen.get_mut(pid).unwrap().last_update =
                                 ProcLastUpdate::Some(Utc::now());
                         }
@@ -198,7 +193,7 @@ impl ProcessWatcher {
                     }
                     if let ProcLastUpdate::Some(last_update) = p.last_update {
                         if last_update + process_metrics_send_interval < Utc::now() {
-                            self.add_process_metrics(proc, event_logger, None)?;
+                            self.add_process_metrics(proc, None).await?;
                             self.seen.get_mut(pid).unwrap().last_update =
                                 ProcLastUpdate::Some(Utc::now());
                         }
@@ -216,11 +211,7 @@ impl ProcessWatcher {
         }
     }
 
-    pub fn remove_completed_processes(
-        &mut self,
-        system: &mut System,
-        event_logger: &mut EventRecorder,
-    ) -> Result<()> {
+    pub async fn remove_completed_processes(&mut self, system: &mut System) -> Result<()> {
         let mut to_remove = vec![];
         for (pid, proc) in self.seen.iter() {
             if !system.processes().contains_key(pid) {
@@ -228,7 +219,7 @@ impl ProcessWatcher {
                 if proc.name.contains("nextflow") {
                     self.nextflow_log_watcher.remove_process(*pid);
                 }
-                self.log_completed_process(pid, proc, event_logger)?;
+                self.log_completed_process(pid, proc).await?;
                 to_remove.push(*pid);
             }
         }
@@ -304,11 +295,10 @@ impl ProcessWatcher {
         result
     }
 
-    pub fn parse_process_tree(
+    pub async fn parse_process_tree(
         &mut self,
         system: &System,
         targets: Vec<Target>,
-        event_logger: &mut EventRecorder,
         file_watcher: &FileWatcher,
     ) -> Result<()> {
         self.build_process_trees(system.processes());
@@ -350,7 +340,8 @@ impl ProcessWatcher {
                     continue;
                 }
                 let proc = process.unwrap();
-                self.add_new_process(pid, proc, system, event_logger, Some(target), file_watcher)?;
+                self.add_new_process(pid, proc, system, Some(target), file_watcher)
+                    .await?;
             }
         }
         Ok(())
@@ -412,21 +403,23 @@ impl ProcessWatcher {
         }
     }
 
-    pub fn fill_logs_with_short_lived_process(
+    pub async fn fill_logs_with_short_lived_process(
         &mut self,
         short_lived_process: ShortLivedProcessLog,
-        event_logger: &mut EventRecorder,
     ) -> Result<()> {
         let properties = EventAttributes::Process(short_lived_process.properties.clone());
-        event_logger.record_event(
-            TracerProcessStatus::ToolExecution,
-            format!(
-                "[{}] Short lived process: {}",
-                short_lived_process.timestamp, short_lived_process.command
-            ),
-            Some(properties),
-            None,
-        );
+
+        self.log_recorder
+            .log(
+                TracerProcessStatus::ToolExecution,
+                format!(
+                    "[{}] Short lived process: {}",
+                    short_lived_process.timestamp, short_lived_process.command
+                ),
+                Some(properties),
+                None,
+            )
+            .await?;
 
         if let Vacant(v) = self
             .seen
@@ -480,12 +473,11 @@ impl ProcessWatcher {
         }
     }
 
-    fn add_new_process(
+    async fn add_new_process(
         &mut self,
         pid: Pid,
         proc: &Process,
         system: &System,
-        event_logger: &mut EventRecorder,
         target: Option<&Target>,
         file_watcher: &FileWatcher,
     ) -> Result<()> {
@@ -569,24 +561,21 @@ impl ProcessWatcher {
 
         properties.input_files = Some(input_files);
 
-        event_logger.record_event(
-            TracerProcessStatus::ToolExecution,
-            format!("[{}] Tool process: {}", start_time, &display_name),
-            Some(EventAttributes::Process(properties)),
-            None,
-        );
+        self.log_recorder
+            .log(
+                TracerProcessStatus::ToolExecution,
+                format!("[{}] Tool process: {}", start_time, &display_name),
+                Some(EventAttributes::Process(properties)),
+                None,
+            )
+            .await?;
 
-        self.log_datasets_in_process(event_logger, cmd_arguments);
+        self.log_datasets_in_process(cmd_arguments).await?;
 
         Ok(())
     }
 
-    fn add_process_metrics(
-        &mut self,
-        proc: &Process,
-        event_logger: &mut EventRecorder,
-        target: Option<&Target>,
-    ) -> Result<()> {
+    async fn add_process_metrics(&mut self, proc: &Process, target: Option<&Target>) -> Result<()> {
         let pid = proc.pid();
         let start_time = Utc::now();
 
@@ -607,12 +596,14 @@ impl ProcessWatcher {
             Some(display_name.clone()),
         ));
 
-        event_logger.record_event(
-            TracerProcessStatus::ToolMetricEvent,
-            format!("[{}] Tool metric event: {}", start_time, &display_name),
-            Some(properties),
-            None,
-        );
+        self.log_recorder
+            .log(
+                TracerProcessStatus::ToolMetricEvent,
+                format!("[{}] Tool metric event: {}", start_time, &display_name),
+                Some(properties),
+                None,
+            )
+            .await?;
 
         Ok(())
     }
@@ -686,12 +677,7 @@ impl ProcessWatcher {
         system.process(pid).is_some()
     }
 
-    fn log_completed_process(
-        &self,
-        pid: &Pid,
-        proc: &Proc,
-        event_logger: &mut EventRecorder,
-    ) -> Result<()> {
+    async fn log_completed_process(&self, pid: &Pid, proc: &Proc) -> Result<()> {
         // NOTE: to avoid handling casting from u128 to u64, moving to as_secs from as_millis
         let duration_sec = (Utc::now() - proc.start_time).to_std()?.as_secs();
 
@@ -701,18 +687,20 @@ impl ProcessWatcher {
             duration_sec,
         };
 
-        event_logger.record_event(
-            TracerProcessStatus::FinishedToolExecution,
-            format!("[{}] {} exited", Utc::now(), &proc.name),
-            Some(EventAttributes::CompletedProcess(properties)),
-            None,
-        );
+        self.log_recorder
+            .log(
+                TracerProcessStatus::FinishedToolExecution,
+                format!("[{}] {} exited", Utc::now(), &proc.name),
+                Some(EventAttributes::CompletedProcess(properties)),
+                None,
+            )
+            .await?;
 
         Ok(())
     }
 
     /// Logs the unique datasets processed or in process
-    fn log_datasets_in_process(&mut self, event_logger: &mut EventRecorder, cmd: &[String]) {
+    async fn log_datasets_in_process(&mut self, cmd: &[String]) -> Result<()> {
         for arg in cmd.iter() {
             if DATA_SAMPLES_EXT.iter().any(|ext| arg.ends_with(ext)) {
                 self.datasamples_tracker.insert(arg.clone());
@@ -724,12 +712,14 @@ impl ProcessWatcher {
             total: self.datasamples_tracker.len() as u64,
         };
 
-        event_logger.record_event(
-            TracerProcessStatus::DataSamplesEvent,
-            format!("[{}] Samples Processed So Far", Utc::now()),
-            Some(EventAttributes::ProcessDatasetStats(properties)),
-            None,
-        );
+        self.log_recorder
+            .log(
+                TracerProcessStatus::DataSamplesEvent,
+                format!("[{}] Samples Processed So Far", Utc::now()),
+                Some(EventAttributes::ProcessDatasetStats(properties)),
+                None,
+            )
+            .await
     }
 
     pub fn reload_targets(&mut self, targets: Vec<Target>) {
@@ -849,16 +839,18 @@ mod tests {
     }
 
     #[test]
-    fn test_count_dataset_matches_works() {
+    async fn test_count_dataset_matches_works() {
         let command: Vec<String> =
             "kallisto quant -t 4 -i control_index -o ./control_quant_9 control1_1.fa control1_2.fa"
                 .split(" ")
                 .map(String::from)
                 .collect();
-        let mut events_logger = EventRecorder::default();
 
         let mut process_watcher = ProcessWatcher::new(vec![]);
-        process_watcher.log_datasets_in_process(&mut events_logger, &command);
+        process_watcher
+            .log_datasets_in_process(&command)
+            .await
+            .unwrap();
         assert_eq!(process_watcher.datasamples_tracker.len(), 2);
 
         let command: Vec<String> =

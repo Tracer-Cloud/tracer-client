@@ -93,11 +93,19 @@ async fn start(State(state): State<AppState>) -> axum::response::Result<impl Int
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let run_data = guard.get_run_metadata().read().await.clone().map(|r| RunData {
-        run_name: r.name,
-        run_id: r.id,
-        pipeline_name: guard.get_pipeline_name().to_string(),
-    });
+    let metadata = guard.get_run_metadata();
+
+    let pipeline = metadata.read().await;
+
+    let run_data = if let Some(run) = pipeline.run.as_ref() {
+        Some(RunData {
+            pipeline_name: pipeline.pipeline_name.clone(),
+            run_name: run.name.clone(),
+            run_id: run.id.clone(),
+        })
+    } else {
+        None
+    };
 
     Ok(Json(run_data))
 }
@@ -150,6 +158,7 @@ async fn log_short_lived_process_command(
     let mut guard = state.tracer_client.lock().await;
     guard
         .fill_logs_with_short_lived_process(payload.log)
+        .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(StatusCode::CREATED)
@@ -158,7 +167,9 @@ async fn log_short_lived_process_command(
 async fn info(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
     let guard = state.tracer_client.lock().await;
 
-    let response_inner: Option<InnerInfoResponse> = guard.get_run_metadata().read().await.clone().map(|out| out.into());
+    let pipeline = guard.get_run_metadata().read().await.clone();
+
+    let response_inner = InnerInfoResponse::try_from(pipeline).ok();
 
     let preview = guard.process_watcher.preview_targets();
     let preview_len = guard.process_watcher.preview_targets_count();
