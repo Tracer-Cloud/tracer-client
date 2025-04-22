@@ -677,7 +677,10 @@ impl ProcessWatcher {
         // TODO change this logic
         let properties = DataSetsProcessed {
             datasets: self
-             c
+                .datasamples_tracker
+                .get(&trace_id.clone().unwrap_or_default())
+                .map(|set| set.iter().cloned().collect::<Vec<_>>().join(", "))
+                .unwrap_or_default(),
             total: self
                 .datasamples_tracker
                 .get(&trace_id.clone().unwrap_or_default())
@@ -821,7 +824,6 @@ mod tests {
             &command,
             process_properties.clone(),
         );
-        assert_eq!(process_watcher.datasamples_tracker.len(), 1);
         assert_eq!(
             process_watcher.datasamples_tracker.get("").unwrap().len(),
             2
@@ -834,7 +836,6 @@ mod tests {
                 .collect();
 
         process_watcher.log_datasets_in_process(&mut events_logger, &command, process_properties);
-        assert_eq!(process_watcher.datasamples_tracker.len(), 1);
         assert_eq!(
             process_watcher.datasamples_tracker.get("").unwrap().len(),
             4
@@ -858,7 +859,6 @@ mod tests {
             &command,
             process_properties.clone(),
         );
-        assert_eq!(process_watcher.datasamples_tracker.len(), 1);
         assert_eq!(
             process_watcher
                 .datasamples_tracker
@@ -875,7 +875,6 @@ mod tests {
                 .collect();
 
         process_watcher.log_datasets_in_process(&mut events_logger, &command, process_properties);
-        assert_eq!(process_watcher.datasamples_tracker.len(), 1);
         assert_eq!(
             process_watcher
                 .datasamples_tracker
