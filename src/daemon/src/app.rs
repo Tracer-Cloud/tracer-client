@@ -93,7 +93,7 @@ async fn start(State(state): State<AppState>) -> axum::response::Result<impl Int
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let run_data = guard.get_run_metadata().map(|r| RunData {
+    let run_data = guard.get_run_metadata().read().await.clone().map(|r| RunData {
         run_name: r.name,
         run_id: r.id,
         pipeline_name: guard.get_pipeline_name().to_string(),
@@ -158,7 +158,7 @@ async fn log_short_lived_process_command(
 async fn info(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
     let guard = state.tracer_client.lock().await;
 
-    let response_inner: Option<InnerInfoResponse> = guard.get_run_metadata().map(|out| out.into());
+    let response_inner: Option<InnerInfoResponse> = guard.get_run_metadata().read().await.clone().map(|out| out.into());
 
     let preview = guard.process_watcher.preview_targets();
     let preview_len = guard.process_watcher.preview_targets_count();

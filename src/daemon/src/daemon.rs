@@ -69,7 +69,7 @@ fn setup_logging() -> Result<()> {
 
 pub async fn monitor_processes_with_tracer_client(tracer_client: &mut TracerClient) -> Result<()> {
     tracer_client.remove_completed_processes().await?;
-    tracer_client.poll_processes()?;
+    tracer_client.poll_processes().await?;
     // tracer_client.run_cleanup().await?;
     tracer_client.poll_process_metrics().await?;
     tracer_client.poll_syslog().await?;
