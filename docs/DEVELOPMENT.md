@@ -41,11 +41,7 @@ Then do:
 
 ```bash
 export DATABASE_URL=tracer-cluster-v2-instance-1.cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432/tracer_db
-<<<<<<< HEAD
 ```
 
 ## Running A Local Environment Test
 init --pipeline-name rnaseq-demo-123 --environment demo --user-operator vincent --pipeline-type rnaseq
-=======
-```
->>>>>>> 5fac3916624f561b6c89993cc687d945bf7b1013
