@@ -45,7 +45,7 @@ pub struct TracerClient {
     last_interaction_new_run_duration: Duration,
     process_metrics_send_interval: Duration,
     last_file_size_change_time_delta: TimeDelta,
-    pub process_watcher: ProcessWatcher,
+    pub process_watcher: Arc<RwLock<ProcessWatcher>>,
     syslog_watcher: SyslogWatcher,
     stdout_watcher: StdoutWatcher,
     metrics_collector: SystemMetricsCollector,
@@ -97,7 +97,10 @@ impl TracerClient {
 
         let log_recorder = StructLogRecorder::new(pipeline.clone(), tx.clone());
 
-        let process_watcher = ProcessWatcher::new(config.targets.clone(), log_recorder.clone());
+        let process_watcher = Arc::new(RwLock::new(ProcessWatcher::new(
+            config.targets.clone(),
+            log_recorder.clone(),
+        )));
 
         Ok(TracerClient {
             // if putting a value to config, also update `TracerClient::reload_config_file`
@@ -136,14 +139,17 @@ impl TracerClient {
         })
     }
 
-    pub fn reload_config_file(&mut self, config: Config) {
+    pub async fn reload_config_file(&mut self, config: Config) {
         self.interval = Duration::from_millis(config.process_polling_interval_ms);
-        self.process_watcher.reload_targets(config.targets.clone());
+        self.process_watcher
+            .write()
+            .await
+            .reload_targets(config.targets.clone());
         self.config = config.clone()
     }
 
-    pub fn start_monitoring(&mut self) -> Result<()> {
-        self.process_watcher.start_ebpf()
+    pub async fn start_monitoring(&mut self) -> Result<()> {
+        self.process_watcher.write().await.start_ebpf()
     }
 
     pub async fn fill_logs_with_short_lived_process(
@@ -151,6 +157,8 @@ impl TracerClient {
         short_lived_process_log: ShortLivedProcessLog,
     ) -> Result<()> {
         self.process_watcher
+            .write()
+            .await
             .fill_logs_with_short_lived_process(short_lived_process_log)
             .await?;
         Ok(())
@@ -194,6 +202,12 @@ impl TracerClient {
                 .await
                 .context("Failed to collect metrics")?;
 
+            let mut buff: Vec<Event> = Vec::with_capacity(100);
+
+            if self.rx.recv_many(&mut buff, 100).await > 0 {
+                println!("inserting: {:?}", buff);
+            }
+
             // todo:
             // self.db_client
             //     .batch_insert_events(
@@ -218,6 +232,7 @@ impl TracerClient {
     }
 
     pub async fn run_cleanup(&mut self) -> Result<()> {
+        let process_watcher = self.process_watcher.read().await;
         let mut pipeline = self.pipeline.write().await;
 
         if let Some(run) = pipeline.run.as_mut() {
@@ -235,17 +250,13 @@ impl TracerClient {
                     )
                     .await?;
                 pipeline.run = None;
-            } else if run.parent_pid.is_none() && !self.process_watcher.is_empty() {
-                run.parent_pid = self
-                    .process_watcher
+            } else if run.parent_pid.is_none() && !process_watcher.is_empty() {
+                run.parent_pid = process_watcher
                     .get_parent_pid(Some(run.start_time))
                     .map(|pid| pid.into());
             } else if run.parent_pid.is_some() {
                 let parent_pid = run.parent_pid.unwrap();
-                if !self
-                    .process_watcher
-                    .is_process_alive(&self.system, parent_pid.into())
-                {
+                if !process_watcher.is_process_alive(&self.system, parent_pid.into()) {
                     self.log_recorder
                         .log_with_metadata(
                             ProcessStatus::FinishedRun,
@@ -258,9 +269,10 @@ impl TracerClient {
                     pipeline.run = None;
                 }
             }
-        } else if !WAIT_FOR_PROCESS_BEFORE_NEW_RUN || !self.process_watcher.is_empty() {
+        } else if !WAIT_FOR_PROCESS_BEFORE_NEW_RUN || !process_watcher.is_empty() {
             drop(pipeline);
-            let earliest_process_time = self.process_watcher.get_earliest_process_time();
+            let earliest_process_time = process_watcher.get_earliest_process_time();
+            drop(process_watcher);
             self.start_new_run(Some(earliest_process_time.sub(Duration::from_millis(1))))
                 .await?;
         }
@@ -268,7 +280,7 @@ impl TracerClient {
     }
 
     pub async fn start_new_run(&mut self, timestamp: Option<DateTime<Utc>>) -> Result<()> {
-        self.start_monitoring()?;
+        self.start_monitoring().await?;
 
         if self.pipeline.read().await.run.is_some() {
             self.stop_run().await?;
@@ -338,10 +350,12 @@ impl TracerClient {
     /// These functions require logs and the system
     pub async fn poll_processes(&mut self) -> Result<()> {
         self.process_watcher
+            .write()
+            .await
             .poll_processes(&mut self.system, &self.file_watcher)
             .await?;
 
-        if !self.process_watcher.is_empty() {
+        if !self.process_watcher.read().await.is_empty() {
             if let Some(run) = self.pipeline.write().await.run.as_mut() {
                 run.last_interaction = Instant::now();
             }
@@ -352,6 +366,8 @@ impl TracerClient {
 
     pub async fn poll_process_metrics(&mut self) -> Result<()> {
         self.process_watcher
+            .write()
+            .await
             .poll_process_metrics(&self.system, self.process_metrics_send_interval)
             .await?;
         Ok(())
@@ -359,6 +375,8 @@ impl TracerClient {
 
     pub async fn remove_completed_processes(&mut self) -> Result<()> {
         self.process_watcher
+            .write()
+            .await
             .remove_completed_processes(&mut self.system)
             .await?;
         Ok(())
@@ -406,6 +424,8 @@ impl TracerClient {
 
     pub async fn poll_nextflow_log(&mut self) -> Result<()> {
         self.process_watcher
+            .write()
+            .await
             .get_nextflow_log_watcher_mut()
             .poll_nextflow_log()
             .await
@@ -415,8 +435,11 @@ impl TracerClient {
         self.system.refresh_all();
     }
 
-    pub fn reset_just_started_process_flag(&mut self) {
-        self.process_watcher.reset_just_started_process_flag();
+    pub async fn reset_just_started_process_flag(&mut self) {
+        self.process_watcher
+            .write()
+            .await
+            .reset_just_started_process_flag();
     }
 
     pub fn get_service_url(&self) -> &str {
