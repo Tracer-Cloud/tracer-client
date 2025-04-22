@@ -30,7 +30,7 @@ async fn test_parallel_mode_works() {
 async fn query_and_assert_parallel_mode(pool: &PgPool, run_name: &str) {
     let tools_tracked: Vec<(i64,)> = sqlx::query_as(
         r#"
-            SELECT COUNT(DISTINCT data->'attributes'->'system_properties'->>'hostname') AS unique_hosts
+            SELECT COUNT(DISTINCT resource_attributes->>'hostname') AS unique_hosts
             FROM batch_jobs_logs
             WHERE run_name = $1;
         "#,

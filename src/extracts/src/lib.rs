@@ -6,4 +6,3 @@ pub mod stdout;
 pub mod syslog;
 
 mod data_samples;
-mod nextflow_log_watcher;

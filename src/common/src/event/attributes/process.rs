@@ -30,6 +30,7 @@ pub struct ProcessProperties {
     pub container_id: Option<String>,
     pub job_id: Option<String>,
     pub working_directory: Option<String>,
+    pub trace_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -43,4 +44,5 @@ pub struct CompletedProcess {
 pub struct DataSetsProcessed {
     pub datasets: String,
     pub total: u64,
+    pub trace_id: Option<String>,
 }

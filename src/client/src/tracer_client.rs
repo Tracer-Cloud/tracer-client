@@ -422,15 +422,6 @@ impl TracerClient {
             .await
     }
 
-    pub async fn poll_nextflow_log(&mut self) -> Result<()> {
-        self.process_watcher
-            .write()
-            .await
-            .get_nextflow_log_watcher_mut()
-            .poll_nextflow_log()
-            .await
-    }
-
     pub fn refresh_sysinfo(&mut self) {
         self.system.refresh_all();
     }
@@ -546,7 +537,7 @@ mod tests {
         assert!(res.is_ok());
 
         // Prepare the SQL query
-        let query = "SELECT data, run_name FROM batch_jobs_logs WHERE run_name = $1";
+        let query = "SELECT attributes, run_name FROM batch_jobs_logs WHERE run_name = $1";
 
         let db_client = client.db_client.get_pool();
 

@@ -1,7 +1,5 @@
 // src/process_watcher.rs
 
-use crate::nextflow_log_watcher::NextflowLogWatcher;
-
 use tracer_common::event::ProcessStatus as TracerProcessStatus;
 
 use crate::data_samples::DATA_SAMPLES_EXT;
@@ -14,7 +12,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::collections::{hash_map::Entry::Vacant, HashSet};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Duration;
 use sysinfo::{Pid, Process, ProcessStatus, System};
 use tokio::sync::mpsc;
@@ -32,9 +30,8 @@ pub struct ProcessWatcher {
     seen: HashMap<Pid, Proc>,
     process_tree: HashMap<Pid, ProcessTreeNode>,
     // We want to track unique data samples we come across when monitoring process args
-    datasamples_tracker: HashSet<String>,
-    nextflow_log_watcher: NextflowLogWatcher,
-    ebpf: OnceCell<TracerEbpf>, // not tokio, because TracerEbpf is sync
+    datasamples_tracker: HashMap<String, HashSet<String>>, // this hashmap groups datasets by the nextflow session uuid
+    ebpf: OnceCell<TracerEbpf>,                            // not tokio, because TracerEbpf is sync
 
     log_recorder: StructLogRecorder,
 }
@@ -89,8 +86,7 @@ impl ProcessWatcher {
             targets,
             seen: HashMap::new(),
             process_tree: HashMap::new(),
-            datasamples_tracker: HashSet::new(),
-            nextflow_log_watcher: NextflowLogWatcher::new(log_recorder.clone()),
+            datasamples_tracker: HashMap::new(),
             ebpf: OnceCell::new(),
             log_recorder,
         }
@@ -215,10 +211,6 @@ impl ProcessWatcher {
         let mut to_remove = vec![];
         for (pid, proc) in self.seen.iter() {
             if !system.processes().contains_key(pid) {
-                // Check if this was a Nextflow process and notify the watcher
-                if proc.name.contains("nextflow") {
-                    self.nextflow_log_watcher.remove_process(*pid);
-                }
                 self.log_completed_process(pid, proc).await?;
                 to_remove.push(*pid);
             }
@@ -347,9 +339,10 @@ impl ProcessWatcher {
         Ok(())
     }
 
-    fn read_process_env(proc: &Process) -> (Option<String>, Option<String>) {
+    fn read_process_env(proc: &Process) -> (Option<String>, Option<String>, Option<String>) {
         let mut container_id = None;
         let mut job_id = None;
+        let mut trace_id = None;
 
         // Try to read environment variables
         for env_var in proc.environ() {
@@ -357,12 +350,13 @@ impl ProcessWatcher {
                 match key {
                     "AWS_BATCH_JOB_ID" => job_id = Some(value.to_string()),
                     "HOSTNAME" => container_id = Some(value.to_string()),
+                    "TRACER_TRACE_ID" => trace_id = Some(value.to_string()),
                     _ => continue,
                 }
             }
         }
 
-        (container_id, job_id)
+        (container_id, job_id, trace_id)
     }
 
     pub fn gather_process_data(
@@ -371,7 +365,7 @@ impl ProcessWatcher {
         display_name: Option<String>,
     ) -> ProcessProperties {
         let start_time = Utc::now();
-        let (container_id, job_id) = Self::read_process_env(proc);
+        let (container_id, job_id, trace_id) = Self::read_process_env(proc);
         let working_directory = proc.cwd().map(|p| p.to_string_lossy().to_string());
 
         ProcessProperties {
@@ -400,6 +394,7 @@ impl ProcessWatcher {
             container_id,
             job_id,
             working_directory,
+            trace_id,
         }
     }
 
@@ -468,6 +463,7 @@ impl ProcessWatcher {
                     container_id: None,
                     job_id: None,
                     working_directory: None,
+                    trace_id: None,
                 },
             }
         }
@@ -507,23 +503,6 @@ impl ProcessWatcher {
         let start_time = Utc::now();
 
         let mut properties = Self::gather_process_data(&pid, p, Some(display_name.clone()));
-
-        // Check if this is a Nextflow process and notify the watcher
-        if display_name.contains("nextflow") {
-            tracing::info!(
-                "[{}] Found Nextflow process: pid={}, name={}, working_dir={:?}",
-                Utc::now(),
-                pid,
-                display_name,
-                properties.working_directory
-            );
-            if let Some(working_dir) = &properties.working_directory {
-                self.nextflow_log_watcher.add_process(
-                    pid,
-                    PathBuf::from(working_dir.clone()).join(".nextflow.log"),
-                );
-            }
-        }
 
         let cmd_arguments = p.cmd();
 
@@ -565,12 +544,13 @@ impl ProcessWatcher {
             .log(
                 TracerProcessStatus::ToolExecution,
                 format!("[{}] Tool process: {}", start_time, &display_name),
-                Some(EventAttributes::Process(properties)),
+                Some(EventAttributes::Process(properties.clone())),
                 None,
             )
             .await?;
 
-        self.log_datasets_in_process(cmd_arguments).await?;
+        self.log_datasets_in_process(cmd_arguments, properties)
+            .await?;
 
         Ok(())
     }
@@ -700,16 +680,35 @@ impl ProcessWatcher {
     }
 
     /// Logs the unique datasets processed or in process
-    async fn log_datasets_in_process(&mut self, cmd: &[String]) -> Result<()> {
+    async fn log_datasets_in_process(
+        &mut self,
+        cmd: &[String],
+        properties: ProcessProperties,
+    ) -> Result<()> {
+        let trace_id: Option<String> = properties.trace_id.clone();
+
         for arg in cmd.iter() {
             if DATA_SAMPLES_EXT.iter().any(|ext| arg.ends_with(ext)) {
-                self.datasamples_tracker.insert(arg.clone());
+                self.datasamples_tracker
+                    .entry(trace_id.clone().unwrap_or_default())
+                    .or_default()
+                    .insert(arg.clone());
             }
         }
 
+        // TODO change this logic
         let properties = DataSetsProcessed {
-            datasets: self.datasamples_tracker.iter().join(", "),
-            total: self.datasamples_tracker.len() as u64,
+            datasets: self
+                .datasamples_tracker
+                .get(&trace_id.clone().unwrap_or_default())
+                .map(|set| set.iter().cloned().collect::<Vec<_>>().join(", "))
+                .unwrap_or_default(),
+            total: self
+                .datasamples_tracker
+                .get(&trace_id.clone().unwrap_or_default())
+                .unwrap_or(&HashSet::new())
+                .len() as u64,
+            trace_id,
         };
 
         self.log_recorder
@@ -746,14 +745,6 @@ impl ProcessWatcher {
 
     pub fn preview_targets_count(&self) -> usize {
         self.seen.len()
-    }
-
-    pub fn get_nextflow_log_watcher(&self) -> &NextflowLogWatcher {
-        &self.nextflow_log_watcher
-    }
-
-    pub fn get_nextflow_log_watcher_mut(&mut self) -> &mut NextflowLogWatcher {
-        &mut self.nextflow_log_watcher
     }
 }
 
@@ -798,6 +789,7 @@ mod tests {
                 container_id: None,
                 job_id: None,
                 working_directory: None,
+                trace_id: None,
             };
 
             let node = ProcessTreeNode {
@@ -839,19 +831,27 @@ mod tests {
     }
 
     #[test]
-    async fn test_count_dataset_matches_works() {
+    async fn test_count_dataset_matches_works_without_trace_id() {
         let command: Vec<String> =
             "kallisto quant -t 4 -i control_index -o ./control_quant_9 control1_1.fa control1_2.fa"
                 .split(" ")
                 .map(String::from)
                 .collect();
+        let mut events_logger = EventRecorder::default();
 
         let mut process_watcher = ProcessWatcher::new(vec![]);
-        process_watcher
-            .log_datasets_in_process(&command)
-            .await
-            .unwrap();
-        assert_eq!(process_watcher.datasamples_tracker.len(), 2);
+
+        let process_properties = create_process_properties_with_trace_id(None);
+
+        process_watcher.log_datasets_in_process(
+            &mut events_logger,
+            &command,
+            process_properties.clone(),
+        );
+        assert_eq!(
+            process_watcher.datasamples_tracker.get("").unwrap().len(),
+            2
+        );
 
         let command: Vec<String> =
             "kallisto quant -t 4 -i control_index -o ./control_quant_9 control1_3.fa control1_4.fa"
@@ -859,7 +859,77 @@ mod tests {
                 .map(String::from)
                 .collect();
 
-        process_watcher.log_datasets_in_process(&mut events_logger, &command);
-        assert_eq!(process_watcher.datasamples_tracker.len(), 4);
+        process_watcher.log_datasets_in_process(&mut events_logger, &command, process_properties);
+        assert_eq!(
+            process_watcher.datasamples_tracker.get("").unwrap().len(),
+            4
+        );
+    }
+
+    #[test]
+    fn test_count_dataset_matches_works_with_trace_id() {
+        let command: Vec<String> =
+            "kallisto quant -t 4 -i control_index -o ./control_quant_9 control1_1.fa control1_2.fa"
+                .split(" ")
+                .map(String::from)
+                .collect();
+
+        let mut process_watcher = ProcessWatcher::new(vec![]);
+        let process_properties =
+            create_process_properties_with_trace_id(Some("test_trace_id".to_string()));
+        process_watcher.log_datasets_in_process(
+            &mut events_logger,
+            &command,
+            process_properties.clone(),
+        );
+        assert_eq!(
+            process_watcher
+                .datasamples_tracker
+                .get("test_trace_id")
+                .unwrap()
+                .len(),
+            2
+        );
+
+        let command: Vec<String> =
+            "kallisto quant -t 4 -i control_index -o ./control_quant_9 control1_3.fa control1_4.fa"
+                .split(" ")
+                .map(String::from)
+                .collect();
+
+        process_watcher.log_datasets_in_process(&mut events_logger, &command, process_properties);
+        assert_eq!(
+            process_watcher
+                .datasamples_tracker
+                .get("test_trace_id")
+                .unwrap()
+                .len(),
+            4
+        );
+    }
+
+    fn create_process_properties_with_trace_id(trace_id: Option<String>) -> ProcessProperties {
+        ProcessProperties {
+            tool_name: "test".to_string(),
+            tool_pid: "test".to_string(),
+            tool_parent_pid: "test".to_string(),
+            tool_binary_path: "test".to_string(),
+            tool_cmd: "test".to_string(),
+            start_timestamp: "test".to_string(),
+            process_cpu_utilization: 5.5,
+            process_memory_usage: 5,
+            process_memory_virtual: 5,
+            process_run_time: 5,
+            process_disk_usage_read_last_interval: 5,
+            process_disk_usage_write_last_interval: 5,
+            process_disk_usage_read_total: 5,
+            process_disk_usage_write_total: 5,
+            process_status: "test".to_string(),
+            input_files: Some(Vec::new()),
+            container_id: Some("test".to_string()),
+            job_id: Some("test".to_string()),
+            working_directory: Some("test".to_string()),
+            trace_id,
+        }
     }
 }
