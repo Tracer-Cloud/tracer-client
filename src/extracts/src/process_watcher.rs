@@ -669,7 +669,7 @@ impl ProcessWatcher {
             if DATA_SAMPLES_EXT.iter().any(|ext| arg.ends_with(ext)) {
                 self.datasamples_tracker
                     .entry(trace_id.clone().unwrap_or_default())
-                    .or_insert_with(HashSet::new)
+                    .or_default()
                     .insert(arg.clone());
             }
         }
@@ -803,7 +803,7 @@ mod tests {
     }
 
     #[test]
-    fn test_count_dataset_matches_works() {
+    fn test_count_dataset_matches_works_without_trace_id() {
         let command: Vec<String> =
             "kallisto quant -t 4 -i control_index -o ./control_quant_9 control1_1.fa control1_2.fa"
                 .split(" ")
@@ -812,8 +812,19 @@ mod tests {
         let mut events_logger = EventRecorder::default();
 
         let mut process_watcher = ProcessWatcher::new(vec![]);
-        process_watcher.log_datasets_in_process(&mut events_logger, &command); //TODO fix tests
-        assert_eq!(process_watcher.datasamples_tracker.len(), 2);
+
+        let process_properties = create_process_properties_with_trace_id(None);
+
+        process_watcher.log_datasets_in_process(
+            &mut events_logger,
+            &command,
+            process_properties.clone(),
+        );
+        assert_eq!(process_watcher.datasamples_tracker.len(), 1);
+        assert_eq!(
+            process_watcher.datasamples_tracker.get("").unwrap().len(),
+            2
+        );
 
         let command: Vec<String> =
             "kallisto quant -t 4 -i control_index -o ./control_quant_9 control1_3.fa control1_4.fa"
@@ -821,7 +832,81 @@ mod tests {
                 .map(String::from)
                 .collect();
 
-        process_watcher.log_datasets_in_process(&mut events_logger, &command); // TODO fix tests
-        assert_eq!(process_watcher.datasamples_tracker.len(), 4);
+        process_watcher.log_datasets_in_process(&mut events_logger, &command, process_properties);
+        assert_eq!(process_watcher.datasamples_tracker.len(), 1);
+        assert_eq!(
+            process_watcher.datasamples_tracker.get("").unwrap().len(),
+            4
+        );
+    }
+
+    #[test]
+    fn test_count_dataset_matches_works_with_trace_id() {
+        let command: Vec<String> =
+            "kallisto quant -t 4 -i control_index -o ./control_quant_9 control1_1.fa control1_2.fa"
+                .split(" ")
+                .map(String::from)
+                .collect();
+        let mut events_logger = EventRecorder::default();
+
+        let mut process_watcher = ProcessWatcher::new(vec![]);
+        let process_properties =
+            create_process_properties_with_trace_id(Some("test_trace_id".to_string()));
+        process_watcher.log_datasets_in_process(
+            &mut events_logger,
+            &command,
+            process_properties.clone(),
+        );
+        assert_eq!(process_watcher.datasamples_tracker.len(), 1);
+        assert_eq!(
+            process_watcher
+                .datasamples_tracker
+                .get("test_trace_id")
+                .unwrap()
+                .len(),
+            2
+        );
+
+        let command: Vec<String> =
+            "kallisto quant -t 4 -i control_index -o ./control_quant_9 control1_3.fa control1_4.fa"
+                .split(" ")
+                .map(String::from)
+                .collect();
+
+        process_watcher.log_datasets_in_process(&mut events_logger, &command, process_properties);
+        assert_eq!(process_watcher.datasamples_tracker.len(), 1);
+        assert_eq!(
+            process_watcher
+                .datasamples_tracker
+                .get("test_trace_id")
+                .unwrap()
+                .len(),
+            4
+        );
+    }
+
+    fn create_process_properties_with_trace_id(trace_id: Option<String>) -> ProcessProperties {
+        ProcessProperties {
+            tool_name: "test".to_string(),
+            tool_pid: "test".to_string(),
+            tool_parent_pid: "test".to_string(),
+            tool_binary_path: "test".to_string(),
+            tool_cmd: "test".to_string(),
+            start_timestamp: "test".to_string(),
+            process_cpu_utilization: 5.5,
+            process_memory_usage: 5,
+            process_memory_virtual: 5,
+            process_run_time: 5,
+            process_disk_usage_read_last_interval: 5,
+            process_disk_usage_write_last_interval: 5,
+            process_disk_usage_read_total: 5,
+            process_disk_usage_write_total: 5,
+            process_status: "test".to_string(),
+            input_files: Some(Vec::new()),
+            container_id: Some("test".to_string()),
+            job_id: Some("test".to_string()),
+            working_directory: Some("test".to_string()),
+            trace_id,
+        }
     }
 }
