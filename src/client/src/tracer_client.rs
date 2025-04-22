@@ -49,7 +49,7 @@ pub struct TracerClient {
     syslog_watcher: SyslogWatcher,
     stdout_watcher: StdoutWatcher,
     metrics_collector: SystemMetricsCollector,
-    file_watcher: FileWatcher,
+    file_watcher: Arc<RwLock<FileWatcher>>,
     workflow_directory: String,
 
     pipeline: Arc<RwLock<PipelineMetadata>>,
@@ -85,7 +85,7 @@ impl TracerClient {
             .await
             .context("Failed to create tmp directory")?;
         let directory = tempfile::tempdir_in(FILE_CACHE_DIR)?;
-        let file_watcher = FileWatcher::new(directory);
+        let file_watcher = Arc::new(RwLock::new(FileWatcher::new(directory)));
 
         let pipeline = Arc::new(RwLock::new(PipelineMetadata {
             pipeline_name: cli_args.pipeline_name.clone(),
@@ -100,6 +100,7 @@ impl TracerClient {
         let process_watcher = Arc::new(RwLock::new(ProcessWatcher::new(
             config.targets.clone(),
             log_recorder.clone(),
+            file_watcher.clone(),
         )));
 
         Ok(TracerClient {
@@ -149,7 +150,7 @@ impl TracerClient {
     }
 
     pub async fn start_monitoring(&mut self) -> Result<()> {
-        self.process_watcher.write().await.start_ebpf()
+        ProcessWatcher::start_ebpf(Arc::clone(&self.process_watcher)).await
     }
 
     pub async fn fill_logs_with_short_lived_process(
@@ -352,7 +353,7 @@ impl TracerClient {
         self.process_watcher
             .write()
             .await
-            .poll_processes(&mut self.system, &self.file_watcher)
+            .poll_processes(&mut self.system)
             .await?;
 
         if !self.process_watcher.read().await.is_empty() {
@@ -384,6 +385,8 @@ impl TracerClient {
 
     pub async fn poll_files(&mut self) -> Result<()> {
         self.file_watcher
+            .write()
+            .await
             .poll_files(
                 DEFAULT_SERVICE_URL,
                 &self.config.api_key,

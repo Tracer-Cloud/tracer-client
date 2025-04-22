@@ -13,9 +13,10 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::collections::{hash_map::Entry::Vacant, HashSet};
 use std::path::Path;
+use std::sync::Arc;
 use std::time::Duration;
 use sysinfo::{Pid, Process, ProcessStatus, System};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, RwLock};
 use tracer_common::event::attributes::process::{
     CompletedProcess, DataSetsProcessed, InputFile, ProcessProperties,
 };
@@ -34,6 +35,7 @@ pub struct ProcessWatcher {
     ebpf: OnceCell<TracerEbpf>,                            // not tokio, because TracerEbpf is sync
 
     log_recorder: StructLogRecorder,
+    file_watcher: Arc<RwLock<FileWatcher>>,
 }
 
 enum ProcLastUpdate {
@@ -81,7 +83,11 @@ fn process_status_to_string(status: &ProcessStatus) -> String {
 }
 
 impl ProcessWatcher {
-    pub fn new(targets: Vec<Target>, log_recorder: StructLogRecorder) -> Self {
+    pub fn new(
+        targets: Vec<Target>,
+        log_recorder: StructLogRecorder,
+        file_watcher: Arc<RwLock<FileWatcher>>,
+    ) -> Self {
         ProcessWatcher {
             targets,
             seen: HashMap::new(),
@@ -89,40 +95,41 @@ impl ProcessWatcher {
             datasamples_tracker: HashMap::new(),
             ebpf: OnceCell::new(),
             log_recorder,
+            file_watcher,
         }
     }
 
-    pub fn start_ebpf(&mut self) -> Result<()> {
-        self.ebpf.get_or_try_init(|| {
-            let (tx, mut rx) = mpsc::channel::<Trigger>(100);
-            let ebpf = start_processing_events(tx.clone())?;
+    pub async fn start_ebpf(watcher: Arc<RwLock<Self>>) -> Result<()> {
+        Arc::clone(&watcher)
+            .write()
+            .await
+            .ebpf
+            .get_or_try_init(|| {
+                let (tx, mut rx) = mpsc::channel::<Trigger>(100);
+                let ebpf = start_processing_events(tx.clone())?;
 
-            // let chunk_stream = rx.chunks_timeout(100, Duration::from_millis(100));
-            // todo: use config.read().await.batch_submission_interval_ms
+                // let chunk_stream = rx.chunks_timeout(100, Duration::from_millis(100));
+                // todo: use config.read().await.batch_submission_interval_ms
 
-            tokio::spawn(async move {
-                // todo: move to a new class
+                tokio::spawn(async move {
+                    // todo: move to a new class
 
-                let mut buff: Vec<Trigger> = Vec::with_capacity(100);
+                    let mut buff: Vec<Trigger> = Vec::with_capacity(100);
 
-                loop {
-                    while rx.recv_many(&mut buff, 100).await > 0 {
-                        println!("received triggers: {:?}", buff);
+                    loop {
+                        while rx.recv_many(&mut buff, 100).await > 0 {
+                            println!("received triggers: {:?}", buff);
 
-                        buff.clear();
+                            buff.clear();
+                        }
                     }
-                }
-            });
-            Ok::<TracerEbpf, anyhow::Error>(ebpf)
-        })?;
+                });
+                Ok::<TracerEbpf, anyhow::Error>(ebpf)
+            })?;
         Ok(())
     }
 
-    pub async fn poll_processes(
-        &mut self,
-        system: &mut System,
-        file_watcher: &FileWatcher,
-    ) -> Result<()> {
+    pub async fn poll_processes(&mut self, system: &mut System) -> Result<()> {
         for (pid, proc) in system.processes().iter() {
             if !self.seen.contains_key(pid) {
                 let target = self.targets.iter().find(|target| {
@@ -148,7 +155,7 @@ impl ProcessWatcher {
                         proc.cmd()
                     );
 
-                    self.add_new_process(*pid, proc, system, Some(&target.clone()), file_watcher)
+                    self.add_new_process(*pid, proc, system, Some(&target.clone()))
                         .await?;
                 }
             }
@@ -161,7 +168,6 @@ impl ProcessWatcher {
                 .filter(|target| target.should_be_merged_with_parents())
                 .cloned()
                 .collect(),
-            file_watcher,
         )
         .await?;
 
@@ -291,7 +297,6 @@ impl ProcessWatcher {
         &mut self,
         system: &System,
         targets: Vec<Target>,
-        file_watcher: &FileWatcher,
     ) -> Result<()> {
         self.build_process_trees(system.processes());
         let nodes: &HashMap<Pid, ProcessTreeNode> = &self.process_tree;
@@ -332,7 +337,7 @@ impl ProcessWatcher {
                     continue;
                 }
                 let proc = process.unwrap();
-                self.add_new_process(pid, proc, system, Some(target), file_watcher)
+                self.add_new_process(pid, proc, system, Some(target))
                     .await?;
             }
         }
@@ -475,7 +480,6 @@ impl ProcessWatcher {
         proc: &Process,
         system: &System,
         target: Option<&Target>,
-        file_watcher: &FileWatcher,
     ) -> Result<()> {
         let display_name = if let Some(target) = target {
             target
@@ -525,6 +529,7 @@ impl ProcessWatcher {
             arguments_to_check.push(arg);
         }
 
+        let file_watcher = self.file_watcher.read().await;
         for arg in arguments_to_check {
             let file = file_watcher.get_file_by_path_suffix(arg);
             if let Some((path, file_info)) = file {
@@ -537,6 +542,7 @@ impl ProcessWatcher {
                 });
             }
         }
+        drop(file_watcher);
 
         properties.input_files = Some(input_files);
 
