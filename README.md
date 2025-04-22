@@ -34,6 +34,11 @@ New metrics that help you speed up your pipelines and maximize your budget:
     - H2 2025: Automated Error Database
 
 ## Quickstart Installation
+Prerequisites: 
+- Linux (Ubuntu or Amazon Linux)
+- AWS credentials exported to environment with access to RDS Postgres Database
+- Amazon Managed Grafana pointed to Database
+
 ### 1. Install Tracer With One Line of Code
 Run the following command to install Tracer on your Linux Ubuntu system (the following installation command points to the latest development binary build from the `main` branch): 
 ```bash
