@@ -40,7 +40,7 @@ DATABASE_URL must be set: EnvVar(NotPresent)
 Then do:
 
 ```bash
-export DATABASE_URL=tracer-cluster-v2-instance-1.cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432/tracer_db
+export DATABASE_URL=tracer-cluster-production.cluster-ro-cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432/tracer_db
 ```
 
 ## Running A Local Environment Test
