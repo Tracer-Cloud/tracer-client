@@ -15,6 +15,20 @@ jobs:
     name: Build and Test
     runs-on: linux-arm64-16c-64r-600ssd-ubuntu24
 
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: tracer_db
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Check out
         uses: actions/checkout@v4.1.4
@@ -44,11 +58,11 @@ jobs:
         run: |
           which cargo-nextest || cargo install cargo-nextest
 
-      # - name: Copy config
-      #   run: mkdir -p $HOME/.config/tracer && cp tracer.toml $HOME/.config/tracer/tracer.toml
-
       - name: Check Formatting
         run: cargo fmt -- --check
+
+      - name: Cargo check
+        run: cargo check --locked --all-targets
 
       - name: Lint with Clippy
         run: make clippy
@@ -61,10 +75,11 @@ jobs:
           AWS_ENDPOINT: "https://s3.us-east-2.amazonaws.com"
           RUST_LOG: "debug"
           RUST_BACKTRACE: 1
-          TRACER_DATABASE_SECRETS_ARN: ${{ secrets.TRACER_DATABASE_SECRETS_ARN }}
+          TRACER_DATABASE_SECRETS_ARN: ${{ secrets.TRACER_DATABASE_LOCAL_SECRETS_ARN }}
           TRACER_DATABASE_NAME: ${{ secrets.TRACER_DATABASE_NAME }}
-          TRACER_DATABASE_HOST: ${{ secrets.TRACER_DATABASE_HOST }}
-        run: make test-tracer
+          TRACER_DATABASE_HOST: "localhost:5432"
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/tracer_db" # localhost since VM
+        run: ./scripts/migrate.sh "$DATABASE_URL" && make test-tracer
 
   run-integrations:
       name: Build and Test Integrations
@@ -106,12 +121,13 @@ jobs:
 
       - name: Create .env file from GitHub Secrets
         run: |
-          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
-          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
           echo "AWS_REGION=us-east-2" >> .env
           echo "AWS_ENDPOINT=https://s3.us-east-2.amazonaws.com" >> .env
           echo "RUST_LOG=debug" >> .env
           echo "DATABASE_URL=postgres://postgres:postgres@db:5432/tracer_db" >> .env
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
+
 
       - name: Build Test Images
         run: |
@@ -122,3 +138,4 @@ jobs:
 
       - name: Run Parallel tests
         run: make test-parallel
+

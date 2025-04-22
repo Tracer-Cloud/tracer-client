@@ -62,6 +62,47 @@ jobs:
 
       - uses: taiki-e/upload-rust-binary-action@v1
         with:
-          bin: tracer
+          bin: tracer_cli
           target: ${{ matrix.target }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+  upload-amazon-linux:
+    needs: create-release
+    permissions: write-all
+    runs-on: ubuntu-latest
+    container:
+      image: amazonlinux:2023
+
+    steps:
+      - name: Install dependencies
+        run: |
+          yum update -y
+          yum groupinstall -y "Development Tools"
+          yum install -y git gcc openssl-devel pkgconfig cmake tar gzip unzip
+
+      - name: Install Rust
+        run: |
+          curl https://sh.rustup.rs -sSf | sh -s -- -y
+          echo 'source $HOME/.cargo/env' >> ~/.bashrc
+          source $HOME/.cargo/env
+          rustup target add x86_64-unknown-linux-gnu
+
+      - uses: actions/checkout@v4
+
+      - name: Build the binary
+        run: |
+          source $HOME/.cargo/env
+          cargo build --release
+
+      - name: Prepare binary for release
+        run: |
+          mkdir -p release-files/amazon-linux
+          cp target/release/tracer_cli release-files/amazon-linux/tracer
+          chmod +x release-files/amazon-linux/tracer
+          tar -czf release-files/tracer-x86_64-amazon-linux-gnu.tar.gz -C release-files/amazon-linux tracer
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release-files/tracer-x86_64-amazon-linux-gnu.tar.gz
           token: ${{ secrets.GITHUB_TOKEN }}

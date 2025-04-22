@@ -1,0 +1,28 @@
+[package]
+name = "tracer_extracts"
+version = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+authors = { workspace = true }
+
+[dependencies]
+anyhow = { workspace = true }
+chrono = { workspace = true }
+lazy_static = { workspace = true }
+predicates = { workspace = true }
+random-string = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sysinfo = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+linemux = { workspace = true }
+tokio-stream = { workspace = true }
+
+once_cell = { workspace = true }
+dirs = { workspace = true }
+itertools = { workspace = true }
+walkdir = { workspace = true }
+tempfile = { workspace = true }
+tracer_common = { workspace = true }
