@@ -677,11 +677,12 @@ impl ProcessWatcher {
         // TODO change this logic
         let properties = DataSetsProcessed {
             datasets: self
+             c
+            total: self
                 .datasamples_tracker
                 .get(&trace_id.clone().unwrap_or_default())
-                .map(|set| set.iter().cloned().collect::<Vec<_>>().join(", "))
-                .unwrap_or_default(),
-            total: self.datasamples_tracker.len() as u64,
+                .unwrap_or(&HashSet::new())
+                .len() as u64,
             trace_id,
         };
 

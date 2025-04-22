@@ -70,7 +70,7 @@ async fn query_and_assert_tool_tracked(pool: &PgPool, run_name: &str) {
 }
 
 async fn query_datasets_processed(pool: &PgPool, run_name: &str) {
-    let tools_tracked: Vec<(String, i64)> = sqlx::query_as(
+    let datasets_tracked: Vec<(String, i64)> = sqlx::query_as(
         r#"
             SELECT 
                 process_status,
@@ -85,9 +85,9 @@ async fn query_datasets_processed(pool: &PgPool, run_name: &str) {
     .fetch_all(pool)
     .await
     .expect("failed ");
-    assert_eq!(tools_tracked.len(), 1);
+    assert_eq!(datasets_tracked.len(), 1);
 
-    let total_samples = tools_tracked.first().unwrap().1;
+    let total_samples = datasets_tracked.first().unwrap().1;
 
     assert_eq!(total_samples, 3)
 }
