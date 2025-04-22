@@ -1,5 +1,5 @@
 use once_cell::sync::Lazy;
-use rand::seq::SliceRandom;
+use rand::seq::IndexedRandom;
 use rand::Rng;
 
 static ADJECTIVES: Lazy<Vec<&str>> =
@@ -13,10 +13,10 @@ static ANIMALS: Lazy<Vec<&str>> = Lazy::new(|| {
 });
 
 pub(super) fn generate_run_name() -> String {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let adjective = ADJECTIVES.choose(&mut rng).unwrap();
     let animal = ANIMALS.choose(&mut rng).unwrap();
-    let random_number = rng.gen_range(0..100);
+    let random_number = rng.random_range(0..100);
 
     format!("{}-{}-{}", adjective, animal, random_number)
 }
