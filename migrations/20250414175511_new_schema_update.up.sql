@@ -36,6 +36,10 @@ CREATE TABLE IF NOT EXISTS batch_jobs_logs (
     child_job_ids TEXT[],
     workflow_engine TEXT,
 
+    -- Event metadata
+    event_type TEXT,
+    process_type TEXT,
+
     -- Performance/metrics fields
     ec2_cost_per_hour FLOAT,
     cpu_usage FLOAT,
