@@ -674,18 +674,22 @@ impl ProcessWatcher {
             }
         }
 
+        let dataset_set = self
+            .datasamples_tracker
+            .get(&trace_id.clone().unwrap_or_default());
+
+        let total = dataset_set.map(|set| set.len()).unwrap_or(0);
+
+        if total == 0 {
+            return; // Don't log empty dataset events
+        }
+
         // TODO change this logic
         let properties = DataSetsProcessed {
-            datasets: self
-                .datasamples_tracker
-                .get(&trace_id.clone().unwrap_or_default())
+            datasets: dataset_set
                 .map(|set| set.iter().cloned().collect::<Vec<_>>().join(", "))
                 .unwrap_or_default(),
-            total: self
-                .datasamples_tracker
-                .get(&trace_id.clone().unwrap_or_default())
-                .unwrap_or(&HashSet::new())
-                .len() as u64,
+            total: total as u64,
             trace_id,
         };
 
