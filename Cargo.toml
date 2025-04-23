@@ -4,7 +4,7 @@ members = ["src/cli", "src/cloud_providers/aws", "src/daemon", "src/client", "sr
 
 [workspace.package]
 name = "tracer"
-version = "2025.4.11"
+version = "2025.4.23"
 edition = "2021"
 authors = ["Tracer <info@tracer.cloud>"]
 homepage = "http://tracer.cloud/"
