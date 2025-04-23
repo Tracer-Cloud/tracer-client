@@ -7,7 +7,7 @@
 
 use crate::current_run::PipelineMetadata;
 use crate::event::attributes::EventAttributes;
-use crate::event::{Event, EventType, ProcessStatus, ProcessType};
+use crate::event::{Event, ProcessStatus};
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
