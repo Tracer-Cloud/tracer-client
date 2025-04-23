@@ -1,5 +1,6 @@
 # Documentation To Run eBPF Specific Functionality 
-How to run eBPF
+How to run eBPF:
+- Linux Ubuntu v22
 
 ## Running the eBPF build
 
@@ -23,7 +24,6 @@ rustup component add rust-src --toolchain nightly-aarch64-unknown-linux-gnu
 rustup toolchain install nightly
 rustup default nightly
 ```
-
 
 ### Linux Headers
 Needed for BPF program compilation:
@@ -68,3 +68,22 @@ Kernel version check:
 
 BTF File check:
 - ls -la /sys/kernel/btf/vmlinux
+
+
+### You need Aya tool to 
+at this point everything should be working, but because I generated headers for kernel 5.15 , it will crash under ubuntu with 6.8 kernel. I'm happy to update the generated file, but want to explain it to you as well: (edited) 
+
+
+```bash
+cargo install bindgen-cli
+cargo install --git https://github.com/aya-rs/aya -- aya-tool
+```
+
+### Generate new bindings with Aya
+```bash
+aya-tool generate task_struct > src/ebpf/kernel/src/gen.rs
+```
+
+
+# Tracer test 
+cargo run init --pipeline-name airflow_test --environment sandbox_test --user-operator vincent --pipeline-type rnaseq
