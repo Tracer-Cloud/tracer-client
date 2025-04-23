@@ -1,11 +1,12 @@
 pub mod attributes;
+mod utils;
 
 use crate::event::attributes::EventAttributes;
 use crate::pipeline_tags::PipelineTags;
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 use typed_builder::TypedBuilder;
 use uuid::Uuid;
 
@@ -140,6 +141,7 @@ impl TryFrom<Event> for EventInsert {
         let mut attributes = json!({});
         let mut resource_attributes = json!({});
         let mut job_id = None;
+        let mut trace_id = None;
         let parent_job_id = None;
         let child_job_ids = None;
         let workflow_engine = None;
@@ -147,7 +149,6 @@ impl TryFrom<Event> for EventInsert {
         let mut mem_used = None;
         let mut ec2_cost_per_hour = None;
         let mut processed_dataset = None;
-        let mut trace_id = None;
 
         if let Some(attr) = &event.attributes {
             match attr {
@@ -156,32 +157,32 @@ impl TryFrom<Event> for EventInsert {
                     mem_used = Some(p.process_memory_usage as f64);
                     job_id = p.job_id.clone();
                     trace_id = p.trace_id.clone();
-                    attributes = serde_json::to_value(p)
-                        .context("Failed to serialize Process attributes")?;
                 }
                 EventAttributes::SystemMetric(m) => {
                     cpu_usage = Some(m.system_cpu_utilization);
                     mem_used = Some(m.system_memory_used as f64);
-                    attributes = serde_json::to_value(m)
-                        .context("Failed to serialize SystemMetric attributes")?;
                 }
                 EventAttributes::SystemProperties(p) => {
                     ec2_cost_per_hour = p.ec2_cost_per_hour;
-                    resource_attributes =
-                        serde_json::to_value(p).context("Failed to serialize SystemProperties")?;
+
+                    // Properly flatten and assign to `resource_attributes`
+                    let mut flat = Map::new();
+                    utils::flatten_with_prefix(
+                        "system_properties",
+                        &serde_json::to_value(p).context("serialize system_properties")?,
+                        &mut flat,
+                    );
+                    resource_attributes = Value::Object(flat);
                 }
                 EventAttributes::ProcessDatasetStats(d) => {
                     processed_dataset = Some(d.total as i32);
-                    attributes = serde_json::to_value(d)
-                        .context("Failed to serialize ProcessDatasetStats")?;
-                    trace_id = d.trace_id.clone()
-                }
-                EventAttributes::Syslog(s) => {
-                    attributes =
-                        serde_json::to_value(s).context("Failed to serialize Syslog attributes")?;
+                    trace_id = d.trace_id.clone();
                 }
                 _ => {}
             }
+
+            // Flatten main attributes using utility
+            attributes = utils::flatten_event_attributes(&event)?;
         }
 
         let tags = event.tags.clone();
