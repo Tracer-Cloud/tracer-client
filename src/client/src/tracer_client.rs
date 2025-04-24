@@ -201,15 +201,15 @@ impl TracerClient {
 
         let mut buff: Vec<Event> = Vec::with_capacity(100);
         if self.rx.recv_many(&mut buff, 100).await > 0 {
-            println!("inserting: {:?}", buff);
+            debug!("inserting: {:?}", buff);
+
+            self.db_client
+                .batch_insert_events(run_name, run_id, &self.pipeline_name, buff.as_slice())
+                .await
+                .map_err(|err| anyhow::anyhow!("Error submitting batch events {:?}", err))?;
+
             buff.clear();
         }
-
-        // todo:
-        self.db_client
-            .batch_insert_events(run_name, run_id, &self.pipeline_name, buff.as_slice())
-            .await
-            .map_err(|err| anyhow::anyhow!("Error submitting batch events {:?}", err))?;
 
         Ok(())
     }
