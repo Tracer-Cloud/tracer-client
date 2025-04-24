@@ -25,7 +25,6 @@ async fn read_event_loop(
 
         for event in &data[..events.read] {
             let raw_event = unsafe { &*(event.as_ptr() as *const ProcessEnter) };
-            info!("raw_event: {:?}", raw_event); // todo: what's wrong with info?
             tx.send(raw_event.try_into()?).await?;
         }
 

@@ -130,9 +130,9 @@ impl ProcessWatcher {
 
             while rx.recv_many(&mut buff, 100).await > 0 {
                 let s = std::mem::take(&mut buff);
-                println!("^Received {:?}", s);
+                debug!("Received {:?}", s);
                 if let Err(e) = self.process_triggers(s).await {
-                    println!("Failed to process triggers: {}", e);
+                    error!("Failed to process triggers: {}", e);
                 }
             }
         }
@@ -149,7 +149,7 @@ impl ProcessWatcher {
             }
         }
 
-        println!("processes after filter: {}", processes.len());
+        debug!("processes after filter: {}", processes.len());
 
         self.process_start(processes).await?;
 
@@ -161,7 +161,7 @@ impl ProcessWatcher {
 
         let interested_in = self.process_start_processes(buff).await?;
 
-        println!(
+        debug!(
             "after refreshing, interested in {} processes",
             interested_in.len()
         );
@@ -205,7 +205,6 @@ impl ProcessWatcher {
             .collect();
 
         let matched_processes = self.match_new_processes(buff).await?;
-        println!("matched_processes={:?}", matched_processes);
 
         let interested_in: Vec<(_, _)> = matched_processes
             .into_iter()
@@ -231,7 +230,7 @@ impl ProcessWatcher {
         self: &Arc<ProcessWatcher>,
         targets: &Vec<(Target, HashSet<ProcessTrigger>)>,
     ) -> Result<()> {
-        println!("refreshing {} processes", targets.len());
+        debug!("refreshing {} processes", targets.len());
 
         let to_enrich: HashSet<usize> = targets
             .iter()
@@ -304,7 +303,7 @@ impl ProcessWatcher {
         target: &Target,
         process: &ProcessTrigger,
     ) -> Result<ProcessResult> {
-        println!("processing {} processes", process.pid);
+        debug!("processing pid={}", process.pid);
 
         let name = target
             .get_display_name_object()
@@ -331,8 +330,6 @@ impl ProcessWatcher {
                 }
             }
         };
-
-        println!("log properties, pid={}", process.pid);
 
         self.log_recorder
             .log(
