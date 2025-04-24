@@ -131,7 +131,6 @@ impl ProcessWatcher {
             while rx.recv_many(&mut buff, 100).await > 0 {
                 let s = std::mem::take(&mut buff);
                 println!("^Received {:?}", s);
-                println!("$s {:?}", self.state.read().await.processes);
                 if let Err(e) = self.process_triggers(s).await {
                     println!("Failed to process triggers: {}", e);
                 }
