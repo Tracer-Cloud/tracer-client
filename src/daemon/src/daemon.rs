@@ -5,13 +5,7 @@ use tracer_client::config_manager::Config;
 use tracer_client::exporters::db::AuroraClient;
 use tracer_client::params::TracerCliInitArgs;
 use tracer_client::TracerClient;
-use tracer_common::constants::{LOG_FILE, WORKING_DIR};
-use tracing_appender::rolling::{RollingFileAppender, Rotation};
-use tracing_subscriber::{
-    fmt::{self, time::SystemTime},
-    prelude::*,
-    EnvFilter,
-};
+use tracing::info;
 
 #[tokio::main]
 pub async fn run(
@@ -19,9 +13,6 @@ pub async fn run(
     cli_config_args: TracerCliInitArgs,
     config: Config,
 ) -> Result<()> {
-    // Set up logging first
-    setup_logging()?;
-
     // create the conn pool to aurora
     let db_client = AuroraClient::try_new(&config, None).await?;
 
@@ -31,40 +22,8 @@ pub async fn run(
         .await
         .context("Failed to create TracerClient")?;
 
-    println!("Pipeline Name: {:?}", client.get_pipeline_name());
-
+    info!("Pipeline Name: {:?}", client.get_pipeline_name());
     DaemonServer::bind(client, addr).await?.run().await
-}
-
-fn setup_logging() -> Result<()> {
-    // Set up the filter
-    let filter = EnvFilter::from("debug"); // Capture all levels from debug up
-
-    // Create a file appender that writes to daemon.log
-    let file_appender = RollingFileAppender::new(Rotation::NEVER, WORKING_DIR, "daemon.log");
-
-    // Create a custom format for the logs
-    let file_layer = fmt::layer()
-        .with_file(true)
-        .with_line_number(true)
-        .with_thread_ids(true)
-        .with_thread_names(true)
-        .with_target(true)
-        .with_level(true)
-        .with_timer(SystemTime)
-        .with_writer(file_appender);
-
-    // Set up the subscriber with our custom layer
-    let subscriber = tracing_subscriber::registry().with(filter).with(file_layer);
-
-    // Set the subscriber as the default
-    tracing::subscriber::set_global_default(subscriber)
-        .context("Failed to set tracing subscriber")?;
-
-    // Log initialization message
-    tracing::info!("Logging system initialized. Writing to {}", LOG_FILE);
-
-    Ok(())
 }
 
 pub async fn monitor_processes_with_tracer_client(tracer_client: &mut TracerClient) -> Result<()> {

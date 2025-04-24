@@ -3,7 +3,6 @@ pub mod events;
 pub mod exporters;
 
 pub mod tracer_client;
-pub mod utils;
 
 pub mod params;
 

@@ -1,4 +1,5 @@
 use crate::commands::{Cli, Commands};
+use crate::logging::setup_logging;
 use crate::nondaemon_commands::{
     clean_up_after_daemon, print_config_info, setup_config, update_tracer, wait,
 };
@@ -52,7 +53,6 @@ pub fn process_cli() -> Result<()> {
                     Outcome::Parent(Ok(_)) => {
                         tokio::runtime::Runtime::new()?.block_on(async {
                             wait(&api_client).await?;
-                            println!("Daemon started!");
                             print_config_info(&api_client, &config).await
                         })?;
                         println!("Daemon started successfully.");
@@ -66,7 +66,9 @@ pub fn process_cli() -> Result<()> {
                     Outcome::Child(Err(e)) => {
                         anyhow::bail!(e);
                     }
-                    Outcome::Child(Ok(_)) => {}
+                    Outcome::Child(Ok(_)) => {
+                        setup_logging()?;
+                    }
                 }
             }
 

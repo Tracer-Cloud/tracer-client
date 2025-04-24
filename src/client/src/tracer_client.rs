@@ -28,7 +28,7 @@ use tracer_extracts::metrics::SystemMetricsCollector;
 use tracer_extracts::process_watcher::ProcessWatcher;
 use tracer_extracts::stdout::StdoutWatcher;
 use tracer_extracts::syslog::SyslogWatcher;
-use tracing::info;
+use tracing::{debug, error, info};
 // NOTE: we might have to find a better alternative than passing the pipeline name to tracer client
 // directly. Currently with this approach, we do not need to generate a new pipeline name for every
 // new run.
@@ -80,7 +80,7 @@ impl TracerClient {
         cli_args: TracerCliInitArgs, // todo: why Config AND TracerCliInitArgs? remove CliInitArgs
     ) -> Result<TracerClient> {
         // todo: do we need both config with db connection AND db_client?
-        println!("Initializing TracerClient with API Key: {}", config.api_key);
+        info!("Initializing TracerClient with API Key: {}", config.api_key);
 
         let pricing_client = PricingClient::new(config.aws_init_type.clone(), "us-east-1").await;
 
@@ -188,7 +188,7 @@ impl TracerClient {
             .map(|st| st.id.as_str())
             .unwrap_or("anonymous");
 
-        info!(
+        debug!(
             "Submitting batched data for pipeline {} and run_name {}",
             self.pipeline_name, run_name
         );
@@ -508,7 +508,6 @@ mod tests {
         // submit_batched_data
         let res = client.submit_batched_data().await;
 
-        println!("{res:?}");
         assert!(res.is_ok());
 
         // Prepare the SQL query
