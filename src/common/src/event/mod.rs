@@ -177,10 +177,7 @@ impl TryFrom<Event> for EventInsert {
                     job_id = p.job_id.clone();
                     trace_id = p.trace_id.clone();
                 }
-                EventAttributes::Process(ProcessProperties::ShortLived(p)) => {
-                    attributes = serde_json::to_value(p)
-                        .context("Failed to serialize Process attributes")?;
-                }
+                EventAttributes::Process(ProcessProperties::ShortLived(p)) => {}
                 EventAttributes::SystemMetric(m) => {
                     cpu_usage = Some(m.system_cpu_utilization);
                     mem_used = Some(m.system_memory_used as f64);
