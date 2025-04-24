@@ -17,10 +17,10 @@ use tokio::fs;
 use tokio::sync::RwLock;
 use tracer_aws::config::PricingClient;
 use tracer_common::constants::{DEFAULT_SERVICE_URL, FILE_CACHE_DIR};
-use tracer_common::event::attributes::EventAttributes;
-use tracer_common::event::ProcessStatus;
-use tracer_common::pipeline_tags::PipelineTags;
 use tracer_common::recorder::EventRecorder;
+use tracer_common::types::event::attributes::EventAttributes;
+use tracer_common::types::event::ProcessStatus;
+use tracer_common::types::pipeline_tags::PipelineTags;
 use tracer_common::types::LinesBufferArc;
 use tracer_extracts::file_watcher::FileWatcher;
 use tracer_extracts::metrics::SystemMetricsCollector;
@@ -453,7 +453,6 @@ mod tests {
     use sqlx::types::Json;
     use std::path::Path;
     use tempfile::tempdir;
-    use tracer_common::pipeline_tags::PipelineTags;
 
     #[tokio::test]
     async fn test_submit_batched_data() -> Result<()> {

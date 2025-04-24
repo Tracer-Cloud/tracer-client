@@ -1,6 +1,6 @@
 // src/process_watcher.rs
 
-use tracer_common::event::ProcessStatus as TracerProcessStatus;
+use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 
 use crate::data_samples::DATA_SAMPLES_EXT;
 use crate::file_watcher::FileWatcher;
@@ -13,12 +13,12 @@ use std::collections::{hash_map::Entry::Vacant, HashSet};
 use std::path::Path;
 use std::time::Duration;
 use sysinfo::{Pid, Process, ProcessStatus, System};
-use tracer_common::event::attributes::process::{
-    CompletedProcess, DataSetsProcessed, InputFile, ProcessProperties,
-};
-use tracer_common::event::attributes::EventAttributes;
 use tracer_common::recorder::EventRecorder;
 use tracer_common::target_process::{Target, TargetMatchable};
+use tracer_common::types::event::attributes::process::{
+    CompletedProcess, DataSetsProcessed, InputFile, ProcessProperties,
+};
+use tracer_common::types::event::attributes::EventAttributes;
 
 pub struct ProcessWatcher {
     targets: Vec<Target>,
