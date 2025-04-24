@@ -44,6 +44,12 @@ unsafe fn try_sched_process_exec(ctx: BtfTracePointContext) -> Result<i64, i64> 
     let event = &mut *event;
     event.pid = (*task).pid;
 
+    let parent_task_struct = (*task).real_parent as *const task_struct;
+
+    if !parent_task_struct.is_null() {
+        event.ppid = (*parent_task_struct).pid;
+    }
+
     let mm = bpf_probe_read::<*mut mm_struct>((*task).mm as *const *mut _)?;
     if mm.is_null() {
         return Err(-1);
