@@ -25,7 +25,6 @@ tracer_client = { workspace = true }
 tracer_daemon = { workspace = true }
 tracing-subscriber = { workspace = true }
 tracing-log = { workspace = true }
-tracing-loki = { workspace = true }
 tracing-appender = { workspace = true }
 
 
