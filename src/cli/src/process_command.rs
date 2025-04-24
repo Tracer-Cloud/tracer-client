@@ -7,14 +7,12 @@ use clap::Parser;
 use daemonize::{Daemonize, Outcome};
 use std::fs::File;
 use std::{env, fs::canonicalize};
-use sysinfo::System;
 use tracer_client::config_manager::{Config, ConfigManager};
 use tracer_common::constants::{PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR};
 use tracer_common::debug_log::Logger;
 use tracer_daemon::client::DaemonClient;
 use tracer_daemon::daemon::run;
 use tracer_daemon::structs::{LogData, Message, TagData, UploadData};
-use tracer_extracts::process_watcher::ProcessWatcher;
 
 pub fn start_daemon() -> Outcome<()> {
     let _ = std::fs::create_dir_all(WORKING_DIR);
@@ -160,7 +158,7 @@ pub async fn run_async_command(
         }
         Commands::LogShortLivedProcess { command } => {
             let data = LogData {
-                log: ProcessWatcher::gather_short_lived_process_data(&System::new(), &command),
+                // log: ProcessWatcher::gather_short_lived_process_data(&System::new(), &command),
             };
             api_client
                 .send_log_short_lived_process_request(data)

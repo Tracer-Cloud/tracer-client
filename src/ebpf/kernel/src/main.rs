@@ -31,7 +31,8 @@ pub fn sched_process_exec(ctx: BtfTracePointContext) -> i64 {
 unsafe fn try_sched_process_exec(ctx: BtfTracePointContext) -> Result<i64, i64> {
     info!(&ctx, "tracepoint sched_process_exec called");
 
-    let task: *mut task_struct = bpf_get_current_task_btf() as *mut task_struct;
+    let task: *const task_struct = unsafe { ctx.arg(0) };
+
     if task.is_null() {
         return Err(-1);
     }

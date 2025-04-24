@@ -75,15 +75,17 @@ impl SyslogWatcher {
     pub async fn poll_syslog(
         &mut self,
         pending_lines: Arc<RwLock<Vec<String>>>,
-        system: &mut System,
+        system_metrics_collector: &SystemMetricsCollector,
     ) -> Result<()> {
         let mut lines = pending_lines.write().await;
         let errors = self.grep_pattern_errors(&lines).unwrap();
         lines.clear();
 
         if !errors.is_empty() {
-            let system_properties =
-                SystemMetricsCollector::gather_metrics_object_attributes(system);
+            let system_properties = system_metrics_collector
+                .gather_metrics_object_attributes()
+                .await;
+
             for error in errors {
                 let attributes = SyslogProperties {
                     system_metrics: system_properties.clone(),

@@ -130,7 +130,10 @@ async fn refresh_config(
 
     {
         let mut guard = state.tracer_client.lock().await;
-        guard.reload_config_file(config_file.clone());
+        guard
+            .reload_config_file(config_file.clone())
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     }
 
     state.config.write().await.clone_from(&config_file);
@@ -156,10 +159,12 @@ async fn log_short_lived_process_command(
     Json(payload): Json<LogData>,
 ) -> axum::response::Result<impl IntoResponse> {
     let mut guard = state.tracer_client.lock().await;
-    guard
-        .fill_logs_with_short_lived_process(payload.log)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    todo!();
+    // guard
+    //     .fill_logs_with_short_lived_process(payload.log)
+    //     .await
+    //     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(StatusCode::CREATED)
 }
@@ -171,9 +176,8 @@ async fn info(State(state): State<AppState>) -> axum::response::Result<impl Into
 
     let response_inner = InnerInfoResponse::try_from(pipeline).ok();
 
-    let process_watcher = guard.process_watcher.read().await;
-    let preview = process_watcher.preview_targets();
-    let preview_len = process_watcher.preview_targets_count();
+    let preview = guard.process_watcher.preview_targets(10).await;
+    let preview_len = guard.process_watcher.targets_len().await;
 
     let output = InfoResponse::new(preview, preview_len, response_inner);
 

@@ -4,7 +4,6 @@ use chrono::{DateTime, TimeDelta, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tracer_common::current_run::PipelineMetadata;
-use tracer_extracts::process_watcher::ShortLivedProcessLog;
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct InfoResponse {
@@ -83,9 +82,7 @@ pub struct TagData {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
-pub struct LogData {
-    pub log: ShortLivedProcessLog,
-}
+pub struct LogData {}
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct UploadData {

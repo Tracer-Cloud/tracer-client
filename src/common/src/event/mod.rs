@@ -11,6 +11,7 @@ use uuid::Uuid;
 
 use anyhow::Context;
 
+use crate::event::attributes::process::ProcessProperties;
 use std::convert::TryFrom;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq)]
@@ -151,11 +152,15 @@ impl TryFrom<Event> for EventInsert {
 
         if let Some(attr) = &event.attributes {
             match attr {
-                EventAttributes::Process(p) => {
+                EventAttributes::Process(ProcessProperties::Full(p)) => {
                     cpu_usage = Some(p.process_cpu_utilization);
                     mem_used = Some(p.process_memory_usage as f64);
                     job_id = p.job_id.clone();
                     trace_id = p.trace_id.clone();
+                    attributes = serde_json::to_value(p)
+                        .context("Failed to serialize Process attributes")?;
+                }
+                EventAttributes::Process(ProcessProperties::ShortLived(p)) => {
                     attributes = serde_json::to_value(p)
                         .context("Failed to serialize Process attributes")?;
                 }

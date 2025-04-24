@@ -2,7 +2,9 @@
 use anyhow::Result;
 use chrono::Utc;
 use std::collections::HashMap;
+use std::sync::Arc;
 use sysinfo::{Disks, System};
+use tokio::sync::RwLock;
 use tracer_common::event::attributes::system_metrics::{DiskStatistic, SystemMetric};
 use tracer_common::event::attributes::EventAttributes;
 use tracer_common::event::ProcessStatus;
@@ -10,11 +12,15 @@ use tracer_common::recorder::StructLogRecorder;
 
 pub struct SystemMetricsCollector {
     log_recorder: StructLogRecorder,
+    system: Arc<RwLock<System>>,
 }
 
 impl SystemMetricsCollector {
-    pub fn new(log_recorder: StructLogRecorder) -> Self {
-        Self { log_recorder }
+    pub fn new(log_recorder: StructLogRecorder, system: Arc<RwLock<System>>) -> Self {
+        Self {
+            log_recorder,
+            system,
+        }
     }
 
     pub fn gather_disk_data() -> HashMap<String, DiskStatistic> {
@@ -45,7 +51,9 @@ impl SystemMetricsCollector {
         d_stats
     }
 
-    pub fn gather_metrics_object_attributes(system: &mut System) -> SystemMetric {
+    pub async fn gather_metrics_object_attributes(&self) -> SystemMetric {
+        let system = self.system.read().await;
+
         let used_memory = system.used_memory();
         let total_memory = system.total_memory();
         // System::host_name()
@@ -68,9 +76,9 @@ impl SystemMetricsCollector {
         }
     }
 
-    pub async fn collect_metrics(&self, system: &mut System) -> Result<()> {
+    pub async fn collect_metrics(&self) -> Result<()> {
         let attributes =
-            EventAttributes::SystemMetric(Self::gather_metrics_object_attributes(system));
+            EventAttributes::SystemMetric(self.gather_metrics_object_attributes().await);
 
         self.log_recorder
             .log(

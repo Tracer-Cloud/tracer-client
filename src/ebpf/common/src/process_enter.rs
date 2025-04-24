@@ -6,6 +6,8 @@ pub const MAX_NUM_ARGS: usize = 5;
 #[derive(Debug)]
 pub struct ProcessEnter {
     pub pid: i32,
+    pub ppid: i32,
+
     pub comm: [u8; 16], // todo: use TASK_COMM_LEN
 
     pub file_name: [u8; 32],
@@ -17,6 +19,7 @@ pub struct ProcessEnter {
 impl ProcessEnter {
     pub const EMPTY: Self = Self {
         pid: 0,
+        ppid: 0,
         file_name: [0; 32],
         argv: [[0; ARGS_MAX_LEN]; MAX_NUM_ARGS],
         len: 0,
@@ -35,12 +38,16 @@ pub fn from_bpf_str(s: &[u8]) -> anyhow::Result<&str> {
 }
 
 #[cfg(feature = "user")]
+use tracer_common::trigger::ProcessTrigger;
+
+#[cfg(feature = "user")]
 impl TryInto<tracer_common::trigger::Trigger> for &ProcessEnter {
     type Error = anyhow::Error;
 
     fn try_into(self) -> Result<tracer_common::trigger::Trigger, Self::Error> {
-        Ok(tracer_common::trigger::Trigger::Start {
-            pid: self.pid as u32,
+        Ok(tracer_common::trigger::Trigger::Start(ProcessTrigger {
+            pid: self.pid as usize,
+            ppid: self.ppid as usize,
             file_name: from_bpf_str(self.file_name.as_slice())?.to_string(),
             comm: from_bpf_str(self.comm.as_slice())?.to_string(),
             argv: self
@@ -49,6 +56,6 @@ impl TryInto<tracer_common::trigger::Trigger> for &ProcessEnter {
                 .take(self.len)
                 .map(|x| from_bpf_str(x).unwrap().to_string())
                 .collect(), // todo: improve
-        })
+        }))
     }
 }

@@ -15,6 +15,7 @@ use sysinfo::System;
 use tokio::fs;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::{mpsc, RwLock};
+use tokio::task::spawn_blocking;
 use tracer_aws::config::PricingClient;
 use tracer_common::constants::{DEFAULT_SERVICE_URL, FILE_CACHE_DIR};
 use tracer_common::current_run::{PipelineMetadata, Run};
@@ -24,7 +25,7 @@ use tracer_common::recorder::StructLogRecorder;
 use tracer_common::types::LinesBufferArc;
 use tracer_extracts::file_watcher::FileWatcher;
 use tracer_extracts::metrics::SystemMetricsCollector;
-use tracer_extracts::process_watcher::{ProcessWatcher, ShortLivedProcessLog};
+use tracer_extracts::process_watcher::ProcessWatcher;
 use tracer_extracts::stdout::StdoutWatcher;
 use tracer_extracts::syslog::SyslogWatcher;
 use tracing::info;
@@ -39,13 +40,15 @@ const RUN_COMPLICATED_PROCESS_IDENTIFICATION: bool = false;
 const WAIT_FOR_PROCESS_BEFORE_NEW_RUN: bool = false;
 
 pub struct TracerClient {
-    system: System,
+    system: Arc<RwLock<System>>, // todo: use arc swap
     last_sent: Option<Instant>,
     interval: Duration,
     last_interaction_new_run_duration: Duration,
     process_metrics_send_interval: Duration,
     last_file_size_change_time_delta: TimeDelta,
-    pub process_watcher: Arc<RwLock<ProcessWatcher>>,
+
+    pub process_watcher: Arc<ProcessWatcher>,
+
     syslog_watcher: SyslogWatcher,
     stdout_watcher: StdoutWatcher,
     metrics_collector: SystemMetricsCollector,
@@ -54,6 +57,7 @@ pub struct TracerClient {
 
     pipeline: Arc<RwLock<PipelineMetadata>>,
 
+    // todo: switch to channels
     syslog_lines_buffer: LinesBufferArc,
     stdout_lines_buffer: LinesBufferArc,
     stderr_lines_buffer: LinesBufferArc,
@@ -94,14 +98,16 @@ impl TracerClient {
         }));
 
         let (tx, rx) = mpsc::channel::<Event>(100);
-
         let log_recorder = StructLogRecorder::new(pipeline.clone(), tx.clone());
 
-        let process_watcher = Arc::new(RwLock::new(ProcessWatcher::new(
+        let system = Arc::new(RwLock::new(System::new_all()));
+
+        let process_watcher = Arc::new(ProcessWatcher::new(
             config.targets.clone(),
             log_recorder.clone(),
             file_watcher.clone(),
-        )));
+            system.clone(),
+        ));
 
         Ok(TracerClient {
             // if putting a value to config, also update `TracerClient::reload_config_file`
@@ -113,8 +119,7 @@ impl TracerClient {
             last_file_size_change_time_delta: TimeDelta::milliseconds(
                 config.file_size_not_changing_period_ms as i64,
             ),
-            // updated values
-            system: System::new_all(),
+            system: system.clone(),
             last_sent: None,
 
             pipeline,
@@ -128,7 +133,7 @@ impl TracerClient {
             stdout_lines_buffer: Arc::new(RwLock::new(Vec::new())),
             stderr_lines_buffer: Arc::new(RwLock::new(Vec::new())),
             process_watcher,
-            metrics_collector: SystemMetricsCollector::new(log_recorder.clone()),
+            metrics_collector: SystemMetricsCollector::new(log_recorder.clone(), system.clone()),
             db_client,
             pricing_client,
             config,
@@ -140,29 +145,18 @@ impl TracerClient {
         })
     }
 
-    pub async fn reload_config_file(&mut self, config: Config) {
+    pub async fn reload_config_file(&mut self, config: Config) -> Result<()> {
         self.interval = Duration::from_millis(config.process_polling_interval_ms);
         self.process_watcher
-            .write()
-            .await
-            .reload_targets(config.targets.clone());
-        self.config = config.clone()
+            .update_targets(config.targets.clone())
+            .await?;
+        self.config = config;
+
+        Ok(())
     }
 
     pub async fn start_monitoring(&mut self) -> Result<()> {
-        ProcessWatcher::start_ebpf(Arc::clone(&self.process_watcher)).await
-    }
-
-    pub async fn fill_logs_with_short_lived_process(
-        &mut self,
-        short_lived_process_log: ShortLivedProcessLog,
-    ) -> Result<()> {
-        self.process_watcher
-            .write()
-            .await
-            .fill_logs_with_short_lived_process(short_lived_process_log)
-            .await?;
-        Ok(())
+        self.process_watcher.start_ebpf().await
     }
 
     pub fn get_syslog_lines_buffer(&self) -> LinesBufferArc {
@@ -198,10 +192,11 @@ impl TracerClient {
         );
 
         if self.last_sent.is_none() || Instant::now() - self.last_sent.unwrap() >= self.interval {
-            self.metrics_collector
-                .collect_metrics(&mut self.system)
-                .await
-                .context("Failed to collect metrics")?;
+            // todo: rollback
+            // self.metrics_collector
+            //     .collect_metrics()
+            //     .await
+            //     .context("Failed to collect metrics")?;
 
             let mut buff: Vec<Event> = Vec::with_capacity(100);
 
@@ -233,50 +228,50 @@ impl TracerClient {
     }
 
     pub async fn run_cleanup(&mut self) -> Result<()> {
-        let process_watcher = self.process_watcher.read().await;
-        let mut pipeline = self.pipeline.write().await;
-
-        if let Some(run) = pipeline.run.as_mut() {
-            if !RUN_COMPLICATED_PROCESS_IDENTIFICATION {
-                return Ok(());
-            }
-            if run.last_interaction.elapsed() > self.last_interaction_new_run_duration {
-                self.log_recorder
-                    .log_with_metadata(
-                        ProcessStatus::FinishedRun,
-                        "Run ended due to inactivity".to_string(),
-                        None,
-                        None,
-                        &pipeline,
-                    )
-                    .await?;
-                pipeline.run = None;
-            } else if run.parent_pid.is_none() && !process_watcher.is_empty() {
-                run.parent_pid = process_watcher
-                    .get_parent_pid(Some(run.start_time))
-                    .map(|pid| pid.into());
-            } else if run.parent_pid.is_some() {
-                let parent_pid = run.parent_pid.unwrap();
-                if !process_watcher.is_process_alive(&self.system, parent_pid.into()) {
-                    self.log_recorder
-                        .log_with_metadata(
-                            ProcessStatus::FinishedRun,
-                            "Run ended due to parent process termination".to_string(),
-                            None,
-                            None,
-                            &pipeline,
-                        )
-                        .await?;
-                    pipeline.run = None;
-                }
-            }
-        } else if !WAIT_FOR_PROCESS_BEFORE_NEW_RUN || !process_watcher.is_empty() {
-            drop(pipeline);
-            let earliest_process_time = process_watcher.get_earliest_process_time();
-            drop(process_watcher);
-            self.start_new_run(Some(earliest_process_time.sub(Duration::from_millis(1))))
-                .await?;
-        }
+        // let process_watcher = self.process_watcher.read().await;
+        // let mut pipeline = self.pipeline.write().await;
+        //
+        // if let Some(run) = pipeline.run.as_mut() {
+        //     if !RUN_COMPLICATED_PROCESS_IDENTIFICATION {
+        //         return Ok(());
+        //     }
+        //     if run.last_interaction.elapsed() > self.last_interaction_new_run_duration {
+        //         self.log_recorder
+        //             .log_with_metadata(
+        //                 ProcessStatus::FinishedRun,
+        //                 "Run ended due to inactivity".to_string(),
+        //                 None,
+        //                 None,
+        //                 &pipeline,
+        //             )
+        //             .await?;
+        //         pipeline.run = None;
+        //     } else if run.parent_pid.is_none() && !process_watcher.is_empty() {
+        //         run.parent_pid = process_watcher
+        //             .get_parent_pid(Some(run.start_time))
+        //             .map(|pid| pid.into());
+        //     } else if run.parent_pid.is_some() {
+        //         let parent_pid = run.parent_pid.unwrap();
+        //         if !process_watcher.is_process_alive(parent_pid.into()).await {
+        //             self.log_recorder
+        //                 .log_with_metadata(
+        //                     ProcessStatus::FinishedRun,
+        //                     "Run ended due to parent process termination".to_string(),
+        //                     None,
+        //                     None,
+        //                     &pipeline,
+        //                 )
+        //                 .await?;
+        //             pipeline.run = None;
+        //         }
+        //     }
+        // } else if !WAIT_FOR_PROCESS_BEFORE_NEW_RUN || !process_watcher.is_empty() {
+        //     drop(pipeline);
+        //     let earliest_process_time = process_watcher.get_earliest_process_time();
+        //     drop(process_watcher);
+        //     self.start_new_run(Some(earliest_process_time.sub(Duration::from_millis(1))))
+        //         .await?;
+        // }
         Ok(())
     }
 
@@ -288,7 +283,7 @@ impl TracerClient {
         }
 
         let result = send_start_run_event(
-            &self.system,
+            &*self.system.read().await,
             &self.pipeline_name,
             &self.pricing_client,
             &self.initialization_id,
@@ -350,36 +345,22 @@ impl TracerClient {
 
     /// These functions require logs and the system
     pub async fn poll_processes(&mut self) -> Result<()> {
-        self.process_watcher
-            .write()
-            .await
-            .poll_processes(&mut self.system)
-            .await?;
-
-        if !self.process_watcher.read().await.is_empty() {
-            if let Some(run) = self.pipeline.write().await.run.as_mut() {
-                run.last_interaction = Instant::now();
-            }
-        }
+        // self.process_watcher
+        //     .write()
+        //     .await
+        //     .poll_processes()
+        //     .await?;
+        //
+        // if !self.process_watcher.read().await.is_empty() {
+        //     if let Some(run) = self.pipeline.write().await.run.as_mut() {
+        //         run.last_interaction = Instant::now();
+        //     }
+        // }
 
         Ok(())
     }
 
     pub async fn poll_process_metrics(&mut self) -> Result<()> {
-        self.process_watcher
-            .write()
-            .await
-            .poll_process_metrics(&self.system, self.process_metrics_send_interval)
-            .await?;
-        Ok(())
-    }
-
-    pub async fn remove_completed_processes(&mut self) -> Result<()> {
-        self.process_watcher
-            .write()
-            .await
-            .remove_completed_processes(&mut self.system)
-            .await?;
         Ok(())
     }
 
@@ -399,7 +380,7 @@ impl TracerClient {
 
     pub async fn poll_syslog(&mut self) -> Result<()> {
         self.syslog_watcher
-            .poll_syslog(self.get_syslog_lines_buffer(), &mut self.system)
+            .poll_syslog(self.get_syslog_lines_buffer(), &self.metrics_collector)
             .await
     }
 
@@ -425,15 +406,10 @@ impl TracerClient {
             .await
     }
 
-    pub fn refresh_sysinfo(&mut self) {
-        self.system.refresh_all();
-    }
+    pub async fn refresh_sysinfo(&mut self) -> Result<()> {
+        self.system.write().await.refresh_all();
 
-    pub async fn reset_just_started_process_flag(&mut self) {
-        self.process_watcher
-            .write()
-            .await
-            .reset_just_started_process_flag();
+        Ok(())
     }
 
     pub fn get_service_url(&self) -> &str {
