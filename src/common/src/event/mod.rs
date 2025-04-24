@@ -1,11 +1,12 @@
 pub mod attributes;
+mod utils;
 
 use crate::event::attributes::EventAttributes;
 use crate::pipeline_tags::PipelineTags;
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 use typed_builder::TypedBuilder;
 use uuid::Uuid;
 
@@ -19,11 +20,26 @@ use std::convert::TryFrom;
 pub enum EventType {
     ProcessStatus,
 }
+impl std::fmt::Display for EventType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            &EventType::ProcessStatus => write!(f, "process_status"),
+        }
+    }
+}
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum ProcessType {
     Pipeline,
+}
+
+impl std::fmt::Display for ProcessType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            &ProcessType::Pipeline => write!(f, "pipeline"),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq)]
@@ -99,7 +115,7 @@ pub struct Event {
 
 // TODO: would be removed in next pr
 pub struct EventInsert {
-    pub event_timestamp: DateTime<Utc>,
+    pub timestamp: DateTime<Utc>,
     pub body: String,
     pub severity_text: Option<String>,
     pub severity_number: Option<i16>,
@@ -114,6 +130,9 @@ pub struct EventInsert {
     pub user_operator: Option<String>,
     pub organization_id: Option<String>,
     pub department: Option<String>,
+
+    pub event_type: String,
+    pub process_type: String,
 
     pub run_id: String,
     pub run_name: String,
@@ -141,6 +160,7 @@ impl TryFrom<Event> for EventInsert {
         let mut attributes = json!({});
         let mut resource_attributes = json!({});
         let mut job_id = None;
+        let mut trace_id = None;
         let parent_job_id = None;
         let child_job_ids = None;
         let workflow_engine = None;
@@ -148,7 +168,6 @@ impl TryFrom<Event> for EventInsert {
         let mut mem_used = None;
         let mut ec2_cost_per_hour = None;
         let mut processed_dataset = None;
-        let mut trace_id = None;
 
         if let Some(attr) = &event.attributes {
             match attr {
@@ -157,8 +176,6 @@ impl TryFrom<Event> for EventInsert {
                     mem_used = Some(p.process_memory_usage as f64);
                     job_id = p.job_id.clone();
                     trace_id = p.trace_id.clone();
-                    attributes = serde_json::to_value(p)
-                        .context("Failed to serialize Process attributes")?;
                 }
                 EventAttributes::Process(ProcessProperties::ShortLived(p)) => {
                     attributes = serde_json::to_value(p)
@@ -167,32 +184,34 @@ impl TryFrom<Event> for EventInsert {
                 EventAttributes::SystemMetric(m) => {
                     cpu_usage = Some(m.system_cpu_utilization);
                     mem_used = Some(m.system_memory_used as f64);
-                    attributes = serde_json::to_value(m)
-                        .context("Failed to serialize SystemMetric attributes")?;
                 }
                 EventAttributes::SystemProperties(p) => {
                     ec2_cost_per_hour = p.ec2_cost_per_hour;
-                    resource_attributes =
-                        serde_json::to_value(p).context("Failed to serialize SystemProperties")?;
+
+                    // Properly flatten and assign to `resource_attributes`
+                    let mut flat = Map::new();
+                    utils::flatten_with_prefix(
+                        "system_properties",
+                        &serde_json::to_value(p).context("serialize system_properties")?,
+                        &mut flat,
+                    );
+                    resource_attributes = Value::Object(flat);
                 }
                 EventAttributes::ProcessDatasetStats(d) => {
                     processed_dataset = Some(d.total as i32);
-                    attributes = serde_json::to_value(d)
-                        .context("Failed to serialize ProcessDatasetStats")?;
-                    trace_id = d.trace_id.clone()
-                }
-                EventAttributes::Syslog(s) => {
-                    attributes =
-                        serde_json::to_value(s).context("Failed to serialize Syslog attributes")?;
+                    trace_id = d.trace_id.clone();
                 }
                 _ => {}
             }
+
+            // Flatten main attributes using utility
+            attributes = utils::flatten_event_attributes(&event)?;
         }
 
         let tags = event.tags.clone();
 
         Ok(EventInsert {
-            event_timestamp: event.timestamp,
+            timestamp: event.timestamp,
             body: event.body,
             severity_text: event.severity_text,
             severity_number: event.severity_number.map(|v| v as i16),
@@ -207,6 +226,9 @@ impl TryFrom<Event> for EventInsert {
             user_operator: tags.clone().map(|t| t.user_operator),
             organization_id: tags.clone().map(|t| t.organization_id).unwrap_or_default(),
             department: tags.clone().map(|t| t.department),
+
+            event_type: event.event_type.to_string(),
+            process_type: event.process_type.to_string(),
 
             run_id: event.run_id.unwrap_or_default(),
             run_name: event.run_name.unwrap_or_default(),

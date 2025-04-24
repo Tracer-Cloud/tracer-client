@@ -17,10 +17,30 @@ async fn test_parallel_mode_works() {
     // Step 2: Monitor the container and wait for it to finish
     let docker = Docker::connect_with_local_defaults().expect("Failed to connect to Docker");
 
+    let log_handle = tokio::spawn({
+        let docker = docker.clone();
+        async move {
+            common::print_all_container_logs(&docker).await;
+            common::dump_container_file_for_all_matching(
+                &docker,
+                container_name,
+                "/tmp/tracer/tracerd.out",
+            )
+            .await;
+            common::dump_container_file_for_all_matching(
+                &docker,
+                container_name,
+                "/tmp/tracer/tracerd.err",
+            )
+            .await;
+        }
+    });
+
     common::monitor_container(&docker, container_name).await;
 
     // Step 3: Query the database and make assertions
     let run_name = "parallel-tag";
+    let _ = log_handle.await;
 
     query_and_assert_parallel_mode(&pool, run_name).await;
 
@@ -30,7 +50,7 @@ async fn test_parallel_mode_works() {
 async fn query_and_assert_parallel_mode(pool: &PgPool, run_name: &str) {
     let tools_tracked: Vec<(i64,)> = sqlx::query_as(
         r#"
-            SELECT COUNT(DISTINCT resource_attributes->>'hostname') AS unique_hosts
+            SELECT COUNT(DISTINCT resource_attributes->>'system_properties.hostname') AS unique_hosts
             FROM batch_jobs_logs
             WHERE run_name = $1;
         "#,

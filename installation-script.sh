@@ -17,7 +17,7 @@
 #-------------------------------------------------------------------------------
 # https://github.com/Tracer-Cloud/tracer-client/releases/download/v0.0.8/tracer-universal-apple-darwin.tar.gz
 SCRIPT_VERSION="v0.0.1"
-TRACER_VERSION="v2025.4.11"
+TRACER_VERSION="v2025.4.23"
 TRACER_LINUX_URL_X86_64="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-x86_64-unknown-linux-gnu.tar.gz"
 TRACER_LINUX_URL_ARM="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-aarch64-unknown-linux-gnu.tar.gz"
 TRACER_MACOS_AARCH_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-aarch64-apple-darwin.tar.gz"
@@ -435,14 +435,14 @@ polling_interval_ms = 1500
 api_key = "$API_KEY"
 service_url = "https://app.tracer.bio/api"
 process_polling_interval_ms = 25
-batch_submission_interval_ms = 10000
+batch_submission_interval_ms = 3000
 new_run_pause_ms = 600000
 file_size_not_changing_period_ms = 60000
 process_metrics_send_interval_ms = 10000
 aws_region = "us-east-2"
 aws_role_arn = "arn:aws:iam::395261708130:role/TestTracerClientServiceRole"
 database_secrets_arn = "arn:aws:secretsmanager:us-east-1:395261708130:secret:rds!cluster-cd690a09-953c-42e9-9d9f-1ed0b434d226-M0wZYA"
-database_host = "tracer-cluster-v2-instance-1.cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432"
+database_host = "tracer-cluster-production.cluster-ro-cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432"
 database_name = "tracer_db"
 grafana_workspace_url = "https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com"
 EOL

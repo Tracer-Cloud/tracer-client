@@ -45,17 +45,19 @@ async fn test_queries_works() {
     query_and_assert_tool_tracked(&pool, run_name).await;
 
     query_datasets_processed(&pool, run_name).await;
+
+    common::end_docker_compose(container_name).await;
 }
 
 async fn query_and_assert_tool_tracked(pool: &PgPool, run_name: &str) {
     let tools_tracked: Vec<(String,)> = sqlx::query_as(
         r#"
-            SELECT DISTINCT(attributes->>'tool_name') AS tool_name
+            SELECT DISTINCT(attributes->>'process.tool_name') AS tool_name
             FROM batch_jobs_logs
             WHERE 
             run_name = $1
             AND
-            attributes ->> 'tool_name' IS NOT NULL;
+            attributes ->> 'process.tool_name' IS NOT NULL;
         "#,
     )
     .bind(run_name)
@@ -74,7 +76,7 @@ async fn query_datasets_processed(pool: &PgPool, run_name: &str) {
         r#"
             SELECT 
                 process_status,
-                MAX((attributes ->> 'total')::BIGINT) AS total_samples
+                MAX((attributes ->> 'processed_dataset_stats.total')::BIGINT) AS total_samples
             FROM batch_jobs_logs
             WHERE process_status = 'datasets_in_process'
             AND run_name = $1

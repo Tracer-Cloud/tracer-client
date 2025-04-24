@@ -188,31 +188,6 @@ pub async fn print_all_container_logs(docker: &Docker) {
     }
 }
 
-pub fn dump_container_file(container: &str, file_path: &str) {
-    let output = Command::new("docker")
-        .arg("exec")
-        .arg(container)
-        .arg("cat")
-        .arg(file_path)
-        .output()
-        .expect("Failed to exec into container");
-
-    if output.status.success() {
-        println!(
-            "📄 Contents of `{}` in container `{}`:\n{}",
-            file_path,
-            container,
-            String::from_utf8_lossy(&output.stdout)
-        );
-    } else {
-        eprintln!(
-            "❌ Error reading `{}`: {}",
-            file_path,
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
-}
-
 pub async fn dump_container_file_for_all_matching(
     docker: &Docker,
     container_prefix: &str,

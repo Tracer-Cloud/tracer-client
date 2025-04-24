@@ -79,21 +79,22 @@ impl AuroraClient {
         let now = std::time::Instant::now();
 
         const QUERY: &str = "INSERT INTO batch_jobs_logs (
-                timestamp, body, severity_text, severity_number,
-                trace_id, span_id,
-                source_type, instrumentation_version, instrumentation_type,
-                environment, pipeline_type, user_operator, organization_id, department,
-                run_id, run_name, pipeline_name,
-                job_id, parent_job_id, child_job_ids, workflow_engine,
-                ec2_cost_per_hour, cpu_usage, mem_used, processed_dataset,
-                process_status,
-                attributes, resource_attributes, tags
-            )";
+            timestamp, body, severity_text, severity_number,
+            trace_id, span_id,
+            source_type, instrumentation_version, instrumentation_type,
+            environment, pipeline_type, user_operator, organization_id, department,
+            run_id, run_name, pipeline_name,
+            job_id, parent_job_id, child_job_ids, workflow_engine,
+            ec2_cost_per_hour, cpu_usage, mem_used, processed_dataset,
+            process_status, event_type, process_type,
+            attributes, resource_attributes, tags
+        )";
+
         // when updating query, also update params
-        const PARAMS: usize = 29;
+        const PARAMS: usize = 31;
 
         fn _push_tuple(mut b: Separated<Postgres, &str>, event: EventInsert) {
-            b.push_bind(event.event_timestamp.naive_utc())
+            b.push_bind(event.timestamp.naive_utc())
                 .push_bind(event.body)
                 .push_bind(event.severity_text)
                 .push_bind(event.severity_number)
@@ -119,6 +120,8 @@ impl AuroraClient {
                 .push_bind(event.mem_used)
                 .push_bind(event.processed_dataset)
                 .push_bind(event.process_status)
+                .push_bind(event.event_type)
+                .push_bind(event.process_type)
                 .push_bind(event.attributes)
                 .push_bind(event.resource_attributes)
                 .push_bind(event.tags);
