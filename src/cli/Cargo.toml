@@ -23,6 +23,11 @@ tracer_common = { workspace = true }
 tracer_extracts = { workspace = true }
 tracer_client = { workspace = true }
 tracer_daemon = { workspace = true }
+tracing-subscriber = { workspace = true }
+tracing-log = { workspace = true }
+tracing-loki = { workspace = true }
+tracing-appender = { workspace = true }
+
 
 [dev-dependencies]
 tracer_aws = { workspace = true }

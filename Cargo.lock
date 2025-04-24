@@ -4798,6 +4798,10 @@ dependencies = [
  "tracer_daemon",
  "tracer_extracts",
  "tracing",
+ "tracing-appender",
+ "tracing-log",
+ "tracing-loki",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -4826,9 +4830,6 @@ dependencies = [
  "tracer_common",
  "tracer_extracts",
  "tracing",
- "tracing-log",
- "tracing-loki",
- "tracing-subscriber",
  "url",
  "uuid",
 ]
@@ -4869,7 +4870,6 @@ dependencies = [
  "tracer_common",
  "tracer_extracts",
  "tracing",
- "tracing-appender",
  "tracing-subscriber",
 ]
 

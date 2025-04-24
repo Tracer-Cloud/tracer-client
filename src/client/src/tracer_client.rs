@@ -7,6 +7,7 @@ use crate::events::{send_alert_event, send_log_event, send_start_run_event};
 use crate::exporters::db::AuroraClient;
 use crate::params::TracerCliInitArgs;
 use chrono::{DateTime, TimeDelta, Utc};
+use log::debug;
 use serde_json::json;
 use std::ops::Sub;
 use std::sync::Arc;
@@ -26,6 +27,7 @@ use tracer_extracts::metrics::SystemMetricsCollector;
 use tracer_extracts::process_watcher::{ProcessWatcher, ShortLivedProcessLog};
 use tracer_extracts::stdout::StdoutWatcher;
 use tracer_extracts::syslog::SyslogWatcher;
+use tracing::{error, info};
 // NOTE: we might have to find a better alternative than passing the pipeline name to tracer client
 // directly. Currently with this approach, we do not need to generate a new pipeline name for every
 // new run.
@@ -80,7 +82,7 @@ impl TracerClient {
         cli_args: TracerCliInitArgs, // todo: why Config AND TracerCliInitArgs? remove CliInitArgs
     ) -> Result<TracerClient> {
         // todo: do we need both config with db connection AND db_client?
-        println!("Initializing TracerClient with API Key: {}", config.api_key);
+        info!("Initializing TracerClient with API Key: {}", config.api_key);
 
         let pricing_client = PricingClient::new(config.aws_init_type.clone(), "us-east-1").await;
 
@@ -166,7 +168,7 @@ impl TracerClient {
             .map(|st| st.id.as_str())
             .unwrap_or("anonymous");
 
-        println!(
+        debug!(
             "Submitting batched data for pipeline {} and run_name {}",
             self.pipeline_name, run_name
         );
@@ -297,7 +299,7 @@ impl TracerClient {
                 )
                 .await
             {
-                println!("Error outputing end run logs: {err}")
+                error!("Error outputing end run logs: {err}")
             };
             self.logs.clear();
 
@@ -490,7 +492,6 @@ mod tests {
         // submit_batched_data
         let res = client.submit_batched_data().await;
 
-        println!("{res:?}");
         assert!(res.is_ok());
 
         // Prepare the SQL query
