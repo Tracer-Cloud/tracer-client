@@ -19,11 +19,26 @@ use std::convert::TryFrom;
 pub enum EventType {
     ProcessStatus,
 }
+impl std::fmt::Display for EventType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            &EventType::ProcessStatus => write!(f, "process_status"),
+        }
+    }
+}
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum ProcessType {
     Pipeline,
+}
+
+impl std::fmt::Display for ProcessType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            &ProcessType::Pipeline => write!(f, "pipeline"),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq)]
@@ -99,7 +114,7 @@ pub struct Event {
 
 // TODO: would be removed in next pr
 pub struct EventInsert {
-    pub event_timestamp: DateTime<Utc>,
+    pub timestamp: DateTime<Utc>,
     pub body: String,
     pub severity_text: Option<String>,
     pub severity_number: Option<i16>,
@@ -114,6 +129,9 @@ pub struct EventInsert {
     pub user_operator: Option<String>,
     pub organization_id: Option<String>,
     pub department: Option<String>,
+
+    pub event_type: String,
+    pub process_type: String,
 
     pub run_id: String,
     pub run_name: String,
@@ -188,7 +206,7 @@ impl TryFrom<Event> for EventInsert {
         let tags = event.tags.clone();
 
         Ok(EventInsert {
-            event_timestamp: event.timestamp,
+            timestamp: event.timestamp,
             body: event.body,
             severity_text: event.severity_text,
             severity_number: event.severity_number.map(|v| v as i16),
@@ -203,6 +221,9 @@ impl TryFrom<Event> for EventInsert {
             user_operator: tags.clone().map(|t| t.user_operator),
             organization_id: tags.clone().map(|t| t.organization_id).unwrap_or_default(),
             department: tags.clone().map(|t| t.department),
+
+            event_type: event.event_type.to_string(),
+            process_type: event.process_type.to_string(),
 
             run_id: event.run_id.unwrap_or_default(),
             run_name: event.run_name.unwrap_or_default(),

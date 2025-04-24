@@ -2252,7 +2252,7 @@ dependencies = [
 
 [[package]]
 name = "integration_tests"
-version = "2025.4.11"
+version = "2025.4.23"
 dependencies = [
  "bollard",
  "futures-util",
@@ -4757,7 +4757,7 @@ checksum = "8df9b6e13f2d32c91b9bd719c00d1958837bc7dec474d94952798cc8e69eeec3"
 
 [[package]]
 name = "tracer_aws"
-version = "2025.4.11"
+version = "2025.4.23"
 dependencies = [
  "anyhow",
  "aws-config",
@@ -4779,7 +4779,7 @@ dependencies = [
 
 [[package]]
 name = "tracer_cli"
-version = "2025.4.11"
+version = "2025.4.23"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -4802,7 +4802,7 @@ dependencies = [
 
 [[package]]
 name = "tracer_client"
-version = "2025.4.11"
+version = "2025.4.23"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4835,7 +4835,7 @@ dependencies = [
 
 [[package]]
 name = "tracer_common"
-version = "2025.4.11"
+version = "2025.4.23"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4854,7 +4854,7 @@ dependencies = [
 
 [[package]]
 name = "tracer_daemon"
-version = "2025.4.11"
+version = "2025.4.23"
 dependencies = [
  "anyhow",
  "axum",
@@ -4875,7 +4875,7 @@ dependencies = [
 
 [[package]]
 name = "tracer_extracts"
-version = "2025.4.11"
+version = "2025.4.23"
 dependencies = [
  "anyhow",
  "chrono",
