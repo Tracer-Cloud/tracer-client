@@ -41,7 +41,6 @@ const WAIT_FOR_PROCESS_BEFORE_NEW_RUN: bool = false;
 
 pub struct TracerClient {
     system: Arc<RwLock<System>>, // todo: use arc swap
-    last_sent: Option<Instant>,
     interval: Duration,
     last_interaction_new_run_duration: Duration,
     process_metrics_send_interval: Duration,
@@ -120,7 +119,6 @@ impl TracerClient {
                 config.file_size_not_changing_period_ms as i64,
             ),
             system: system.clone(),
-            last_sent: None,
 
             pipeline,
 
@@ -191,36 +189,30 @@ impl TracerClient {
             self.pipeline_name, run_name
         );
 
-        if self.last_sent.is_none() || Instant::now() - self.last_sent.unwrap() >= self.interval {
-            // todo: rollback
-            // self.metrics_collector
-            //     .collect_metrics()
-            //     .await
-            //     .context("Failed to collect metrics")?;
+        // todo: rollback
+        // self.metrics_collector
+        //     .collect_metrics()
+        //     .await
+        //     .context("Failed to collect metrics")?;
 
-            let mut buff: Vec<Event> = Vec::with_capacity(100);
+        let mut buff: Vec<Event> = Vec::with_capacity(100);
 
-            if self.rx.recv_many(&mut buff, 100).await > 0 {
-                println!("inserting: {:?}", buff);
-            }
-
-            // todo:
-            // self.db_client
-            //     .batch_insert_events(
-            //         run_name,
-            //         run_id,
-            //         &self.pipeline_name,
-            //         self.logs.get_events(),
-            //     )
-            //     .await
-            //     .map_err(|err| anyhow::anyhow!("Error submitting batch events {:?}", err))?;
-
-            self.last_sent = Some(Instant::now());
-
-            Ok(())
-        } else {
-            Ok(())
+        if self.rx.recv_many(&mut buff, 100).await > 0 {
+            println!("inserting: {:?}", buff);
         }
+
+        // todo:
+        // self.db_client
+        //     .batch_insert_events(
+        //         run_name,
+        //         run_id,
+        //         &self.pipeline_name,
+        //         self.logs.get_events(),
+        //     )
+        //     .await
+        //     .map_err(|err| anyhow::anyhow!("Error submitting batch events {:?}", err))?;
+
+        Ok(())
     }
 
     pub fn get_run_metadata(&self) -> Arc<RwLock<PipelineMetadata>> {

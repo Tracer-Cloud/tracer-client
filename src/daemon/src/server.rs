@@ -42,8 +42,7 @@ impl DaemonServer {
         let config: Arc<RwLock<config_manager::Config>> =
             Arc::new(RwLock::new(tracer_client.lock().await.config.clone()));
 
-        // todo: config shouldn't be here: it should only exist as a RW field
-        // in the client
+        // todo: config shouldn't be here: it should only exist as a RW field in the client
 
         let cancellation_token = CancellationToken::new();
 
@@ -73,37 +72,41 @@ impl DaemonServer {
             .start_new_run(None)
             .await?;
 
-        while !cancellation_token.is_cancelled() {
-            let start_time = Instant::now();
-            while start_time.elapsed()
-                < Duration::from_millis(config.read().await.batch_submission_interval_ms)
-            {
-                monitor_processes_with_tracer_client(tracer_client.lock().await.borrow_mut())
-                    .await?;
+        let mut submission_interval = tokio::time::interval(Duration::from_millis(
+            config.read().await.batch_submission_interval_ms,
+        ));
+        let mut monitor_interval = tokio::time::interval(Duration::from_millis(
+            config.read().await.batch_submission_interval_ms,
+        ));
 
-                sleep(Duration::from_millis(
-                    config.read().await.process_polling_interval_ms,
-                ))
-                .await;
-
-                if cancellation_token.is_cancelled() {
+        loop {
+            tokio::select! {
+                _ = cancellation_token.cancelled() => {
                     break;
                 }
+                _ = submission_interval.tick() => {
+                    let mut guard = tracer_client.lock().await;
+
+                    guard.borrow_mut().submit_batched_data().await?;
+                    guard.borrow_mut().poll_files().await?;
+
+                }
+                _ = monitor_interval.tick() => {
+                    monitor_processes_with_tracer_client(tracer_client.lock().await.borrow_mut())
+                    .await?;
+                }
+
             }
-
-            tracer_client
-                .lock()
-                .await
-                .borrow_mut()
-                .submit_batched_data()
-                .await?;
-
-            tracer_client.lock().await.borrow_mut().poll_files().await?;
         }
 
         syslog_lines_task.abort();
         stdout_lines_task.abort();
         server.abort();
+
+        {
+            let mut guard = tracer_client.lock().await;
+            guard.borrow_mut().submit_batched_data().await?;
+        };
 
         // close the connection pool to aurora
         let guard = tracer_client.lock().await;
