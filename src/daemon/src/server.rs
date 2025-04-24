@@ -81,6 +81,9 @@ impl DaemonServer {
 
         loop {
             tokio::select! {
+                // all function in the "expression" shouldn't be blocking. For example, you shouldn't
+                // call rx.recv().await as it'll freeze the execution loop
+
                 _ = cancellation_token.cancelled() => {
                     break;
                 }

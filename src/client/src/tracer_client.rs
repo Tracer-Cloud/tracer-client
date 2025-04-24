@@ -170,6 +170,10 @@ impl TracerClient {
 
     // TODO: Refactor to collect required entries properly
     pub async fn submit_batched_data(&mut self) -> Result<()> {
+        if self.rx.is_empty() {
+            return Ok(());
+        }
+
         let pipeline = self.pipeline.read().await;
 
         let run_name = pipeline
@@ -196,9 +200,9 @@ impl TracerClient {
         //     .context("Failed to collect metrics")?;
 
         let mut buff: Vec<Event> = Vec::with_capacity(100);
-
         if self.rx.recv_many(&mut buff, 100).await > 0 {
             println!("inserting: {:?}", buff);
+            buff.clear();
         }
 
         // todo:
