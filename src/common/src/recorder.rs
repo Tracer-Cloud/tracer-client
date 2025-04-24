@@ -33,14 +33,14 @@ impl StructLogRecorder {
         pipeline: &PipelineMetadata,
     ) -> anyhow::Result<()> {
         let event = Event::builder()
-            .timestamp(timestamp.unwrap_or_default())
             .body(body)
+            .timestamp(timestamp.unwrap_or_else(Utc::now))
             .process_status(process_status)
-            .attributes(attributes)
+            .pipeline_name(Some(pipeline.pipeline_name.clone()))
             .run_name(pipeline.run.as_ref().map(|m| m.name.clone()))
             .run_id(pipeline.run.as_ref().map(|m| m.id.clone()))
-            .pipeline_name(Some(pipeline.pipeline_name.clone()))
             .tags(Some(pipeline.tags.clone()))
+            .attributes(attributes)
             .build();
 
         self.tx.send(event).await?;
