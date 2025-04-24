@@ -34,7 +34,7 @@ file_size_not_changing_period_ms = 60000
 process_metrics_send_interval_ms = 10000
 aws_region = "us-east-2"
 database_secrets_arn = "arn:aws:secretsmanager:us-east-1:395261708130:secret:rds!cluster-cd690a09-953c-42e9-9d9f-1ed0b434d226-M0wZYA"
-database_host = "tracer-cluster-production.cluster-ro-cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432"
+database_host = "tracer-cluster-production.cluster-cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432"
 database_name = "tracer_db"
 grafana_workspace_url = "https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com"
 EOL
@@ -44,7 +44,7 @@ echo "Configuration file created at /home/ubuntu/.config/tracer/tracer.toml"
 # Install the binary
 echo "Updating Tracer binary..."
 sudo rm /usr/local/bin/tracer
-su - ubuntu -c "curl -sSL https://tracer-client.pages.dev/installation-script-development.sh | bash && source ~/.bashrc"
+su - ubuntu -c "curl -sSL https://install.tracer.cloud | bash && source ~/.bashrc"
 su - ubuntu -c "sudo cp /home/ubuntu/.tracerbio/bin/tracer  /usr/local/bin/"
 sudo chown ubuntu:ubuntu /usr/local/bin/tracer
 echo "Tracer binary updated successfully"
