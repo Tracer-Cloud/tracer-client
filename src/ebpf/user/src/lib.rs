@@ -21,7 +21,7 @@ async fn read_event_loop(
 
     loop {
         let events = buf.read_events(&mut data).await?;
-        info!("read {} events=", events.read);
+        info!("read {} events", events.read);
 
         for event in &data[..events.read] {
             let raw_event = unsafe { &*(event.as_ptr() as *const ProcessEnter) };

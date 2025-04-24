@@ -206,15 +206,10 @@ impl TracerClient {
         }
 
         // todo:
-        // self.db_client
-        //     .batch_insert_events(
-        //         run_name,
-        //         run_id,
-        //         &self.pipeline_name,
-        //         self.logs.get_events(),
-        //     )
-        //     .await
-        //     .map_err(|err| anyhow::anyhow!("Error submitting batch events {:?}", err))?;
+        self.db_client
+            .batch_insert_events(run_name, run_id, &self.pipeline_name, buff.as_slice())
+            .await
+            .map_err(|err| anyhow::anyhow!("Error submitting batch events {:?}", err))?;
 
         Ok(())
     }
