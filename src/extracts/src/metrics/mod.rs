@@ -3,10 +3,10 @@ use anyhow::Result;
 use chrono::Utc;
 use std::collections::HashMap;
 use sysinfo::{Disks, System};
-use tracer_common::event::attributes::system_metrics::{DiskStatistic, SystemMetric};
-use tracer_common::event::attributes::EventAttributes;
-use tracer_common::event::ProcessStatus;
 use tracer_common::recorder::EventRecorder;
+use tracer_common::types::event::attributes::system_metrics::{DiskStatistic, SystemMetric};
+use tracer_common::types::event::attributes::EventAttributes;
+use tracer_common::types::event::ProcessStatus;
 
 pub struct SystemMetricsCollector;
 

@@ -1,6 +1,5 @@
-use crate::event::attributes::EventAttributes;
-use crate::event::{Event, ProcessStatus};
-use crate::pipeline_tags::PipelineTags;
+use crate::types::event::{attributes::EventAttributes, Event, ProcessStatus};
+use crate::types::pipeline_tags::PipelineTags;
 use chrono::{DateTime, Utc};
 
 /// Events recorder for each pipeline run
@@ -90,11 +89,9 @@ impl Default for EventRecorder {
 
 #[cfg(test)]
 mod tests {
-    use crate::event::attributes::process::DataSetsProcessed;
+    use crate::types::event::{attributes::process::DataSetsProcessed, EventType, ProcessType};
 
     use super::*;
-    use crate::event::attributes::EventAttributes;
-    use crate::event::{EventType, ProcessStatus, ProcessType};
 
     #[test]
     fn test_record_event() {
