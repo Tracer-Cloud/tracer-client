@@ -1,9 +1,11 @@
 #![no_std]
 #![no_main]
 
+use aya_ebpf::bindings::path;
+use aya_ebpf::helpers::gen::bpf_probe_read_kernel_str;
 use aya_ebpf::helpers::{
-    bpf_probe_read, bpf_probe_read_kernel, bpf_probe_read_kernel_buf, bpf_probe_read_user,
-    bpf_probe_read_user_str_bytes,
+    bpf_d_path, bpf_probe_read, bpf_probe_read_kernel, bpf_probe_read_kernel_buf,
+    bpf_probe_read_user, bpf_probe_read_user_str_bytes,
 };
 use aya_ebpf::maps::PerCpuArray;
 use aya_ebpf::{
@@ -15,7 +17,7 @@ use aya_ebpf::{
 };
 use aya_log_ebpf::info;
 use tracer_ebpf_common::process_enter::{ProcessEnter, MAX_NUM_ARGS};
-use tracer_ebpf_kernel::gen::{file, mm_struct, task_struct};
+use tracer_ebpf_kernel::gen::{file, linux_binprm, mm_struct, task_struct};
 
 #[map]
 static mut EVENTS: PerfEventArray<ProcessEnter> = PerfEventArray::new(0);
@@ -56,10 +58,17 @@ unsafe fn try_sched_process_exec(ctx: BtfTracePointContext) -> Result<i64, i64> 
     }
 
     let mm: *mut mm_struct = bpf_probe_read_kernel(&(*task).mm)?;
-
-    let exe_file: *mut file = bpf_probe_read_kernel(&(*mm).__bindgen_anon_1.exe_file)?;
-
     event.comm = (*task).comm;
+
+    let linux_binprm: *const linux_binprm = ctx.arg(2);
+
+    if linux_binprm.is_null() {
+        return Err(-1);
+    }
+
+    let filenmae = (*linux_binprm).filename;
+
+    let filename = bpf_probe_read_kernel_str_bytes(filenmae as *const u8, &mut event.file_name)?;
 
     let mut arg_start = bpf_probe_read_kernel(&(*mm).__bindgen_anon_1.arg_start)?;
     let arg_end = bpf_probe_read_kernel(&(*mm).__bindgen_anon_1.arg_end)?;
