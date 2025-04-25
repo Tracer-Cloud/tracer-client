@@ -6,8 +6,8 @@
 // /// Events recorder for each pipeline run
 
 use crate::current_run::PipelineMetadata;
-use crate::event::attributes::EventAttributes;
-use crate::event::{Event, EventType, ProcessStatus, ProcessType};
+use crate::types::event::attributes::EventAttributes;
+use crate::types::event::{Event, EventType, ProcessStatus, ProcessType};
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use tokio::sync::mpsc::Sender;

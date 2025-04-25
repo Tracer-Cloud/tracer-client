@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use log::info;
 use sqlx::pool::PoolOptions;
 use sqlx::{PgPool, Postgres, QueryBuilder};
-use tracer_common::event::{Event, EventInsert};
+use tracer_common::types::{event::Event, extracts::db::EventInsert};
 
 use crate::config_manager::Config;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};

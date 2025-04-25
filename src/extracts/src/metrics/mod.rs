@@ -5,10 +5,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use sysinfo::{Disks, System};
 use tokio::sync::RwLock;
-use tracer_common::event::attributes::system_metrics::{DiskStatistic, SystemMetric};
-use tracer_common::event::attributes::EventAttributes;
-use tracer_common::event::ProcessStatus;
 use tracer_common::recorder::StructLogRecorder;
+use tracer_common::types::event::attributes::system_metrics::{DiskStatistic, SystemMetric};
+use tracer_common::types::event::attributes::EventAttributes;
+use tracer_common::types::event::ProcessStatus;
 
 pub struct SystemMetricsCollector {
     log_recorder: StructLogRecorder,

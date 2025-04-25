@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use serde_json::{Map, Value};
 
-use super::{attributes::EventAttributes, Event};
+use crate::types::event::{attributes::EventAttributes, Event};
 
 /// Flattens the `attributes` field of an event with prefixing, e.g.:
 /// `process.tool_name` or `system_properties.ec2_cost_per_hour`

@@ -1,4 +1,4 @@
-use crate::pipeline_tags::PipelineTags;
+use crate::types::pipeline_tags::PipelineTags;
 use chrono::{DateTime, Utc};
 use std::time::Instant;
 

@@ -17,12 +17,9 @@
 #-------------------------------------------------------------------------------
 # https://github.com/Tracer-Cloud/tracer-client/releases/download/v0.0.8/tracer-universal-apple-darwin.tar.gz
 SCRIPT_VERSION="v0.0.1"
-TRACER_VERSION="v2025.4.23"
+TRACER_VERSION="v2025.4.11"
 TRACER_LINUX_URL_X86_64="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-x86_64-unknown-linux-gnu.tar.gz"
 TRACER_LINUX_URL_ARM="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-aarch64-unknown-linux-gnu.tar.gz"
-TRACER_MACOS_AARCH_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-aarch64-apple-darwin.tar.gz"
-TRACER_MACOS_X86_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-x86_64-apple-darwin.tar.gz"
-
 
 TRACER_HOME="$HOME/.tracerbio"
 LOGFILE_NAME="tracer-installer.log"
@@ -435,7 +432,7 @@ polling_interval_ms = 1500
 api_key = "$API_KEY"
 service_url = "https://app.tracer.bio/api"
 process_polling_interval_ms = 25
-batch_submission_interval_ms = 3000
+batch_submission_interval_ms = 10000
 new_run_pause_ms = 600000
 file_size_not_changing_period_ms = 60000
 process_metrics_send_interval_ms = 10000

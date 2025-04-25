@@ -1,4 +1,4 @@
-use tracer_common::event::ProcessStatus as TracerProcessStatus;
+use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 
 use crate::data_samples::DATA_SAMPLES_EXT;
 use crate::file_watcher::FileWatcher;
@@ -14,14 +14,14 @@ use std::sync::Arc;
 use std::time::Duration;
 use sysinfo::{Pid, Process, ProcessRefreshKind, ProcessStatus, System};
 use tokio::sync::{mpsc, RwLock};
-use tracer_common::event::attributes::process::{
-    CompletedProcess, DataSetsProcessed, FullProcessProperties, InputFile, ProcessProperties,
-    ShortProcessProperties,
-};
-use tracer_common::event::attributes::EventAttributes;
 use tracer_common::recorder::StructLogRecorder;
 use tracer_common::target_process::{Target, TargetMatchable};
 use tracer_common::trigger::{ProcessTrigger, Trigger};
+use tracer_common::types::event::attributes::process::{
+    CompletedProcess, DataSetsProcessed, FullProcessProperties, InputFile, ProcessProperties,
+    ShortProcessProperties,
+};
+use tracer_common::types::event::attributes::EventAttributes;
 use tracer_ebpf_user::{start_processing_events, TracerEbpf};
 use tracing::{debug, error, info};
 

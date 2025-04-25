@@ -1,5 +1,5 @@
 use clap::Args;
-use tracer_common::pipeline_tags::PipelineTags;
+use tracer_common::types::pipeline_tags::PipelineTags;
 
 #[derive(Default, Args, Debug, Clone)]
 pub struct TracerCliInitArgs {
