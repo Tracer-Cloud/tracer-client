@@ -279,8 +279,8 @@ impl ProcessWatcher {
                 if target.matches(
                     // TODO
                     &trigger.comm,
-                    &trigger.file_name,
                     &trigger.argv.join(" "),
+                    &trigger.file_name,
                 ) {
                     matches.insert(trigger.clone());
                 }
