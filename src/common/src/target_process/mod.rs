@@ -4,7 +4,7 @@ pub mod targets_list;
 use serde::{Deserialize, Serialize};
 use target_matching::{matches_target, TargetMatch};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Hash, Eq)]
 pub enum DisplayName {
     Name(String),
     Default(),
@@ -42,7 +42,7 @@ impl DisplayName {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Hash, Eq)]
 pub struct Target {
     pub match_type: TargetMatch,
     pub display_name: DisplayName,

@@ -49,7 +49,7 @@ fn process_status_to_string(status: &ProcessStatus) -> String {
 
 struct ProcessState {
     processes: HashMap<usize, ProcessTrigger>, // todo: use (pid, starttime)
-    monitoring: Vec<(Target, HashSet<ProcessTrigger>)>, // todo: avoid target copy
+    monitoring: HashMap<Target, HashSet<ProcessTrigger>>, // todo: avoid target copy
 
     targets: Vec<Target>,
 }
@@ -57,8 +57,8 @@ struct ProcessState {
 impl ProcessState {
     fn current(&self) -> HashSet<usize> {
         self.monitoring
-            .iter()
-            .flat_map(|(_, processes)| processes.iter().map(|p| p.pid))
+            .values()
+            .flat_map(|processes| processes.iter().map(|p| p.pid))
             .collect()
     }
 }
@@ -81,7 +81,7 @@ impl ProcessWatcher {
     ) -> Self {
         let state = Arc::new(RwLock::new(ProcessState {
             processes: HashMap::new(),
-            monitoring: Vec::new(),
+            monitoring: HashMap::new(),
             targets: targets.clone(),
         }));
 
@@ -179,8 +179,11 @@ impl ProcessWatcher {
         }
 
         let mut state = self.state.write().await;
-        // state.monitoring = interested_in; // TODO: FIXME, INSTEAD OF REPLACING, WE SHOULD MERGE IT
-        state.monitoring.extend(interested_in);
+
+        // merge old and new targets
+        for (k, v) in interested_in.into_iter() {
+            state.monitoring.entry(k).or_default().extend(v);
+        }
 
         Ok(())
     }
@@ -188,7 +191,7 @@ impl ProcessWatcher {
     async fn process_start_processes(
         self: &Arc<ProcessWatcher>,
         buff: Vec<ProcessTrigger>,
-    ) -> Result<Vec<(Target, HashSet<ProcessTrigger>)>> {
+    ) -> Result<HashMap<Target, HashSet<ProcessTrigger>>> {
         {
             let mut state = self.state.write().await;
 
@@ -200,13 +203,13 @@ impl ProcessWatcher {
         let state = self.state.read().await;
         let already_seen: HashSet<usize> = state
             .monitoring
-            .iter()
-            .flat_map(|(_, processes)| processes.iter().map(|p| p.pid))
+            .values()
+            .flat_map(|processes| processes.iter().map(|p| p.pid))
             .collect();
 
         let matched_processes = self.match_new_processes(buff).await?;
 
-        let interested_in: Vec<(_, _)> = matched_processes
+        let interested_in: HashMap<_, _> = matched_processes
             .into_iter()
             // add parents, remove those are already in self.monitoring
             .map(|(target, processes)| {
@@ -228,13 +231,13 @@ impl ProcessWatcher {
 
     async fn refresh_system(
         self: &Arc<ProcessWatcher>,
-        targets: &Vec<(Target, HashSet<ProcessTrigger>)>,
+        targets: &HashMap<Target, HashSet<ProcessTrigger>>,
     ) -> Result<()> {
         debug!("refreshing {} processes", targets.len());
 
         let to_enrich: HashSet<usize> = targets
-            .iter()
-            .flat_map(|(_, processes)| processes.iter().map(|p| p.pid))
+            .values()
+            .flat_map(|processes| processes.iter().map(|p| p.pid))
             .collect();
 
         let pids = to_enrich
