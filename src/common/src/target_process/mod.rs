@@ -136,3 +136,42 @@ impl TargetMatchable for Vec<TargetMatch> {
             .any(|target| matches_target(target, process_name, command, bin_path))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_process_default_display_name_with_mappings() {
+        let commands = vec![
+            "/opt/conda/bin/java".to_string(),
+            "-jar".to_string(),
+            "nextflow.jar".to_string(),
+        ];
+        let process_name = "Thread-4";
+
+        let display_name = DisplayName::process_default_display_name(process_name, &commands);
+
+        assert_eq!(display_name, "nextflow (Thread-4)");
+    }
+
+    #[test]
+    fn test_process_default_display_name_without_mappings() {
+        let commands = vec!["/usr/bin/somebinary".to_string()];
+        let process_name = "SomeProcess";
+
+        let display_name = DisplayName::process_default_display_name(process_name, &commands);
+
+        assert_eq!(display_name, "SomeProcess");
+    }
+
+    #[test]
+    fn test_process_default_display_name_with_python() {
+        let commands = vec!["/usr/bin/python".to_string(), "script.py".to_string()];
+        let process_name = "Thread-8";
+
+        let display_name = DisplayName::process_default_display_name(process_name, &commands);
+
+        assert_eq!(display_name, "python (Thread-8)");
+    }
+}
