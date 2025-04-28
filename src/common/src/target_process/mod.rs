@@ -16,7 +16,7 @@ impl DisplayName {
     pub fn get_display_name(&self, process_name: &str, commands: &[String]) -> String {
         match self {
             DisplayName::Name(name) => name.clone(),
-            DisplayName::Default() => process_name.to_string(),
+            DisplayName::Default() => Self::process_default_display_name(process_name, commands),
             DisplayName::UseFirstArgument() => commands
                 .get(1)
                 .unwrap_or(&process_name.to_string())
@@ -39,6 +39,24 @@ impl DisplayName {
                 base_name.unwrap().to_str().unwrap().to_string()
             }
         }
+    }
+
+    fn process_default_display_name(process_name: &str, commands: &[String]) -> String {
+        let pname = process_name.to_lowercase();
+        let cmdline = commands.join(" ").to_lowercase();
+
+        if pname.contains("thread-") || pname.contains("pool-") {
+            // TODO: Improvement would be to have a process rule table and associating label for multithreaded env
+            let mappings = ["nextflow", "airflow", "java", "python"];
+
+            for label in mappings {
+                if cmdline.contains(label) {
+                    return label.to_string();
+                }
+            }
+        }
+
+        process_name.to_string()
     }
 }
 
