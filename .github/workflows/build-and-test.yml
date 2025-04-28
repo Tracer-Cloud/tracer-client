@@ -4,9 +4,8 @@ on:
     branches:
       - "main"
       - "staging"
-  pull_request:
-    branches:
-      - "**"
+  pull_request_target:
+
 env:
   CARGO_TERM_COLOR: always # Ensures colored output in GitHub Actions logs
 
