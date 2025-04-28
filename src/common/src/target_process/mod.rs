@@ -3,6 +3,7 @@ pub mod target_matching;
 pub mod targets_list;
 use serde::{Deserialize, Serialize};
 use target_matching::{matches_target, TargetMatch};
+use targets_list::DEFAULT_DISPLAY_PROCESS_RULES;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum DisplayName {
@@ -43,11 +44,7 @@ impl DisplayName {
 
     fn process_default_display_name(process_name: &str, commands: &[String]) -> String {
         let cmdline = commands.join(" ").to_lowercase();
-
-        // TODO: Improvement would be to have a process rule table and associating label for multithreaded env
-        let mappings = ["nextflow", "airflow", "java", "python"];
-
-        for label in mappings {
+        for label in DEFAULT_DISPLAY_PROCESS_RULES.iter() {
             if cmdline.contains(label) {
                 return format!("{} ({})", label, process_name);
             }
