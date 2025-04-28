@@ -16,7 +16,7 @@ use aya_ebpf::{
     programs::BtfTracePointContext,
 };
 use aya_log_ebpf::info;
-use tracer_ebpf_common::process_enter::{ProcessEnter, MAX_NUM_ARGS};
+use tracer_ebpf_common::process_enter::{ProcessEnter, ProcessEnterType, MAX_NUM_ARGS};
 use tracer_ebpf_kernel::gen::{file, linux_binprm, mm_struct, task_struct};
 
 #[map]
@@ -45,6 +45,7 @@ unsafe fn try_sched_process_exec(ctx: BtfTracePointContext) -> Result<i64, i64> 
 
     let event = &mut *event;
     event.pid = (*task).pid;
+    event.event_type = ProcessEnterType::Start;
 
     let parent_task_struct = (*task).real_parent as *const task_struct;
 

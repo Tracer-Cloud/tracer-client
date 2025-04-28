@@ -108,6 +108,7 @@ impl DaemonServer {
 
         {
             let mut guard = tracer_client.lock().await;
+            // all data left
             guard.borrow_mut().submit_batched_data().await?;
         };
 

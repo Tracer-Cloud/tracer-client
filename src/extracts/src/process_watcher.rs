@@ -16,7 +16,7 @@ use sysinfo::{Pid, Process, ProcessRefreshKind, ProcessStatus, System};
 use tokio::sync::{mpsc, RwLock};
 use tracer_common::recorder::StructLogRecorder;
 use tracer_common::target_process::{Target, TargetMatchable};
-use tracer_common::trigger::{ProcessTrigger, Trigger};
+use tracer_common::trigger::{FinishTrigger, ProcessTrigger, Trigger};
 use tracer_common::types::event::attributes::process::{
     CompletedProcess, DataSetsProcessed, FullProcessProperties, InputFile, ProcessProperties,
     ShortProcessProperties,
@@ -139,21 +139,33 @@ impl ProcessWatcher {
     }
 
     async fn process_triggers(self: &Arc<ProcessWatcher>, buff: Vec<Trigger>) -> Result<()> {
-        let mut processes: Vec<ProcessTrigger> = vec![];
+        let mut start: Vec<ProcessTrigger> = vec![];
+        let mut finish: Vec<FinishTrigger> = vec![];
 
         for trigger in buff.into_iter() {
             match trigger {
                 Trigger::Start(proc) => {
-                    processes.push(proc);
+                    start.push(proc);
+                }
+                Trigger::Finish(proc) => {
+                    finish.push(proc);
                 }
             }
         }
 
-        debug!("processes after filter: {}", processes.len());
+        if !finish.is_empty() {
+            self.process_termination(finish).await?;
+        }
 
-        self.process_start(processes).await?;
+        if !start.is_empty() {
+            self.process_start(start).await?;
+        }
 
         Ok(())
+    }
+
+    async fn process_termination(self: &Arc<Self>, buff: Vec<FinishTrigger>) -> Result<()> {
+        todo!()
     }
 
     async fn process_start(self: &Arc<ProcessWatcher>, buff: Vec<ProcessTrigger>) -> Result<()> {
@@ -279,12 +291,14 @@ impl ProcessWatcher {
             let mut matches: HashSet<ProcessTrigger> = HashSet::new();
 
             for trigger in triggers.iter() {
-                if target.matches(
-                    // TODO
-                    &trigger.comm,
-                    &trigger.argv.join(" "),
-                    &trigger.file_name,
-                ) {
+                if true
+                    || target.matches(
+                        // TODO
+                        &trigger.comm,
+                        &trigger.argv.join(" "),
+                        &trigger.file_name,
+                    )
+                {
                     matches.insert(trigger.clone());
                 }
             }
@@ -292,6 +306,8 @@ impl ProcessWatcher {
             if !matches.is_empty() {
                 matched_processes.push((target.clone(), matches));
             }
+
+            break; // todo: remove
         }
 
         Ok(matched_processes)
@@ -356,8 +372,10 @@ impl ProcessWatcher {
             let system = self.system.read().await;
 
             let Some(system_process) = system.process(process.pid.into()) else {
-                error!("Process({}) wasn't found", process.pid);
-                // todo: fill short_lived_process?
+                info!(
+                    "Process {} wasn't found when updating: assuming it finished",
+                    process.pid
+                );
                 return Ok(ProcessResult::NotFound);
             };
 
