@@ -42,20 +42,16 @@ impl DisplayName {
     }
 
     fn process_default_display_name(process_name: &str, commands: &[String]) -> String {
-        let pname = process_name.to_lowercase();
         let cmdline = commands.join(" ").to_lowercase();
 
-        if pname.contains("thread-") || pname.contains("pool-") {
-            // TODO: Improvement would be to have a process rule table and associating label for multithreaded env
-            let mappings = ["nextflow", "airflow", "java", "python"];
+        // TODO: Improvement would be to have a process rule table and associating label for multithreaded env
+        let mappings = ["nextflow", "airflow", "java", "python"];
 
-            for label in mappings {
-                if cmdline.contains(label) {
-                    return label.to_string();
-                }
+        for label in mappings {
+            if cmdline.contains(label) {
+                return format!("{} ({})", label, process_name);
             }
         }
-
         process_name.to_string()
     }
 }
