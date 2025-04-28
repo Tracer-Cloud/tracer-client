@@ -5,6 +5,7 @@ pub struct ProcessTrigger {
     pub comm: String,
     pub file_name: String,
     pub argv: Vec<String>,
+    pub start_time: u64,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]

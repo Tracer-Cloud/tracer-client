@@ -9,14 +9,14 @@ use tokio::sync::mpsc::Sender;
 use tokio::task::JoinHandle;
 use tokio_util::bytes;
 use tracer_common::trigger::Trigger;
-use tracer_ebpf_common::process_enter::ProcessEnter;
+use tracer_ebpf_common::process_enter::ProcessRawTrigger;
 
 async fn read_event_loop(
     mut buf: AsyncPerfEventArrayBuffer<MapData>,
     tx: Sender<Trigger>,
 ) -> anyhow::Result<()> {
     let mut data = (0..30)
-        .map(|_| bytes::BytesMut::with_capacity(size_of::<ProcessEnter>()))
+        .map(|_| bytes::BytesMut::with_capacity(size_of::<ProcessRawTrigger>()))
         .collect::<Vec<_>>();
 
     loop {
@@ -24,7 +24,7 @@ async fn read_event_loop(
         info!("read {} events", events.read);
 
         for event in &data[..events.read] {
-            let raw_event = unsafe { &*(event.as_ptr() as *const ProcessEnter) };
+            let raw_event = unsafe { &*(event.as_ptr() as *const ProcessRawTrigger) };
             tx.send(raw_event.try_into()?).await?;
         }
 

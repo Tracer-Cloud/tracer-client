@@ -16,14 +16,14 @@ use aya_ebpf::{
     programs::BtfTracePointContext,
 };
 use aya_log_ebpf::info;
-use tracer_ebpf_common::process_enter::{ProcessEnter, ProcessEnterType, MAX_NUM_ARGS};
+use tracer_ebpf_common::process_enter::{ProcessEnterType, ProcessRawTrigger, MAX_NUM_ARGS};
 use tracer_ebpf_kernel::gen::{file, linux_binprm, mm_struct, task_struct};
 
 #[map]
-static mut EVENTS: PerfEventArray<ProcessEnter> = PerfEventArray::new(0);
+static mut EVENTS: PerfEventArray<ProcessRawTrigger> = PerfEventArray::new(0);
 
 #[map]
-static mut BUFFER: PerCpuArray<ProcessEnter> = PerCpuArray::with_max_entries(1, 0);
+static mut BUFFER: PerCpuArray<ProcessRawTrigger> = PerCpuArray::with_max_entries(1, 0);
 
 #[btf_tracepoint(function = "sched_process_exec")]
 pub fn sched_process_exec(ctx: BtfTracePointContext) -> i64 {
@@ -47,6 +47,8 @@ unsafe fn try_sched_process_exec(ctx: BtfTracePointContext) -> Result<i64, i64> 
     event.pid = (*task).pid;
     event.event_type = ProcessEnterType::Start;
 
+    event.time = (*task).start_time as u64;
+
     let parent_task_struct = (*task).real_parent as *const task_struct;
 
     if !parent_task_struct.is_null() {
@@ -67,9 +69,9 @@ unsafe fn try_sched_process_exec(ctx: BtfTracePointContext) -> Result<i64, i64> 
         return Err(-1);
     }
 
-    let filenmae = (*linux_binprm).filename;
+    let filename = (*linux_binprm).filename;
 
-    let filename = bpf_probe_read_kernel_str_bytes(filenmae as *const u8, &mut event.file_name)?;
+    let filename = bpf_probe_read_kernel_str_bytes(filename as *const u8, &mut event.file_name)?;
 
     let mut arg_start = bpf_probe_read_kernel(&(*mm).__bindgen_anon_1.arg_start)?;
     let arg_end = bpf_probe_read_kernel(&(*mm).__bindgen_anon_1.arg_end)?;

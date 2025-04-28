@@ -165,11 +165,13 @@ impl ProcessWatcher {
     }
 
     async fn process_termination(self: &Arc<Self>, buff: Vec<FinishTrigger>) -> Result<()> {
-        todo!()
+        debug!("processing {} creating processes", buff.len());
+
+        Ok(())
     }
 
     async fn process_start(self: &Arc<ProcessWatcher>, buff: Vec<ProcessTrigger>) -> Result<()> {
-        debug!("processing {} processes", buff.len());
+        debug!("processing {} creating processes", buff.len());
 
         let interested_in = self.process_start_processes(buff).await?;
 
@@ -372,12 +374,20 @@ impl ProcessWatcher {
             let system = self.system.read().await;
 
             let Some(system_process) = system.process(process.pid.into()) else {
-                info!(
-                    "Process {} wasn't found when updating: assuming it finished",
-                    process.pid
-                );
+                // info!(
+                //     "Process {} wasn't found when updating: assuming it finished",
+                //     process.pid
+                // );
                 return Ok(ProcessResult::NotFound);
             };
+
+            debug!(
+                "Loaded process. PID: ebpf={}, system={:?}; Start Time:  ebpf={}, system={:?};",
+                process.pid,
+                system_process.pid(),
+                process.start_time,
+                system_process.start_time()
+            );
 
             self.gather_process_data(&system_process, name.clone(), false)
                 .await
