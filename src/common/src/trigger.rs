@@ -1,3 +1,5 @@
+use chrono::{DateTime, Local, Utc};
+
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct ProcessTrigger {
     pub pid: usize,
@@ -5,12 +7,13 @@ pub struct ProcessTrigger {
     pub comm: String,
     pub file_name: String,
     pub argv: Vec<String>,
-    pub start_time: u64,
+    pub started_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct FinishTrigger {
     pub pid: usize,
+    pub finished_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone)]

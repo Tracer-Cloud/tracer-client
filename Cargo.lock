@@ -5101,6 +5101,7 @@ version = "2025.4.23"
 dependencies = [
  "anyhow",
  "aya",
+ "chrono",
  "tracer_common",
 ]
 

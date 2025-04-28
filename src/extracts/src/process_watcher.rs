@@ -9,6 +9,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::collections::{hash_map::Entry::Vacant, HashSet};
+use std::ops::Sub;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -166,6 +167,64 @@ impl ProcessWatcher {
 
     async fn process_termination(self: &Arc<Self>, buff: Vec<FinishTrigger>) -> Result<()> {
         debug!("processing {} creating processes", buff.len());
+
+        let mut state = self.state.write().await;
+
+        let mut buff: HashMap<_, _> = buff.into_iter().map(|proc| (proc.pid, proc)).collect();
+
+        let taken: Vec<_> = state
+            .monitoring
+            .iter_mut()
+            .flat_map(|(_, procs)| {
+                let (removed, retained): (Vec<_>, Vec<_>) = procs
+                    .drain()
+                    .partition(|proc| buff.keys().contains(&proc.pid));
+                *procs = retained.into_iter().collect();
+                removed
+            })
+            .collect();
+
+        debug!("removed {} processes", taken.len());
+
+        for start in taken {
+            let finish: FinishTrigger = buff
+                .remove(&start.pid)
+                .expect("Process should be present in the map");
+
+            // should be safe since
+            // - we've checked the key is present
+            // - we have an exclusive lock on the state
+
+            self.process_proc_finish(&start, &finish).await?;
+        }
+
+        Ok(())
+    }
+
+    async fn process_proc_finish(
+        self: &Arc<Self>,
+        start: &ProcessTrigger,
+        end: &FinishTrigger,
+    ) -> Result<()> {
+        let duration_sec = (end.finished_at - start.started_at)
+            .num_seconds()
+            .try_into()
+            .unwrap_or(0);
+
+        let properties = CompletedProcess {
+            tool_name: start.comm.clone(), // todo: use tool name instead
+            tool_pid: start.pid.to_string(),
+            duration_sec,
+        };
+
+        self.log_recorder
+            .log(
+                TracerProcessStatus::FinishedToolExecution,
+                format!("[{}] {} exited", Utc::now(), &start.comm),
+                Some(EventAttributes::CompletedProcess(properties)),
+                None,
+            )
+            .await?;
 
         Ok(())
     }
@@ -385,7 +444,7 @@ impl ProcessWatcher {
                 "Loaded process. PID: ebpf={}, system={:?}; Start Time:  ebpf={}, system={:?};",
                 process.pid,
                 system_process.pid(),
-                process.start_time,
+                process.started_at.timestamp(),
                 system_process.start_time()
             );
 

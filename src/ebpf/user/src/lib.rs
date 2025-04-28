@@ -95,9 +95,11 @@ pub fn load_ebpf() -> anyhow::Result<Ebpf> {
 
     // todo: has_attach_point && is_compatible
 
-    let program: &mut BtfTracePoint = ebpf.program_mut("sched_process_exec").unwrap().try_into()?;
-    program.load("sched_process_exec", &btf)?;
-    program.attach()?;
+    for pname in ["sched_process_exec", "sched_process_exit"] {
+        let program: &mut BtfTracePoint = ebpf.program_mut(pname).unwrap().try_into()?;
+        program.load(pname, &btf)?;
+        program.attach()?;
+    }
 
     Ok(ebpf)
 }

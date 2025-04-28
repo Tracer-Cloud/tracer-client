@@ -57,11 +57,13 @@ impl TryInto<tracer_common::trigger::Trigger> for &ProcessRawTrigger {
                         .take(self.len)
                         .map(|x| from_bpf_str(x).unwrap().to_string())
                         .collect(), // todo: improve
-                    start_time: self.time,
+                    // todo: use self.time
+                    started_at: chrono::Utc::now(),
                 })
             }
             ProcessEnterType::Finish => tracer_common::trigger::Trigger::Finish(FinishTrigger {
                 pid: self.pid as usize,
+                finished_at: chrono::Utc::now(),
             }),
         })
     }

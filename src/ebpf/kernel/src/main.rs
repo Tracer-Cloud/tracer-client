@@ -30,6 +30,11 @@ pub fn sched_process_exec(ctx: BtfTracePointContext) -> i64 {
     unsafe { try_sched_process_exec(ctx).unwrap_or_else(|ret| ret) }
 }
 
+#[btf_tracepoint(function = "sched_process_exit")]
+pub fn sched_process_exit(ctx: BtfTracePointContext) -> i64 {
+    unsafe { try_sched_process_exit(ctx).unwrap_or_else(|ret| ret) }
+}
+
 unsafe fn try_sched_process_exec(ctx: BtfTracePointContext) -> Result<i64, i64> {
     info!(&ctx, "tracepoint sched_process_exec called");
 
@@ -96,7 +101,34 @@ unsafe fn try_sched_process_exec(ctx: BtfTracePointContext) -> Result<i64, i64> 
     }
 
     EVENTS.output(&ctx, &event, 0);
-    info!(&ctx, "tracepoint: sent data");
+    info!(&ctx, "sched_process_exec: sent data");
+
+    Ok(0)
+}
+
+unsafe fn try_sched_process_exit(ctx: BtfTracePointContext) -> Result<i64, i64> {
+    info!(&ctx, "tracepoint sched_process_exit called");
+
+    let task: *const task_struct = unsafe { ctx.arg(0) };
+
+    if task.is_null() {
+        return Err(-1);
+    }
+
+    if (*task).pid != (*task).tgid {
+        return Ok(0);
+    }
+
+    let Some(mut event) = BUFFER.get_ptr_mut(0) else {
+        return Err(-1);
+    };
+
+    let event = &mut *event;
+    event.pid = (*task).pid;
+    event.event_type = ProcessEnterType::Finish;
+
+    EVENTS.output(&ctx, &event, 0);
+    info!(&ctx, "sched_process_exit: sent data");
 
     Ok(0)
 }
