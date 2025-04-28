@@ -170,6 +170,10 @@ impl ProcessWatcher {
 
         let mut state = self.state.write().await;
 
+        for item in buff.iter() {
+            state.processes.remove(&item.pid);
+        }
+
         let mut buff: HashMap<_, _> = buff.into_iter().map(|proc| (proc.pid, proc)).collect();
 
         let taken: Vec<_> = state
