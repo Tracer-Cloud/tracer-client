@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::thread::sleep;
 use std::time::{Duration, Instant};
-use sysinfo::{ProcessExt, System, SystemExt};
+use sysinfo::System;
 
 #[derive(Debug)]
 struct SimpleTarget {
