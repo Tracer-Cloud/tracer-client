@@ -334,25 +334,8 @@ impl TracerClient {
     //     .await?;
     //
 
-    /// These functions require logs and the system
-    pub async fn poll_processes(&mut self) -> Result<()> {
-        // self.process_watcher
-        //     .write()
-        //     .await
-        //     .poll_processes()
-        //     .await?;
-        //
-        // if !self.process_watcher.read().await.is_empty() {
-        //     if let Some(run) = self.pipeline.write().await.run.as_mut() {
-        //         run.last_interaction = Instant::now();
-        //     }
-        // }
-
-        Ok(())
-    }
-
     pub async fn poll_process_metrics(&mut self) -> Result<()> {
-        Ok(())
+        self.process_watcher.poll_process_metrics().await
     }
 
     pub async fn poll_files(&mut self) -> Result<()> {

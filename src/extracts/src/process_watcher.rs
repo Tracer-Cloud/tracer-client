@@ -491,9 +491,17 @@ impl ProcessWatcher {
         todo!()
     }
 
-    async fn poll_process_metrics(self: &Arc<Self>) -> Result<()> {
+    pub async fn poll_process_metrics(self: &Arc<Self>) -> Result<()> {
         let state = self.state.read().await;
+
+        if state.monitoring.is_empty() {
+            debug!("No processes to monitor, skipping poll");
+            return Ok(());
+        }
+
+        debug!("Refreshing data for {} processes", state.monitoring.len());
         self.refresh_system(&state.monitoring).await?;
+        self.process_updates().await?;
 
         Ok(())
     }
@@ -517,5 +525,22 @@ impl ProcessWatcher {
             .iter()
             .map(|(_, processes)| processes.len())
             .sum()
+    }
+
+    async fn process_updates(self: &Arc<ProcessWatcher>) -> Result<()> {
+        for (target, procs) in self.state.read().await.monitoring.iter() {
+            for proc in procs.iter() {
+                let result = self.process_running_process(target, proc).await?;
+
+                match result {
+                    ProcessResult::NotFound => {
+                        // todo: mark process as completed
+                    }
+                    ProcessResult::Found => {}
+                }
+            }
+        }
+
+        Ok(())
     }
 }
