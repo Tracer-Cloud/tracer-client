@@ -2,24 +2,27 @@
 
 -- creating a run aggregate table that will simulate a view (not definitive, we likely need to add more properties)
 CREATE TABLE IF NOT EXISTS runs_aggregations (
-    trace_id TEXT primary key,
-    pipeline_name TEXT,
-    status TEXT,
-    total_runtime_sec BIGINT DEFAULT 0,
-    start_time TIMESTAMP,
-    end_time TIMESTAMP,
-    max_ram BIGINT DEFAULT 0,
-    avg_ram BIGINT DEFAULT 0,
-    max_cpu FLOAT DEFAULT 0,
-    ec2_cost_per_hour FLOAT,
-    ec2_cost_per_second FLOAT,
-    system_ram_total FLOAT DEFAULT 0,
-    system_metrics_events_count BIGINT DEFAULT 0,
-    total_datasets INTEGER DEFAULT 0,
-    total_cost FLOAT DEFAULT 0
-);
+                                                 trace_id TEXT,
+                                                 run_id TEXT,
+                                                 pipeline_name TEXT,
+                                                 status TEXT,
+                                                 total_runtime_sec BIGINT DEFAULT 0,
+                                                 start_time TIMESTAMP,
+                                                 end_time TIMESTAMP,
+                                                 max_ram BIGINT DEFAULT 0,
+                                                 avg_ram BIGINT DEFAULT 0,
+                                                 max_cpu FLOAT DEFAULT 0,
+                                                 ec2_cost_per_hour FLOAT,
+                                                 ec2_cost_per_second FLOAT,
+                                                 system_ram_total FLOAT DEFAULT 0,
+                                                 system_metrics_events_count BIGINT DEFAULT 0,
+                                                 total_datasets INTEGER DEFAULT 0,
+                                                 total_cost FLOAT DEFAULT 0,
+                                                 PRIMARY KEY (trace_id, run_id)
+    );
 
 CREATE INDEX IF NOT EXISTS idx_trace_id_run_aggregation ON runs_aggregations(trace_id);
+
 
 CREATE OR REPLACE FUNCTION update_runs_aggregation()
 RETURNS TRIGGER AS $$
@@ -29,6 +32,7 @@ BEGIN
         -- Create a new record
         INSERT INTO runs_aggregations (
             trace_id,
+            run_id,
             pipeline_name,
             status,
             total_runtime_sec,
@@ -45,6 +49,7 @@ BEGIN
             total_cost
         ) VALUES (
             new.trace_id,
+            new.run_id,
             new.pipeline_name,
             'Running',
             0,
@@ -60,7 +65,7 @@ BEGIN
             0,
             0
         )
-        ON CONFLICT (trace_id) DO NOTHING; -- Avoid duplication if exists already
+        ON CONFLICT (trace_id, run_id) DO NOTHING; -- Avoid duplication if exists already
 
     -- will work after ebpf datasets detection
     ELSIF NEW.process_status = 'dataset_opened' THEN
@@ -71,7 +76,7 @@ BEGIN
 
     -- will work after ebpf
     ELSIF NEW.process_status = 'pipeline_terminated' THEN
-        -- Mark complete and add to runtime
+            -- Mark complete and add to runtime
         UPDATE runs_aggregations
         SET
             status = 'Complete',
@@ -79,7 +84,7 @@ BEGIN
         WHERE trace_id = NEW.trace_id;
 
     ELSIF NEW.process_status = 'metric_event' THEN
-         -- Update RAM, CPU, AVG_CPU and total_metrics_events
+             -- Update RAM, CPU, AVG_CPU and total_metrics_events
         UPDATE runs_aggregations
         SET
             max_ram = GREATEST(max_ram, COALESCE(NEW.mem_used, 0)),
@@ -94,15 +99,14 @@ BEGIN
 
     END IF;
 
-    UPDATE runs_aggregations
-    SET
-        total_runtime_sec = EXTRACT(EPOCH FROM (NEW.timestamp - start_time))
-    WHERE trace_id = NEW.trace_id;
+        UPDATE runs_aggregations
+        SET
+            total_runtime_sec = EXTRACT(EPOCH FROM (NEW.timestamp - start_time))
+        WHERE trace_id = NEW.trace_id;
 
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
 
 -- Now attach the trigger to the events table
 DROP TRIGGER IF EXISTS trigger_update_runs_aggregation ON batch_jobs_logs;
