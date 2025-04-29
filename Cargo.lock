@@ -4794,7 +4794,6 @@ dependencies = [
  "clap",
  "lazy_static",
  "log",
- "once_cell",
  "reqwest",
  "serde",
  "serde_json",

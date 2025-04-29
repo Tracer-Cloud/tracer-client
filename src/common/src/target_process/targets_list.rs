@@ -2,7 +2,7 @@ use lazy_static::lazy_static;
 
 use super::{DisplayName, Target};
 use crate::target_process::target_matching::{CommandContainsStruct, TargetMatch};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 lazy_static! {
 
@@ -769,5 +769,5 @@ pub static ref TARGETS: Vec<Target> = [
 
 }
 
-pub static DEFAULT_DISPLAY_PROCESS_RULES: Lazy<Vec<&'static str>> =
-    Lazy::new(|| vec!["nextflow", "airflow", "java", "python"]);
+pub static DEFAULT_DISPLAY_PROCESS_RULES: LazyLock<Vec<&'static str>> =
+    LazyLock::new(|| vec!["nextflow", "airflow", "java", "python"]);
