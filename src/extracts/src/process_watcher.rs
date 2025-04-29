@@ -358,14 +358,7 @@ impl ProcessWatcher {
             let mut matches: HashSet<ProcessTrigger> = HashSet::new();
 
             for trigger in triggers.iter() {
-                if true
-                    || target.matches(
-                        // TODO
-                        &trigger.comm,
-                        &trigger.argv.join(" "),
-                        &trigger.file_name,
-                    )
-                {
+                if target.matches(&trigger.comm, &trigger.argv.join(" "), &trigger.file_name) {
                     matches.insert(trigger.clone());
                 }
             }
@@ -373,8 +366,6 @@ impl ProcessWatcher {
             if !matches.is_empty() {
                 matched_processes.push((target.clone(), matches));
             }
-
-            break; // todo: remove
         }
 
         Ok(matched_processes)
