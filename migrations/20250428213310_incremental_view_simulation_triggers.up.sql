@@ -19,13 +19,11 @@ CREATE TABLE IF NOT EXISTS runs_aggregations (
     total_cost FLOAT DEFAULT 0
 );
 
+CREATE INDEX IF NOT EXISTS idx_trace_id_run_aggregation ON runs_aggregations(trace_id);
+
 CREATE OR REPLACE FUNCTION update_runs_aggregation()
 RETURNS TRIGGER AS $$
 DECLARE
-old_total_metrics_events INT;
-    new_total_metrics_events INT;
-    total_system_ram FLOAT;
-    actual_ram FLOAT;
 BEGIN
     IF NEW.process_status = 'new_run' THEN
         -- Create a new record
@@ -67,42 +65,33 @@ BEGIN
     -- will work after ebpf datasets detection
     ELSIF NEW.process_status = 'dataset_opened' THEN
         -- Increment datasets
-    UPDATE runs_aggregations
-    SET total_datasets = total_datasets + 1
-    WHERE trace_id = NEW.trace_id;
+        UPDATE runs_aggregations
+        SET total_datasets = total_datasets + 1
+        WHERE trace_id = NEW.trace_id;
 
     -- will work after ebpf
     ELSIF NEW.process_status = 'pipeline_terminated' THEN
-
-    -- Mark complete and add to runtime
-    UPDATE runs_aggregations
-    SET
-        status = 'Complete',
-        end_time = NEW.timestamp
-    WHERE trace_id = NEW.trace_id;
+        -- Mark complete and add to runtime
+        UPDATE runs_aggregations
+        SET
+            status = 'Complete',
+            end_time = NEW.timestamp
+        WHERE trace_id = NEW.trace_id;
 
     ELSIF NEW.process_status = 'metric_event' THEN
+         -- Update RAM, CPU, AVG_CPU and total_metrics_events
+        UPDATE runs_aggregations
+        SET
+            max_ram = GREATEST(max_ram, COALESCE(NEW.mem_used, 0)),
+            max_cpu = GREATEST(max_cpu, COALESCE(NEW.cpu_usage, 0)),
+            end_time = new.timestamp,
+            system_metrics_events_count = system_metrics_events_count + 1,
+            avg_ram = (avg_ram * system_metrics_events_count + NEW.mem_used)
+                / (system_metrics_events_count + 1),
+            total_cost = EXTRACT(EPOCH FROM (NEW.timestamp - start_time)) * ec2_cost_per_second
+        -- add the disk updates as well
+        WHERE trace_id = NEW.trace_id;
 
-            -- First, fetch the old count of metrics
-    SELECT system_metrics_events_count INTO old_total_metrics_events
-    FROM runs_aggregations
-    WHERE trace_id = NEW.trace_id;
-
-    IF old_total_metrics_events IS NULL THEN
-                old_total_metrics_events := 0;
-    END IF;
-
-    new_total_metrics_events := old_total_metrics_events + 1;
-
-    -- Update RAM, CPU, AVG_CPU and total_metrics_events
-    UPDATE runs_aggregations
-    SET
-        max_ram = GREATEST(max_ram, COALESCE(NEW.mem_used, 0)),
-        max_cpu = GREATEST(max_cpu, COALESCE(NEW.cpu_usage, 0)),
-        avg_ram = ((avg_ram * old_total_metrics_events) + NEW.mem_used) / new_total_metrics_events,
-        system_metrics_events_count = new_total_metrics_events
-    -- add the disk updates as well
-    WHERE trace_id = NEW.trace_id;
     END IF;
 
     UPDATE runs_aggregations
@@ -113,6 +102,7 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
 
 -- Now attach the trigger to the events table
 DROP TRIGGER IF EXISTS trigger_update_runs_aggregation ON batch_jobs_logs;
