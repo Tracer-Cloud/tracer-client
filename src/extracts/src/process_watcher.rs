@@ -51,6 +51,7 @@ fn process_status_to_string(status: &ProcessStatus) -> String {
 struct ProcessState {
     processes: HashMap<usize, ProcessTrigger>, // todo: use (pid, starttime)
     monitoring: HashMap<Target, HashSet<ProcessTrigger>>, // todo: avoid target copy
+    datasamples_tracker: HashMap<String, HashSet<String>>, // this hashmap groups datasets by the nextflow session uuid
 
     targets: Vec<Target>,
 }
@@ -84,6 +85,7 @@ impl ProcessWatcher {
             processes: HashMap::new(),
             monitoring: HashMap::new(),
             targets: targets.clone(),
+            datasamples_tracker: HashMap::new(),
         }));
 
         ProcessWatcher {
@@ -411,6 +413,11 @@ impl ProcessWatcher {
             }
         };
 
+        if let ProcessProperties::Full(ref properties) = properties {
+            self.log_datasets_in_process(&process.argv, properties)
+                .await?;
+        }
+
         self.log_recorder
             .log(
                 TracerProcessStatus::ToolExecution,
@@ -420,7 +427,6 @@ impl ProcessWatcher {
             )
             .await?;
 
-        // self.log_datasets_in_process().await?; // todo:
         Ok(ProcessResult::Found)
     }
 
@@ -568,18 +574,44 @@ impl ProcessWatcher {
         (container_id, job_id, trace_id)
     }
 
-    pub async fn refresh_process(self: &Arc<ProcessWatcher>, pid: &Pid) -> Result<()> {
-        let mut system = self.system.read().await;
+    async fn log_datasets_in_process(
+        self: &Arc<Self>,
+        cmd: &[String],
+        properties: &FullProcessProperties,
+    ) -> Result<()> {
+        let trace_id: Option<String> = properties.trace_id.clone();
+        let datasamples_tracker = &mut self.state.write().await.datasamples_tracker;
 
-        Ok(())
-    }
+        for arg in cmd.iter() {
+            if DATA_SAMPLES_EXT.iter().any(|ext| arg.ends_with(ext)) {
+                datasamples_tracker
+                    .entry(trace_id.clone().unwrap_or_default())
+                    .or_default()
+                    .insert(arg.clone());
+            }
+        }
 
-    async fn on_process_terminated(self: &Arc<ProcessWatcher>, pid: &Pid) -> Result<()> {
-        todo!()
-    }
+        // TODO change this logic
+        let properties = DataSetsProcessed {
+            datasets: datasamples_tracker
+                .get(&trace_id.clone().unwrap_or_default())
+                .map(|set| set.iter().cloned().collect::<Vec<_>>().join(", "))
+                .unwrap_or_default(),
+            total: datasamples_tracker
+                .get(&trace_id.clone().unwrap_or_default())
+                .unwrap_or(&HashSet::new())
+                .len() as u64,
+            trace_id,
+        };
 
-    async fn log_datasets_in_process(self: &Arc<Self>) -> Result<()> {
-        todo!()
+        self.log_recorder
+            .log(
+                TracerProcessStatus::DataSamplesEvent,
+                format!("[{}] Samples Processed So Far", Utc::now()),
+                Some(EventAttributes::ProcessDatasetStats(properties)),
+                None,
+            )
+            .await
     }
 
     pub async fn poll_process_metrics(self: &Arc<Self>) -> Result<()> {
