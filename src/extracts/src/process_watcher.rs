@@ -185,7 +185,7 @@ impl ProcessWatcher {
 
         let mut buff: HashMap<_, _> = buff.into_iter().map(|proc| (proc.pid, proc)).collect();
 
-        let taken: Vec<_> = {
+        let taken: HashSet<_> = {
             let mut state = self.state.write().await;
 
             state
@@ -201,7 +201,7 @@ impl ProcessWatcher {
                 .collect()
         };
 
-        debug!("removed {} processes", taken.len());
+        debug!("removed {} processes. taken={:?}, buff={:?}", taken.len(), taken, buff);
 
         for start in taken {
             let finish: FinishTrigger = buff
@@ -211,6 +211,8 @@ impl ProcessWatcher {
             // should be safe since
             // - we've checked the key is present
             // - we have an exclusive lock on the state
+            // - if trigger is duplicated in monitoring (can happened if it matches several targets),
+            //   it'll be deduplicated via hashset
 
             self.process_proc_finish(&start, &finish).await?;
         }
@@ -660,6 +662,7 @@ impl ProcessWatcher {
                 match result {
                     ProcessResult::NotFound => {
                         // todo: mark process as completed
+                        debug!("Process {} was not found", proc.pid);
                     }
                     ProcessResult::Found => {}
                 }

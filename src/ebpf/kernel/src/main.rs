@@ -36,7 +36,7 @@ pub fn sched_process_exit(ctx: BtfTracePointContext) -> i64 {
 }
 
 unsafe fn try_sched_process_exec(ctx: BtfTracePointContext) -> Result<i64, i64> {
-    info!(&ctx, "tracepoint sched_process_exec called");
+    // info!(&ctx, "tracepoint sched_process_exec called");
 
     let task: *const task_struct = unsafe { ctx.arg(0) };
 
@@ -58,6 +58,8 @@ unsafe fn try_sched_process_exec(ctx: BtfTracePointContext) -> Result<i64, i64> 
 
     if !parent_task_struct.is_null() {
         event.ppid = (*parent_task_struct).pid;
+    } else {
+        event.ppid = 0;
     }
 
     let mm = bpf_probe_read::<*mut mm_struct>((*task).mm as *const *mut _)?;
@@ -101,13 +103,13 @@ unsafe fn try_sched_process_exec(ctx: BtfTracePointContext) -> Result<i64, i64> 
     }
 
     EVENTS.output(&ctx, &event, 0);
-    info!(&ctx, "sched_process_exec: sent data");
+    // info!(&ctx, "sched_process_exec: sent data");
 
     Ok(0)
 }
 
 unsafe fn try_sched_process_exit(ctx: BtfTracePointContext) -> Result<i64, i64> {
-    info!(&ctx, "tracepoint sched_process_exit called");
+    // info!(&ctx, "tracepoint sched_process_exit called");
 
     let task: *const task_struct = unsafe { ctx.arg(0) };
 
@@ -128,7 +130,7 @@ unsafe fn try_sched_process_exit(ctx: BtfTracePointContext) -> Result<i64, i64> 
     event.event_type = ProcessEnterType::Finish;
 
     EVENTS.output(&ctx, &event, 0);
-    info!(&ctx, "sched_process_exit: sent data");
+    // info!(&ctx, "sched_process_exit: sent data");
 
     Ok(0)
 }
