@@ -130,6 +130,7 @@ impl ProcessWatcher {
 
         loop {
             buff.clear();
+            debug!("Ready to receive triggers");
 
             while rx.recv_many(&mut buff, 100).await > 0 {
                 let s = std::mem::take(&mut buff);
@@ -157,11 +158,22 @@ impl ProcessWatcher {
         }
 
         if !finish.is_empty() {
+            debug!("processing {} finishing processes", finish.len());
             self.process_termination(finish).await?;
         }
 
         if !start.is_empty() {
+            debug!("processing {} creating processes", start.len());
             self.process_start(start).await?;
+        }
+
+        Ok(())
+    }
+
+    async fn remove_processes(self: &Arc<Self>, buff: &Vec<FinishTrigger>) -> Result<()> {
+        let mut state = self.state.write().await;
+        for trigger in buff.iter() {
+            state.processes.remove(&trigger.pid);
         }
 
         Ok(())
@@ -169,26 +181,25 @@ impl ProcessWatcher {
 
     async fn process_termination(self: &Arc<Self>, buff: Vec<FinishTrigger>) -> Result<()> {
         debug!("processing {} creating processes", buff.len());
-
-        let mut state = self.state.write().await;
-
-        for item in buff.iter() {
-            state.processes.remove(&item.pid);
-        }
+        self.remove_processes(&buff).await?;
 
         let mut buff: HashMap<_, _> = buff.into_iter().map(|proc| (proc.pid, proc)).collect();
 
-        let taken: Vec<_> = state
-            .monitoring
-            .iter_mut()
-            .flat_map(|(_, procs)| {
-                let (removed, retained): (Vec<_>, Vec<_>) = procs
-                    .drain()
-                    .partition(|proc| buff.keys().contains(&proc.pid));
-                *procs = retained.into_iter().collect();
-                removed
-            })
-            .collect();
+        let taken: Vec<_> = {
+            let mut state = self.state.write().await;
+
+            state
+                .monitoring
+                .iter_mut()
+                .flat_map(|(_, procs)| {
+                    let (removed, retained): (Vec<_>, Vec<_>) = procs
+                        .drain()
+                        .partition(|proc| buff.keys().contains(&proc.pid));
+                    *procs = retained.into_iter().collect();
+                    removed
+                })
+                .collect()
+        };
 
         debug!("removed {} processes", taken.len());
 
