@@ -3,6 +3,7 @@ pub mod target_matching;
 pub mod targets_list;
 use serde::{Deserialize, Serialize};
 use target_matching::{matches_target, TargetMatch};
+use targets_list::DEFAULT_DISPLAY_PROCESS_RULES;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Hash, Eq)]
 pub enum DisplayName {
@@ -16,7 +17,7 @@ impl DisplayName {
     pub fn get_display_name(&self, process_name: &str, commands: &[String]) -> String {
         match self {
             DisplayName::Name(name) => name.clone(),
-            DisplayName::Default() => process_name.to_string(),
+            DisplayName::Default() => Self::process_default_display_name(process_name, commands),
             DisplayName::UseFirstArgument() => commands
                 .get(1)
                 .unwrap_or(&process_name.to_string())
@@ -39,6 +40,16 @@ impl DisplayName {
                 base_name.unwrap().to_str().unwrap().to_string()
             }
         }
+    }
+
+    fn process_default_display_name(process_name: &str, commands: &[String]) -> String {
+        let cmdline = commands.join(" ").to_lowercase();
+        for label in DEFAULT_DISPLAY_PROCESS_RULES.iter() {
+            if cmdline.contains(label) {
+                return format!("{} ({})", label, process_name);
+            }
+        }
+        process_name.to_string()
     }
 }
 
@@ -120,5 +131,44 @@ impl TargetMatchable for Vec<TargetMatch> {
     fn matches(&self, process_name: &str, command: &str, bin_path: &str) -> bool {
         self.iter()
             .any(|target| matches_target(target, process_name, command, bin_path))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_process_default_display_name_with_mappings() {
+        let commands = vec![
+            "/opt/conda/bin/java".to_string(),
+            "-jar".to_string(),
+            "nextflow.jar".to_string(),
+        ];
+        let process_name = "Thread-4";
+
+        let display_name = DisplayName::process_default_display_name(process_name, &commands);
+
+        assert_eq!(display_name, "nextflow (Thread-4)");
+    }
+
+    #[test]
+    fn test_process_default_display_name_without_mappings() {
+        let commands = vec!["/usr/bin/somebinary".to_string()];
+        let process_name = "SomeProcess";
+
+        let display_name = DisplayName::process_default_display_name(process_name, &commands);
+
+        assert_eq!(display_name, "SomeProcess");
+    }
+
+    #[test]
+    fn test_process_default_display_name_with_python() {
+        let commands = vec!["/usr/bin/python".to_string(), "script.py".to_string()];
+        let process_name = "Thread-8";
+
+        let display_name = DisplayName::process_default_display_name(process_name, &commands);
+
+        assert_eq!(display_name, "python (Thread-8)");
     }
 }
