@@ -69,7 +69,7 @@ tracer info
 
 Open the link to access real-time dashboard insights into your computational workloads:
 
-![Tracer Info](docs/images/20250316-tracer-info.png)
+<img width="711" alt="image" src="https://github.com/user-attachments/assets/585d3061-c895-47d9-a091-bb1598d95cae" />
 
 
 
