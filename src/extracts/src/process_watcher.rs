@@ -180,7 +180,7 @@ impl ProcessWatcher {
     }
 
     async fn process_termination(self: &Arc<Self>, buff: Vec<FinishTrigger>) -> Result<()> {
-        debug!("processing {} creating processes", buff.len());
+        debug!("processing {} process_termination", buff.len());
         self.remove_processes(&buff).await?;
 
         let mut buff: HashMap<_, _> = buff.into_iter().map(|proc| (proc.pid, proc)).collect();
@@ -249,7 +249,7 @@ impl ProcessWatcher {
     }
 
     async fn process_start(self: &Arc<ProcessWatcher>, buff: Vec<ProcessTrigger>) -> Result<()> {
-        debug!("processing {} creating processes", buff.len());
+        debug!("processing {} process_start", buff.len());
 
         let interested_in = self.process_start_processes(buff).await?;
 
