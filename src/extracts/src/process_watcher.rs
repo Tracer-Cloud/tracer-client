@@ -24,6 +24,7 @@ use tracer_common::types::event::attributes::process::{
 };
 use tracer_common::types::event::attributes::EventAttributes;
 use tracer_ebpf_user::{start_processing_events, TracerEbpf};
+use tracing::field::debug;
 use tracing::{debug, error, info};
 
 enum ProcessResult {
@@ -201,7 +202,12 @@ impl ProcessWatcher {
                 .collect()
         };
 
-        debug!("removed {} processes. taken={:?}, buff={:?}", taken.len(), taken, buff);
+        debug!(
+            "removed {} processes. taken={:?}, buff={:?}",
+            taken.len(),
+            taken,
+            buff
+        );
 
         for start in taken {
             let finish: FinishTrigger = buff
@@ -262,7 +268,12 @@ impl ProcessWatcher {
             return Ok(());
         }
 
-        self.refresh_system(&interested_in).await?;
+        let procs_to_refresh = interested_in
+            .values()
+            .flat_map(|procs| procs.iter().map(|p| p.pid))
+            .collect();
+
+        self.refresh_system(&procs_to_refresh).await?;
 
         for (target, triggers) in interested_in.iter() {
             for process in triggers.iter() {
@@ -321,17 +332,8 @@ impl ProcessWatcher {
         Ok(interested_in)
     }
 
-    async fn refresh_system(
-        self: &Arc<ProcessWatcher>,
-        targets: &HashMap<Target, HashSet<ProcessTrigger>>,
-    ) -> Result<()> {
-        debug!("refreshing {} processes", targets.len());
-
-        let to_enrich: HashSet<usize> = targets
-            .values()
-            .flat_map(|processes| processes.iter().map(|p| p.pid))
-            .collect();
-
+    #[tracing::instrument(skip(self))]
+    async fn refresh_system(self: &Arc<ProcessWatcher>, to_enrich: &HashSet<usize>) -> Result<()> {
         let pids = to_enrich
             .iter()
             .map(|pid| Pid::from(*pid))
@@ -466,6 +468,8 @@ impl ProcessWatcher {
                 .await
         };
 
+        debug!("Process data completed. PID={}", process.pid);
+
         self.log_recorder
             .log(
                 TracerProcessStatus::ToolMetricEvent,
@@ -484,6 +488,7 @@ impl ProcessWatcher {
         display_name: String,
         process_input_files: bool,
     ) -> ProcessProperties {
+        debug!("gathering process data for {}", display_name);
         let start_time = Utc::now(); // todo: use proc starttime
 
         let (container_id, job_id, trace_id) = Self::read_process_env(proc);
@@ -619,16 +624,27 @@ impl ProcessWatcher {
     }
 
     pub async fn poll_process_metrics(self: &Arc<Self>) -> Result<()> {
-        let state = self.state.read().await;
+        debug!("Polling process metrics");
 
-        if state.monitoring.is_empty() {
-            debug!("No processes to monitor, skipping poll");
-            return Ok(());
-        }
+        let pids = {
+            let state = self.state.read().await;
+            debug!("Refreshing data for {} processes", state.monitoring.len());
 
-        debug!("Refreshing data for {} processes", state.monitoring.len());
-        self.refresh_system(&state.monitoring).await?;
+            if state.monitoring.is_empty() {
+                debug!("No processes to monitor, skipping poll");
+                return Ok(());
+            }
+            state
+                .monitoring
+                .iter()
+                .flat_map(|(_, processes)| processes.iter().map(|p| p.pid))
+                .collect::<HashSet<_>>()
+        };
+
+        self.refresh_system(&pids).await?;
         self.process_updates().await?;
+
+        debug!("Refreshing data completed");
 
         Ok(())
     }
@@ -654,6 +670,7 @@ impl ProcessWatcher {
             .sum()
     }
 
+    #[tracing::instrument(skip(self))]
     async fn process_updates(self: &Arc<ProcessWatcher>) -> Result<()> {
         for (target, procs) in self.state.read().await.monitoring.iter() {
             for proc in procs.iter() {

@@ -16,6 +16,7 @@ use tracer_client::TracerClient;
 use tracer_common::constants::SYSLOG_FILE;
 use tracer_extracts::stdout::run_stdout_lines_read_thread;
 use tracer_extracts::syslog::run_syslog_lines_read_thread;
+use tracing::debug;
 
 pub struct DaemonServer {
     client: Arc<Mutex<TracerClient>>,
@@ -85,16 +86,19 @@ impl DaemonServer {
                 // call rx.recv().await as it'll freeze the execution loop
 
                 _ = cancellation_token.cancelled() => {
+                    debug!("DaemonServer cancelled");
                     break;
                 }
                 _ = submission_interval.tick() => {
+                    debug!("DaemonServer submission interval ticked");
                     let mut guard = tracer_client.lock().await;
 
-                    guard.borrow_mut().submit_batched_data().await?;
+                    guard.submit_batched_data().await?;
                     guard.borrow_mut().poll_files().await?;
 
                 }
                 _ = monitor_interval.tick() => {
+                    debug!("DaemonServer monitor interval ticked");
                     monitor_processes_with_tracer_client(tracer_client.lock().await.borrow_mut())
                     .await?;
                 }

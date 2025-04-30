@@ -65,7 +65,7 @@ pub struct TracerClient {
     pub config: Config,
 
     log_recorder: StructLogRecorder,
-    rx: Receiver<Event>,
+    rx: std::sync::Mutex<Receiver<Event>>, // Mutex because receiver is always single
 
     // todo: remove completly
     initialization_id: Option<String>,
@@ -136,7 +136,7 @@ impl TracerClient {
             pricing_client,
             config,
             log_recorder,
-            rx,
+            rx: std::sync::Mutex::new(rx),
 
             pipeline_name: cli_args.pipeline_name,
             initialization_id: cli_args.run_id,
@@ -153,7 +153,7 @@ impl TracerClient {
         Ok(())
     }
 
-    pub async fn start_monitoring(&mut self) -> Result<()> {
+    pub async fn start_monitoring(&self) -> Result<()> {
         self.process_watcher.start_ebpf().await
     }
 
@@ -168,9 +168,10 @@ impl TracerClient {
         )
     }
 
-    // TODO: Refactor to collect required entries properly
-    pub async fn submit_batched_data(&mut self) -> Result<()> {
-        if self.rx.is_empty() {
+    pub async fn submit_batched_data(&self) -> Result<()> {
+        let mut rx = self.rx.lock().expect("lock poisoned");
+
+        if rx.is_empty() {
             return Ok(());
         }
 
@@ -193,14 +194,13 @@ impl TracerClient {
             self.pipeline_name, run_name
         );
 
-        // todo: rollback
-        // self.metrics_collector
-        //     .collect_metrics()
-        //     .await
-        //     .context("Failed to collect metrics")?;
+        self.metrics_collector
+            .collect_metrics()
+            .await
+            .context("Failed to collect metrics")?;
 
         let mut buff: Vec<Event> = Vec::with_capacity(100);
-        if self.rx.recv_many(&mut buff, 100).await > 0 {
+        if rx.recv_many(&mut buff, 100).await > 0 {
             debug!("inserting: {:?}", buff);
 
             self.db_client
@@ -266,7 +266,7 @@ impl TracerClient {
         Ok(())
     }
 
-    pub async fn start_new_run(&mut self, timestamp: Option<DateTime<Utc>>) -> Result<()> {
+    pub async fn start_new_run(&self, timestamp: Option<DateTime<Utc>>) -> Result<()> {
         self.start_monitoring().await?;
 
         if self.pipeline.read().await.run.is_some() {
@@ -302,7 +302,7 @@ impl TracerClient {
         Ok(())
     }
 
-    pub async fn stop_run(&mut self) -> Result<()> {
+    pub async fn stop_run(&self) -> Result<()> {
         let mut pipeline = self.pipeline.write().await;
 
         if pipeline.run.is_none() {
@@ -334,11 +334,13 @@ impl TracerClient {
     //     .await?;
     //
 
+    #[tracing::instrument(skip(self))]
     pub async fn poll_process_metrics(&mut self) -> Result<()> {
         self.process_watcher.poll_process_metrics().await
     }
 
-    pub async fn poll_files(&mut self) -> Result<()> {
+    #[tracing::instrument(skip(self))]
+    pub async fn poll_files(&self) -> Result<()> {
         self.file_watcher
             .write()
             .await
@@ -352,12 +354,14 @@ impl TracerClient {
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn poll_syslog(&mut self) -> Result<()> {
         self.syslog_watcher
             .poll_syslog(self.get_syslog_lines_buffer(), &self.metrics_collector)
             .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn poll_stdout_stderr(&mut self) -> Result<()> {
         let (stdout_lines_buffer, stderr_lines_buffer) = self.get_stdout_stderr_lines_buffer();
 
@@ -380,7 +384,8 @@ impl TracerClient {
             .await
     }
 
-    pub async fn refresh_sysinfo(&mut self) -> Result<()> {
+    #[tracing::instrument(skip(self))]
+    pub async fn refresh_sysinfo(&self) -> Result<()> {
         self.system.write().await.refresh_all();
 
         Ok(())
@@ -398,7 +403,7 @@ impl TracerClient {
         &self.config.api_key
     }
 
-    pub async fn send_log_event(&mut self, payload: String) -> Result<()> {
+    pub async fn send_log_event(&self, payload: String) -> Result<()> {
         send_log_event(self.get_api_key(), &payload).await?; // todo: remove
 
         self.log_recorder
@@ -413,7 +418,7 @@ impl TracerClient {
         Ok(())
     }
 
-    pub async fn send_alert_event(&mut self, payload: String) -> Result<()> {
+    pub async fn send_alert_event(&self, payload: String) -> Result<()> {
         send_alert_event(&payload).await?; // todo: remove
         self.log_recorder
             .log(ProcessStatus::Alert, payload, None, Some(Utc::now()))
