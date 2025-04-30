@@ -4,7 +4,6 @@ use crate::data_samples::DATA_SAMPLES_EXT;
 use crate::file_watcher::FileWatcher;
 use anyhow::Result;
 use chrono::Utc;
-use itertools::Itertools;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::Path;
@@ -22,13 +21,11 @@ use tracer_common::types::event::attributes::EventAttributes;
 use tracer_ebpf_user::{start_processing_events, TracerEbpf};
 use tracing::{debug, error};
 
-/// Represents the result of processing a process
 enum ProcessResult {
     NotFound,
     Found,
 }
 
-/// Converts sysinfo ProcessStatus to a string representation
 fn process_status_to_string(status: &ProcessStatus) -> String {
     match status {
         ProcessStatus::Run => "Run".to_string(),
@@ -78,7 +75,6 @@ pub struct ProcessWatcher {
 }
 
 impl ProcessWatcher {
-    /// Creates a new ProcessWatcher with the given targets and dependencies
     pub fn new(
         targets: Vec<Target>,
         log_recorder: LogRecorder,
@@ -105,11 +101,9 @@ impl ProcessWatcher {
     pub async fn update_targets(self: &Arc<Self>, targets: Vec<Target>) -> Result<()> {
         let mut state = self.state.write().await;
         state.targets = targets;
-        // TODO: Before we'd clean seen processes. Consider if we should do it now.
         Ok(())
     }
 
-    /// Starts the eBPF monitoring system
     pub async fn start_ebpf(self: &Arc<Self>) -> Result<()> {
         Arc::clone(&self)
             .ebpf
@@ -117,7 +111,6 @@ impl ProcessWatcher {
         Ok(())
     }
 
-    /// Initializes the eBPF subsystem
     fn initialize_ebpf(self: Arc<Self>) -> Result<TracerEbpf, anyhow::Error> {
         let (tx, rx) = mpsc::channel::<Trigger>(100);
         let ebpf = start_processing_events(tx.clone())?;
@@ -176,7 +169,6 @@ impl ProcessWatcher {
         Ok(())
     }
 
-    /// Removes processes from the state
     async fn remove_processes_from_state(
         self: &Arc<Self>,
         triggers: &[FinishTrigger],
@@ -188,7 +180,6 @@ impl ProcessWatcher {
         Ok(())
     }
 
-    /// Handles process termination events
     async fn handle_process_terminations(
         self: &Arc<Self>,
         triggers: Vec<FinishTrigger>,
@@ -236,6 +227,11 @@ impl ProcessWatcher {
             let finish_trigger = pid_to_finish
                 .remove(&start_trigger.pid)
                 .expect("Process should be present in the map");
+            // should be safe since
+            // - we've checked the key is present
+            // - we have an exclusive lock on the state
+            // - if trigger is duplicated in monitoring (can happen if it matches several targets),
+            //   it'll be deduplicated via hashset
 
             self.log_process_completion(&start_trigger, &finish_trigger)
                 .await?;
@@ -244,26 +240,22 @@ impl ProcessWatcher {
         Ok(())
     }
 
-    /// Logs information about a completed process
     async fn log_process_completion(
         self: &Arc<Self>,
         start_trigger: &ProcessTrigger,
         finish_trigger: &FinishTrigger,
     ) -> Result<()> {
-        // Calculate duration in seconds
         let duration_sec = (finish_trigger.finished_at - start_trigger.started_at)
             .num_seconds()
             .try_into()
             .unwrap_or(0);
 
-        // Create completed process properties
         let properties = CompletedProcess {
             tool_name: start_trigger.comm.clone(),
             tool_pid: start_trigger.pid.to_string(),
             duration_sec,
         };
 
-        // Log the process completion
         self.log_recorder
             .log(
                 TracerProcessStatus::FinishedToolExecution,
@@ -276,7 +268,6 @@ impl ProcessWatcher {
         Ok(())
     }
 
-    /// Handles process start events
     async fn handle_process_starts(
         self: &Arc<ProcessWatcher>,
         triggers: Vec<ProcessTrigger>,
@@ -324,7 +315,6 @@ impl ProcessWatcher {
         Ok(())
     }
 
-    /// Filters processes based on configured targets
     async fn filter_processes_of_interest(
         self: &Arc<ProcessWatcher>,
         triggers: Vec<ProcessTrigger>,
@@ -380,31 +370,58 @@ impl ProcessWatcher {
         // TODO: Consider using tokio::task::spawn_blocking for this potentially blocking operation
         system.refresh_pids_specifics(
             pids_vec.as_slice(),
-            ProcessRefreshKind::everything(), // TODO: Consider minimizing data collected to improve performance
+            ProcessRefreshKind::everything(), // TODO(ENG-336): minimize
         );
 
         Ok(())
     }
 
     /// Gets a process and all its parent processes from the state
+    ///
+    /// Will panic if a cycle is detected in the process hierarchy.
     fn get_process_hierarchy(
         state: &ProcessState,
         process: ProcessTrigger,
     ) -> HashSet<ProcessTrigger> {
         let mut current_pid = process.ppid;
         let mut hierarchy = HashSet::new();
+        // Keep track of visited PIDs to detect cycles
+        let mut visited_pids = HashSet::new();
+
+        // Store the process PID before moving the process
+        let process_pid = process.pid;
+
+        // Insert the process into the hierarchy (this moves the process)
         hierarchy.insert(process);
+
+        // Add the starting process PID to visited
+        visited_pids.insert(process_pid);
 
         // Traverse up the process tree to include all parent processes
         while let Some(parent) = state.processes.get(&current_pid) {
-            current_pid = parent.ppid;
+            // Check if we've seen this PID before - that would indicate a cycle
+            if visited_pids.contains(&parent.pid) {
+                // We have a cycle in the process hierarchy - this shouldn't happen
+                // in normal scenarios, but we'll panic to prevent infinite loops
+                panic!(
+                    "Cycle detected in process hierarchy! PID {} appears twice in parent chain",
+                    parent.pid
+                );
+            }
+
+            // Track that we've visited this PID
+            visited_pids.insert(parent.pid);
+
+            // Add parent to the hierarchy
             hierarchy.insert(parent.clone());
+
+            // Move to the next parent
+            current_pid = parent.ppid;
         }
 
         hierarchy
     }
 
-    /// Finds processes that match the configured targets
     async fn find_matching_processes(
         self: &Arc<ProcessWatcher>,
         triggers: Vec<ProcessTrigger>,
@@ -429,7 +446,6 @@ impl ProcessWatcher {
         Ok(matched_processes)
     }
 
-    /// Processes a newly detected process
     async fn handle_new_process(
         self: &Arc<ProcessWatcher>,
         target: &Target,
@@ -437,12 +453,10 @@ impl ProcessWatcher {
     ) -> Result<ProcessResult> {
         debug!("Processing pid={}", process.pid);
 
-        // Get display name for the process
         let display_name = target
             .get_display_name_object()
             .get_display_name(&process.file_name, process.argv.as_slice());
 
-        // Gather process properties
         let properties = {
             let system = self.system.read().await;
 
@@ -464,7 +478,6 @@ impl ProcessWatcher {
                 .await?;
         }
 
-        // Log the process execution
         self.log_recorder
             .log(
                 TracerProcessStatus::ToolExecution,
@@ -498,12 +511,10 @@ impl ProcessWatcher {
         target: &Target,
         process: &ProcessTrigger,
     ) -> Result<ProcessResult> {
-        // Get display name for the process
         let display_name = target
             .get_display_name_object()
             .get_display_name(&process.file_name, process.argv.as_slice());
 
-        // Get updated process data
         let properties = {
             let system = self.system.read().await;
 
@@ -540,7 +551,6 @@ impl ProcessWatcher {
         Ok(ProcessResult::Found)
     }
 
-    /// Gathers detailed data about a process
     pub async fn gather_process_data(
         self: &Arc<ProcessWatcher>,
         proc: &Process,
@@ -552,20 +562,16 @@ impl ProcessWatcher {
         // Get current time (TODO: use process start time when available)
         let start_time = Utc::now();
 
-        // Extract environment variables
         let (container_id, job_id, trace_id) = Self::extract_process_env_vars(proc);
 
-        // Get working directory
         let working_directory = proc.cwd().map(|p| p.to_string_lossy().to_string());
 
-        // Process input files if requested
         let input_files = if process_input_files {
             self.extract_input_files(proc).await
         } else {
             None
         };
 
-        // Create full process properties
         ProcessProperties::Full(FullProcessProperties {
             tool_name: display_name,
             tool_pid: proc.pid().as_u32().to_string(),
@@ -596,11 +602,10 @@ impl ProcessWatcher {
         })
     }
 
-    /// Extracts input files from process command line arguments
     async fn extract_input_files(&self, proc: &Process) -> Option<Vec<InputFile>> {
         let mut files = vec![];
         let cmd_arguments = proc.cmd();
-        let mut arguments_to_check = vec![];
+        let mut arguments_to_check = Vec::new();
 
         // Filter arguments to check for files
         for arg in cmd_arguments {
@@ -609,20 +614,21 @@ impl ProcessWatcher {
                 continue;
             }
 
-            // Extract values from key-value arguments
+            // Add the original argument
+            arguments_to_check.push(arg.clone());
+
+            // Extract values from key-value arguments as additional candidates
             if arg.contains('=') {
                 let split: Vec<&str> = arg.split('=').collect();
                 if split.len() > 1 {
-                    arguments_to_check.push(split[1]);
+                    arguments_to_check.push(split[1].to_string());
                 }
             }
-
-            arguments_to_check.push(arg);
         }
 
         // Check if arguments match known files
         let watcher = self.file_watcher.read().await;
-        for arg in arguments_to_check {
+        for arg in &arguments_to_check {
             if let Some((path, file_info)) = watcher.get_file_by_path_suffix(arg) {
                 files.push(InputFile {
                     file_name: file_info.name.clone(),
@@ -664,43 +670,58 @@ impl ProcessWatcher {
         (container_id, job_id, trace_id)
     }
 
-    /// Logs dataset information for a process
-    async fn log_datasets_in_process(
+    /// Builds dataset properties by tracking dataset files used in the process
+    ///
+    /// Returns dataset properties with information about tracked datasets for the given trace ID
+    async fn build_dataset_properties(
         self: &Arc<Self>,
         cmd: &[String],
-        properties: &FullProcessProperties,
-    ) -> Result<()> {
-        let trace_id: Option<String> = properties.trace_id.clone();
+        trace_id: Option<String>,
+    ) -> DataSetsProcessed {
         let trace_key = trace_id.clone().unwrap_or_default();
-        let datasamples_tracker = &mut self.state.write().await.datasamples_tracker;
+        let mut state = self.state.write().await;
 
         // Find and track datasets in command arguments
         for arg in cmd.iter() {
             if DATA_SAMPLES_EXT.iter().any(|ext| arg.ends_with(ext)) {
-                datasamples_tracker
+                state
+                    .datasamples_tracker
                     .entry(trace_key.clone())
                     .or_default()
                     .insert(arg.clone());
             }
         }
 
-        // Get datasets for the current trace
-        let datasets = datasamples_tracker
+        // Get the datasets for the current trace
+        let datasets = state
+            .datasamples_tracker
             .get(&trace_key)
             .map(|set| set.iter().cloned().collect::<Vec<_>>().join(", "))
             .unwrap_or_default();
 
         // Get total datasets count
-        let total = datasamples_tracker
+        let total = state
+            .datasamples_tracker
             .get(&trace_key)
             .map_or(0, |set| set.len() as u64);
 
-        // Create dataset properties and log them
-        let dataset_properties = DataSetsProcessed {
+        // Create and return the dataset properties
+        DataSetsProcessed {
             datasets,
             total,
             trace_id,
-        };
+        }
+    }
+
+    /// Logs dataset information for a process
+    async fn log_datasets_in_process(
+        self: &Arc<Self>,
+        cmd: &[String],
+        properties: &FullProcessProperties,
+    ) -> Result<()> {
+        let dataset_properties = self
+            .build_dataset_properties(cmd, properties.trace_id.clone())
+            .await;
 
         self.log_recorder
             .log(
