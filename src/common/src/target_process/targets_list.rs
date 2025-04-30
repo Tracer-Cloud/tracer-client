@@ -2,6 +2,7 @@ use lazy_static::lazy_static;
 
 use super::{DisplayName, Target};
 use crate::target_process::target_matching::{CommandContainsStruct, TargetMatch};
+use std::sync::LazyLock;
 
 lazy_static! {
 
@@ -767,3 +768,61 @@ pub static ref TARGETS: Vec<Target> = [
 .to_vec();
 
 }
+
+pub static DEFAULT_DISPLAY_PROCESS_RULES: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
+    vec![
+        "salmon",
+        "deeptools",
+        "boost",
+        "star",
+        "macs3",
+        "multiqc",
+        "subread",
+        "kallisto",
+        "hisat2",
+        "bwa",
+        "bowtie2",
+        "fastqc",
+        "gawk",
+        "samtools",
+        "mamba",
+        "nf-test",
+        "stringtie",
+        "black",
+        "prettier",
+        "pre-commit",
+        "pytest-workflow",
+        "snakemake",
+        "airflow",
+        "trimmomatic",
+        "picard",
+        "gatk4",
+        "snpeff",
+        "cnvkit",
+        "trim-galore",
+        "bbmap",
+        "qualimap",
+        "bedtools",
+        "rseqc",
+        "ucsc-bedclip",
+        "ucsc-bedgraphtobigwig",
+        "kraken2",
+        "bracken",
+        "DESeq2",
+        "tximport",
+        "apeglm",
+        "edgeR",
+        "limma",
+        "EnhancedVolcano",
+        "dupRadar",
+        "tximeta",
+        "pheatmap",
+        // Lower priority fallback matches
+        "nextflow",
+        "nf-core",
+        "airflow",
+        "java",
+        "python",
+        "R",
+    ]
+});

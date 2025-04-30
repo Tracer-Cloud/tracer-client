@@ -33,8 +33,8 @@ serde = { version = "1.0", features = ["std", "derive", "serde_derive"] }
 serde_json = "1.0.117"
 sysinfo = "0.30"
 tokio = { version = "1.43.1", features = ["full"] }
-tokio-util = "0.7.14"
-toml = "0.8.14"
+tokio-util = "0.7.15"
+toml = "0.8.22"
 tracing = {version = "0.1.40"}
 tracing-appender = "0.2"
 url = "2.5.2"
@@ -43,7 +43,7 @@ tokio-stream = "0.1.15"
 sqlx = { version = "0.8.3", features = ["runtime-tokio-rustls", "postgres", "chrono"] }
 
 ec2_instance_metadata = "0.3.0"
-rand = "0.9.0"
+rand = "0.9.1"
 uuid = { version = "1.16.0", features = [ "v4", "fast-rng", "macro-diagnostics"] }
 once_cell = "1.21.3"
 
