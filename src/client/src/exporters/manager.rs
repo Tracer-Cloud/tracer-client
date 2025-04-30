@@ -1,5 +1,5 @@
 use crate::exporters::db::AuroraClient;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::Mutex;
 use tracer_common::current_run::PipelineMetadata;

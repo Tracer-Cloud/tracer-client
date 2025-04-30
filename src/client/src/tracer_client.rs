@@ -9,14 +9,11 @@ use crate::exporters::manager::ExporterManager;
 use crate::params::TracerCliInitArgs;
 use chrono::{DateTime, TimeDelta, Utc};
 use serde_json::json;
-use std::ops::Sub;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use sysinfo::System;
 use tokio::fs;
-use tokio::sync::mpsc::Receiver;
 use tokio::sync::{mpsc, RwLock};
-use tokio::task::spawn_blocking;
 use tracer_aws::config::PricingClient;
 use tracer_common::constants::{DEFAULT_SERVICE_URL, FILE_CACHE_DIR};
 use tracer_common::current_run::{PipelineMetadata, Run};
@@ -29,7 +26,7 @@ use tracer_extracts::metrics::SystemMetricsCollector;
 use tracer_extracts::process_watcher::ProcessWatcher;
 use tracer_extracts::stdout::StdoutWatcher;
 use tracer_extracts::syslog::SyslogWatcher;
-use tracing::{debug, error, info};
+use tracing::info;
 // NOTE: we might have to find a better alternative than passing the pipeline name to tracer client
 // directly. Currently with this approach, we do not need to generate a new pipeline name for every
 // new run.

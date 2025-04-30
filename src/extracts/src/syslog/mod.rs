@@ -7,7 +7,6 @@ use anyhow::Result;
 use linemux::MuxedLines;
 use predicates::Predicate;
 use serde::Serialize;
-use sysinfo::System;
 use tokio::sync::RwLock;
 use tokio_stream::StreamExt;
 use tracer_common::debug_log::Logger;

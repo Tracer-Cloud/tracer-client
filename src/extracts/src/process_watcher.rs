@@ -3,16 +3,12 @@ use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 use crate::data_samples::DATA_SAMPLES_EXT;
 use crate::file_watcher::FileWatcher;
 use anyhow::Result;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use itertools::Itertools;
-use serde::Deserialize;
-use serde::Serialize;
 use std::collections::HashMap;
-use std::collections::{hash_map::Entry::Vacant, HashSet};
-use std::ops::Sub;
+use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
-use std::time::Duration;
 use sysinfo::{Pid, Process, ProcessRefreshKind, ProcessStatus, System};
 use tokio::sync::{mpsc, RwLock};
 use tracer_common::recorder::StructLogRecorder;
@@ -24,8 +20,7 @@ use tracer_common::types::event::attributes::process::{
 };
 use tracer_common::types::event::attributes::EventAttributes;
 use tracer_ebpf_user::{start_processing_events, TracerEbpf};
-use tracing::field::debug;
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 enum ProcessResult {
     NotFound,
@@ -115,7 +110,7 @@ impl ProcessWatcher {
     }
 
     fn initialize_ebpf(self: Arc<Self>) -> Result<TracerEbpf, anyhow::Error> {
-        let (tx, mut rx) = mpsc::channel::<Trigger>(100);
+        let (tx, rx) = mpsc::channel::<Trigger>(100);
         let ebpf = start_processing_events(tx.clone())?;
 
         let watcher = Arc::clone(&self);
