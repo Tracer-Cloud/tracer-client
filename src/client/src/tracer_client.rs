@@ -67,7 +67,7 @@ pub struct TracerClient {
     log_recorder: StructLogRecorder,
     pub exporter: Arc<ExporterManager>,
 
-    // todo: remove completly
+    // todo: remove completely
     initialization_id: Option<String>,
     pipeline_name: String,
 }
@@ -283,18 +283,6 @@ impl TracerClient {
 
         Ok(())
     }
-
-    // todo:
-    // self
-    //     .db_client
-    //     .batch_insert_events(
-    //         &run.name,
-    //         &run.id,
-    //         &self.pipeline_name,
-    //         self(),
-    //     )
-    //     .await?;
-    //
 
     #[tracing::instrument(skip(self))]
     pub async fn poll_process_metrics(&mut self) -> Result<()> {
