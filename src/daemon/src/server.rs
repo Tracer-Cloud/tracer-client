@@ -9,11 +9,13 @@ use tokio::sync::{Mutex, RwLock};
 use crate::app::get_app;
 use crate::daemon::monitor_processes_with_tracer_client;
 use std::borrow::BorrowMut;
+use tokio::sync::mpsc::Receiver;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 use tracer_client::config_manager;
 use tracer_client::TracerClient;
 use tracer_common::constants::SYSLOG_FILE;
+use tracer_common::types::event::Event;
 use tracer_extracts::stdout::run_stdout_lines_read_thread;
 use tracer_extracts::syslog::run_syslog_lines_read_thread;
 use tracing::debug;
@@ -73,12 +75,27 @@ impl DaemonServer {
             .start_new_run(None)
             .await?;
 
-        let mut submission_interval = tokio::time::interval(Duration::from_millis(
+        let mut metrics_interval = tokio::time::interval(Duration::from_millis(
             config.read().await.batch_submission_interval_ms,
         ));
+
         let mut monitor_interval = tokio::time::interval(Duration::from_millis(
             config.read().await.batch_submission_interval_ms,
         ));
+
+        let exporter = Arc::clone(&tracer_client.lock().await.exporter);
+
+        let mut submission = tokio::time::interval(Duration::from_millis(
+            config.read().await.batch_submission_interval_ms,
+        ));
+
+        tokio::spawn(async move {
+            loop {
+                submission.tick().await;
+                debug!("DaemonServer submission interval ticked");
+                exporter.submit_batched_data().await.unwrap();
+            }
+        });
 
         loop {
             tokio::select! {
@@ -89,12 +106,12 @@ impl DaemonServer {
                     debug!("DaemonServer cancelled");
                     break;
                 }
-                _ = submission_interval.tick() => {
-                    debug!("DaemonServer submission interval ticked");
+                _ = metrics_interval.tick() => {
+                    debug!("DaemonServer metrics interval ticked");
                     let mut guard = tracer_client.lock().await;
 
-                    guard.submit_batched_data().await?;
-                    guard.borrow_mut().poll_files().await?;
+                    guard.poll_metrics_data().await?;
+                    guard.poll_files().await?;
 
                 }
                 _ = monitor_interval.tick() => {
@@ -113,12 +130,12 @@ impl DaemonServer {
         {
             let mut guard = tracer_client.lock().await;
             // all data left
-            guard.borrow_mut().submit_batched_data().await?;
+            guard.exporter.submit_batched_data().await?;
         };
 
         // close the connection pool to aurora
         let guard = tracer_client.lock().await;
-        let _ = guard.db_client.close().await;
+        let _ = guard.close().await;
 
         Ok(())
     }

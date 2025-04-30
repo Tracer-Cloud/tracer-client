@@ -5,6 +5,7 @@ use anyhow::{Context, Result};
 
 use crate::events::{send_alert_event, send_log_event, send_start_run_event};
 use crate::exporters::db::AuroraClient;
+use crate::exporters::manager::ExporterManager;
 use crate::params::TracerCliInitArgs;
 use chrono::{DateTime, TimeDelta, Utc};
 use serde_json::json;
@@ -60,12 +61,11 @@ pub struct TracerClient {
     syslog_lines_buffer: LinesBufferArc,
     stdout_lines_buffer: LinesBufferArc,
     stderr_lines_buffer: LinesBufferArc,
-    pub db_client: AuroraClient,
     pub pricing_client: PricingClient,
     pub config: Config,
 
     log_recorder: StructLogRecorder,
-    rx: std::sync::Mutex<Receiver<Event>>, // Mutex because receiver is always single
+    pub exporter: Arc<ExporterManager>,
 
     // todo: remove completly
     initialization_id: Option<String>,
@@ -108,6 +108,8 @@ impl TracerClient {
             system.clone(),
         ));
 
+        let exporter = Arc::new(ExporterManager::new(db_client, rx, pipeline.clone()));
+
         Ok(TracerClient {
             // if putting a value to config, also update `TracerClient::reload_config_file`
             interval: Duration::from_millis(config.process_polling_interval_ms),
@@ -132,11 +134,10 @@ impl TracerClient {
             stderr_lines_buffer: Arc::new(RwLock::new(Vec::new())),
             process_watcher,
             metrics_collector: SystemMetricsCollector::new(log_recorder.clone(), system.clone()),
-            db_client,
+            exporter,
             pricing_client,
             config,
             log_recorder,
-            rx: std::sync::Mutex::new(rx),
 
             pipeline_name: cli_args.pipeline_name,
             initialization_id: cli_args.run_id,
@@ -168,50 +169,11 @@ impl TracerClient {
         )
     }
 
-    pub async fn submit_batched_data(&self) -> Result<()> {
-        let mut rx = self.rx.lock().expect("lock poisoned");
-
-        if rx.is_empty() {
-            return Ok(());
-        }
-
-        let pipeline = self.pipeline.read().await;
-
-        let run_name = pipeline
-            .run
-            .as_ref()
-            .map(|st| st.name.as_str())
-            .unwrap_or("anonymous");
-
-        let run_id = pipeline
-            .run
-            .as_ref()
-            .map(|st| st.id.as_str())
-            .unwrap_or("anonymous");
-
-        debug!(
-            "Submitting batched data for pipeline {} and run_name {}",
-            self.pipeline_name, run_name
-        );
-
+    pub async fn poll_metrics_data(&self) -> Result<()> {
         self.metrics_collector
             .collect_metrics()
             .await
-            .context("Failed to collect metrics")?;
-
-        let mut buff: Vec<Event> = Vec::with_capacity(100);
-        if rx.recv_many(&mut buff, 100).await > 0 {
-            debug!("inserting: {:?}", buff);
-
-            self.db_client
-                .batch_insert_events(run_name, run_id, &self.pipeline_name, buff.as_slice())
-                .await
-                .map_err(|err| anyhow::anyhow!("Error submitting batch events {:?}", err))?;
-
-            buff.clear();
-        }
-
-        Ok(())
+            .context("Failed to collect metrics")
     }
 
     pub fn get_run_metadata(&self) -> Arc<RwLock<PipelineMetadata>> {
@@ -438,6 +400,12 @@ impl TracerClient {
         });
 
         // todo...
+        Ok(())
+    }
+
+    pub async fn close(&self) -> Result<()> {
+        self.exporter.close().await?;
+
         Ok(())
     }
 }
