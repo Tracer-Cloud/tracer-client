@@ -5,18 +5,18 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use sysinfo::{Disks, System};
 use tokio::sync::RwLock;
-use tracer_common::recorder::StructLogRecorder;
+use tracer_common::recorder::LogRecorder;
 use tracer_common::types::event::attributes::system_metrics::{DiskStatistic, SystemMetric};
 use tracer_common::types::event::attributes::EventAttributes;
 use tracer_common::types::event::ProcessStatus;
 
 pub struct SystemMetricsCollector {
-    log_recorder: StructLogRecorder,
+    log_recorder: LogRecorder,
     system: Arc<RwLock<System>>,
 }
 
 impl SystemMetricsCollector {
-    pub fn new(log_recorder: StructLogRecorder, system: Arc<RwLock<System>>) -> Self {
+    pub fn new(log_recorder: LogRecorder, system: Arc<RwLock<System>>) -> Self {
         Self {
             log_recorder,
             system,

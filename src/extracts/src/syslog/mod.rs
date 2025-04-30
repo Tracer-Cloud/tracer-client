@@ -10,7 +10,7 @@ use serde::Serialize;
 use tokio::sync::RwLock;
 use tokio_stream::StreamExt;
 use tracer_common::debug_log::Logger;
-use tracer_common::recorder::StructLogRecorder;
+use tracer_common::recorder::LogRecorder;
 use tracer_common::types::event::attributes::syslog::SyslogProperties;
 use tracer_common::types::event::attributes::EventAttributes;
 use tracer_common::types::event::ProcessStatus;
@@ -28,7 +28,7 @@ pub struct ErrorDefinition {
 
 pub struct SyslogWatcher {
     pub last_lines: Vec<String>,
-    log_recorder: StructLogRecorder,
+    log_recorder: LogRecorder,
 }
 
 pub async fn run_syslog_lines_read_thread(
@@ -64,7 +64,7 @@ pub async fn run_syslog_lines_read_thread(
 }
 
 impl SyslogWatcher {
-    pub fn new(log_recorder: StructLogRecorder) -> SyslogWatcher {
+    pub fn new(log_recorder: LogRecorder) -> SyslogWatcher {
         SyslogWatcher {
             last_lines: Vec::new(),
             log_recorder,
