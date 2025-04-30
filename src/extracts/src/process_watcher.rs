@@ -361,17 +361,29 @@ impl ProcessWatcher {
     }
 
     /// Refreshes system information for the specified PIDs
+    ///
+    /// Uses tokio's spawn_blocking to execute the potentially blocking refresh operation
+    /// without affecting the async runtime.
     #[tracing::instrument(skip(self))]
     async fn refresh_system(self: &Arc<ProcessWatcher>, pids: &HashSet<usize>) -> Result<()> {
+        // Convert PIDs to the format expected by sysinfo
         let pids_vec = pids.iter().map(|pid| Pid::from(*pid)).collect::<Vec<_>>();
 
-        let mut system = self.system.write().await;
+        // Clone the PIDs vector since we need to move it into the spawn_blocking closure
+        let pids_for_closure = pids_vec.clone();
 
-        // TODO: Consider using tokio::task::spawn_blocking for this potentially blocking operation
-        system.refresh_pids_specifics(
-            pids_vec.as_slice(),
-            ProcessRefreshKind::everything(), // TODO(ENG-336): minimize
-        );
+        // Get a mutable reference to the system
+        let system = Arc::clone(&self.system);
+
+        // Execute the blocking operation in a separate thread
+        tokio::task::spawn_blocking(move || {
+            let mut sys = system.blocking_write();
+            sys.refresh_pids_specifics(
+                pids_for_closure.as_slice(),
+                ProcessRefreshKind::everything(), // TODO(ENG-336): minimize data collected for performance
+            );
+        })
+        .await?;
 
         Ok(())
     }
