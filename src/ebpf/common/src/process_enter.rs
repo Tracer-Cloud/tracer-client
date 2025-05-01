@@ -61,10 +61,12 @@ impl TryInto<tracer_common::types::trigger::Trigger> for &ProcessRawTrigger {
                     started_at: chrono::Utc::now(),
                 })
             }
-            ProcessEnterType::Finish => tracer_common::types::trigger::Trigger::Finish(FinishTrigger {
-                pid: self.pid as usize,
-                finished_at: chrono::Utc::now(),
-            }),
+            ProcessEnterType::Finish => {
+                tracer_common::types::trigger::Trigger::Finish(FinishTrigger {
+                    pid: self.pid as usize,
+                    finished_at: chrono::Utc::now(),
+                })
+            }
         })
     }
 }
