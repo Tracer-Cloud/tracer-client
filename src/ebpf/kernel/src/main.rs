@@ -69,7 +69,7 @@ unsafe fn try_sched_process_exec(ctx: BtfTracePointContext) -> Result<i64, i64> 
 
     let mm: *mut mm_struct = bpf_probe_read_kernel(&(*task).mm)?;
 
-    bpf_probe_read_kernel_str_bytes((*task).comm.as_ptr(), &mut event.comm)?;
+    bpf_probe_read_kernel_str_bytes((*task).comm.as_ptr() as *const u8, &mut event.comm)?;
 
     let linux_binprm: *const linux_binprm = ctx.arg(2);
 
