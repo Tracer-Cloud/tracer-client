@@ -246,7 +246,9 @@ impl TracerClient {
             .log(
                 ProcessStatus::NewRun,
                 "[CLI] Starting new pipeline run".to_owned(),
-                Some(EventAttributes::SystemProperties(result.system_properties)),
+                Some(EventAttributes::SystemProperties(Box::new(
+                    result.system_properties,
+                ))),
                 timestamp,
             )
             .await?;
