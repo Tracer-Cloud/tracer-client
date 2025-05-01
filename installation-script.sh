@@ -17,7 +17,7 @@
 #-------------------------------------------------------------------------------
 # https://github.com/Tracer-Cloud/tracer-client/releases/download/v0.0.8/tracer-universal-apple-darwin.tar.gz
 SCRIPT_VERSION="v0.0.1"
-TRACER_VERSION="v2025.4.30"
+TRACER_VERSION="v2025.5.1"
 TRACER_LINUX_URL_X86_64="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-x86_64-unknown-linux-gnu.tar.gz"
 TRACER_LINUX_URL_ARM="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-aarch64-unknown-linux-gnu.tar.gz"
 
