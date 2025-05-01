@@ -95,15 +95,11 @@ async fn start(State(state): State<AppState>) -> axum::response::Result<impl Int
 
     let pipeline = metadata.read().await;
 
-    let run_data = if let Some(run) = pipeline.run.as_ref() {
-        Some(RunData {
-            pipeline_name: pipeline.pipeline_name.clone(),
-            run_name: run.name.clone(),
-            run_id: run.id.clone(),
-        })
-    } else {
-        None
-    };
+    let run_data = pipeline.run.as_ref().map(|run| RunData {
+        pipeline_name: pipeline.pipeline_name.clone(),
+        run_name: run.name.clone(),
+        run_id: run.id.clone(),
+    });
 
     Ok(Json(run_data))
 }
