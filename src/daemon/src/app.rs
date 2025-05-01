@@ -2,9 +2,7 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 use tokio_util::sync::CancellationToken;
 
-use crate::structs::{
-    InfoResponse, InnerInfoResponse, LogData, Message, RunData, TagData, UploadData,
-};
+use crate::structs::{InfoResponse, InnerInfoResponse, Message, RunData, TagData, UploadData};
 use axum::response::IntoResponse;
 use axum::routing::{post, put};
 use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
@@ -86,24 +84,28 @@ async fn alert(
 }
 
 async fn start(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
-    let mut guard = state.tracer_client.lock().await;
+    let guard = state.tracer_client.lock().await;
 
     guard
         .start_new_run(None)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let run_data = guard.get_run_metadata().map(|r| RunData {
-        run_name: r.name,
-        run_id: r.id,
-        pipeline_name: guard.get_pipeline_name().to_string(),
+    let metadata = guard.get_run_metadata();
+
+    let pipeline = metadata.read().await;
+
+    let run_data = pipeline.run.as_ref().map(|run| RunData {
+        pipeline_name: pipeline.pipeline_name.clone(),
+        run_name: run.name.clone(),
+        run_id: run.id.clone(),
     });
 
     Ok(Json(run_data))
 }
 
 async fn end(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
-    let mut guard = state.tracer_client.lock().await;
+    let guard = state.tracer_client.lock().await;
 
     guard
         .stop_run()
@@ -122,7 +124,10 @@ async fn refresh_config(
 
     {
         let mut guard = state.tracer_client.lock().await;
-        guard.reload_config_file(config_file.clone());
+        guard
+            .reload_config_file(config_file.clone())
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     }
 
     state.config.write().await.clone_from(&config_file);
@@ -143,14 +148,8 @@ async fn tag(
     Ok(StatusCode::ACCEPTED)
 }
 
-async fn log_short_lived_process_command(
-    State(state): State<AppState>,
-    Json(payload): Json<LogData>,
-) -> axum::response::Result<impl IntoResponse> {
-    let mut guard = state.tracer_client.lock().await;
-    guard
-        .fill_logs_with_short_lived_process(payload.log)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+async fn log_short_lived_process_command() -> axum::response::Result<impl IntoResponse> {
+    // todo: remove the endpoint
 
     Ok(StatusCode::CREATED)
 }
@@ -158,10 +157,12 @@ async fn log_short_lived_process_command(
 async fn info(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
     let guard = state.tracer_client.lock().await;
 
-    let response_inner: Option<InnerInfoResponse> = guard.get_run_metadata().map(|out| out.into());
+    let pipeline = guard.get_run_metadata().read().await.clone();
 
-    let preview = guard.process_watcher.preview_targets();
-    let preview_len = guard.process_watcher.preview_targets_count();
+    let response_inner = InnerInfoResponse::try_from(pipeline).ok();
+
+    let preview = guard.process_watcher.preview_targets(10).await;
+    let preview_len = guard.process_watcher.targets_len().await;
 
     let output = InfoResponse::new(preview, preview_len, response_inner);
 

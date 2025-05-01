@@ -1,10 +1,32 @@
 [workspace]
 resolver = "2"
-members = ["src/cli", "src/cloud_providers/aws", "src/daemon", "src/client", "src/extracts", "src/common", "integration_tests"]
+members = [
+    "src/cli",
+    "src/cloud_providers/aws",
+    "src/daemon",
+    "src/client",
+    "src/extracts",
+    "src/common",
+    "integration_tests",
+    "src/ebpf/common",
+    "src/ebpf/kernel",
+    "src/ebpf/user",
+]
+default-members = [
+    "src/cli",
+    "src/cloud_providers/aws",
+    "src/daemon",
+    "src/client",
+    "src/extracts",
+    "src/common",
+    "integration_tests",
+    "src/ebpf/common",
+    "src/ebpf/user",
+]
 
 [workspace.package]
 name = "tracer"
-version = "2025.4.30"
+version = "2025.5.1+1"
 edition = "2021"
 authors = ["Tracer <info@tracer.cloud>"]
 homepage = "http://tracer.cloud/"
@@ -17,6 +39,10 @@ tracer_common = { path = "src/common" }
 tracer_extracts = { path = "src/extracts" }
 tracer_daemon = { path = "src/daemon" }
 tracer_cli = { path = "src/cli" }
+tracer_ebpf_kernel = { path = "src/ebpf/kernel" }
+tracer_ebpf_common = { path = "src/ebpf/common" }
+tracer_ebpf_user = { path = "src/ebpf/user" }
+
 
 anyhow = "1.0.98"
 chrono = { version = "0.4.38", features = ["serde"] }
@@ -35,7 +61,7 @@ sysinfo = "0.30"
 tokio = { version = "1.43.1", features = ["full"] }
 tokio-util = "0.7.15"
 toml = "0.8.22"
-tracing = {version = "0.1.40"}
+tracing = { version = "0.1.40" }
 tracing-appender = "0.2"
 url = "2.5.2"
 linemux = "0.3.0"
@@ -44,7 +70,7 @@ sqlx = { version = "0.8.3", features = ["runtime-tokio-rustls", "postgres", "chr
 
 ec2_instance_metadata = "0.3.0"
 rand = "0.9.1"
-uuid = { version = "1.16.0", features = [ "v4", "fast-rng", "macro-diagnostics"] }
+uuid = { version = "1.16.0", features = ["v4", "fast-rng", "macro-diagnostics"] }
 once_cell = "1.21.3"
 
 aws-config = { version = "1.1.7", features = ["behavior-version-latest"] }
@@ -54,7 +80,7 @@ aws-credential-types = "1.2.2"
 aws-sdk-secretsmanager = "1.65.0"
 
 tracing-log = "0.2.0"
-tracing-loki = {version = "0.2.5", default-features = false,  features = ["rustls", "compat-0-2-1"]}
+tracing-loki = { version = "0.2.5", default-features = false, features = ["rustls", "compat-0-2-1"] }
 
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json", "time", "local-time"] }
 dirs = "6.0.0"
@@ -71,7 +97,18 @@ env_logger = "0.11"
 dotenv = "0.15"
 bollard = "0.18.1"
 assert_cmd = "2.0"
+aya = { version = "0.13.1", default-features = false }
+aya-build = { version = "0.1.2", default-features = false }
+aya-ebpf = { version = "0.1.1", default-features = false }
+aya-log = { version = "0.2.1", default-features = false }
+aya-log-ebpf = { version = "0.1.1", default-features = false }
+which = { version = "6.0.0", default-features = false }
+bytes = "1.10.1"
+libc = { version = "0.2.172", default-features = false }
 
 typed-builder = "0.18"
 futures-util = "0.3"
 
+[profile.release.package.tracer_ebpf_kernel]
+debug = 2
+codegen-units = 1
