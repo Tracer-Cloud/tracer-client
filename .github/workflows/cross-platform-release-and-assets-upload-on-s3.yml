@@ -122,7 +122,7 @@ jobs:
         run: |
           yum update -y
           yum groupinstall -y "Development Tools"
-          yum install -y git gcc openssl-devel pkgconfig cmake tar gzip unzip
+          yum install -y git gcc openssl-devel pkgconfig cmake tar gzip unzip bpftool
 
       - name: Install Rust
         run: |
