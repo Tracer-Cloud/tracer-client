@@ -1,177 +1,193 @@
-use crate::types::event::{attributes::EventAttributes, Event, ProcessStatus};
-use crate::types::pipeline_tags::PipelineTags;
+use crate::types::current_run::PipelineMetadata;
+use crate::types::event::attributes::EventAttributes;
+use crate::types::event::{Event, ProcessStatus};
 use chrono::{DateTime, Utc};
+use std::sync::Arc;
+use tokio::sync::mpsc::Sender;
+use tokio::sync::RwLock;
 
-/// Events recorder for each pipeline run
-/// todo: move to client!
-pub struct EventRecorder {
-    events: Vec<Event>,
-    run_name: Option<String>,
-    run_id: Option<String>,
-    // NOTE: Tying a pipeline_name to the events recorder because, you can only start one pipeline at a time
-    pipeline_name: Option<String>,
-    tags: Option<PipelineTags>,
+#[derive(Clone)]
+pub struct LogRecorder {
+    pipeline: Arc<RwLock<PipelineMetadata>>,
+    tx: Sender<Event>,
 }
 
-impl EventRecorder {
-    pub fn new(
-        pipeline_name: Option<String>,
-        run_name: Option<String>,
-        run_id: Option<String>,
-    ) -> Self {
-        EventRecorder {
-            events: Vec::new(),
-            run_id,
-            run_name,
-            pipeline_name,
-            tags: None,
-        }
+impl LogRecorder {
+    pub fn new(pipeline: Arc<RwLock<PipelineMetadata>>, tx: Sender<Event>) -> Self {
+        LogRecorder { pipeline, tx }
     }
 
-    pub fn update_run_details(
-        &mut self,
-        pipeline_name: Option<String>,
-        run_name: Option<String>,
-        run_id: Option<String>,
-        tags: Option<PipelineTags>,
-    ) {
-        self.run_name = run_name;
-        self.run_id = run_id;
-        self.pipeline_name = pipeline_name;
-        self.tags = tags;
-    }
-
-    pub fn record_event(
-        &mut self,
+    pub async fn log_with_metadata(
+        &self,
         process_status: ProcessStatus,
         body: String,
         attributes: Option<EventAttributes>,
         timestamp: Option<DateTime<Utc>>,
-    ) {
+        pipeline: &PipelineMetadata,
+    ) -> anyhow::Result<()> {
         let event = Event::builder()
             .body(body)
             .timestamp(timestamp.unwrap_or_else(Utc::now))
             .process_status(process_status)
-            .pipeline_name(self.pipeline_name.clone())
-            .run_name(self.run_name.clone())
-            .run_id(self.run_id.clone())
-            .tags(self.tags.clone())
+            .pipeline_name(Some(pipeline.pipeline_name.clone()))
+            .run_name(pipeline.run.as_ref().map(|m| m.name.clone()))
+            .run_id(pipeline.run.as_ref().map(|m| m.id.clone()))
+            .tags(Some(pipeline.tags.clone()))
             .attributes(attributes)
             .build();
 
-        self.events.push(event);
+        self.tx.send(event).await?;
+        Ok(())
     }
 
-    pub fn get_events(&self) -> &[Event] {
-        &self.events
-    }
-
-    pub fn clear(&mut self) {
-        self.events.clear();
-    }
-
-    #[allow(dead_code)]
-    pub fn is_empty(&self) -> bool {
-        self.events.is_empty()
-    }
-
-    #[allow(dead_code)]
-    pub fn len(&self) -> usize {
-        self.events.len()
-    }
-}
-
-impl Default for EventRecorder {
-    fn default() -> Self {
-        Self::new(None, None, None)
+    pub async fn log(
+        &self,
+        process_status: ProcessStatus,
+        message: String,
+        attributes: Option<EventAttributes>,
+        timestamp: Option<DateTime<Utc>>,
+    ) -> anyhow::Result<()> {
+        let run_metadata = self.pipeline.read().await;
+        self.log_with_metadata(
+            process_status,
+            message,
+            attributes,
+            timestamp,
+            &run_metadata,
+        )
+        .await
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::types::event::{attributes::process::DataSetsProcessed, EventType, ProcessType};
-
     use super::*;
+    use crate::types::current_run::{PipelineMetadata, Run};
+    use crate::types::event::attributes::{process::DataSetsProcessed, EventAttributes};
+    use crate::types::pipeline_tags::PipelineTags;
+    use chrono::TimeZone;
+    use tokio::sync::mpsc;
+    use uuid::Uuid;
 
-    #[test]
-    fn test_record_event() {
-        let mut recorder = EventRecorder::default();
-        let message = "[event_recorder.rs]Test event".to_string();
-        let attributes = Some(EventAttributes::ProcessDatasetStats(DataSetsProcessed {
-            datasets: "".to_string(),
-            total: 2,
-            trace_id: None,
-        }));
-        recorder.record_event(
-            ProcessStatus::ToolExecution,
-            message.clone(),
-            attributes.clone(),
-            None,
-        );
+    #[tokio::test]
+    async fn test_log_recorder_new() {
+        let pipeline = create_test_pipeline();
+        let (tx, _rx) = mpsc::channel(10);
 
-        assert_eq!(recorder.len(), 1);
+        let recorder = LogRecorder::new(pipeline, tx);
+        assert!(recorder.pipeline.read().await.pipeline_name == "test_pipeline");
+    }
 
-        let event = &recorder.get_events()[0];
+    #[tokio::test]
+    async fn test_log_with_metadata() {
+        let pipeline_data = create_test_pipeline();
+        let (tx, mut rx) = mpsc::channel(10);
+
+        let recorder = LogRecorder::new(pipeline_data.clone(), tx);
+        let pipeline = pipeline_data.read().await.clone();
+
+        let message = "Test log message".to_string();
+        let fixed_time = Utc.with_ymd_and_hms(2025, 4, 30, 12, 0, 0).unwrap();
+
+        recorder
+            .log_with_metadata(
+                ProcessStatus::ToolExecution,
+                message.clone(),
+                None,
+                Some(fixed_time),
+                &pipeline,
+            )
+            .await
+            .unwrap();
+
+        // Verify the event was sent correctly
+        let event = rx.recv().await.unwrap();
         assert_eq!(event.body, message);
-        assert_eq!(event.event_type, EventType::ProcessStatus);
-        assert_eq!(event.process_type, ProcessType::Pipeline);
+        assert_eq!(event.timestamp, fixed_time);
         assert_eq!(event.process_status, ProcessStatus::ToolExecution);
-        assert!(matches!(
-            event.attributes.clone().unwrap(),
-            EventAttributes::ProcessDatasetStats(_)
-        ));
+        assert_eq!(event.pipeline_name, Some("test_pipeline".to_string()));
+        assert_eq!(event.run_name, Some("test_run".to_string()));
+        assert_eq!(event.run_id, Some("test-id-123".to_string()));
     }
 
-    #[test]
-    fn test_clear_events() {
-        let mut recorder = EventRecorder::default();
-        recorder.record_event(
-            ProcessStatus::ToolExecution,
-            "Test event".to_string(),
-            None,
-            None,
-        );
-        assert_eq!(recorder.len(), 1);
+    #[tokio::test]
+    async fn test_log_method() {
+        let pipeline_data = create_test_pipeline();
+        let (tx, mut rx) = mpsc::channel(10);
 
-        recorder.clear();
-        assert!(recorder.is_empty());
-    }
+        let recorder = LogRecorder::new(pipeline_data, tx);
+        let message = "Test log via standard method".to_string();
 
-    #[test]
-    fn test_event_type_as_str() {
-        assert_eq!(&ProcessStatus::FinishedRun.to_string(), "finished_run");
-        assert_eq!(&ProcessStatus::ToolExecution.to_string(), "tool_execution");
-        assert_eq!(&ProcessStatus::MetricEvent.to_string(), "metric_event");
-        assert_eq!(&ProcessStatus::TestEvent.to_string(), "test_event");
-    }
-
-    #[test]
-    fn test_record_test_event() {
-        let mut recorder = EventRecorder::default();
-        let message = "Test event for testing".to_string();
+        // Create test attributes
         let attributes = Some(EventAttributes::ProcessDatasetStats(DataSetsProcessed {
-            datasets: "".to_string(),
+            datasets: "dataset1,dataset2".to_string(),
             total: 2,
-            trace_id: None,
+            trace_id: Some(Uuid::new_v4().to_string()),
         }));
 
-        recorder.record_event(
-            ProcessStatus::TestEvent,
-            message.clone(),
-            attributes.clone(),
-            None,
-        );
+        // Call the log method
+        recorder
+            .log(
+                ProcessStatus::MetricEvent,
+                message.clone(),
+                attributes.clone(),
+                None,
+            )
+            .await
+            .unwrap();
 
-        assert_eq!(recorder.len(), 1);
-
-        let event = &recorder.get_events()[0];
+        // Verify the event was sent correctly
+        let event = rx.recv().await.unwrap();
         assert_eq!(event.body, message);
-        assert_eq!(event.event_type, EventType::ProcessStatus);
-        assert_eq!(event.process_type, ProcessType::Pipeline);
-        assert_eq!(event.process_status, ProcessStatus::TestEvent);
-        assert!(matches!(
-            event.attributes.clone().unwrap(),
-            EventAttributes::ProcessDatasetStats(_)
-        ));
+        assert_eq!(event.process_status, ProcessStatus::MetricEvent);
+        assert_eq!(event.pipeline_name, Some("test_pipeline".to_string()));
+        assert_eq!(event.run_name, Some("test_run".to_string()));
+        assert_eq!(event.run_id, Some("test-id-123".to_string()));
+
+        // Check that attributes were passed correctly
+        match &event.attributes {
+            Some(EventAttributes::ProcessDatasetStats(stats)) => {
+                assert_eq!(stats.datasets, "dataset1,dataset2");
+                assert_eq!(stats.total, 2);
+                assert!(stats.trace_id.is_some());
+            }
+            _ => panic!("Expected ProcessDatasetStats attributes"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_log_handles_channel_errors() {
+        // Create a channel with capacity 1
+        let pipeline_data = create_test_pipeline();
+        let (tx, _rx) = mpsc::channel::<Event>(1);
+        let recorder = LogRecorder::new(pipeline_data, tx.clone());
+
+        // Close the receiver to force send errors
+        drop(_rx);
+
+        // Attempt to log - this should result in an error
+        let result = recorder
+            .log(
+                ProcessStatus::Alert,
+                "This message should fail to send".to_string(),
+                None,
+                None,
+            )
+            .await;
+
+        // Verify the error occurred
+        assert!(result.is_err());
+    }
+
+    // Helper function to create a test pipeline
+    fn create_test_pipeline() -> Arc<RwLock<PipelineMetadata>> {
+        let run = Run::new("test_run".to_string(), "test-id-123".to_string());
+        let pipeline = PipelineMetadata {
+            pipeline_name: "test_pipeline".to_string(),
+            run: Some(run),
+            tags: PipelineTags::default(),
+        };
+
+        Arc::new(RwLock::new(pipeline))
     }
 }

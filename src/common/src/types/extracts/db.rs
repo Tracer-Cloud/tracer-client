@@ -5,6 +5,7 @@ use anyhow::Context;
 
 use std::convert::TryFrom;
 
+use crate::types::event::attributes::process::ProcessProperties;
 use crate::types::event::{attributes::EventAttributes, Event};
 
 pub struct EventInsert {
@@ -64,12 +65,13 @@ impl TryFrom<Event> for EventInsert {
 
         if let Some(attr) = &event.attributes {
             match attr {
-                EventAttributes::Process(p) => {
+                EventAttributes::Process(ProcessProperties::Full(p)) => {
                     cpu_usage = Some(p.process_cpu_utilization);
                     mem_used = Some(p.process_memory_usage as f64);
                     job_id = p.job_id.clone();
                     trace_id = p.trace_id.clone();
                 }
+                EventAttributes::Process(ProcessProperties::ShortLived(_)) => {}
                 EventAttributes::SystemMetric(m) => {
                     cpu_usage = Some(m.system_cpu_utilization);
                     mem_used = Some(m.system_memory_used as f64);

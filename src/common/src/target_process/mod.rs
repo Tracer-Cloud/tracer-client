@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use target_matching::{matches_target, TargetMatch};
 use targets_list::DEFAULT_DISPLAY_PROCESS_RULES;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Hash, Eq)]
 pub enum DisplayName {
     Name(String),
     Default(),
@@ -53,7 +53,7 @@ impl DisplayName {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Hash, Eq)]
 pub struct Target {
     pub match_type: TargetMatch,
     pub display_name: DisplayName,

@@ -15,7 +15,15 @@ COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json
 # Up to this point, if our dependency tree stays the same,
 # all layers should be cached.
+
+# Add build dependencies
+RUN apt update && apt install -y bpftool linux-headers-generic pkg-config
+RUN rustup toolchain install nightly --component rust-src
+RUN cargo install bpf-linker && cargo install bindgen-cli && cargo install --git https://github.com/aya-rs/aya -- aya-tool
+
 COPY . /app/
+
+RUN aya-tool generate task_struct > /app/src/ebpf/kernel/src/gen.rs
 
 # Build our project
 RUN cargo build --release 
@@ -24,6 +32,7 @@ RUN cargo build --release
 FROM debian:bookworm-slim AS runtime
 
 WORKDIR /app
+
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -34,6 +43,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
+
 
 COPY --from=builder /app/tracer.toml /root/.config/tracer/tracer.toml
 COPY --from=builder /app/target/release/tracer_cli /usr/local/bin/tracer
