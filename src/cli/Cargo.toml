@@ -1,5 +1,5 @@
 [package]
-name = "tracer"
+name = "tracer_cli"
 
 version = { workspace = true }
 edition = { workspace = true }

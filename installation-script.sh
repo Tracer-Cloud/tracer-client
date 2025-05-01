@@ -18,8 +18,9 @@
 # https://github.com/Tracer-Cloud/tracer-client/releases/download/v0.0.8/tracer-universal-apple-darwin.tar.gz
 SCRIPT_VERSION="v0.0.1"
 TRACER_VERSION="v2025.5.1"
-TRACER_LINUX_URL_X86_64="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-x86_64-unknown-linux-gnu.tar.gz"
-TRACER_LINUX_URL_ARM="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-aarch64-unknown-linux-gnu.tar.gz"
+TRACER_LINUX_URL_X86_64="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer_cli-x86_64-unknown-linux-gnu.tar.gz"
+TRACER_LINUX_URL_ARM="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer_cli-aarch64-unknown-linux-gnu.tar.gz"
+TRACER_AMAZON_LINUX_URL_X86_64="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-x86_64-amazon-linux-gnu.tar.gz"
 
 TRACER_HOME="$HOME/.tracerbio"
 LOGFILE_NAME="tracer-installer.log"
@@ -297,14 +298,14 @@ function download_tracer() {
     printpinfo "Extracting package..."
     tar -xzf "${DLTARGET}/${PACKAGE_NAME}" -C "$EXTRACTTARGET"
     printmsg " done."
-    chmod +x "${EXTRACTTARGET}/tracer"
+    chmod +x "${EXTRACTTARGET}/tracer_cli"
     if [ $? -ne 0 ]; then
         printerror "Failed to set executable permissions on extracted binary. Please check your permissions and mount flags."
         exit 1
     fi
 
     # move binary to bin dir
-    mv "${EXTRACTTARGET}/tracer" "$BINDIR/tracer"
+    mv "${EXTRACTTARGET}/tracer_cli" "$BINDIR/tracer"
     if [ $? -ne 0 ]; then
         printerror "Failed to move Tracer binary to ${Blu}$BINDIR${RCol}. Please check your permissions and try again."
         exit 1
@@ -432,14 +433,14 @@ polling_interval_ms = 1500
 api_key = "$API_KEY"
 service_url = "https://app.tracer.bio/api"
 process_polling_interval_ms = 25
-batch_submission_interval_ms = 10000
+batch_submission_interval_ms = 5000
 new_run_pause_ms = 600000
 file_size_not_changing_period_ms = 60000
 process_metrics_send_interval_ms = 10000
 aws_region = "us-east-2"
 aws_role_arn = "arn:aws:iam::395261708130:role/TestTracerClientServiceRole"
 database_secrets_arn = "arn:aws:secretsmanager:us-east-1:395261708130:secret:rds!cluster-cd690a09-953c-42e9-9d9f-1ed0b434d226-M0wZYA"
-database_host = "tracer-cluster-production.cluster-ro-cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432"
+database_host = "tracer-cluster-production.cluster-cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432"
 database_name = "tracer_db"
 grafana_workspace_url = "https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com"
 EOL
