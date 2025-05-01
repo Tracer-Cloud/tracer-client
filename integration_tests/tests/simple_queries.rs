@@ -89,7 +89,6 @@ async fn query_datasets_processed(pool: &PgPool, run_name: &str) {
     .await
     .expect("failed ");
 
-
     assert_eq!(datasets_tracked.len(), 1);
 
     let total_samples = datasets_tracked.first().unwrap().1;
