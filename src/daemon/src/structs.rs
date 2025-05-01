@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use chrono::{DateTime, TimeDelta, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use tracer_common::current_run::PipelineMetadata;
+use tracer_common::types::current_run::PipelineMetadata;
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct InfoResponse {

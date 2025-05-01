@@ -2,7 +2,7 @@ use crate::exporters::db::AuroraClient;
 use std::sync::Arc;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::Mutex;
-use tracer_common::current_run::PipelineMetadata;
+use tracer_common::types::current_run::PipelineMetadata;
 use tracer_common::types::event::Event;
 use tracing::debug;
 

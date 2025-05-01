@@ -8,7 +8,7 @@ use tracing::{debug, warn, info};
 use tokio::sync::mpsc::Sender;
 use tokio::task::JoinHandle;
 use tokio_util::bytes;
-use tracer_common::trigger::Trigger;
+use tracer_common::types::trigger::Trigger;
 use tracer_ebpf_common::process_enter::ProcessRawTrigger;
 
 async fn read_event_loop(

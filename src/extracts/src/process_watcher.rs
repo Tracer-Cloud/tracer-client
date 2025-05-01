@@ -12,7 +12,7 @@ use sysinfo::{Pid, Process, ProcessRefreshKind, ProcessStatus, System};
 use tokio::sync::{mpsc, RwLock};
 use tracer_common::recorder::LogRecorder;
 use tracer_common::target_process::{Target, TargetMatchable};
-use tracer_common::trigger::{FinishTrigger, ProcessTrigger, Trigger};
+use tracer_common::types::trigger::{FinishTrigger, ProcessTrigger, Trigger};
 use tracer_common::types::event::attributes::process::{
     CompletedProcess, DataSetsProcessed, FullProcessProperties, InputFile, ProcessProperties,
     ShortProcessProperties,

@@ -1,6 +1,8 @@
 pub mod event;
 pub mod extracts;
 pub mod pipeline_tags;
+pub mod trigger;
+pub mod current_run;
 
 use std::sync::Arc;
 use tokio::sync::RwLock;

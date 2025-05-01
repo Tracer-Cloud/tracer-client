@@ -96,7 +96,7 @@ impl SystemMetricsCollector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tracer_common::current_run::PipelineMetadata;
+    use tracer_common::types::current_run::PipelineMetadata;
 
     #[tokio::test]
     async fn test_collect_metrics() {

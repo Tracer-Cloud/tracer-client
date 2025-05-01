@@ -144,7 +144,7 @@ mod tests {
         fs::File,
         io::{BufRead, BufReader},
     };
-    use tracer_common::current_run::PipelineMetadata;
+    use tracer_common::types::current_run::PipelineMetadata;
 
     #[tokio::test]
     async fn test_grep_errors() {

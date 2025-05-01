@@ -16,7 +16,7 @@ use tokio::fs;
 use tokio::sync::{mpsc, RwLock};
 use tracer_aws::config::PricingClient;
 use tracer_common::constants::{DEFAULT_SERVICE_URL, FILE_CACHE_DIR};
-use tracer_common::current_run::{PipelineMetadata, Run};
+use tracer_common::types::current_run::{PipelineMetadata, Run};
 use tracer_common::recorder::LogRecorder;
 use tracer_common::types::event::attributes::EventAttributes;
 use tracer_common::types::event::{Event, ProcessStatus};

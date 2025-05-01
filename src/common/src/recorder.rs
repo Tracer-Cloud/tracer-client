@@ -1,4 +1,4 @@
-use crate::current_run::PipelineMetadata;
+use crate::types::current_run::PipelineMetadata;
 use crate::types::event::attributes::EventAttributes;
 use crate::types::event::{Event, ProcessStatus};
 use chrono::{DateTime, Utc};
@@ -62,7 +62,7 @@ impl LogRecorder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::current_run::{PipelineMetadata, Run};
+    use crate::types::current_run::{PipelineMetadata, Run};
     use crate::types::event::attributes::{process::DataSetsProcessed, EventAttributes};
     use crate::types::pipeline_tags::PipelineTags;
     use chrono::TimeZone;
