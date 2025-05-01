@@ -33,15 +33,9 @@ use tracing::info;
 // But this also means that a system can setup tracer agent and exec
 // multiple pipelines
 
-const RUN_COMPLICATED_PROCESS_IDENTIFICATION: bool = false;
-
-const WAIT_FOR_PROCESS_BEFORE_NEW_RUN: bool = false;
-
 pub struct TracerClient {
     system: Arc<RwLock<System>>, // todo: use arc swap
     interval: Duration,
-    last_interaction_new_run_duration: Duration,
-    process_metrics_send_interval: Duration,
     last_file_size_change_time_delta: TimeDelta,
 
     pub process_watcher: Arc<ProcessWatcher>,
@@ -97,10 +91,6 @@ impl TracerClient {
         Ok(TracerClient {
             // if putting a value to config, also update `TracerClient::reload_config_file`
             interval: Duration::from_millis(config.process_polling_interval_ms),
-            last_interaction_new_run_duration: Duration::from_millis(config.new_run_pause_ms),
-            process_metrics_send_interval: Duration::from_millis(
-                config.process_metrics_send_interval_ms,
-            ),
             last_file_size_change_time_delta: TimeDelta::milliseconds(
                 config.file_size_not_changing_period_ms as i64,
             ),

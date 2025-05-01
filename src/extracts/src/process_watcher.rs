@@ -464,7 +464,7 @@ impl ProcessWatcher {
 
             match system.process(process.pid.into()) {
                 Some(system_process) => {
-                    self.gather_process_data(&system_process, display_name.clone(), true)
+                    self.gather_process_data(system_process, display_name.clone(), true)
                         .await
                 }
                 None => {
