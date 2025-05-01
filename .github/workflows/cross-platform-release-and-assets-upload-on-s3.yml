@@ -84,7 +84,6 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          sudo apt update
           rustup toolchain install nightly --component rust-src
           cargo install bpf-linker
           cargo install bindgen-cli
@@ -136,7 +135,6 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          sudo apt update
           rustup toolchain install nightly --component rust-src
           cargo install bpf-linker
           cargo install bindgen-cli
