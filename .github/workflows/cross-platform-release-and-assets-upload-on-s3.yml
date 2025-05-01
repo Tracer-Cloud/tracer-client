@@ -130,16 +130,15 @@ jobs:
           echo 'source $HOME/.cargo/env' >> ~/.bashrc
           source $HOME/.cargo/env
           rustup target add x86_64-unknown-linux-gnu
-
-      - uses: actions/checkout@v4
-
-      - name: Install build dependencies
-        run: |
           rustup toolchain install nightly --component rust-src
           cargo install bpf-linker
           cargo install bindgen-cli
           cargo install --git https://github.com/aya-rs/aya -- aya-tool
-          aya-tool generate task_struct > src/ebpf/kernel/src/gen.rs    
+
+      - uses: actions/checkout@v4
+
+      - name: Generate kernel bindings
+        run: aya-tool generate task_struct > src/ebpf/kernel/src/gen.rs
 
       - name: Update version in Cargo.toml
         run: |
