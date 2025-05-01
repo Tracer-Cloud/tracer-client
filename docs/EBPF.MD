@@ -1,6 +1,9 @@
 # Documentation To Run eBPF Specific Functionality 
 How to run eBPF:
 - Linux Ubuntu v22
+- Run the eBPF binary on Root(!) 
+- sudo su - root
+
 
 ## Running the eBPF build
 
