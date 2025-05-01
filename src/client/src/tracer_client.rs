@@ -428,7 +428,7 @@ mod tests {
             .unwrap();
 
         // submit_batched_data
-        let res = client.exporter.submit_batched_data().await.unwrap();
+        client.exporter.submit_batched_data().await.unwrap();
 
         let run = client.get_run_metadata();
 

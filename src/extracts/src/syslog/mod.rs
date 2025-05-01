@@ -160,8 +160,6 @@ mod tests {
         }));
 
         let (tx, _) = tokio::sync::mpsc::channel(100);
-        let log_recorder = LogRecorder::new(pipeline.clone(), tx.clone());
-
         let recorder = LogRecorder::new(pipeline, tx);
 
         let lines = file_lines.map(|x| x.unwrap()).collect::<Vec<String>>();
