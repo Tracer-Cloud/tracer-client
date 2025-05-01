@@ -103,8 +103,8 @@ impl ConfigManager {
         } else {
             // Default search order
             let defaults = [
-                "tracer.development.toml",
                 "tracer.production.toml",
+                "tracer.development.toml",
                 "tracer.toml",
             ];
             defaults
