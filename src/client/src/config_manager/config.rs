@@ -114,7 +114,7 @@ impl ConfigManager {
                 .unwrap_or_else(|| "tracer.toml".into())
         };
         // Inform the user which config file is being used
-        println!("Using config file: {}", chosen);
+        info!("Using config file: {}", chosen);
 
         let aws_default_profile = match dirs::home_dir() {
             None => "default",
