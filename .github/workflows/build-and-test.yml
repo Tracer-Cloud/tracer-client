@@ -33,13 +33,11 @@ jobs:
       - name: Check out
         uses: actions/checkout@v4.1.4
 
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
+      - name: Setup Rust toolchain
+        run: |
+          rustup toolchain install stable
+          rustup component add clippy
+          rustup component add rustfmt
 
       - name: Set up cargo cache
         uses: actions/cache@v3
