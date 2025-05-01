@@ -35,7 +35,7 @@ jobs:
 
       - name: Setup Rust toolchain
         run: |
-          rustup toolchain install stable
+          rustup toolchain install stable --profile minimal
           rustup component add clippy
           rustup component add rustfmt
 
@@ -44,13 +44,12 @@ jobs:
         continue-on-error: false
         with:
           path: |
-            ~/.cargo/bin/
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
+          key: ${{ runner.os }}-${{ runner.name }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-${{ runner.name }}-cargo-
 
       - name: Set up cargo Nextest
         run: |
