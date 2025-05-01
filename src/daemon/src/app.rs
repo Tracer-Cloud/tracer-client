@@ -154,17 +154,8 @@ async fn tag(
     Ok(StatusCode::ACCEPTED)
 }
 
-async fn log_short_lived_process_command(
-    State(state): State<AppState>,
-    Json(payload): Json<LogData>,
-) -> axum::response::Result<impl IntoResponse> {
-    let mut guard = state.tracer_client.lock().await;
-
-    todo!();
-    // guard
-    //     .fill_logs_with_short_lived_process(payload.log)
-    //     .await
-    //     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+async fn log_short_lived_process_command() -> axum::response::Result<impl IntoResponse> {
+    // todo: remove the endpoint
 
     Ok(StatusCode::CREATED)
 }
