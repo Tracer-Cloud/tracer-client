@@ -55,16 +55,6 @@ struct ProcessState {
     targets: Vec<Target>,
 }
 
-impl ProcessState {
-    /// Returns a set of PIDs for processes currently being monitored
-    fn current_pids(&self) -> HashSet<usize> {
-        self.monitoring
-            .values()
-            .flat_map(|processes| processes.iter().map(|p| p.pid))
-            .collect()
-    }
-}
-
 /// Watches system processes and records events related to them
 pub struct ProcessWatcher {
     ebpf: once_cell::sync::OnceCell<TracerEbpf>, // not tokio, because TracerEbpf is sync
@@ -105,7 +95,7 @@ impl ProcessWatcher {
     }
 
     pub async fn start_ebpf(self: &Arc<Self>) -> Result<()> {
-        Arc::clone(&self)
+        Arc::clone(self)
             .ebpf
             .get_or_try_init(|| Arc::clone(self).initialize_ebpf())?;
         Ok(())
@@ -543,7 +533,7 @@ impl ProcessWatcher {
             );
 
             // Don't process input files for update events
-            self.gather_process_data(&system_process, display_name.clone(), false)
+            self.gather_process_data(system_process, display_name.clone(), false)
                 .await
         };
 
@@ -791,8 +781,8 @@ impl ProcessWatcher {
             .read()
             .await
             .monitoring
-            .iter()
-            .map(|(_, processes)| processes.len())
+            .values()
+            .map(|processes| processes.len())
             .sum()
     }
 

@@ -1,4 +1,4 @@
-use chrono::{DateTime, Local, Utc};
+use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct ProcessTrigger {

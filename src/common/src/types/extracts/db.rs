@@ -71,7 +71,7 @@ impl TryFrom<Event> for EventInsert {
                     job_id = p.job_id.clone();
                     trace_id = p.trace_id.clone();
                 }
-                EventAttributes::Process(ProcessProperties::ShortLived(p)) => {}
+                EventAttributes::Process(ProcessProperties::ShortLived(_)) => {}
                 EventAttributes::SystemMetric(m) => {
                     cpu_usage = Some(m.system_cpu_utilization);
                     mem_used = Some(m.system_memory_used as f64);

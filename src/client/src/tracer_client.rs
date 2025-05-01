@@ -416,7 +416,7 @@ mod tests {
 
         let cli_config = TracerCliInitArgs::default();
 
-        let mut client = TracerClient::new(config, work_dir.to_string(), db_client, cli_config)
+        let client = TracerClient::new(config, work_dir.to_string(), db_client, cli_config)
             .await
             .expect("Failed to create tracer client");
 
@@ -452,12 +452,12 @@ mod tests {
 
         // Verify the row was inserted into the database
         let result: (Json<Value>, String) = sqlx::query_as(query)
-            .bind(run_name.clone()) // Use the job_id for the query
+            .bind(run_name) // Use the job_id for the query
             .fetch_one(db_client) // Use the pool from the AuroraClient
             .await?;
 
         // Check that the inserted data matches the expected data
-        assert_eq!(result.1, run_name.clone()); // Compare with the unique job ID
+        assert_eq!(result.1, run_name); // Compare with the unique job ID
 
         Ok(())
     }
@@ -485,7 +485,7 @@ mod tests {
             no_daemonize: false,
         };
 
-        let mut client = TracerClient::new(config, work_dir.to_string(), db_client, cli_config)
+        let client = TracerClient::new(config, work_dir.to_string(), db_client, cli_config)
             .await
             .expect("Failed to create tracerclient");
 

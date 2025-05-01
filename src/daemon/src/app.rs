@@ -2,9 +2,7 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 use tokio_util::sync::CancellationToken;
 
-use crate::structs::{
-    InfoResponse, InnerInfoResponse, LogData, Message, RunData, TagData, UploadData,
-};
+use crate::structs::{InfoResponse, InnerInfoResponse, Message, RunData, TagData, UploadData};
 use axum::response::IntoResponse;
 use axum::routing::{post, put};
 use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
@@ -86,7 +84,7 @@ async fn alert(
 }
 
 async fn start(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
-    let mut guard = state.tracer_client.lock().await;
+    let guard = state.tracer_client.lock().await;
 
     guard
         .start_new_run(None)
@@ -111,7 +109,7 @@ async fn start(State(state): State<AppState>) -> axum::response::Result<impl Int
 }
 
 async fn end(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
-    let mut guard = state.tracer_client.lock().await;
+    let guard = state.tracer_client.lock().await;
 
     guard
         .stop_run()

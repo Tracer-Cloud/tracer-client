@@ -2,20 +2,17 @@ use config_manager::{INTERCEPTOR_STDERR_FILE, INTERCEPTOR_STDOUT_FILE};
 use std::future::IntoFuture;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::sync::{Mutex, RwLock};
 
 use crate::app::get_app;
 use crate::daemon::monitor_processes_with_tracer_client;
 use std::borrow::BorrowMut;
-use tokio::sync::mpsc::Receiver;
-use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 use tracer_client::config_manager;
 use tracer_client::TracerClient;
 use tracer_common::constants::SYSLOG_FILE;
-use tracer_common::types::event::Event;
 use tracer_extracts::stdout::run_stdout_lines_read_thread;
 use tracer_extracts::syslog::run_syslog_lines_read_thread;
 use tracing::debug;
@@ -108,7 +105,7 @@ impl DaemonServer {
                 }
                 _ = metrics_interval.tick() => {
                     debug!("DaemonServer metrics interval ticked");
-                    let mut guard = tracer_client.lock().await;
+                    let guard = tracer_client.lock().await;
 
                     guard.poll_metrics_data().await?;
                     guard.poll_files().await?;
@@ -128,7 +125,7 @@ impl DaemonServer {
         server.abort();
 
         {
-            let mut guard = tracer_client.lock().await;
+            let guard = tracer_client.lock().await;
             // all data left
             guard.exporter.submit_batched_data().await?;
         };
