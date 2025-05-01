@@ -91,7 +91,8 @@ impl TracerClient {
 
         let exporter = Arc::new(ExporterManager::new(db_client, rx, pipeline.clone()));
 
-        let watchers = Self::init_watchers(&log_recorder, &system);
+        let (syslog_watcher, stdout_watcher, metrics_collector) =
+            Self::init_watchers(&log_recorder, &system);
 
         Ok(TracerClient {
             // if putting a value to config, also update `TracerClient::reload_config_file`
@@ -107,9 +108,9 @@ impl TracerClient {
 
             pipeline,
 
-            syslog_watcher: watchers.0,
-            stdout_watcher: watchers.1,
-            metrics_collector: watchers.2,
+            syslog_watcher,
+            stdout_watcher,
+            metrics_collector,
             // Sub managers
             file_watcher,
             workflow_directory: workflow_directory.clone(),
