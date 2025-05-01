@@ -43,7 +43,7 @@ services:
     env_file:
       - .env
     command: >
-      "set -x && tracer setup && tracer init --pipeline-name testing --run-id test-tag --environment integrations --user-operator inte --pipeline-type generic && ./test-files/scripts/monitor.sh &&  ./test-files/scripts/track_datasets.sh && sleep 5"
+      "set -x && tracer setup && RUST_LOG=debug tracer init --no-daemonize --pipeline-name testing --run-id test-tag --environment integrations --user-operator inte --pipeline-type generic && ./test-files/scripts/monitor.sh &&  ./test-files/scripts/track_datasets.sh && sleep 5"
     depends_on:
       db:
         condition: service_healthy
