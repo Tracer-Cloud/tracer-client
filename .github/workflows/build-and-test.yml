@@ -13,7 +13,7 @@ env:
 jobs:
   build-and-test:
     name: Build and Test
-    runs-on: linux-arm64-16c-64r-600ssd-ubuntu24
+    runs-on: ubuntu-latest
 
     services:
       postgres:
@@ -83,7 +83,7 @@ jobs:
 
   run-integrations:
       name: Build and Test Integrations
-      runs-on: linux-arm64-16c-64r-600ssd-ubuntu24
+      runs-on: ubuntu-latest
       needs: []
 
       steps:
