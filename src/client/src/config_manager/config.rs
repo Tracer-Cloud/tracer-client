@@ -68,17 +68,54 @@ impl ConfigManager {
 
     // TODO: add error message as to why it can't read config
 
-    pub fn load_config() -> Result<Config> {
-        if let Ok(path) = std::env::var("TRACER_CONFIG_DIR") {
-            let path = Path::new(&path);
-            ConfigManager::load_config_at(path)
-        } else {
-            let path = Path::new(".");
-            ConfigManager::load_config_at(path)
-        }
+    pub fn load_config(config_name: Option<&str>) -> Result<Config> {
+        let pathname = std::env::var("TRACER_CONFIG_DIR").unwrap_or_else(|_| ".".into());
+        let path = Path::new(&pathname);
+        ConfigManager::load_config_at(path, config_name)
     }
 
-    pub fn load_config_at(path: &Path) -> Result<Config> {
+    pub fn load_config_at(path: &Path, config_name: Option<&str>) -> Result<Config> {
+        // Determine which main config file to load
+        let chosen = if let Some(name) = config_name {
+            // Collect all .toml files containing the substring $config_name
+            let mut candidates = Vec::new();
+            for entry in std::fs::read_dir(path)? {
+                let entry = entry?;
+                let file_name = entry.file_name().to_string_lossy().into_owned();
+                if file_name.ends_with(".toml") && file_name.contains(name) {
+                    candidates.push(file_name);
+                }
+            }
+            match candidates.len() {
+                1 => candidates.remove(0),
+                0 => anyhow::bail!(
+                    "No configuration file matching '{}' found in {:?}",
+                    name,
+                    path
+                ),
+                n => anyhow::bail!(
+                    "Expected exactly one configuration file matching '{}', found {}: {:?}",
+                    name,
+                    n,
+                    candidates
+                ),
+            }
+        } else {
+            // Default search order
+            let defaults = [
+                "tracer.development.toml",
+                "tracer.production.toml",
+                "tracer.toml",
+            ];
+            defaults
+                .iter()
+                .find(|fname| path.join(fname).is_file())
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "tracer.toml".into())
+        };
+        // Inform the user which config file is being used
+        println!("Using config file: {}", chosen);
+
         let aws_default_profile = match dirs::home_dir() {
             None => "default",
             Some(path) => {
@@ -96,12 +133,15 @@ impl ConfigManager {
 
         let mut cb = RConfig::builder()
             .add_source(
-                File::with_name(path.join("tracer.toml").to_str().context("Join path")?)
-                    .required(false),
+                File::with_name(path.join(&chosen).to_str().context("Join path")?).required(false),
             )
             .add_source(
-                File::with_name(path.join("tracer.dev.toml").to_str().context("Join path")?)
-                    .required(false),
+                File::with_name(
+                    path.join(chosen.replace(".toml", ".local.toml"))
+                        .to_str()
+                        .context("Join path")?,
+                )
+                .required(false),
             )
             .add_source(
                 Environment::with_prefix("TRACER")
@@ -147,7 +187,7 @@ impl ConfigManager {
     }
 
     pub fn setup_aliases() -> Result<()> {
-        let config = ConfigManager::load_config()?;
+        let config = ConfigManager::load_config(None)?;
         rewrite_interceptor_bashrc_file(
             env::current_exe()?,
             config
@@ -184,7 +224,7 @@ impl ConfigManager {
         process_polling_interval_ms: &Option<u64>,
         batch_submission_interval_ms: &Option<u64>,
     ) -> Result<()> {
-        let mut current_config = ConfigManager::load_config()?;
+        let mut current_config = ConfigManager::load_config(None)?;
         if let Some(api_key) = api_key {
             current_config.api_key.clone_from(api_key);
         }
@@ -241,7 +281,7 @@ mod tests {
     #[test]
     fn test_default_config() {
         let path = Path::new("../../");
-        let config = ConfigManager::load_config_at(path).unwrap();
+        let config = ConfigManager::load_config_at(path, None).unwrap();
         assert!(!config.targets.is_empty());
     }
 

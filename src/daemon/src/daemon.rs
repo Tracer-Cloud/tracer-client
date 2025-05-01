@@ -50,7 +50,7 @@ mod tests {
 
     fn load_test_config() -> Config {
         let path = Path::new("../../");
-        ConfigManager::load_config_at(path).unwrap()
+        ConfigManager::load_config_at(path, None).unwrap()
     }
 
     pub fn setup_env_vars(region: &str) {

@@ -68,5 +68,5 @@ node_modules/
 script-second-script.sh
 **/.idea/
 
-# dev secrets config
-tracer.dev.toml
+# local config overrides
+*.local.toml

@@ -191,7 +191,7 @@ pub async fn update_tracer() -> Result<()> {
         return Ok(());
     }
 
-    let config = ConfigManager::load_config()?;
+    let config = ConfigManager::load_config(None)?;
 
     println!("Updating Tracer to version {}", release.tag_name);
 
