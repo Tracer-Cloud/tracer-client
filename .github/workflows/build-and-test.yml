@@ -86,26 +86,21 @@ jobs:
       steps:
       - uses: actions/checkout@v4.1.4
 
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
+      - name: Setup Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal
 
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false
         with:
           path: |
-            ~/.cargo/bin/
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
+          key: ${{ runner.os }}-${{ runner.name }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-${{ runner.name }}-cargo-
 
       - name: Cache Docker images.
         uses: ScribeMD/docker-cache@0.5.0
