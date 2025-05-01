@@ -19,6 +19,8 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 linemux = { workspace = true }
 tokio-stream = { workspace = true }
+tracer_ebpf_user = { workspace = true }
+itertools = { workspace = true }
 
 once_cell = { workspace = true }
 dirs = { workspace = true }

@@ -1,57 +1,29 @@
-// src/process_watcher.rs
-
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 
 use crate::data_samples::DATA_SAMPLES_EXT;
 use crate::file_watcher::FileWatcher;
 use anyhow::Result;
-use chrono::{DateTime, Utc};
-use serde::Deserialize;
-use serde::Serialize;
+use chrono::Utc;
 use std::collections::HashMap;
-use std::collections::{hash_map::Entry::Vacant, HashSet};
+use std::collections::HashSet;
 use std::path::Path;
-use std::time::Duration;
-use sysinfo::{Pid, Process, ProcessStatus, System};
-use tracer_common::recorder::EventRecorder;
+use std::sync::Arc;
+use sysinfo::{Pid, Process, ProcessRefreshKind, ProcessStatus, System};
+use tokio::sync::{mpsc, RwLock};
+use tracer_common::recorder::LogRecorder;
 use tracer_common::target_process::{Target, TargetMatchable};
 use tracer_common::types::event::attributes::process::{
-    CompletedProcess, DataSetsProcessed, InputFile, ProcessProperties,
+    CompletedProcess, DataSetsProcessed, FullProcessProperties, InputFile, ProcessProperties,
+    ShortProcessProperties,
 };
 use tracer_common::types::event::attributes::EventAttributes;
+use tracer_common::types::trigger::{FinishTrigger, ProcessTrigger, Trigger};
+use tracer_ebpf_user::{start_processing_events, TracerEbpf};
+use tracing::{debug, error};
 
-pub struct ProcessWatcher {
-    targets: Vec<Target>,
-    seen: HashMap<Pid, Proc>,
-    process_tree: HashMap<Pid, ProcessTreeNode>,
-    datasamples_tracker: HashMap<String, HashSet<String>>, // this hashmap groups datasets by the nextflow session uuid
-}
-
-enum ProcLastUpdate {
-    Some(DateTime<Utc>),
-    RefreshesRemaining(u32),
-}
-
-pub struct Proc {
-    name: String,
-    start_time: DateTime<Utc>,
-    last_update: ProcLastUpdate,
-    just_started: bool,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct ShortLivedProcessLog {
-    pub command: String,
-    pub timestamp: String,
-    pub properties: ProcessProperties,
-}
-
-#[derive(Clone, Debug)]
-pub struct ProcessTreeNode {
-    pub properties: ProcessProperties,
-    pub children: Vec<ProcessTreeNode>,
-    pub parent_id: Option<Pid>,
-    pub start_time: DateTime<Utc>,
+enum ProcessResult {
+    NotFound,
+    Found,
 }
 
 fn process_status_to_string(status: &ProcessStatus) -> String {
@@ -71,250 +43,614 @@ fn process_status_to_string(status: &ProcessStatus) -> String {
     }
 }
 
+/// Internal state of the process watcher
+struct ProcessState {
+    // Maps PIDs to process triggers
+    processes: HashMap<usize, ProcessTrigger>,
+    // Maps targets to sets of processes being monitored
+    monitoring: HashMap<Target, HashSet<ProcessTrigger>>,
+    // Groups datasets by the nextflow session UUID
+    datasamples_tracker: HashMap<String, HashSet<String>>,
+    // List of targets to watch
+    targets: Vec<Target>,
+}
+
+/// Watches system processes and records events related to them
+pub struct ProcessWatcher {
+    ebpf: once_cell::sync::OnceCell<TracerEbpf>, // not tokio, because TracerEbpf is sync
+    log_recorder: LogRecorder,
+    file_watcher: Arc<RwLock<FileWatcher>>,
+    system: Arc<RwLock<System>>,
+    state: Arc<RwLock<ProcessState>>,
+}
+
 impl ProcessWatcher {
-    pub fn new(targets: Vec<Target>) -> Self {
-        ProcessWatcher {
-            targets,
-            seen: HashMap::new(),
-            process_tree: HashMap::new(),
+    pub fn new(
+        targets: Vec<Target>,
+        log_recorder: LogRecorder,
+        file_watcher: Arc<RwLock<FileWatcher>>,
+        system: Arc<RwLock<System>>,
+    ) -> Self {
+        let state = Arc::new(RwLock::new(ProcessState {
+            processes: HashMap::new(),
+            monitoring: HashMap::new(),
+            targets: targets.clone(),
             datasamples_tracker: HashMap::new(),
-        }
-    }
+        }));
 
-    pub fn poll_processes(
-        &mut self,
-        system: &mut System,
-        event_logger: &mut EventRecorder,
-        file_watcher: &FileWatcher,
-    ) -> Result<()> {
-        for (pid, proc) in system.processes().iter() {
-            if !self.seen.contains_key(pid) {
-                let target = self.targets.iter().find(|target| {
-                    target.matches(
-                        proc.name(),
-                        &proc.cmd().join(" "),
-                        proc.exe()
-                            .unwrap_or_else(|| Path::new(""))
-                            .to_str()
-                            .unwrap(),
-                    )
-                });
-                if let Some(target) = target {
-                    let display_name = target
-                        .get_display_name_object()
-                        .get_display_name(proc.name(), proc.cmd());
-
-                    tracing::info!(
-                        "[{}] Caught process: pid={}, name={}, command={:?}",
-                        Utc::now(),
-                        pid,
-                        display_name,
-                        proc.cmd()
-                    );
-
-                    self.add_new_process(
-                        *pid,
-                        proc,
-                        system,
-                        event_logger,
-                        Some(&target.clone()),
-                        file_watcher,
-                    )?;
-                }
-            }
-        }
-
-        self.parse_process_tree(
-            system,
-            self.targets
-                .iter()
-                .filter(|target| target.should_be_merged_with_parents())
-                .cloned()
-                .collect(),
-            event_logger,
+        ProcessWatcher {
+            ebpf: once_cell::sync::OnceCell::new(),
+            log_recorder,
             file_watcher,
-        )?;
+            system,
+            state,
+        }
+    }
 
+    /// Updates the list of targets being watched
+    pub async fn update_targets(self: &Arc<Self>, targets: Vec<Target>) -> Result<()> {
+        let mut state = self.state.write().await;
+        state.targets = targets;
         Ok(())
     }
 
-    pub fn poll_process_metrics(
-        &mut self,
-        system: &System,
-        event_logger: &mut EventRecorder,
-        process_metrics_send_interval: Duration,
-    ) -> Result<()> {
-        for (pid, proc) in system.processes().iter() {
-            if let Some(p) = self.seen.get(pid) {
-                if !p.just_started {
-                    if let ProcLastUpdate::RefreshesRemaining(refresh_count) = p.last_update {
-                        if refresh_count != 0 {
-                            self.seen.get_mut(pid).unwrap().last_update =
-                                ProcLastUpdate::RefreshesRemaining(refresh_count - 1);
-                        } else {
-                            self.add_process_metrics(proc, event_logger, None)?;
-                            self.seen.get_mut(pid).unwrap().last_update =
-                                ProcLastUpdate::Some(Utc::now());
-                        }
-                        continue;
-                    }
-                    if let ProcLastUpdate::Some(last_update) = p.last_update {
-                        if last_update + process_metrics_send_interval < Utc::now() {
-                            self.add_process_metrics(proc, event_logger, None)?;
-                            self.seen.get_mut(pid).unwrap().last_update =
-                                ProcLastUpdate::Some(Utc::now());
-                        }
-                    }
+    pub async fn start_ebpf(self: &Arc<Self>) -> Result<()> {
+        Arc::clone(self)
+            .ebpf
+            .get_or_try_init(|| Arc::clone(self).initialize_ebpf())?;
+        Ok(())
+    }
+
+    fn initialize_ebpf(self: Arc<Self>) -> Result<TracerEbpf, anyhow::Error> {
+        let (tx, rx) = mpsc::channel::<Trigger>(100);
+        let ebpf = start_processing_events(tx.clone())?;
+
+        let watcher = Arc::clone(&self);
+        tokio::spawn(async move {
+            watcher.process_trigger_loop(rx).await;
+        });
+
+        Ok(ebpf)
+    }
+
+    /// Main loop that processes triggers from eBPF
+    async fn process_trigger_loop(self: &Arc<Self>, mut rx: mpsc::Receiver<Trigger>) {
+        let mut buffer: Vec<Trigger> = Vec::with_capacity(100);
+
+        loop {
+            buffer.clear();
+            debug!("Ready to receive triggers");
+
+            while rx.recv_many(&mut buffer, 100).await > 0 {
+                let triggers = std::mem::take(&mut buffer);
+                debug!("Received {:?}", triggers);
+                if let Err(e) = self.process_triggers(triggers).await {
+                    error!("Failed to process triggers: {}", e);
                 }
             }
         }
-
-        Ok(())
     }
 
-    pub fn reset_just_started_process_flag(&mut self) {
-        for (_, proc) in self.seen.iter_mut() {
-            proc.just_started = false;
-        }
-    }
+    /// Processes a batch of triggers, separating start and finish events
+    async fn process_triggers(self: &Arc<ProcessWatcher>, triggers: Vec<Trigger>) -> Result<()> {
+        let mut start_triggers: Vec<ProcessTrigger> = vec![];
+        let mut finish_triggers: Vec<FinishTrigger> = vec![];
 
-    pub fn remove_completed_processes(
-        &mut self,
-        system: &mut System,
-        event_logger: &mut EventRecorder,
-    ) -> Result<()> {
-        let mut to_remove = vec![];
-        for (pid, proc) in self.seen.iter() {
-            if !system.processes().contains_key(pid) {
-                self.log_completed_process(pid, proc, event_logger)?;
-                to_remove.push(*pid);
+        // Separate start and finish triggers
+        for trigger in triggers.into_iter() {
+            match trigger {
+                Trigger::Start(proc) => start_triggers.push(proc),
+                Trigger::Finish(proc) => finish_triggers.push(proc),
             }
         }
 
-        for pid in to_remove {
-            self.seen.remove(&pid);
+        // Process finish triggers first
+        if !finish_triggers.is_empty() {
+            debug!("Processing {} finishing processes", finish_triggers.len());
+            self.handle_process_terminations(finish_triggers).await?;
+        }
+
+        // Then process start triggers
+        if !start_triggers.is_empty() {
+            debug!("Processing {} creating processes", start_triggers.len());
+            self.handle_process_starts(start_triggers).await?;
         }
 
         Ok(())
     }
 
-    pub fn build_process_trees(&mut self, system_processes: &HashMap<Pid, Process>) {
-        let mut nodes: HashMap<Pid, ProcessTreeNode> = HashMap::new();
+    async fn remove_processes_from_state(
+        self: &Arc<Self>,
+        triggers: &[FinishTrigger],
+    ) -> Result<()> {
+        let mut state = self.state.write().await;
+        for trigger in triggers.iter() {
+            state.processes.remove(&trigger.pid);
+        }
+        Ok(())
+    }
 
-        for (pid, proc) in system_processes {
-            let properties = Self::gather_process_data(pid, proc, None);
-            let node = ProcessTreeNode {
-                properties,
-                children: vec![],
-                parent_id: proc.parent(),
-                start_time: DateTime::from_timestamp(proc.start_time() as i64, 0).unwrap(),
+    async fn handle_process_terminations(
+        self: &Arc<Self>,
+        triggers: Vec<FinishTrigger>,
+    ) -> Result<()> {
+        debug!("Processing {} process terminations", triggers.len());
+
+        // Remove terminated processes from the state
+        self.remove_processes_from_state(&triggers).await?;
+
+        // Map PIDs to finish triggers for easy lookup
+        let mut pid_to_finish: HashMap<_, _> =
+            triggers.into_iter().map(|proc| (proc.pid, proc)).collect();
+
+        // Find all processes that we were monitoring that have terminated
+        let terminated_processes: HashSet<_> = {
+            let mut state = self.state.write().await;
+
+            state
+                .monitoring
+                .iter_mut()
+                .flat_map(|(_, procs)| {
+                    // Partition processes into terminated and still running
+                    let (terminated, still_running): (Vec<_>, Vec<_>) = procs
+                        .drain()
+                        .partition(|proc| pid_to_finish.contains_key(&proc.pid));
+
+                    // Update monitoring with still running processes
+                    *procs = still_running.into_iter().collect();
+
+                    // Return terminated processes
+                    terminated
+                })
+                .collect()
+        };
+
+        debug!(
+            "Removed {} processes. terminated={:?}, pid_to_finish={:?}",
+            terminated_processes.len(),
+            terminated_processes,
+            pid_to_finish
+        );
+
+        // Log completion events for each terminated process
+        for start_trigger in terminated_processes {
+            let finish_trigger = pid_to_finish
+                .remove(&start_trigger.pid)
+                .expect("Process should be present in the map");
+            // should be safe since
+            // - we've checked the key is present
+            // - we have an exclusive lock on the state
+            // - if trigger is duplicated in monitoring (can happen if it matches several targets),
+            //   it'll be deduplicated via hashset
+
+            self.log_process_completion(&start_trigger, &finish_trigger)
+                .await?;
+        }
+
+        Ok(())
+    }
+
+    async fn log_process_completion(
+        self: &Arc<Self>,
+        start_trigger: &ProcessTrigger,
+        finish_trigger: &FinishTrigger,
+    ) -> Result<()> {
+        let duration_sec = (finish_trigger.finished_at - start_trigger.started_at)
+            .num_seconds()
+            .try_into()
+            .unwrap_or(0);
+
+        let properties = CompletedProcess {
+            tool_name: start_trigger.comm.clone(),
+            tool_pid: start_trigger.pid.to_string(),
+            duration_sec,
+        };
+
+        self.log_recorder
+            .log(
+                TracerProcessStatus::FinishedToolExecution,
+                format!("[{}] {} exited", Utc::now(), &start_trigger.comm),
+                Some(EventAttributes::CompletedProcess(properties)),
+                None,
+            )
+            .await?;
+
+        Ok(())
+    }
+
+    async fn handle_process_starts(
+        self: &Arc<ProcessWatcher>,
+        triggers: Vec<ProcessTrigger>,
+    ) -> Result<()> {
+        debug!("Processing {} process starts", triggers.len());
+
+        // Find processes we're interested in based on targets
+        let interested_in = self.filter_processes_of_interest(triggers).await?;
+
+        debug!(
+            "After filtering, interested in {} processes",
+            interested_in.len()
+        );
+
+        if interested_in.is_empty() {
+            return Ok(());
+        }
+
+        // Get the set of PIDs to refresh system data for
+        let pids_to_refresh = interested_in
+            .values()
+            .flat_map(|procs| procs.iter().map(|p| p.pid))
+            .collect();
+
+        // Refresh system data for these processes
+        self.refresh_system(&pids_to_refresh).await?;
+
+        // Process each new process
+        for (target, triggers) in interested_in.iter() {
+            for process in triggers.iter() {
+                self.handle_new_process(target, process).await?;
+            }
+        }
+
+        // Update monitoring state with new processes
+        let mut state = self.state.write().await;
+        for (target, processes) in interested_in.into_iter() {
+            state
+                .monitoring
+                .entry(target)
+                .or_default()
+                .extend(processes);
+        }
+
+        Ok(())
+    }
+
+    async fn filter_processes_of_interest(
+        self: &Arc<ProcessWatcher>,
+        triggers: Vec<ProcessTrigger>,
+    ) -> Result<HashMap<Target, HashSet<ProcessTrigger>>> {
+        // Store all triggers in the state
+        {
+            let mut state = self.state.write().await;
+            for trigger in triggers.iter() {
+                state.processes.insert(trigger.pid, trigger.clone());
+            }
+        }
+
+        // Get PIDs of processes already being monitored
+        let state = self.state.read().await;
+        let already_monitored_pids: HashSet<usize> = state
+            .monitoring
+            .values()
+            .flat_map(|processes| processes.iter().map(|p| p.pid))
+            .collect();
+
+        // Find processes that match our targets
+        let matched_processes = self.find_matching_processes(triggers).await?;
+
+        // Filter out already monitored processes and include parent processes
+        let interested_in: HashMap<_, _> = matched_processes
+            .into_iter()
+            .map(|(target, processes)| {
+                let processes = processes
+                    .into_iter()
+                    .flat_map(|proc| {
+                        // Get the process and its parents
+                        let mut parents = Self::get_process_hierarchy(&state, proc);
+                        // Filter out already monitored processes
+                        parents.retain(|p| !already_monitored_pids.contains(&p.pid));
+                        parents
+                    })
+                    .collect::<HashSet<_>>();
+
+                (target, processes)
+            })
+            .collect();
+
+        Ok(interested_in)
+    }
+
+    /// Refreshes system information for the specified PIDs
+    ///
+    /// Uses tokio's spawn_blocking to execute the potentially blocking refresh operation
+    /// without affecting the async runtime.
+    #[tracing::instrument(skip(self))]
+    async fn refresh_system(self: &Arc<ProcessWatcher>, pids: &HashSet<usize>) -> Result<()> {
+        // Convert PIDs to the format expected by sysinfo
+        let pids_vec = pids.iter().map(|pid| Pid::from(*pid)).collect::<Vec<_>>();
+
+        // Clone the PIDs vector since we need to move it into the spawn_blocking closure
+        let pids_for_closure = pids_vec.clone();
+
+        // Get a mutable reference to the system
+        let system = Arc::clone(&self.system);
+
+        // Execute the blocking operation in a separate thread
+        tokio::task::spawn_blocking(move || {
+            let mut sys = system.blocking_write();
+            sys.refresh_pids_specifics(
+                pids_for_closure.as_slice(),
+                ProcessRefreshKind::everything(), // TODO(ENG-336): minimize data collected for performance
+            );
+        })
+        .await?;
+
+        Ok(())
+    }
+
+    /// Gets a process and all its parent processes from the state
+    ///
+    /// Will panic if a cycle is detected in the process hierarchy.
+    fn get_process_hierarchy(
+        state: &ProcessState,
+        process: ProcessTrigger,
+    ) -> HashSet<ProcessTrigger> {
+        let mut current_pid = process.ppid;
+        let mut hierarchy = HashSet::new();
+        // Keep track of visited PIDs to detect cycles
+        let mut visited_pids = HashSet::new();
+
+        // Store the process PID before moving the process
+        let process_pid = process.pid;
+
+        // Insert the process into the hierarchy (this moves the process)
+        hierarchy.insert(process);
+
+        // Add the starting process PID to visited
+        visited_pids.insert(process_pid);
+
+        // Traverse up the process tree to include all parent processes
+        while let Some(parent) = state.processes.get(&current_pid) {
+            // Check if we've seen this PID before - that would indicate a cycle
+            if visited_pids.contains(&parent.pid) {
+                // We have a cycle in the process hierarchy - this shouldn't happen
+                // in normal scenarios, but we'll panic to prevent infinite loops
+                panic!(
+                    "Cycle detected in process hierarchy! PID {} appears twice in parent chain",
+                    parent.pid
+                );
+            }
+
+            // Track that we've visited this PID
+            visited_pids.insert(parent.pid);
+
+            // Add parent to the hierarchy
+            hierarchy.insert(parent.clone());
+
+            // Move to the next parent
+            current_pid = parent.ppid;
+        }
+
+        hierarchy
+    }
+
+    async fn find_matching_processes(
+        self: &Arc<ProcessWatcher>,
+        triggers: Vec<ProcessTrigger>,
+    ) -> Result<Vec<(Target, HashSet<ProcessTrigger>)>> {
+        let mut matched_processes = vec![];
+        let targets = &self.state.read().await.targets;
+
+        for target in targets {
+            let mut matches: HashSet<ProcessTrigger> = HashSet::new();
+
+            for trigger in triggers.iter() {
+                if target.matches(&trigger.comm, &trigger.argv.join(" "), &trigger.file_name) {
+                    matches.insert(trigger.clone());
+                }
+            }
+
+            if !matches.is_empty() {
+                matched_processes.push((target.clone(), matches));
+            }
+        }
+
+        Ok(matched_processes)
+    }
+
+    async fn handle_new_process(
+        self: &Arc<ProcessWatcher>,
+        target: &Target,
+        process: &ProcessTrigger,
+    ) -> Result<ProcessResult> {
+        debug!("Processing pid={}", process.pid);
+
+        let display_name = target
+            .get_display_name_object()
+            .get_display_name(&process.file_name, process.argv.as_slice());
+
+        let properties = {
+            let system = self.system.read().await;
+
+            match system.process(process.pid.into()) {
+                Some(system_process) => {
+                    self.gather_process_data(system_process, display_name.clone(), true)
+                        .await
+                }
+                None => {
+                    debug!("Process({}) wasn't found", process.pid);
+                    self.create_short_lived_process_properties(process, display_name.clone())
+                }
+            }
+        };
+
+        if let ProcessProperties::Full(ref full_properties) = properties {
+            self.log_datasets_in_process(&process.argv, full_properties)
+                .await?;
+        }
+
+        self.log_recorder
+            .log(
+                TracerProcessStatus::ToolExecution,
+                format!("[{}] Tool process: {}", Utc::now(), &display_name),
+                Some(EventAttributes::Process(properties)),
+                None,
+            )
+            .await?;
+
+        Ok(ProcessResult::Found)
+    }
+
+    /// Creates properties for a short-lived process that wasn't found in the system
+    fn create_short_lived_process_properties(
+        &self,
+        process: &ProcessTrigger,
+        display_name: String,
+    ) -> ProcessProperties {
+        ProcessProperties::ShortLived(Box::new(ShortProcessProperties {
+            tool_name: display_name,
+            tool_pid: process.pid.to_string(),
+            tool_parent_pid: process.ppid.to_string(),
+            tool_binary_path: process.file_name.clone(),
+            start_timestamp: Utc::now().to_rfc3339(),
+        }))
+    }
+
+    /// Processes an already running process for metrics updates
+    async fn update_running_process(
+        self: &Arc<ProcessWatcher>,
+        target: &Target,
+        process: &ProcessTrigger,
+    ) -> Result<ProcessResult> {
+        let display_name = target
+            .get_display_name_object()
+            .get_display_name(&process.file_name, process.argv.as_slice());
+
+        let properties = {
+            let system = self.system.read().await;
+
+            let Some(system_process) = system.process(process.pid.into()) else {
+                // Process no longer exists
+                return Ok(ProcessResult::NotFound);
             };
 
-            nodes.insert(*pid, node);
-        }
-
-        for (pid, proc) in system_processes {
-            let parent = proc.parent();
-            if let Some(parent) = parent {
-                let node = nodes.get(pid).unwrap().clone();
-                if let Some(parent_node) = nodes.get_mut(&parent) {
-                    parent_node.children.push(node.clone());
-                }
-            }
-        }
-
-        self.process_tree = nodes
-    }
-
-    pub fn get_parent_processes(
-        &self,
-        map: &HashMap<Pid, ProcessTreeNode>,
-        valid_processes: &Vec<Pid>,
-        force_ancestor_to_match: bool,
-    ) -> Vec<Pid> {
-        let mut result = vec![];
-
-        for process in valid_processes {
-            let mut parent = *process;
-            let mut last_valid_parent = *process;
-
-            while let Some(parent_node) = map.get(&parent) {
-                if let Some(parent_id) = parent_node.parent_id {
-                    parent = parent_id;
-                    if !valid_processes.contains(&parent) {
-                        if !force_ancestor_to_match {
-                            last_valid_parent = parent;
-                        }
-                        break;
-                    }
-                    last_valid_parent = parent;
-                } else {
-                    // last_valid_parent = parent;
-                    break;
-                }
-            }
-
-            if !result.contains(&last_valid_parent) {
-                result.push(last_valid_parent);
-            }
-        }
-
-        result
-    }
-
-    pub fn parse_process_tree(
-        &mut self,
-        system: &System,
-        targets: Vec<Target>,
-        event_logger: &mut EventRecorder,
-        file_watcher: &FileWatcher,
-    ) -> Result<()> {
-        self.build_process_trees(system.processes());
-        let nodes: &HashMap<Pid, ProcessTreeNode> = &self.process_tree;
-
-        let mut processes_to_gather = vec![];
-
-        for target in &targets {
-            let mut valid_processes = vec![];
-
-            for (pid, node) in nodes {
-                if target.matches(
-                    &node.properties.tool_name,
-                    &node.properties.tool_cmd,
-                    &node.properties.tool_binary_path,
-                ) {
-                    valid_processes.push(*pid);
-                }
-            }
-
-            let parents = self.get_parent_processes(
-                nodes,
-                &valid_processes,
-                target.should_force_ancestor_to_match(),
+            debug!(
+                "Loaded process. PID: ebpf={}, system={:?}; Start Time: ebpf={}, system={:?};",
+                process.pid,
+                system_process.pid(),
+                process.started_at.timestamp(),
+                system_process.start_time()
             );
 
-            for parent in parents {
-                if !processes_to_gather.contains(&(parent, target)) {
-                    processes_to_gather.push((parent, target));
-                }
-            }
-        }
+            // Don't process input files for update events
+            self.gather_process_data(system_process, display_name.clone(), false)
+                .await
+        };
 
-        for (pid, target) in processes_to_gather {
-            if !self.seen.contains_key(&pid) {
-                let process = system.process(pid);
-                if process.is_none() {
-                    tracing::error!("[{}] Process({}) wasn't found", Utc::now(), pid);
-                    continue;
-                }
-                let proc = process.unwrap();
-                self.add_new_process(pid, proc, system, event_logger, Some(target), file_watcher)?;
-            }
-        }
-        Ok(())
+        debug!("Process data completed. PID={}", process.pid);
+
+        self.log_recorder
+            .log(
+                TracerProcessStatus::ToolMetricEvent,
+                format!("[{}] Tool metric event: {}", Utc::now(), &display_name),
+                Some(EventAttributes::Process(properties)),
+                None,
+            )
+            .await?;
+
+        Ok(ProcessResult::Found)
     }
 
-    fn read_process_env(proc: &Process) -> (Option<String>, Option<String>, Option<String>) {
+    pub async fn gather_process_data(
+        self: &Arc<ProcessWatcher>,
+        proc: &Process,
+        display_name: String,
+        process_input_files: bool,
+    ) -> ProcessProperties {
+        debug!("Gathering process data for {}", display_name);
+
+        // Get current time (TODO: use process start time when available)
+        let start_time = Utc::now();
+
+        let (container_id, job_id, trace_id) = Self::extract_process_env_vars(proc);
+
+        let working_directory = proc.cwd().map(|p| p.to_string_lossy().to_string());
+
+        let input_files = if process_input_files {
+            self.extract_input_files(proc).await
+        } else {
+            None
+        };
+
+        ProcessProperties::Full(Box::new(FullProcessProperties {
+            tool_name: display_name,
+            tool_pid: proc.pid().as_u32().to_string(),
+            tool_parent_pid: proc.parent().unwrap_or(0.into()).to_string(),
+            tool_binary_path: proc
+                .exe()
+                .unwrap_or_else(|| Path::new(""))
+                .as_os_str()
+                .to_str()
+                .unwrap_or("")
+                .to_string(),
+            tool_cmd: proc.cmd().join(" "),
+            start_timestamp: start_time.to_rfc3339(),
+            process_cpu_utilization: proc.cpu_usage(),
+            process_run_time: proc.run_time(),
+            process_disk_usage_read_total: proc.disk_usage().total_read_bytes,
+            process_disk_usage_write_total: proc.disk_usage().total_written_bytes,
+            process_disk_usage_read_last_interval: proc.disk_usage().read_bytes,
+            process_disk_usage_write_last_interval: proc.disk_usage().written_bytes,
+            process_memory_usage: proc.memory(),
+            process_memory_virtual: proc.virtual_memory(),
+            process_status: process_status_to_string(&proc.status()),
+            input_files,
+            container_id,
+            job_id,
+            working_directory,
+            trace_id,
+        }))
+    }
+
+    async fn extract_input_files(&self, proc: &Process) -> Option<Vec<InputFile>> {
+        let mut files = vec![];
+        let cmd_arguments = proc.cmd();
+        let mut arguments_to_check = Vec::new();
+
+        // Filter arguments to check for files
+        for arg in cmd_arguments {
+            // Skip flags
+            if arg.starts_with('-') {
+                continue;
+            }
+
+            // Add the original argument
+            arguments_to_check.push(arg.clone());
+
+            // Extract values from key-value arguments as additional candidates
+            if arg.contains('=') {
+                let split: Vec<&str> = arg.split('=').collect();
+                if split.len() > 1 {
+                    arguments_to_check.push(split[1].to_string());
+                }
+            }
+        }
+
+        // Check if arguments match known files
+        let watcher = self.file_watcher.read().await;
+        for arg in &arguments_to_check {
+            if let Some((path, file_info)) = watcher.get_file_by_path_suffix(arg) {
+                files.push(InputFile {
+                    file_name: file_info.name.clone(),
+                    file_size: file_info.size,
+                    file_path: path.clone(),
+                    file_directory: file_info.directory.clone(),
+                    file_updated_at_timestamp: file_info.last_update.to_rfc3339(),
+                });
+            }
+        }
+
+        if files.is_empty() {
+            None
+        } else {
+            Some(files)
+        }
+    }
+
+    /// Extracts environment variables related to containerization, jobs, and tracing
+    fn extract_process_env_vars(
+        proc: &Process,
+    ) -> (Option<String>, Option<String>, Option<String>) {
         let mut container_id = None;
         let mut job_id = None;
         let mut trace_id = None;
@@ -334,583 +670,139 @@ impl ProcessWatcher {
         (container_id, job_id, trace_id)
     }
 
-    pub fn gather_process_data(
-        pid: &Pid,
-        proc: &Process,
-        display_name: Option<String>,
-    ) -> ProcessProperties {
-        let start_time = Utc::now();
-        let (container_id, job_id, trace_id) = Self::read_process_env(proc);
-        let working_directory = proc.cwd().map(|p| p.to_string_lossy().to_string());
-
-        ProcessProperties {
-            tool_name: display_name.unwrap_or(proc.name().to_owned()),
-            tool_pid: pid.to_string(),
-            tool_parent_pid: proc.parent().unwrap_or(0.into()).to_string(),
-            tool_binary_path: proc
-                .exe()
-                .unwrap_or_else(|| Path::new(""))
-                .as_os_str()
-                .to_str()
-                .unwrap()
-                .to_string(),
-            tool_cmd: proc.cmd().join(" "),
-            start_timestamp: start_time.to_rfc3339(),
-            process_cpu_utilization: proc.cpu_usage(),
-            process_run_time: proc.run_time(),
-            process_disk_usage_read_total: proc.disk_usage().total_read_bytes,
-            process_disk_usage_write_total: proc.disk_usage().total_written_bytes,
-            process_disk_usage_read_last_interval: proc.disk_usage().read_bytes,
-            process_disk_usage_write_last_interval: proc.disk_usage().written_bytes,
-            process_memory_usage: proc.memory(),
-            process_memory_virtual: proc.virtual_memory(),
-            process_status: process_status_to_string(&proc.status()),
-            input_files: None,
-            container_id,
-            job_id,
-            working_directory,
-            trace_id,
-        }
-    }
-
-    pub fn fill_logs_with_short_lived_process(
-        &mut self,
-        short_lived_process: ShortLivedProcessLog,
-        event_logger: &mut EventRecorder,
-    ) -> Result<()> {
-        let properties = EventAttributes::Process(short_lived_process.properties.clone());
-        event_logger.record_event(
-            TracerProcessStatus::ToolExecution,
-            format!(
-                "[{}] Short lived process: {}",
-                short_lived_process.timestamp, short_lived_process.command
-            ),
-            Some(properties),
-            None,
-        );
-
-        if let Vacant(v) = self
-            .seen
-            .entry(short_lived_process.properties.tool_pid.parse().unwrap())
-        {
-            v.insert(Proc {
-                name: short_lived_process.command,
-                start_time: Utc::now(),
-                last_update: ProcLastUpdate::RefreshesRemaining(2),
-                just_started: true,
-            });
-        }
-
-        Ok(())
-    }
-
-    pub fn gather_short_lived_process_data(system: &System, command: &str) -> ShortLivedProcessLog {
-        let process = system.processes_by_name(command).last();
-        if let Some(process) = process {
-            ShortLivedProcessLog {
-                command: command.to_string(),
-                timestamp: chrono::Utc::now().to_rfc3339(),
-                properties: ProcessWatcher::gather_process_data(&process.pid(), process, None),
-            }
-        } else {
-            ShortLivedProcessLog {
-                command: command.to_string(),
-                timestamp: chrono::Utc::now().to_rfc3339(),
-                properties: ProcessProperties {
-                    tool_name: command.to_string(),
-                    tool_pid: "".to_string(),
-                    tool_parent_pid: "".to_string(),
-                    tool_binary_path: "".to_string(),
-                    tool_cmd: command.to_string(),
-                    start_timestamp: chrono::Utc::now().to_rfc3339(),
-                    process_cpu_utilization: 0.0,
-                    process_memory_usage: 0,
-                    process_memory_virtual: 0,
-                    process_run_time: 0,
-                    process_disk_usage_read_last_interval: 0,
-                    process_disk_usage_write_last_interval: 0,
-                    process_disk_usage_read_total: 0,
-                    process_disk_usage_write_total: 0,
-                    process_status: "Unknown".to_string(),
-                    input_files: None,
-                    container_id: None,
-                    job_id: None,
-                    working_directory: None,
-                    trace_id: None,
-                },
-            }
-        }
-    }
-
-    fn add_new_process(
-        &mut self,
-        pid: Pid,
-        proc: &Process,
-        system: &System,
-        event_logger: &mut EventRecorder,
-        target: Option<&Target>,
-        file_watcher: &FileWatcher,
-    ) -> Result<()> {
-        let display_name = if let Some(target) = target {
-            target
-                .get_display_name_object()
-                .get_display_name(proc.name(), proc.cmd())
-        } else {
-            proc.name().to_owned()
-        };
-
-        self.seen.insert(
-            pid,
-            Proc {
-                name: display_name.clone(),
-                start_time: Utc::now(),
-                last_update: ProcLastUpdate::RefreshesRemaining(2),
-                just_started: true,
-            },
-        );
-
-        let Some(p) = system.process(pid) else {
-            eprintln!("[{}] Process({}) wasn't found", Utc::now(), proc.name());
-            return Ok(());
-        };
-
-        let start_time = Utc::now();
-
-        let mut properties = Self::gather_process_data(&pid, p, Some(display_name.clone()));
-
-        let cmd_arguments = p.cmd();
-
-        let mut input_files = vec![];
-
-        let mut arguments_to_check = vec![];
-
-        for arg in cmd_arguments {
-            if arg.starts_with('-') {
-                continue;
-            }
-
-            if arg.contains('=') {
-                let split: Vec<&str> = arg.split('=').collect();
-                if split.len() > 1 {
-                    arguments_to_check.push(split[1]);
-                }
-            }
-
-            arguments_to_check.push(arg);
-        }
-
-        for arg in arguments_to_check {
-            let file = file_watcher.get_file_by_path_suffix(arg);
-            if let Some((path, file_info)) = file {
-                input_files.push(InputFile {
-                    file_name: file_info.name.clone(),
-                    file_size: file_info.size,
-                    file_path: path.clone(),
-                    file_directory: file_info.directory.clone(),
-                    file_updated_at_timestamp: file_info.last_update.to_rfc3339(),
-                });
-            }
-        }
-
-        properties.input_files = Some(input_files);
-
-        event_logger.record_event(
-            TracerProcessStatus::ToolExecution,
-            format!("[{}] Tool process: {}", start_time, &display_name),
-            Some(EventAttributes::Process(properties.clone())),
-            None,
-        );
-
-        self.log_datasets_in_process(event_logger, cmd_arguments, properties);
-
-        Ok(())
-    }
-
-    fn add_process_metrics(
-        &mut self,
-        proc: &Process,
-        event_logger: &mut EventRecorder,
-        target: Option<&Target>,
-    ) -> Result<()> {
-        let pid = proc.pid();
-        let start_time = Utc::now();
-
-        // Get the display name from the seen processes map if it exists
-        let display_name = if let Some(seen_proc) = self.seen.get(&pid) {
-            seen_proc.name.clone()
-        } else if let Some(target) = target {
-            target
-                .get_display_name_object()
-                .get_display_name(proc.name(), proc.cmd())
-        } else {
-            proc.name().to_owned()
-        };
-
-        let properties = EventAttributes::Process(Self::gather_process_data(
-            &pid,
-            proc,
-            Some(display_name.clone()),
-        ));
-
-        event_logger.record_event(
-            TracerProcessStatus::ToolMetricEvent,
-            format!("[{}] Tool metric event: {}", start_time, &display_name),
-            Some(properties),
-            None,
-        );
-
-        Ok(())
-    }
-
-    pub fn get_earliest_process_time(&self) -> DateTime<Utc> {
-        let mut earliest = Utc::now();
-
-        for proc in self.seen.values() {
-            if proc.start_time < earliest {
-                earliest = proc.start_time;
-            }
-        }
-
-        earliest
-    }
-
-    pub fn get_parent_pid(&self, run_start: Option<DateTime<Utc>>) -> Option<Pid> {
-        let mut possible_parents = vec![];
-
-        let parent = self
-            .seen
-            .iter()
-            .find(|(_, proc)| run_start.is_none() || proc.start_time > run_start.unwrap())?;
-
-        let mut pid = parent.0.to_owned();
-        loop {
-            let process = self.process_tree.get(&pid);
-
-            if process.is_none() {
-                break;
-            }
-
-            pid = process.unwrap().parent_id?;
-
-            possible_parents.push(pid);
-        }
-
-        for process in self.seen.iter() {
-            let mut pid = process.0.to_owned();
-            loop {
-                let process = self.process_tree.get(&pid);
-
-                if process.is_none() {
-                    break;
-                }
-
-                pid = process.unwrap().parent_id?;
-
-                if possible_parents.contains(&pid) {
-                    let index = possible_parents.iter().position(|&x| x == pid).unwrap();
-                    if index > 0 {
-                        possible_parents.drain(0..index - 1);
-                    }
-                    break;
-                }
-            }
-        }
-
-        possible_parents.retain(|x| {
-            run_start.is_none() || self.process_tree[x].start_time > run_start.unwrap()
-        });
-
-        if possible_parents.is_empty() {
-            None
-        } else {
-            Some(*possible_parents.last().unwrap())
-        }
-    }
-
-    pub fn is_process_alive(&self, system: &System, pid: Pid) -> bool {
-        system.process(pid).is_some()
-    }
-
-    fn log_completed_process(
-        &self,
-        pid: &Pid,
-        proc: &Proc,
-        event_logger: &mut EventRecorder,
-    ) -> Result<()> {
-        // NOTE: to avoid handling casting from u128 to u64, moving to as_secs from as_millis
-        let duration_sec = (Utc::now() - proc.start_time).to_std()?.as_secs();
-
-        let properties = CompletedProcess {
-            tool_name: proc.name.clone(),
-            tool_pid: pid.to_string(),
-            duration_sec,
-        };
-
-        event_logger.record_event(
-            TracerProcessStatus::FinishedToolExecution,
-            format!("[{}] {} exited", Utc::now(), &proc.name),
-            Some(EventAttributes::CompletedProcess(properties)),
-            None,
-        );
-
-        Ok(())
-    }
-
-    /// Logs the unique datasets processed or in process
-    fn log_datasets_in_process(
-        &mut self,
-        event_logger: &mut EventRecorder,
+    /// Builds dataset properties by tracking dataset files used in the process
+    ///
+    /// Returns dataset properties with information about tracked datasets for the given trace ID
+    async fn build_dataset_properties(
+        self: &Arc<Self>,
         cmd: &[String],
-        properties: ProcessProperties,
-    ) {
-        let trace_id: Option<String> = properties.trace_id.clone();
+        trace_id: Option<String>,
+    ) -> DataSetsProcessed {
+        let trace_key = trace_id.clone().unwrap_or_default();
+        let mut state = self.state.write().await;
 
+        // Find and track datasets in command arguments
         for arg in cmd.iter() {
             if DATA_SAMPLES_EXT.iter().any(|ext| arg.ends_with(ext)) {
-                self.datasamples_tracker
-                    .entry(trace_id.clone().unwrap_or_default())
+                state
+                    .datasamples_tracker
+                    .entry(trace_key.clone())
                     .or_default()
                     .insert(arg.clone());
             }
         }
 
-        let dataset_set = self
+        // Get the datasets for the current trace
+        let datasets = state
             .datasamples_tracker
-            .get(&trace_id.clone().unwrap_or_default());
+            .get(&trace_key)
+            .map(|set| set.iter().cloned().collect::<Vec<_>>().join(", "))
+            .unwrap_or_default();
 
-        let total = dataset_set.map(|set| set.len()).unwrap_or(0);
+        // Get total datasets count
+        let total = state
+            .datasamples_tracker
+            .get(&trace_key)
+            .map_or(0, |set| set.len() as u64);
 
-        if total == 0 {
-            return; // Don't log empty dataset events
-        }
-
-        // TODO change this logic
-        let properties = DataSetsProcessed {
-            datasets: dataset_set
-                .map(|set| set.iter().cloned().collect::<Vec<_>>().join(", "))
-                .unwrap_or_default(),
-            total: total as u64,
+        // Create and return the dataset properties
+        DataSetsProcessed {
+            datasets,
+            total,
             trace_id,
+        }
+    }
+
+    /// Logs dataset information for a process
+    async fn log_datasets_in_process(
+        self: &Arc<Self>,
+        cmd: &[String],
+        properties: &FullProcessProperties,
+    ) -> Result<()> {
+        let dataset_properties = self
+            .build_dataset_properties(cmd, properties.trace_id.clone())
+            .await;
+
+        self.log_recorder
+            .log(
+                TracerProcessStatus::DataSamplesEvent,
+                format!("[{}] Samples Processed So Far", Utc::now()),
+                Some(EventAttributes::ProcessDatasetStats(dataset_properties)),
+                None,
+            )
+            .await
+    }
+
+    /// Polls and updates metrics for all monitored processes
+    pub async fn poll_process_metrics(self: &Arc<Self>) -> Result<()> {
+        debug!("Polling process metrics");
+
+        // Get PIDs of all monitored processes
+        let pids = {
+            let state = self.state.read().await;
+            debug!("Refreshing data for {} processes", state.monitoring.len());
+
+            if state.monitoring.is_empty() {
+                debug!("No processes to monitor, skipping poll");
+                return Ok(());
+            }
+
+            state
+                .monitoring
+                .iter()
+                .flat_map(|(_, processes)| processes.iter().map(|p| p.pid))
+                .collect::<HashSet<_>>()
         };
 
-        event_logger.record_event(
-            TracerProcessStatus::DataSamplesEvent,
-            format!("[{}] Samples Processed So Far", Utc::now()),
-            Some(EventAttributes::ProcessDatasetStats(properties)),
-            None,
-        );
-    }
+        // Refresh system data and process updates
+        self.refresh_system(&pids).await?;
+        self.update_all_processes().await?;
 
-    pub fn reload_targets(&mut self, targets: Vec<Target>) {
-        if targets == self.targets {
-            return;
-        }
-
-        self.targets = targets;
-        self.seen.clear();
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.seen.is_empty()
-    }
-
-    // Used by info command
-    pub fn preview_targets(&self) -> HashSet<String> {
-        self.seen
-            .iter()
-            .take(10)
-            .map(|(_k, v)| v.name.clone())
-            .collect()
-    }
-
-    pub fn preview_targets_count(&self) -> usize {
-        self.seen.len()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_get_parent_processes() {
-        let dataset = vec![
-            (1, 2),
-            (2, 3),
-            (2, 4),
-            (1, 5),
-            (4, 6),
-            (4, 7),
-            (5, 8),
-            (1, 9),
-            (1, 10),
-        ];
-
-        let mut nodes: HashMap<Pid, ProcessTreeNode> = HashMap::new();
-
-        for (parent, child) in dataset {
-            let properties = ProcessProperties {
-                tool_name: "test".to_string(),
-                tool_pid: child.to_string(),
-                tool_parent_pid: parent.to_string(),
-                tool_binary_path: "test".to_string(),
-                tool_cmd: "test".to_string(),
-                start_timestamp: "test".to_string(),
-                process_cpu_utilization: 0.0,
-                process_memory_usage: 0,
-                process_memory_virtual: 0,
-                process_run_time: 0,
-                process_disk_usage_read_last_interval: 0,
-                process_disk_usage_write_last_interval: 0,
-                process_disk_usage_read_total: 0,
-                process_disk_usage_write_total: 0,
-                process_status: "test".to_string(),
-                input_files: None,
-                container_id: None,
-                job_id: None,
-                working_directory: None,
-                trace_id: None,
-            };
-
-            let node = ProcessTreeNode {
-                properties,
-                children: vec![],
-                parent_id: Some(parent.into()),
-                start_time: Utc::now(),
-            };
-
-            nodes.insert(child.into(), node);
-        }
-
-        let watcher = ProcessWatcher::new(vec![]);
-
-        let result = watcher.get_parent_processes(
-            &nodes,
-            &vec![4.into(), 5.into(), 6.into(), 7.into(), 8.into()],
-            true,
-        );
-
-        let result2 = watcher.get_parent_processes(
-            &nodes,
-            &vec![4.into(), 5.into(), 6.into(), 7.into(), 8.into()],
-            false,
-        );
-
-        assert_eq!(result, vec![4.into(), 5.into()]);
-        assert_eq!(result2, vec![2.into(), 1.into()]);
-    }
-
-    #[test]
-    fn test_create_process_tree() -> Result<()> {
-        let mut process_watcher = ProcessWatcher::new(vec![]);
-        let system = System::new_all();
-
-        process_watcher.build_process_trees(system.processes());
+        debug!("Refreshing data completed");
 
         Ok(())
     }
 
-    #[test]
-    fn test_count_dataset_matches_works_without_trace_id() {
-        let command: Vec<String> =
-            "kallisto quant -t 4 -i control_index -o ./control_quant_9 control1_1.fa control1_2.fa"
-                .split(" ")
-                .map(String::from)
-                .collect();
-        let mut events_logger = EventRecorder::default();
-
-        let mut process_watcher = ProcessWatcher::new(vec![]);
-
-        let process_properties = create_process_properties_with_trace_id(None);
-
-        process_watcher.log_datasets_in_process(
-            &mut events_logger,
-            &command,
-            process_properties.clone(),
-        );
-        assert_eq!(
-            process_watcher.datasamples_tracker.get("").unwrap().len(),
-            2
-        );
-
-        let command: Vec<String> =
-            "kallisto quant -t 4 -i control_index -o ./control_quant_9 control1_3.fa control1_4.fa"
-                .split(" ")
-                .map(String::from)
-                .collect();
-
-        process_watcher.log_datasets_in_process(&mut events_logger, &command, process_properties);
-        assert_eq!(
-            process_watcher.datasamples_tracker.get("").unwrap().len(),
-            4
-        );
+    /// Returns N process names of monitored processes
+    pub async fn preview_targets(&self, n: usize) -> HashSet<String> {
+        self.state
+            .read()
+            .await
+            .monitoring
+            .iter()
+            .flat_map(|(_, processes)| processes.iter().map(|p| p.comm.clone()))
+            .take(n)
+            .collect()
     }
 
-    #[test]
-    fn test_count_dataset_matches_works_with_trace_id() {
-        let command: Vec<String> =
-            "kallisto quant -t 4 -i control_index -o ./control_quant_9 control1_1.fa control1_2.fa"
-                .split(" ")
-                .map(String::from)
-                .collect();
-        let mut events_logger = EventRecorder::default();
-
-        let mut process_watcher = ProcessWatcher::new(vec![]);
-        let process_properties =
-            create_process_properties_with_trace_id(Some("test_trace_id".to_string()));
-        process_watcher.log_datasets_in_process(
-            &mut events_logger,
-            &command,
-            process_properties.clone(),
-        );
-        assert_eq!(
-            process_watcher
-                .datasamples_tracker
-                .get("test_trace_id")
-                .unwrap()
-                .len(),
-            2
-        );
-
-        let command: Vec<String> =
-            "kallisto quant -t 4 -i control_index -o ./control_quant_9 control1_3.fa control1_4.fa"
-                .split(" ")
-                .map(String::from)
-                .collect();
-
-        process_watcher.log_datasets_in_process(&mut events_logger, &command, process_properties);
-        assert_eq!(
-            process_watcher
-                .datasamples_tracker
-                .get("test_trace_id")
-                .unwrap()
-                .len(),
-            4
-        );
+    /// Returns the total number of processes being monitored
+    pub async fn targets_len(&self) -> usize {
+        self.state
+            .read()
+            .await
+            .monitoring
+            .values()
+            .map(|processes| processes.len())
+            .sum()
     }
 
-    fn create_process_properties_with_trace_id(trace_id: Option<String>) -> ProcessProperties {
-        ProcessProperties {
-            tool_name: "test".to_string(),
-            tool_pid: "test".to_string(),
-            tool_parent_pid: "test".to_string(),
-            tool_binary_path: "test".to_string(),
-            tool_cmd: "test".to_string(),
-            start_timestamp: "test".to_string(),
-            process_cpu_utilization: 5.5,
-            process_memory_usage: 5,
-            process_memory_virtual: 5,
-            process_run_time: 5,
-            process_disk_usage_read_last_interval: 5,
-            process_disk_usage_write_last_interval: 5,
-            process_disk_usage_read_total: 5,
-            process_disk_usage_write_total: 5,
-            process_status: "test".to_string(),
-            input_files: Some(Vec::new()),
-            container_id: Some("test".to_string()),
-            job_id: Some("test".to_string()),
-            working_directory: Some("test".to_string()),
-            trace_id,
+    /// Updates all monitored processes with fresh data
+    #[tracing::instrument(skip(self))]
+    async fn update_all_processes(self: &Arc<ProcessWatcher>) -> Result<()> {
+        for (target, procs) in self.state.read().await.monitoring.iter() {
+            for proc in procs.iter() {
+                let result = self.update_running_process(target, proc).await?;
+
+                match result {
+                    ProcessResult::NotFound => {
+                        // TODO: Mark process as completed
+                        debug!("Process {} was not found during update", proc.pid);
+                    }
+                    ProcessResult::Found => {}
+                }
+            }
         }
+
+        Ok(())
     }
 }

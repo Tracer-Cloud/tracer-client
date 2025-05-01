@@ -1,0 +1,20 @@
+[package]
+name = "tracer_ebpf_kernel"
+version = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+authors = { workspace = true }
+
+[dependencies]
+tracer_ebpf_common = { workspace = true, features = []}
+aya-ebpf = { workspace = true }
+aya-log-ebpf = { workspace = true }
+log = { workspace = true }
+
+[build-dependencies]
+which = { workspace = true }
+
+[[bin]]
+name = "tracer_ebpf"
+path = "src/main.rs"

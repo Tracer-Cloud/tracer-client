@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use serde_json::{Map, Value};
 
+use crate::types::event::attributes::process::ProcessProperties;
 use crate::types::event::{attributes::EventAttributes, Event};
 
 /// Flattens the `attributes` field of an event with prefixing, e.g.:
@@ -14,7 +15,12 @@ pub fn flatten_event_attributes(event: &Event) -> Result<Value> {
         .context("Missing event attributes")?;
 
     let (prefix, json) = match attrs {
-        EventAttributes::Process(p) => ("process", serde_json::to_value(p)?),
+        EventAttributes::Process(ProcessProperties::Full(p)) => {
+            ("process", serde_json::to_value(p)?)
+        }
+        EventAttributes::Process(ProcessProperties::ShortLived(p)) => {
+            ("process", serde_json::to_value(p)?)
+        }
         EventAttributes::CompletedProcess(p) => ("completed_process", serde_json::to_value(p)?),
         EventAttributes::SystemMetric(p) => ("system_metric", serde_json::to_value(p)?),
         EventAttributes::SystemProperties(_) => return Ok(Value::Object(map)),
