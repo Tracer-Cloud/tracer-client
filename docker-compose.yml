@@ -48,7 +48,11 @@ services:
       db:
         condition: service_healthy
     profiles: [ integrations_tests ]
-
+    privileged: true
+    volumes:
+      - /sys/kernel/btf:/sys/kernel/btf
+    security_opt:
+      - seccomp=unconfined
     environment:
       USE_LOCAL_CREDENTIALS: true
       DATABASE_USER: postgres
@@ -70,7 +74,11 @@ services:
       db:
         condition: service_healthy
     profiles: [ parallel_tests ]
-
+    privileged: true
+    volumes:
+      - /sys/kernel/btf:/sys/kernel/btf
+    security_opt:
+      - seccomp=unconfined
     environment:
       USE_LOCAL_CREDENTIALS: true
       DATABASE_USER: postgres
