@@ -484,7 +484,6 @@ impl ProcessWatcher {
             }
         };
 
-        // Log dataset information if full properties are available
         if let ProcessProperties::Full(ref full_properties) = properties {
             self.log_datasets_in_process(&process.argv, full_properties)
                 .await?;
@@ -550,7 +549,6 @@ impl ProcessWatcher {
 
         debug!("Process data completed. PID={}", process.pid);
 
-        // Log the metric event
         self.log_recorder
             .log(
                 TracerProcessStatus::ToolMetricEvent,
@@ -775,7 +773,7 @@ impl ProcessWatcher {
         Ok(())
     }
 
-    /// Returns a preview of target process names
+    /// Returns N process names of monitored processes
     pub async fn preview_targets(&self, n: usize) -> HashSet<String> {
         self.state
             .read()

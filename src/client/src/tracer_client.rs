@@ -79,33 +79,19 @@ impl TracerClient {
         // todo: do we need both config with db connection AND db_client?
         info!("Initializing TracerClient with API Key: {}", config.api_key);
 
-        let pricing_client = PricingClient::new(config.aws_init_type.clone(), "us-east-1").await;
+        let pricing_client = Self::init_pricing_client(&config).await;
+        let file_watcher = Self::init_file_watcher().await?;
+        let pipeline = Self::init_pipeline(&cli_args);
 
-        fs::create_dir_all(FILE_CACHE_DIR)
-            .await
-            .context("Failed to create tmp directory")?;
-        let directory = tempfile::tempdir_in(FILE_CACHE_DIR)?;
-        let file_watcher = Arc::new(RwLock::new(FileWatcher::new(directory)));
-
-        let pipeline = Arc::new(RwLock::new(PipelineMetadata {
-            pipeline_name: cli_args.pipeline_name.clone(),
-            run: None,
-            tags: cli_args.tags,
-        }));
-
-        let (tx, rx) = mpsc::channel::<Event>(100);
-        let log_recorder = LogRecorder::new(pipeline.clone(), tx.clone());
-
+        let (log_recorder, rx) = Self::init_log_recorder(&pipeline);
         let system = Arc::new(RwLock::new(System::new_all()));
 
-        let process_watcher = Arc::new(ProcessWatcher::new(
-            config.targets.clone(),
-            log_recorder.clone(),
-            file_watcher.clone(),
-            system.clone(),
-        ));
+        let process_watcher =
+            Self::init_process_watcher(&config, &log_recorder, &file_watcher, &system);
 
         let exporter = Arc::new(ExporterManager::new(db_client, rx, pipeline.clone()));
+
+        let watchers = Self::init_watchers(&log_recorder, &system);
 
         Ok(TracerClient {
             // if putting a value to config, also update `TracerClient::reload_config_file`
@@ -121,8 +107,9 @@ impl TracerClient {
 
             pipeline,
 
-            syslog_watcher: SyslogWatcher::new(log_recorder.clone()),
-            stdout_watcher: StdoutWatcher::new(),
+            syslog_watcher: watchers.0,
+            stdout_watcher: watchers.1,
+            metrics_collector: watchers.2,
             // Sub managers
             file_watcher,
             workflow_directory: workflow_directory.clone(),
@@ -130,7 +117,6 @@ impl TracerClient {
             stdout_lines_buffer: Arc::new(RwLock::new(Vec::new())),
             stderr_lines_buffer: Arc::new(RwLock::new(Vec::new())),
             process_watcher,
-            metrics_collector: SystemMetricsCollector::new(log_recorder.clone(), system.clone()),
             exporter,
             pricing_client,
             config,
@@ -139,6 +125,60 @@ impl TracerClient {
             pipeline_name: cli_args.pipeline_name,
             initialization_id: cli_args.run_id,
         })
+    }
+
+    async fn init_pricing_client(config: &Config) -> PricingClient {
+        PricingClient::new(config.aws_init_type.clone(), "us-east-1").await
+    }
+
+    async fn init_file_watcher() -> Result<Arc<RwLock<FileWatcher>>> {
+        fs::create_dir_all(FILE_CACHE_DIR)
+            .await
+            .context("Failed to create tmp directory")?;
+        let directory = tempfile::tempdir_in(FILE_CACHE_DIR)?;
+        let file_watcher = Arc::new(RwLock::new(FileWatcher::new(directory)));
+        Ok(file_watcher)
+    }
+
+    fn init_pipeline(cli_args: &TracerCliInitArgs) -> Arc<RwLock<PipelineMetadata>> {
+        Arc::new(RwLock::new(PipelineMetadata {
+            pipeline_name: cli_args.pipeline_name.clone(),
+            run: None,
+            tags: cli_args.tags.clone(),
+        }))
+    }
+
+    fn init_log_recorder(
+        pipeline: &Arc<RwLock<PipelineMetadata>>,
+    ) -> (LogRecorder, mpsc::Receiver<Event>) {
+        let (tx, rx) = mpsc::channel::<Event>(100);
+        let log_recorder = LogRecorder::new(pipeline.clone(), tx);
+        (log_recorder, rx)
+    }
+
+    fn init_process_watcher(
+        config: &Config,
+        log_recorder: &LogRecorder,
+        file_watcher: &Arc<RwLock<FileWatcher>>,
+        system: &Arc<RwLock<System>>,
+    ) -> Arc<ProcessWatcher> {
+        Arc::new(ProcessWatcher::new(
+            config.targets.clone(),
+            log_recorder.clone(),
+            file_watcher.clone(),
+            system.clone(),
+        ))
+    }
+
+    fn init_watchers(
+        log_recorder: &LogRecorder,
+        system: &Arc<RwLock<System>>,
+    ) -> (SyslogWatcher, StdoutWatcher, SystemMetricsCollector) {
+        let syslog_watcher = SyslogWatcher::new(log_recorder.clone());
+        let stdout_watcher = StdoutWatcher::new();
+        let metrics_collector = SystemMetricsCollector::new(log_recorder.clone(), system.clone());
+
+        (syslog_watcher, stdout_watcher, metrics_collector)
     }
 
     pub async fn reload_config_file(&mut self, config: Config) -> Result<()> {
@@ -175,54 +215,6 @@ impl TracerClient {
 
     pub fn get_run_metadata(&self) -> Arc<RwLock<PipelineMetadata>> {
         self.pipeline.clone()
-    }
-
-    pub async fn run_cleanup(&mut self) -> Result<()> {
-        // let process_watcher = self.process_watcher.read().await;
-        // let mut pipeline = self.pipeline.write().await;
-        //
-        // if let Some(run) = pipeline.run.as_mut() {
-        //     if !RUN_COMPLICATED_PROCESS_IDENTIFICATION {
-        //         return Ok(());
-        //     }
-        //     if run.last_interaction.elapsed() > self.last_interaction_new_run_duration {
-        //         self.log_recorder
-        //             .log_with_metadata(
-        //                 ProcessStatus::FinishedRun,
-        //                 "Run ended due to inactivity".to_string(),
-        //                 None,
-        //                 None,
-        //                 &pipeline,
-        //             )
-        //             .await?;
-        //         pipeline.run = None;
-        //     } else if run.parent_pid.is_none() && !process_watcher.is_empty() {
-        //         run.parent_pid = process_watcher
-        //             .get_parent_pid(Some(run.start_time))
-        //             .map(|pid| pid.into());
-        //     } else if run.parent_pid.is_some() {
-        //         let parent_pid = run.parent_pid.unwrap();
-        //         if !process_watcher.is_process_alive(parent_pid.into()).await {
-        //             self.log_recorder
-        //                 .log_with_metadata(
-        //                     ProcessStatus::FinishedRun,
-        //                     "Run ended due to parent process termination".to_string(),
-        //                     None,
-        //                     None,
-        //                     &pipeline,
-        //                 )
-        //                 .await?;
-        //             pipeline.run = None;
-        //         }
-        //     }
-        // } else if !WAIT_FOR_PROCESS_BEFORE_NEW_RUN || !process_watcher.is_empty() {
-        //     drop(pipeline);
-        //     let earliest_process_time = process_watcher.get_earliest_process_time();
-        //     drop(process_watcher);
-        //     self.start_new_run(Some(earliest_process_time.sub(Duration::from_millis(1))))
-        //         .await?;
-        // }
-        Ok(())
     }
 
     pub async fn start_new_run(&self, timestamp: Option<DateTime<Utc>>) -> Result<()> {
@@ -390,7 +382,6 @@ impl TracerClient {
 
     pub async fn close(&self) -> Result<()> {
         self.exporter.close().await?;
-
         Ok(())
     }
 }
