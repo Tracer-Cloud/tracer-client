@@ -95,21 +95,30 @@ impl SystemMetricsCollector {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
+    use tracer_common::current_run::PipelineMetadata;
 
-    #[test]
-    fn test_collect_metrics() {
-        let mut system = System::new_all();
-        let mut logs = EventRecorder::default();
-        let collector = SystemMetricsCollector::new();
+    #[tokio::test]
+    async fn test_collect_metrics() {
+        let system = System::new_all();
 
-        collector.collect_metrics(&mut system, &mut logs).unwrap();
+        let pipeline = Arc::new(RwLock::new(PipelineMetadata {
+            pipeline_name: "test_pipeline".to_string(),
+            run: None,
+            tags: Default::default(),
+        }));
 
-        let events = logs.get_events();
-        assert_eq!(events.len(), 1);
+        let (tx, mut rx) = tokio::sync::mpsc::channel(100);
+        let log_recorder = LogRecorder::new(pipeline.clone(), tx.clone());
 
-        let event = &events[0];
+        let recorder = LogRecorder::new(pipeline, tx);
+
+        let collector = SystemMetricsCollector::new(recorder, Arc::new(RwLock::new(system)));
+
+        collector.collect_metrics().await.unwrap();
+
+        assert_eq!(1, rx.len());
+        let event = rx.recv().await.unwrap();
 
         assert!(event.attributes.is_some());
 

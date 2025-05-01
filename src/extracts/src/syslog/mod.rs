@@ -139,24 +139,34 @@ impl SyslogWatcher {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use std::{
         fs::File,
         io::{BufRead, BufReader},
     };
-
-    use super::*;
+    use tracer_common::current_run::PipelineMetadata;
 
     #[tokio::test]
     async fn test_grep_errors() {
         let test_file_path = "../../test-files/var/log/syslog";
 
         let file = File::open(test_file_path).unwrap();
-
         let file_lines = BufReader::new(file).lines();
+
+        let pipeline = Arc::new(RwLock::new(PipelineMetadata {
+            pipeline_name: "test_pipeline".to_string(),
+            run: None,
+            tags: Default::default(),
+        }));
+
+        let (tx, _) = tokio::sync::mpsc::channel(100);
+        let log_recorder = LogRecorder::new(pipeline.clone(), tx.clone());
+
+        let recorder = LogRecorder::new(pipeline, tx);
 
         let lines = file_lines.map(|x| x.unwrap()).collect::<Vec<String>>();
 
-        let mut syslog_watcher = SyslogWatcher::new();
+        let mut syslog_watcher = SyslogWatcher::new(recorder);
 
         match syslog_watcher.grep_pattern_errors(&lines) {
             Ok(errors) => {
