@@ -7,8 +7,8 @@ use tracer_common::types::event::Event;
 use tracing::debug;
 
 pub struct ExporterManager {
-    db_client: AuroraClient,
-    rx: Mutex<Receiver<Event>>,
+    pub db_client: AuroraClient,
+    pub rx: Mutex<Receiver<Event>>,
     pipeline: Arc<tokio::sync::RwLock<PipelineMetadata>>,
 }
 
