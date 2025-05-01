@@ -156,6 +156,18 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
         config.batch_submission_interval_ms
     )?;
 
+    writeln!(
+        &mut output,
+        "│ Log files:                │ {}  ",
+        STDOUT_FILE
+    )?;
+
+    writeln!(
+        &mut output,
+        "│                           │ {}  ",
+        STDERR_FILE
+    )?;
+
     writeln!(&mut output, "└{:─^width$}┘", "", width = total_header_width)?;
 
     println!("{}", output);
