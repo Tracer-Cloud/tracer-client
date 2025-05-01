@@ -55,8 +55,8 @@ impl TryInto<tracer_common::types::trigger::Trigger> for &ProcessRawTrigger {
                         .argv
                         .iter()
                         .take(self.len)
-                        .map(|x| from_bpf_str(x).unwrap().to_string())
-                        .collect(), // todo: improve
+                        .map(|x| from_bpf_str(x).map(|s| s.to_string()))
+                        .collect::<Result<_, Self::Error>>()?, // todo: improve
                     // todo: use self.time
                     started_at: chrono::Utc::now(),
                 })
