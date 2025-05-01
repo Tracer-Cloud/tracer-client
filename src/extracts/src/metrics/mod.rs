@@ -109,7 +109,6 @@ mod tests {
         }));
 
         let (tx, mut rx) = tokio::sync::mpsc::channel(100);
-        let log_recorder = LogRecorder::new(pipeline.clone(), tx.clone());
 
         let recorder = LogRecorder::new(pipeline, tx);
 
