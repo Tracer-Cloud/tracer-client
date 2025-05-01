@@ -59,7 +59,7 @@ jobs:
         run: cargo fmt -- --check
 
       - name: Cargo check
-        run: cargo check --all-targets
+        run: cargo check --locked --all-targets
 
       - name: Lint with Clippy
         run: make clippy
