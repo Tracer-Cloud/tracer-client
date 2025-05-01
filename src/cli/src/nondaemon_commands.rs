@@ -156,28 +156,16 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
         config.batch_submission_interval_ms
     )?;
 
-    let clickable_stdout_file = format!(
-        "\u{1b}]8;;file://{}\u{1b}\\{}\u{1b}]8;;\u{1b}\\",
-        STDOUT_FILE, STDOUT_FILE
-    );
-    let colored_stdout_file = clickable_stdout_file.cyan().underline().to_string();
-
-    let clickable_stderr_file = format!(
-        "\u{1b}]8;;file://{}\u{1b}\\{}\u{1b}]8;;\u{1b}\\",
-        STDERR_FILE, STDERR_FILE
-    );
-    let colored_stderr_file = clickable_stderr_file.cyan().underline().to_string();
-
     writeln!(
         &mut output,
         "│ Log files:                │ {}  ",
-        colored_stdout_file
+        STDOUT_FILE
     )?;
 
     writeln!(
         &mut output,
         "│                           │ {}  ",
-        colored_stderr_file
+        STDERR_FILE
     )?;
 
     writeln!(&mut output, "└{:─^width$}┘", "", width = total_header_width)?;
