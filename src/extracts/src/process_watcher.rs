@@ -507,13 +507,13 @@ impl ProcessWatcher {
         process: &ProcessTrigger,
         display_name: String,
     ) -> ProcessProperties {
-        ProcessProperties::ShortLived(ShortProcessProperties {
+        ProcessProperties::ShortLived(Box::new(ShortProcessProperties {
             tool_name: display_name,
             tool_pid: process.pid.to_string(),
             tool_parent_pid: process.ppid.to_string(),
             tool_binary_path: process.file_name.clone(),
             start_timestamp: Utc::now().to_rfc3339(),
-        })
+        }))
     }
 
     /// Processes an already running process for metrics updates
@@ -582,7 +582,7 @@ impl ProcessWatcher {
             None
         };
 
-        ProcessProperties::Full(FullProcessProperties {
+        ProcessProperties::Full(Box::new(FullProcessProperties {
             tool_name: display_name,
             tool_pid: proc.pid().as_u32().to_string(),
             tool_parent_pid: proc.parent().unwrap_or(0.into()).to_string(),
@@ -609,7 +609,7 @@ impl ProcessWatcher {
             job_id,
             working_directory,
             trace_id,
-        })
+        }))
     }
 
     async fn extract_input_files(&self, proc: &Process) -> Option<Vec<InputFile>> {

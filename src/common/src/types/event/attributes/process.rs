@@ -44,8 +44,8 @@ pub struct ShortProcessProperties {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum ProcessProperties {
-    Full(FullProcessProperties),
-    ShortLived(ShortProcessProperties),
+    Full(Box<FullProcessProperties>),
+    ShortLived(Box<ShortProcessProperties>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
