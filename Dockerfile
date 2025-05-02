@@ -25,12 +25,16 @@ RUN apt-get update && apt-get install -y \
 # Install Rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 RUN rustup default stable
+RUN rustup toolchain install nightly --component rust-src
+RUN cargo install bpf-linker && cargo install bindgen-cli && cargo install --git https://github.com/aya-rs/aya -- aya-tool
 
 # Create directories for Tracer
 RUN mkdir -p /opt/tracer /etc/tracer
 
 # Copy the entire project
 COPY . /opt/tracer/src
+RUN aya-tool generate task_struct > /opt/tracer/src/ebpf/kernel/src/gen.rs
+
 WORKDIR /opt/tracer/src
 
 # Build Tracer with release profile
