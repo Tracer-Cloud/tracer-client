@@ -7,11 +7,10 @@ use anyhow::Result;
 use linemux::MuxedLines;
 use predicates::Predicate;
 use serde::Serialize;
-use sysinfo::System;
 use tokio::sync::RwLock;
 use tokio_stream::StreamExt;
 use tracer_common::debug_log::Logger;
-use tracer_common::recorder::EventRecorder;
+use tracer_common::recorder::LogRecorder;
 use tracer_common::types::event::attributes::syslog::SyslogProperties;
 use tracer_common::types::event::attributes::EventAttributes;
 use tracer_common::types::event::ProcessStatus;
@@ -29,6 +28,7 @@ pub struct ErrorDefinition {
 
 pub struct SyslogWatcher {
     pub last_lines: Vec<String>,
+    log_recorder: LogRecorder,
 }
 
 pub async fn run_syslog_lines_read_thread(
@@ -63,32 +63,28 @@ pub async fn run_syslog_lines_read_thread(
     }
 }
 
-impl Default for SyslogWatcher {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl SyslogWatcher {
-    pub fn new() -> SyslogWatcher {
+    pub fn new(log_recorder: LogRecorder) -> SyslogWatcher {
         SyslogWatcher {
             last_lines: Vec::new(),
+            log_recorder,
         }
     }
 
     pub async fn poll_syslog(
         &mut self,
         pending_lines: Arc<RwLock<Vec<String>>>,
-        system: &mut System,
-        logs: &mut EventRecorder,
+        system_metrics_collector: &SystemMetricsCollector,
     ) -> Result<()> {
         let mut lines = pending_lines.write().await;
         let errors = self.grep_pattern_errors(&lines).unwrap();
         lines.clear();
 
         if !errors.is_empty() {
-            let system_properties =
-                SystemMetricsCollector::gather_metrics_object_attributes(system);
+            let system_properties = system_metrics_collector
+                .gather_metrics_object_attributes()
+                .await;
+
             for error in errors {
                 let attributes = SyslogProperties {
                     system_metrics: system_properties.clone(),
@@ -99,12 +95,14 @@ impl SyslogWatcher {
                     file_previous_logs: error.lines_before,
                 };
 
-                logs.record_event(
-                    ProcessStatus::SyslogEvent,
-                    error.line.clone(),
-                    Some(EventAttributes::Syslog(attributes)),
-                    None,
-                );
+                self.log_recorder
+                    .log(
+                        ProcessStatus::SyslogEvent,
+                        error.line.clone(),
+                        Some(EventAttributes::Syslog(attributes)),
+                        None,
+                    )
+                    .await?;
             }
         }
         Ok(())
@@ -141,24 +139,32 @@ impl SyslogWatcher {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use std::{
         fs::File,
         io::{BufRead, BufReader},
     };
-
-    use super::*;
+    use tracer_common::types::current_run::PipelineMetadata;
 
     #[tokio::test]
     async fn test_grep_errors() {
         let test_file_path = "../../test-files/var/log/syslog";
 
         let file = File::open(test_file_path).unwrap();
-
         let file_lines = BufReader::new(file).lines();
+
+        let pipeline = Arc::new(RwLock::new(PipelineMetadata {
+            pipeline_name: "test_pipeline".to_string(),
+            run: None,
+            tags: Default::default(),
+        }));
+
+        let (tx, _) = tokio::sync::mpsc::channel(100);
+        let recorder = LogRecorder::new(pipeline, tx);
 
         let lines = file_lines.map(|x| x.unwrap()).collect::<Vec<String>>();
 
-        let mut syslog_watcher = SyslogWatcher::new();
+        let mut syslog_watcher = SyslogWatcher::new(recorder);
 
         match syslog_watcher.grep_pattern_errors(&lines) {
             Ok(errors) => {

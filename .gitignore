@@ -70,3 +70,5 @@ script-second-script.sh
 
 # dev secrets config
 tracer.dev.toml
+
+**/.claude/settings.local.json

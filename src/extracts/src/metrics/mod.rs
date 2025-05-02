@@ -2,23 +2,25 @@
 use anyhow::Result;
 use chrono::Utc;
 use std::collections::HashMap;
+use std::sync::Arc;
 use sysinfo::{Disks, System};
-use tracer_common::recorder::EventRecorder;
+use tokio::sync::RwLock;
+use tracer_common::recorder::LogRecorder;
 use tracer_common::types::event::attributes::system_metrics::{DiskStatistic, SystemMetric};
 use tracer_common::types::event::attributes::EventAttributes;
 use tracer_common::types::event::ProcessStatus;
 
-pub struct SystemMetricsCollector;
-
-impl Default for SystemMetricsCollector {
-    fn default() -> Self {
-        Self::new()
-    }
+pub struct SystemMetricsCollector {
+    log_recorder: LogRecorder,
+    system: Arc<RwLock<System>>,
 }
 
 impl SystemMetricsCollector {
-    pub fn new() -> Self {
-        SystemMetricsCollector
+    pub fn new(log_recorder: LogRecorder, system: Arc<RwLock<System>>) -> Self {
+        Self {
+            log_recorder,
+            system,
+        }
     }
 
     pub fn gather_disk_data() -> HashMap<String, DiskStatistic> {
@@ -49,7 +51,9 @@ impl SystemMetricsCollector {
         d_stats
     }
 
-    pub fn gather_metrics_object_attributes(system: &mut System) -> SystemMetric {
+    pub async fn gather_metrics_object_attributes(&self) -> SystemMetric {
+        let system = self.system.read().await;
+
         let used_memory = system.used_memory();
         let total_memory = system.total_memory();
         // System::host_name()
@@ -72,16 +76,18 @@ impl SystemMetricsCollector {
         }
     }
 
-    pub fn collect_metrics(&self, system: &mut System, logs: &mut EventRecorder) -> Result<()> {
+    pub async fn collect_metrics(&self) -> Result<()> {
         let attributes =
-            EventAttributes::SystemMetric(Self::gather_metrics_object_attributes(system));
+            EventAttributes::SystemMetric(self.gather_metrics_object_attributes().await);
 
-        logs.record_event(
-            ProcessStatus::MetricEvent,
-            format!("[{}] System's resources metric", Utc::now()),
-            Some(attributes),
-            None,
-        );
+        self.log_recorder
+            .log(
+                ProcessStatus::MetricEvent,
+                format!("[{}] System's resources metric", Utc::now()),
+                Some(attributes),
+                None,
+            )
+            .await?;
 
         Ok(())
     }
@@ -89,21 +95,29 @@ impl SystemMetricsCollector {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
+    use tracer_common::types::current_run::PipelineMetadata;
 
-    #[test]
-    fn test_collect_metrics() {
-        let mut system = System::new_all();
-        let mut logs = EventRecorder::default();
-        let collector = SystemMetricsCollector::new();
+    #[tokio::test]
+    async fn test_collect_metrics() {
+        let system = System::new_all();
 
-        collector.collect_metrics(&mut system, &mut logs).unwrap();
+        let pipeline = Arc::new(RwLock::new(PipelineMetadata {
+            pipeline_name: "test_pipeline".to_string(),
+            run: None,
+            tags: Default::default(),
+        }));
 
-        let events = logs.get_events();
-        assert_eq!(events.len(), 1);
+        let (tx, mut rx) = tokio::sync::mpsc::channel(100);
 
-        let event = &events[0];
+        let recorder = LogRecorder::new(pipeline, tx);
+
+        let collector = SystemMetricsCollector::new(recorder, Arc::new(RwLock::new(system)));
+
+        collector.collect_metrics().await.unwrap();
+
+        assert_eq!(1, rx.len());
+        let event = rx.recv().await.unwrap();
 
         assert!(event.attributes.is_some());
 

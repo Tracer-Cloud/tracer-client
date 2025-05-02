@@ -68,6 +68,25 @@ pub async fn wait(api_client: &DaemonClient) -> Result<()> {
 pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Result<()> {
     let mut output = String::new();
 
+    let info = match api_client.send_info_request().await {
+        Ok(info) => info,
+        Err(e) => {
+            writeln!(&mut output, "Daemon status: {}\n", "Stopped".red())?;
+            writeln!(
+                &mut output,
+                "To start the daemon run {}\n",
+                "tracer init".cyan().bold()
+            )?;
+            writeln!(
+                &mut output,
+                "This error occured while trying to access the daemon info:\n\n{:?}",
+                e
+            )?;
+            println!("{}", output);
+            return Ok(());
+        }
+    };
+
     // Fixed width for the left column and separator
     let total_header_width = 80; // Reasonable width for the header
 
@@ -78,52 +97,40 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
         width = total_header_width
     )?;
 
-    match api_client.send_info_request().await {
-        Ok(info) => {
-            writeln!(
-                &mut output,
-                "│ Daemon status:            │ {}  ",
-                "Running".green()
-            )?;
+    writeln!(
+        &mut output,
+        "│ Daemon status:            │ {}  ",
+        "Running".green()
+    )?;
 
-            if let Some(ref inner) = info.inner {
-                writeln!(
-                    &mut output,
-                    "│ Service name:             │ {}  ",
-                    inner.pipeline_name
-                )?;
-                writeln!(
-                    &mut output,
-                    "│ Run name:                 │ {}  ",
-                    inner.run_name
-                )?;
-                writeln!(
-                    &mut output,
-                    "│ Run ID:                   │ {}  ",
-                    inner.run_id
-                )?;
-                writeln!(
-                    &mut output,
-                    "│ Total Run Time:           │ {}  ",
-                    inner.formatted_runtime()
-                )?;
-            }
-            writeln!(
-                &mut output,
-                "│ Recognized Processes:     │ {}:{}  ",
-                info.watched_processes_count,
-                info.watched_processes_preview()
-            )?;
-        }
-        Err(e) => {
-            writeln!(
-                &mut output,
-                "│ Daemon status:            │ {}  ",
-                "Stopped".red()
-            )?;
-            writeln!(&mut output, "│ Error info:               │ {:?}  ", e)?;
-        }
+    if let Some(ref inner) = info.inner {
+        writeln!(
+            &mut output,
+            "│ Service name:             │ {}  ",
+            inner.pipeline_name
+        )?;
+        writeln!(
+            &mut output,
+            "│ Run name:                 │ {}  ",
+            inner.run_name
+        )?;
+        writeln!(
+            &mut output,
+            "│ Run ID:                   │ {}  ",
+            inner.run_id
+        )?;
+        writeln!(
+            &mut output,
+            "│ Total Run Time:           │ {}  ",
+            inner.formatted_runtime()
+        )?;
     }
+    writeln!(
+        &mut output,
+        "│ Recognized Processes:     │ {}:{}  ",
+        info.watched_processes_count,
+        info.watched_processes_preview()
+    )?;
 
     writeln!(
         &mut output,
@@ -154,6 +161,18 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
         &mut output,
         "│ Batch submission interval:│ {} ms  ",
         config.batch_submission_interval_ms
+    )?;
+
+    writeln!(
+        &mut output,
+        "│ Log files:                │ {}  ",
+        STDOUT_FILE
+    )?;
+
+    writeln!(
+        &mut output,
+        "│                           │ {}  ",
+        STDERR_FILE
     )?;
 
     writeln!(&mut output, "└{:─^width$}┘", "", width = total_header_width)?;

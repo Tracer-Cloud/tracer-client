@@ -36,6 +36,7 @@ jobs:
       - name: Setup Rust toolchain
         run: |
           rustup toolchain install stable --profile minimal
+          rustup toolchain install nightly --component rust-src
           rustup component add clippy
           rustup component add rustfmt
 
@@ -55,6 +56,15 @@ jobs:
       - name: Set up cargo Nextest
         run: |
           which cargo-nextest || cargo install cargo-nextest
+
+      - name: Install build dependencies
+        run: |
+          rustup toolchain install nightly --component rust-src
+          which bpf-linker || cargo install bpf-linker
+          which bindgen || cargo install bindgen-cli
+          which aya-tool || cargo install --git https://github.com/aya-rs/aya -- aya-tool
+          aya-tool generate task_struct > src/ebpf/kernel/src/gen.rs
+
 
       - name: Check Formatting
         run: cargo fmt -- --check

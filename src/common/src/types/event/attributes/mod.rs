@@ -13,6 +13,6 @@ pub enum EventAttributes {
     CompletedProcess(CompletedProcess),
     SystemMetric(SystemMetric),
     Syslog(SyslogProperties),
-    SystemProperties(SystemProperties),
+    SystemProperties(Box<SystemProperties>),
     ProcessDatasetStats(DataSetsProcessed),
 }
