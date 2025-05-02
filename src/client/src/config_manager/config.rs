@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use log::info;
 use serde::{Deserialize, Serialize};
 
 use crate::config_manager::bashrc_intercept::{
@@ -325,5 +326,62 @@ mod tests {
             .expect("Failed to set readonly permissions");
 
         assert!(ConfigManager::validate_path(&file_path).is_err());
+    }
+
+    // Test: exactly one matching file → should load successfully
+    #[test]
+    fn test_search_exact_one_match() {
+        let temp_dir = tempfile::tempdir().expect("failed to create temp dir");
+        let dir_path = temp_dir.path();
+
+        // Create a single "*.toml" containing "unique" in its name
+        let file_name = "unique_config.toml";
+        let file_path = dir_path.join(file_name);
+        // Give it a minimal valid setting to override the default
+        std::fs::write(&file_path, r#"api_key = "from_file""#).expect("failed to write tokm file");
+
+        // Should find exactly that one file and load it
+        let cfg = ConfigManager::load_config_at(dir_path, Some("unique_config"))
+            .expect("should load config with one match");
+        assert_eq!(cfg.api_key, "from_file");
+    }
+
+    // Test: no matching files → should error out
+    #[test]
+    fn test_search_no_match() {
+        let temp_dir = tempfile::tempdir().expect("failed to create temp dir");
+        let dir_path = temp_dir.path();
+
+        // Create a tangential file that does *not* contain "missing"
+        std::fs::write(dir_path.join("other.toml"), "").expect("write dummy file");
+
+        // Asking for "missing" should produce a "No configuration file matching" error
+        let err = ConfigManager::load_config_at(dir_path, Some("missing")).unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("No configuration file matching 'missing'"),
+            "unexpected error: {}",
+            msg
+        );
+    }
+
+    // Test: multiple matching files → should error out
+    #[test]
+    fn test_search_multiple_matches() {
+        let temp_dir = tempfile::tempdir().expect("failed to create temp dir");
+        let dir_path = temp_dir.path();
+
+        // Create two files both containing the substring "dup"
+        std::fs::write(dir_path.join("dup_a.toml"), "").unwrap();
+        std::fs::write(dir_path.join("dup_b.toml"), "").unwrap();
+
+        // Asking for "dup" should detect two candidates and bail
+        let err = ConfigManager::load_config_at(dir_path, Some("dup")).unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("Expected exactly one configuration file matching 'dup', found 2"),
+            "unexpected error: {}",
+            msg
+        );
     }
 }
