@@ -107,7 +107,7 @@ impl ConfigLoader {
                     candidates
                 ),
             }
-        } else if dir.to_str().map_or(false, |s| s.ends_with(".toml")) {
+        } else if dir.to_str().is_some_and(|s| s.ends_with(".toml")) {
             return Ok(dir.file_name().unwrap().to_string_lossy().into_owned());
         } else {
             // default order
