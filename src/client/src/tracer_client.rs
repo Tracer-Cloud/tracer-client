@@ -446,7 +446,7 @@ impl TracerClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config_manager::ConfigManager;
+    use crate::config_manager::ConfigLoader;
     use crate::params::TracerCliInitArgs;
     use anyhow::Result;
     use serde_json::Value;
@@ -458,7 +458,7 @@ mod tests {
     async fn test_submit_batched_data() -> Result<()> {
         // Load the configuration
         let path = Path::new("../../");
-        let config = ConfigManager::load_config_at(path, None).unwrap();
+        let config = ConfigLoader::load_config_at(path, None).unwrap();
 
         let temp_dir = tempdir().expect("cant create temp dir");
 
@@ -514,7 +514,7 @@ mod tests {
     async fn test_tags_attribution_works() {
         // Load the configuration
         let path = Path::new("../../");
-        let config = ConfigManager::load_config_at(path, None).unwrap();
+        let config = ConfigLoader::load_config_at(path, None).unwrap();
 
         let temp_dir = tempdir().expect("cant create temp dir");
 

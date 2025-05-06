@@ -8,7 +8,7 @@ use crate::structs::{
 use axum::response::IntoResponse;
 use axum::routing::{post, put};
 use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
-use tracer_client::config_manager::{Config, ConfigManager};
+use tracer_client::config_manager::{Config, ConfigLoader};
 use tracer_client::TracerClient;
 use tracer_common::debug_log::Logger;
 use tracer_common::http_client::upload::upload_from_file_path;
@@ -118,7 +118,7 @@ async fn refresh_config(
 ) -> axum::response::Result<impl IntoResponse> {
     // todo: IO in load condig has to be async
     let config_file =
-        ConfigManager::load_config(None).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        ConfigLoader::load_config(None).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     {
         let mut guard = state.tracer_client.lock().await;

@@ -43,14 +43,14 @@ mod tests {
     use crate::daemon::monitor_processes_with_tracer_client;
     use dotenv::dotenv;
     use std::path::Path;
-    use tracer_client::config_manager::{Config, ConfigManager};
+    use tracer_client::config_manager::{Config, ConfigLoader};
     use tracer_client::exporters::db::AuroraClient;
     use tracer_client::params::TracerCliInitArgs;
     use tracer_client::TracerClient;
 
     fn load_test_config() -> Config {
         let path = Path::new("../../");
-        ConfigManager::load_config_at(path, None).unwrap()
+        ConfigLoader::load_config_at(path, None).unwrap()
     }
 
     pub fn setup_env_vars(region: &str) {

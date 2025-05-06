@@ -499,6 +499,11 @@ EOL
     else
         echo "Failed to create tracer configuration files"
     fi
+
+    # Testing overrides
+    if [ -d "$HOME/tracer-client" ]; then
+        cp ~/.config/tracer/tracer.development.toml "$HOME/tracer-client/tracer.local.toml"
+    fi
 }
 
 #-------------------------------------------------------------------------------
