@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 
 use std::{borrow::Cow, path::Path};
 
+use super::targets_list::{DEFAULT_DISPLAY_PROCESS_RULES, DEFAULT_EXCLUDED_PROCESS_NAMES};
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Hash, Eq)]
 pub struct CommandContainsStruct {
     pub process_name: Option<String>,
@@ -16,6 +18,7 @@ pub enum TargetMatch {
     BinPathStartsWith(String),
     BinPathLastComponent(String),
     BinPathContains(String),
+    BashPreProcessing(String),
 }
 
 pub fn to_lowercase(s: &str) -> Cow<str> {
@@ -57,6 +60,15 @@ pub fn bin_path_contains(expected_content: &str, bin_path: &str) -> bool {
     bin_path_lower.contains(expected_content_lower.as_ref())
 }
 
+pub fn valid_bash_process(command: &str, bin_path: &str) -> bool {
+    let cmd = command.to_lowercase();
+    let bin = bin_path.to_lowercase();
+
+    DEFAULT_DISPLAY_PROCESS_RULES
+        .iter()
+        .any(|tool| cmd.contains(tool) || bin.contains(tool))
+}
+
 pub fn matches_target(
     target: &TargetMatch,
     process_name: &str,
@@ -76,7 +88,18 @@ pub fn matches_target(
             bin_path_last_component_matches(expected_name, bin_path)
         }
         TargetMatch::BinPathContains(content) => bin_path_contains(content, bin_path),
+        // is bash command does not contain scientific tool list return false
+        TargetMatch::BashPreProcessing(content) => valid_bash_process(content, bin_path),
     }
+}
+
+pub(crate) fn is_excluded(process_name: &str, command: &str) -> bool {
+    let name_lc = process_name.to_lowercase();
+    let cmd_lc = command.to_lowercase();
+
+    DEFAULT_EXCLUDED_PROCESS_NAMES
+        .iter()
+        .any(|excl| name_lc.contains(excl) || cmd_lc.contains(excl))
 }
 
 #[cfg(test)]

@@ -2,7 +2,7 @@
 pub mod target_matching;
 pub mod targets_list;
 use serde::{Deserialize, Serialize};
-use target_matching::{matches_target, TargetMatch};
+use target_matching::{is_excluded, matches_target, TargetMatch};
 use targets_list::DEFAULT_DISPLAY_PROCESS_RULES;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Hash, Eq)]
@@ -117,7 +117,8 @@ impl Target {
 
 impl TargetMatchable for Target {
     fn matches(&self, process_name: &str, command: &str, bin_path: &str) -> bool {
-        matches_target(&self.match_type, process_name, command, bin_path)
+        !is_excluded(process_name, command)
+            && matches_target(&self.match_type, process_name, command, bin_path)
             && (self.filter_out.is_none()
                 || !self
                     .filter_out

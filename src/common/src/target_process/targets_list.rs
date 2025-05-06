@@ -755,15 +755,9 @@ pub static ref TARGETS: Vec<Target> = [
         .set_display_name(DisplayName::UseFirstArgumentBaseName()),
     Target::new(TargetMatch::BinPathStartsWith("/opt/conda/bin".to_string()))
         .set_filter_out(Some(OPT_CONDA_BIN_EXCEPTIONS.to_vec())),
-    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
-        process_name: Some("java".to_string()),
-        command_content: ".nextflow".to_string()
-    }))
-    .set_display_name(DisplayName::Name("nextflow".to_string())),
-    Target::new(TargetMatch::ProcessName("nextflow".to_string()))
-        .set_display_name(DisplayName::Name("nextflow".to_string())),
-    Target::new(TargetMatch::BinPathContains("nextflow".to_string()))
-        .set_display_name(DisplayName::Name("nextflow".to_string())),
+
+    Target::new(TargetMatch::BashPreProcessing("bash".to_string())),
+
 ]
 .to_vec();
 
@@ -819,11 +813,11 @@ pub static DEFAULT_DISPLAY_PROCESS_RULES: LazyLock<Vec<&'static str>> = LazyLock
         "pheatmap",
         "featurecounts",
         // Lower priority fallback matches
-        "nextflow",
-        "nf-core",
-        "airflow",
         "java",
         "python",
         "R",
     ]
 });
+
+pub static DEFAULT_EXCLUDED_PROCESS_NAMES: LazyLock<Vec<&'static str>> =
+    LazyLock::new(|| vec!["nextflow", "nf-core", "cwltool", "spack"]);
