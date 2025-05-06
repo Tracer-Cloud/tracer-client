@@ -8,6 +8,8 @@ use tracer_client::params::TracerCliInitArgs;
     version = env!("CARGO_PKG_VERSION")
 )]
 pub struct Cli {
+    #[clap(long, global = true)]
+    pub config: Option<String>,
     #[clap(subcommand)]
     pub command: Commands,
 }

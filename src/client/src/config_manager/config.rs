@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use log::info;
 use serde::{Deserialize, Serialize};
 
 use crate::config_manager::bashrc_intercept::{
@@ -18,9 +19,8 @@ use tracer_common::target_process::targets_list;
 use tracer_common::target_process::Target;
 
 const DEFAULT_API_KEY: &str = "EAjg7eHtsGnP3fTURcPz1";
-const DEFAULT_CONFIG_FILE_LOCATION_FROM_HOME: &str = ".config/tracer/tracer.toml";
+const DEFAULT_CONFIG_FILE_LOCATION_FROM_HOME: &str = ".config/tracer";
 const PROCESS_POLLING_INTERVAL_MS: u64 = 5;
-const NEXTFLOW_LOG_FILE_POLLING_INTERVAL_MS: u64 = 2000;
 const BATCH_SUBMISSION_INTERVAL_MS: u64 = 10000;
 const NEW_RUN_PAUSE_MS: u64 = 10 * 60 * 1000;
 const PROCESS_METRICS_SEND_INTERVAL_MS: u64 = 10000;
@@ -45,40 +45,99 @@ pub struct Config {
 
     pub grafana_workspace_url: String,
     pub server: String,
+
+    pub config_sources: Vec<String>,
 }
 
-pub struct ConfigManager;
+pub struct ConfigLoader;
 
-impl ConfigManager {
-    fn get_config_path() -> Option<PathBuf> {
-        let path = homedir::get_my_home();
-
-        match path {
-            Ok(Some(path)) => {
-                let path = path.join(DEFAULT_CONFIG_FILE_LOCATION_FROM_HOME);
-                Some(path)
-            }
-            _ => None,
-        }
-    }
-
-    pub fn get_nextflow_log_polling_interval_ms() -> u64 {
-        NEXTFLOW_LOG_FILE_POLLING_INTERVAL_MS
-    }
-
-    // TODO: add error message as to why it can't read config
-
-    pub fn load_config() -> Result<Config> {
-        if let Ok(path) = std::env::var("TRACER_CONFIG_DIR") {
-            let path = Path::new(&path);
-            ConfigManager::load_config_at(path)
+impl ConfigLoader {
+    /// Search for config in TRACER_CONFIG_DIR, ~/.config/tracer, and/or working directory
+    fn get_config_path(config_name: Option<&str>) -> Result<PathBuf> {
+        // Get list of dirs to search
+        let mut dirs_to_search = Vec::new();
+        if let Ok(env_dir) = env::var("TRACER_CONFIG_DIR") {
+            dirs_to_search.push(PathBuf::from(env_dir));
         } else {
-            let path = Path::new(".");
-            ConfigManager::load_config_at(path)
+            // If no directory explicitly specified
+            if let Ok(Some(home)) = homedir::get_my_home() {
+                // TODO: skip HOME when unit testing?
+                dirs_to_search.push(
+                    home.join(DEFAULT_CONFIG_FILE_LOCATION_FROM_HOME)
+                        .to_path_buf(),
+                );
+            }
+            dirs_to_search.push(env::current_dir()?.canonicalize()?);
+        }
+
+        // Try to find config in each dir
+        for dir in &dirs_to_search {
+            if let Ok(config_name) = Self::find_config_at(dir, config_name) {
+                return Ok(dir.join(config_name));
+            }
+        }
+
+        // If none found, default to first entry in dirs_to_search
+        if let Some(first_dir) = dirs_to_search.first() {
+            return Ok(first_dir.join("tracer.toml"));
+        }
+
+        anyhow::bail!("No valid configuration path found")
+    }
+
+    /// Search for config file in `dir` matching `config_name` (or defaults).
+    fn find_config_at(dir: &Path, config_name: Option<&str>) -> Result<String> {
+        if let Some(name) = config_name {
+            // find all .toml files containing the substring
+            let mut candidates = Vec::new();
+            for entry in std::fs::read_dir(dir)? {
+                let entry = entry?;
+                let fname = entry.file_name().to_string_lossy().into_owned();
+                if fname.ends_with(".toml") && fname.contains(name) {
+                    candidates.push(fname);
+                }
+            }
+            match candidates.len() {
+                1 => Ok(candidates.remove(0)),
+                0 => anyhow::bail!("No config matching '{}' in {:?}", name, dir),
+                _ => anyhow::bail!(
+                    "Multiple configs matching '{}' in {:?}: {:?}",
+                    name,
+                    dir,
+                    candidates
+                ),
+            }
+        } else if dir.to_str().map_or(false, |s| s.ends_with(".toml")) {
+            return Ok(dir.file_name().unwrap().to_string_lossy().into_owned());
+        } else {
+            // default order
+            let defaults = [
+                "tracer.production.toml",
+                "tracer.development.toml",
+                "tracer.toml",
+            ];
+            for &fname in &defaults {
+                let candidate = dir.join(fname);
+                if candidate.is_file() {
+                    return Ok(fname.to_string());
+                }
+            }
+            anyhow::bail!("No default config file found in {:?}", dir);
         }
     }
 
-    pub fn load_config_at(path: &Path) -> Result<Config> {
+    pub fn load_config(config_name: Option<&str>) -> Result<Config> {
+        let path = Self::get_config_path(config_name)?;
+        let dir = path.parent().context("Failed to get parent directory")?;
+        Self::load_config_at(dir, config_name)
+    }
+
+    pub fn load_config_at(path: &Path, config_name: Option<&str>) -> Result<Config> {
+        let chosen = Self::find_config_at(path, config_name)?;
+        let chosen_path = path.join(&chosen);
+        let chosen_overrides_path = path.join(chosen.replace(".toml", ".local.toml"));
+        info!("Using config file: {:?}", chosen_path);
+
         let aws_default_profile = match dirs::home_dir() {
             None => "default",
             Some(path) => {
@@ -94,13 +153,13 @@ impl ConfigManager {
         }
         .to_string();
 
-        let mut cb = RConfig::builder()
+        // load toml & envar config
+        let mut builder = RConfig::builder()
             .add_source(
-                File::with_name(path.join("tracer.toml").to_str().context("Join path")?)
-                    .required(false),
+                File::with_name(chosen_path.to_str().context("invalid path")?).required(false),
             )
             .add_source(
-                File::with_name(path.join("tracer.dev.toml").to_str().context("Join path")?)
+                File::with_name(chosen_overrides_path.to_str().context("invalid path")?)
                     .required(false),
             )
             .add_source(
@@ -108,7 +167,10 @@ impl ConfigManager {
                     .convert_case(Case::Snake)
                     .separator("__")
                     .prefix_separator("_"),
-            )
+            );
+
+        // set defaults
+        builder = builder
             .set_default("api_key", DEFAULT_API_KEY)?
             .set_default("process_polling_interval_ms", PROCESS_POLLING_INTERVAL_MS)?
             .set_default("batch_submission_interval_ms", BATCH_SUBMISSION_INTERVAL_MS)?
@@ -127,13 +189,10 @@ impl ConfigManager {
             .set_default("server", "127.0.0.1:8722")?
             .set_default::<&str, Vec<&str>>("targets", vec![])?;
 
-        if let Some(path) = ConfigManager::get_config_path() {
-            if let Some(path) = path.to_str() {
-                cb = cb.add_source(File::with_name(path).required(false))
-            }
-        }
+        // set overrides
+        builder = builder.set_override::<&str, Vec<&str>>("config_sources", vec![])?;
 
-        let mut config: Config = cb
+        let mut config: Config = builder
             .build()?
             .try_deserialize()
             .context("failed to parse config file")?;
@@ -143,11 +202,22 @@ impl ConfigManager {
             // todo: TARGETS shouldn't be specified in the code. Instead, we should have this set in the config file
         }
 
+        if chosen_path.is_file() {
+            config
+                .config_sources
+                .push(chosen_path.to_string_lossy().into_owned());
+        }
+        if chosen_overrides_path.is_file() {
+            config
+                .config_sources
+                .push(chosen_overrides_path.to_string_lossy().into_owned());
+        }
+
         Ok(config)
     }
 
     pub fn setup_aliases() -> Result<()> {
-        let config = ConfigManager::load_config()?;
+        let config = ConfigLoader::load_config(None)?;
         rewrite_interceptor_bashrc_file(
             env::current_exe()?,
             config
@@ -161,7 +231,7 @@ impl ConfigManager {
                 })
                 .collect(),
         )?;
-        // bashrc_intercept(".bashrc")?;
+
         modify_bashrc_file(".bashrc")?;
 
         println!("Command interceptors setup successfully.");
@@ -170,65 +240,18 @@ impl ConfigManager {
 
     pub fn save_config(config: &Config) -> Result<()> {
         // todo: should this be async? should others be async?
-        let Some(config_file_location) = ConfigManager::get_config_path() else {
-            anyhow::bail!("Failed to get config file location");
-        };
+        let config_file_location = config.config_sources.first().cloned().or_else(|| {
+            ConfigLoader::get_config_path(None)
+                .ok()
+                .map(|path| path.to_string_lossy().into_owned())
+        });
 
-        let config = toml::to_string(config)?;
-        std::fs::write(config_file_location, config)?;
-        Ok(())
-    }
-
-    pub fn modify_config(
-        api_key: &Option<String>,
-        process_polling_interval_ms: &Option<u64>,
-        batch_submission_interval_ms: &Option<u64>,
-    ) -> Result<()> {
-        let mut current_config = ConfigManager::load_config()?;
-        if let Some(api_key) = api_key {
-            current_config.api_key.clone_from(api_key);
+        if let Some(location) = config_file_location {
+            let config = toml::to_string(config)?;
+            std::fs::write(location, config)?;
+        } else {
+            anyhow::bail!("Failed to determine config file location");
         }
-        if let Some(process_polling_interval_ms) = process_polling_interval_ms {
-            current_config.process_polling_interval_ms = *process_polling_interval_ms;
-        }
-        if let Some(batch_submission_interval_ms) = batch_submission_interval_ms {
-            current_config.batch_submission_interval_ms = *batch_submission_interval_ms;
-        }
-        ConfigManager::save_config(&current_config)
-    }
-
-    pub fn get_tracer_parquet_export_dir() -> Result<PathBuf> {
-        let mut export_dir = homedir::get_my_home()?.expect("Failed to get home dir");
-        export_dir.push("exports");
-        // Create export dir if not exists
-        let _ = std::fs::create_dir_all(&export_dir);
-        Self::validate_path(&export_dir)?;
-        Ok(export_dir)
-    }
-
-    /// Validates a directory of file path. It checks if it exists or has write permissions
-    pub fn validate_path<P: AsRef<Path>>(dir: P) -> Result<()> {
-        let path = dir.as_ref();
-
-        if !path.exists() {
-            anyhow::bail!(format!("{path:?} is not a valid path"))
-        }
-
-        if path
-            .metadata()
-            .map_err(|err| {
-                anyhow::anyhow!(
-                    "Failed to get metadata for path {:?}. Error: {}",
-                    path,
-                    err.to_string()
-                )
-            })?
-            .permissions()
-            .readonly()
-        {
-            anyhow::bail!("Only Readonly permissions granted for path: {path:?}")
-        }
-
         Ok(())
     }
 }
@@ -241,49 +264,77 @@ mod tests {
     #[test]
     fn test_default_config() {
         let path = Path::new("../../");
-        let config = ConfigManager::load_config_at(path).unwrap();
+        let config = ConfigLoader::load_config_at(path, None).unwrap();
         assert!(!config.targets.is_empty());
     }
 
+    // Test: exactly one matching file → should load successfully
     #[test]
-    fn test_path_validation_for_dir_succeeds() {
-        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+    fn test_search_exact_one_match() {
+        let temp_dir = tempfile::tempdir().expect("failed to create temp dir");
         let dir_path = temp_dir.path();
 
-        assert!(ConfigManager::validate_path(dir_path).is_ok());
+        // Create a single "*.toml" containing "unique" in its name
+        let file_name = "unique_config.toml";
+        let file_path = dir_path.join(file_name);
+        // Give it a minimal valid setting to override the default
+        std::fs::write(
+            &file_path,
+            r#"
+            api_key = "123"
+            process_polling_interval_ms = 123
+            batch_submission_interval_ms = 123
+            database_secrets_arn = "123"
+            database_host = "123"
+            database_name = "123"
+            grafana_workspace_url = "123"
+            server = "123"
+        "#,
+        )
+        .expect("failed to write toml file");
+
+        // Should find exactly that one file and load it
+        let cfg = ConfigLoader::load_config_at(dir_path, Some("unique_config"))
+            .expect("should load config with one match");
+        assert_eq!(cfg.api_key, "123");
     }
 
+    // Test: no matching files → should error out
     #[test]
-    fn test_path_validation_for_file_succeeds() {
-        // Create a temporary directory
-        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
-        let file_path = temp_dir.path().join("test_file.txt");
+    fn test_search_no_match() {
+        let temp_dir = tempfile::tempdir().expect("failed to create temp dir");
+        let dir_path = temp_dir.path();
 
-        std::fs::File::create(&file_path).expect("failed to create file");
+        // Create a tangential file that does *not* contain "missing"
+        std::fs::write(dir_path.join("other.toml"), "").expect("write dummy file");
 
-        assert!(ConfigManager::validate_path(file_path).is_ok());
+        // Asking for "missing" should produce a "No config matching" error
+        let err = ConfigLoader::load_config_at(dir_path, Some("missing")).unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("No config matching 'missing'"),
+            "unexpected error: {}",
+            msg
+        );
     }
 
+    // Test: multiple matching files → should error out
     #[test]
-    fn test_path_validation_invalid_file() {
-        let invalid_path = "non_existent_file.txt";
-        assert!(ConfigManager::validate_path(invalid_path).is_err());
-    }
+    fn test_search_multiple_matches() {
+        let temp_dir = tempfile::tempdir().expect("failed to create temp dir");
+        let dir_path = temp_dir.path();
 
-    #[test]
-    fn test_read_only_permissions() {
-        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
-        let file_path = temp_dir.path().join("readonly_file.txt");
-        std::fs::File::create(&file_path).expect("Failed to create temp file");
+        // Create two files both containing the substring "dup"
+        std::fs::write(dir_path.join("dup_a.toml"), "").unwrap();
+        std::fs::write(dir_path.join("dup_b.toml"), "").unwrap();
 
-        // Set the file to readonly
-        let mut permissions = std::fs::metadata(&file_path)
-            .expect("Failed to get metadata")
-            .permissions();
-        permissions.set_readonly(true);
-        std::fs::set_permissions(&file_path, permissions)
-            .expect("Failed to set readonly permissions");
-
-        assert!(ConfigManager::validate_path(&file_path).is_err());
+        // Asking for "dup" should detect two candidates and bail
+        let err = ConfigLoader::load_config_at(dir_path, Some("dup")).unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("Multiple configs matching 'dup'"),
+            "unexpected error: {}",
+            msg
+        );
     }
 }
