@@ -1,34 +1,29 @@
 #!/bin/bash
+set -e
 
-# Accept role ARN and API key from terraform
+# Accept role ARN and API key from Terraform environment
 echo "Setting up Tracer"
-# Create the directory for the config file
-mkdir -p /home/ubuntu/.config/tracer/
 
-# Create /tmp/tracer directory with proper permissions. Note this is ephemeral and needs to exists on startup
+# Create the config directory
+mkdir -p /root/.config/tracer/
+
+# Setup /tmp/tracer with correct permissions
 echo "Setting up /tmp/tracer directory and permissions..."
-# Idempotently create the tracer group
 groupadd -f tracer
-
-# Add users to tracer group
-usermod -aG tracer ubuntu
 usermod -aG tracer root
 
-# Create tracer directory with sticky group inheritance
 mkdir -p /tmp/tracer
 chown root:tracer /tmp/tracer
 chmod 2775 /tmp/tracer
-newgrp tracer
 
-
-# Write the configuration to tracer.toml
-cat <<EOL > /home/ubuntu/.config/tracer/tracer.toml
+# Write tracer.toml config file
+cat <<EOL > /root/.config/tracer/tracer.toml
 polling_interval_ms = 1500
 service_url = "https://app.tracer.bio/api"
 api_key = "${api_key}"
 aws_role_arn = "${role_arn}"
 process_polling_interval_ms = 25
-batch_submission_interval_ms = 10000
+batch_submission_interval_ms = 5000
 new_run_pause_ms = 600000
 file_size_not_changing_period_ms = 60000
 process_metrics_send_interval_ms = 10000
@@ -39,18 +34,22 @@ database_name = "tracer_db"
 grafana_workspace_url = "https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com"
 EOL
 
-echo "Configuration file created at /home/ubuntu/.config/tracer/tracer.toml"
+echo "Configuration file created at /root/.config/tracer/tracer.toml"
 
-# Install the binary
+# Install Tracer binary as root
 echo "Updating Tracer binary..."
-sudo rm /usr/local/bin/tracer
-su - ubuntu -c "curl -sSL https://install.tracer.cloud | bash && source ~/.bashrc"
-su - ubuntu -c "sudo cp /home/ubuntu/.tracerbio/bin/tracer  /usr/local/bin/"
-sudo chown ubuntu:ubuntu /usr/local/bin/tracer
+rm -f /usr/local/bin/tracer
+curl -sSL https://install.tracer.cloud | bash
+
+cp /root/.tracerbio/bin/tracer /usr/local/bin/
+chmod +x /usr/local/bin/tracer
+
 echo "Tracer binary updated successfully"
 
+# Source bashrc
 source ~/.bashrc
 
-su - ubuntu -c "tracer info"
+# Run tracer as root
+tracer info
 
-echo "Tracer setup successfully $(date)"
+echo "Tracer setup successfully at $(date)"
