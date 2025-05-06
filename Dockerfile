@@ -21,7 +21,6 @@ RUN apt-get update && apt-get install -y \
     openjdk-17-jdk \
     linux-tools-common \
     linux-headers-generic \
-    linux-tools-$(uname -r) \
     jq \
     libclang-dev \
     && rm -rf /var/lib/apt/lists/*
