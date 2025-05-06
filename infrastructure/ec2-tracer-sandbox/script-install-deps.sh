@@ -121,11 +121,6 @@ chmod +x /usr/local/bin/tracer
 
 # Setup test env
 echo "Running test environment setup..."
-cat <<EOF > /tmp/env_vars.sh
-export GITHUB_USERNAME="${GITHUB_USERNAME}"
-export GITHUB_TOKEN="${GITHUB_TOKEN}"
-EOF
-chmod 600 /tmp/env_vars.sh
 
 source /tmp/env_vars.sh
 cd /root/tracer-client
