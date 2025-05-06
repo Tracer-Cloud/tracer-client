@@ -718,8 +718,7 @@ dependencies = [
 [[package]]
 name = "aya-build"
 version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "765c92c523541cbf5e3a94c7a6ff4068a4d9537f98a2eeb136461c0537ded8c1"
+source = "git+https://github.com/aya-rs/aya.git#92c73a72e79bc7225739c53209551ef44c2d0241"
 dependencies = [
  "anyhow",
  "cargo_metadata",

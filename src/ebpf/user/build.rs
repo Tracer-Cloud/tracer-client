@@ -10,5 +10,6 @@ fn main() -> anyhow::Result<()> {
         .into_iter()
         .find(|cargo_metadata::Package { name, .. }| name == "tracer_ebpf_kernel")
         .ok_or_else(|| anyhow!("tracer_ebpf_kernel package not found"))?;
-    aya_build::build_ebpf([ebpf_package])
+    
+    aya_build::build_ebpf([ebpf_package], aya_build::Toolchain::Custom("nightly-2025-04-15"))
 }
