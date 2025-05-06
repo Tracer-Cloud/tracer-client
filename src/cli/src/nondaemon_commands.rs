@@ -5,7 +5,7 @@ use std::process::Command;
 use anyhow::{bail, Context, Result};
 use std::result::Result::Ok;
 use tokio::time::sleep;
-use tracer_client::config_manager::{Config, ConfigManager, INTERCEPTOR_STDOUT_FILE};
+use tracer_client::config_manager::{Config, ConfigLoader, INTERCEPTOR_STDOUT_FILE};
 use tracer_common::constants::{
     FILE_CACHE_DIR, PID_FILE, REPO_NAME, REPO_OWNER, STDERR_FILE, STDOUT_FILE,
 };
@@ -151,6 +151,18 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
         colored_url
     )?;
 
+    let config_sources = if config.config_sources.is_empty() {
+        vec!["No config file used".to_string()]
+    } else {
+        config.config_sources.clone()
+    };
+    if let Some((first, rest)) = config_sources.split_first() {
+        writeln!(&mut output, "│ Config Sources:           │ {}  ", first)?;
+        for source in rest {
+            writeln!(&mut output, "│                           │ {}  ", source)?;
+        }
+    }
+
     writeln!(
         &mut output,
         "│ Process polling interval: │ {} ms  ",
@@ -187,11 +199,17 @@ pub async fn setup_config(
     process_polling_interval_ms: &Option<u64>,
     batch_submission_interval_ms: &Option<u64>,
 ) -> Result<()> {
-    ConfigManager::modify_config(
-        api_key,
-        process_polling_interval_ms,
-        batch_submission_interval_ms,
-    )?;
+    let mut current_config = ConfigLoader::load_config(None)?;
+    if let Some(api_key) = api_key {
+        current_config.api_key.clone_from(api_key);
+    }
+    if let Some(process_polling_interval_ms) = process_polling_interval_ms {
+        current_config.process_polling_interval_ms = *process_polling_interval_ms;
+    }
+    if let Some(batch_submission_interval_ms) = batch_submission_interval_ms {
+        current_config.batch_submission_interval_ms = *batch_submission_interval_ms;
+    }
+    ConfigLoader::save_config(&current_config)?;
 
     Ok(())
 }
@@ -210,7 +228,7 @@ pub async fn update_tracer() -> Result<()> {
         return Ok(());
     }
 
-    let config = ConfigManager::load_config()?;
+    let config = ConfigLoader::load_config(None)?;
 
     println!("Updating Tracer to version {}", release.tag_name);
 

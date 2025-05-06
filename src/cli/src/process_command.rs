@@ -8,7 +8,8 @@ use clap::Parser;
 use daemonize::{Daemonize, Outcome};
 use std::fs::File;
 use std::{env, fs::canonicalize};
-use tracer_client::config_manager::{Config, ConfigManager};
+use sysinfo::System;
+use tracer_client::config_manager::{Config, ConfigLoader};
 use tracer_common::constants::{PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR};
 use tracer_common::debug_log::Logger;
 use tracer_daemon::client::DaemonClient;
@@ -40,7 +41,8 @@ pub fn process_cli() -> Result<()> {
     // has to be sync due to daemonizing
 
     let cli = Cli::parse();
-    let config = ConfigManager::load_config()?;
+    // Use the --config flag, if provided, when loading the configuration
+    let config = ConfigLoader::load_config(cli.config.as_deref())?;
     let api_client = DaemonClient::new(format!("http://{}", config.server));
 
     match cli.command {
@@ -82,7 +84,7 @@ pub fn process_cli() -> Result<()> {
         //TODO: figure out what test should do now
         Commands::Test => {
             println!("Tracer was able to successfully communicate with the API service.");
-            // let result = ConfigManager::test_service_config_sync();
+            // let result = ConfigLoader::test_service_config_sync();
             // if result.is_ok() {
             //     println!("Tracer was able to successfully communicate with the API service.");
             // }
@@ -95,7 +97,7 @@ pub fn process_cli() -> Result<()> {
             }
             result
         }
-        Commands::ApplyBashrc => ConfigManager::setup_aliases(),
+        Commands::ApplyBashrc => ConfigLoader::setup_aliases(),
         _ => {
             match tokio::runtime::Runtime::new()?.block_on(run_async_command(
                 cli.command,

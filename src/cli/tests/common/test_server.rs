@@ -40,6 +40,7 @@ impl TestServer {
             // todo: sqlite / postgres in transaction mode / many schemas
             grafana_workspace_url: "".to_string(),
             server,
+            config_sources: vec![],
         };
 
         let db_client = AuroraClient::from_pool(pool);
