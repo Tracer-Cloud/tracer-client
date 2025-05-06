@@ -242,7 +242,7 @@ impl ProcessWatcher {
 
         let properties = CompletedProcess {
             tool_name: start_trigger.comm.clone(),
-            tool_pid: start_trigger.pid.to_string(),
+            tool_pid: start_trigger.pid,
             duration_sec,
         };
 
@@ -499,10 +499,10 @@ impl ProcessWatcher {
     ) -> ProcessProperties {
         ProcessProperties::ShortLived(Box::new(ShortProcessProperties {
             tool_name: display_name,
-            tool_pid: process.pid.to_string(),
-            tool_parent_pid: process.ppid.to_string(),
+            tool_pid: process.pid,
+            tool_parent_pid: process.ppid,
             tool_binary_path: process.file_name.clone(),
-            start_timestamp: Utc::now().to_rfc3339(),
+            start_timestamp: Utc::now(),
         }))
     }
 
@@ -574,8 +574,8 @@ impl ProcessWatcher {
 
         ProcessProperties::Full(Box::new(FullProcessProperties {
             tool_name: display_name,
-            tool_pid: proc.pid().as_u32().to_string(),
-            tool_parent_pid: proc.parent().unwrap_or(0.into()).to_string(),
+            tool_pid: proc.pid().as_u32() as usize,
+            tool_parent_pid: proc.parent().unwrap_or(0.into()).as_u32() as usize,
             tool_binary_path: proc
                 .exe()
                 .unwrap_or_else(|| Path::new(""))
@@ -584,7 +584,7 @@ impl ProcessWatcher {
                 .unwrap_or("")
                 .to_string(),
             tool_cmd: proc.cmd().join(" "),
-            start_timestamp: start_time.to_rfc3339(),
+            start_timestamp: start_time,
             process_cpu_utilization: proc.cpu_usage(),
             process_run_time: proc.run_time(),
             process_disk_usage_read_total: proc.disk_usage().total_read_bytes,
