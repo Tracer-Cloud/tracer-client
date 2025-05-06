@@ -8,7 +8,6 @@ use clap::Parser;
 use daemonize::{Daemonize, Outcome};
 use std::fs::File;
 use std::{env, fs::canonicalize};
-use sysinfo::System;
 use tracer_client::config_manager::{Config, ConfigLoader};
 use tracer_common::constants::{PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR};
 use tracer_common::debug_log::Logger;
