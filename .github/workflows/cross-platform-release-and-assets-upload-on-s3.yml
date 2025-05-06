@@ -82,6 +82,14 @@ jobs:
           restore-keys: |
             cargo-build-${{ matrix.target }}-stable-
 
+      - name: Install build dependencies
+        run: |
+          rustup toolchain install nightly --component rust-src
+          cargo install bpf-linker
+          cargo install bindgen-cli
+          cargo install --git https://github.com/aya-rs/aya -- aya-tool
+          aya-tool generate task_struct > src/ebpf/kernel/src/gen.rs
+
       - name: Build the binary
         run: cargo build --release --target ${{ matrix.target }}
 
@@ -114,7 +122,7 @@ jobs:
         run: |
           yum update -y
           yum groupinstall -y "Development Tools"
-          yum install -y git gcc openssl-devel pkgconfig cmake tar gzip unzip
+          yum install -y git gcc openssl-devel pkgconfig cmake tar gzip unzip bpftool clang clang-devel llvm-devel
 
       - name: Install Rust
         run: |
@@ -122,8 +130,17 @@ jobs:
           echo 'source $HOME/.cargo/env' >> ~/.bashrc
           source $HOME/.cargo/env
           rustup target add x86_64-unknown-linux-gnu
+          rustup toolchain install nightly --component rust-src
+          cargo install bpf-linker
+          cargo install bindgen-cli
+          cargo install --git https://github.com/aya-rs/aya -- aya-tool
 
       - uses: actions/checkout@v4
+
+      - name: Generate kernel bindings
+        run: |
+          source $HOME/.cargo/env
+          aya-tool generate task_struct > src/ebpf/kernel/src/gen.rs
 
       - name: Update version in Cargo.toml
         run: |

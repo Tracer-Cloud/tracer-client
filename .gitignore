@@ -70,3 +70,6 @@ script-second-script.sh
 
 # local config overrides
 *.local.toml
+
+#
+**/.claude/settings.local.json

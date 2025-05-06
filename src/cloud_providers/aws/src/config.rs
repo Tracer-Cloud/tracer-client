@@ -68,6 +68,7 @@ pub async fn get_initialized_aws_conf(
     let credentials_provider = config
         .credentials_provider()
         .expect("Failed to get credentials_provider");
+
     let _ = credentials_provider
         .provide_credentials()
         .await

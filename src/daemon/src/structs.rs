@@ -3,8 +3,7 @@ use std::collections::HashSet;
 use chrono::{DateTime, TimeDelta, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use tracer_client::tracer_client::RunMetadata;
-use tracer_extracts::process_watcher::ShortLivedProcessLog;
+use tracer_common::types::current_run::PipelineMetadata;
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct InfoResponse {
@@ -38,13 +37,18 @@ impl InfoResponse {
     }
 }
 
-impl From<RunMetadata> for InnerInfoResponse {
-    fn from(value: RunMetadata) -> Self {
-        Self {
-            run_id: value.id,
-            run_name: value.name,
-            pipeline_name: value.pipeline_name,
-            start_time: value.start_time,
+impl TryFrom<PipelineMetadata> for InnerInfoResponse {
+    type Error = anyhow::Error;
+    fn try_from(value: PipelineMetadata) -> Result<Self, Self::Error> {
+        if let Some(run) = value.run {
+            Ok(Self {
+                run_id: run.id,
+                run_name: run.name,
+                pipeline_name: value.pipeline_name,
+                start_time: run.start_time,
+            })
+        } else {
+            Err(anyhow::anyhow!("No run found"))
         }
     }
 }
@@ -78,9 +82,7 @@ pub struct TagData {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
-pub struct LogData {
-    pub log: ShortLivedProcessLog,
-}
+pub struct LogData {}
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct UploadData {
