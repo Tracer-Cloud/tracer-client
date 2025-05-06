@@ -84,7 +84,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          rustup toolchain install nightly --component rust-src
+          rustup toolchain install nightly-2025-04-15 --component rust-src
           cargo install bpf-linker
           cargo install bindgen-cli
           cargo install --git https://github.com/aya-rs/aya -- aya-tool
@@ -130,7 +130,7 @@ jobs:
           echo 'source $HOME/.cargo/env' >> ~/.bashrc
           source $HOME/.cargo/env
           rustup target add x86_64-unknown-linux-gnu
-          rustup toolchain install nightly --component rust-src
+          rustup toolchain install nightly-2025-04-15 --component rust-src
           cargo install bpf-linker
           cargo install bindgen-cli
           cargo install --git https://github.com/aya-rs/aya -- aya-tool

@@ -19,19 +19,32 @@ RUN apt-get update && apt-get install -y \
     unzip \
     wget \
     openjdk-17-jdk \
+    linux-tools-common \
+    linux-headers-generic \
+    linux-tools-$(uname -r) \
     jq \
+    libclang-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 RUN rustup default stable
+RUN rustup toolchain install nightly-2025-04-15 --component rust-src
+RUN cargo install bpf-linker
+RUN cargo install bindgen-cli
+RUN cargo install --git https://github.com/aya-rs/aya -- aya-tool
 
 # Create directories for Tracer
 RUN mkdir -p /opt/tracer /etc/tracer
 
 # Copy the entire project
 COPY . /opt/tracer/src
+
+
 WORKDIR /opt/tracer/src
+
+RUN aya-tool generate task_struct > src/ebpf/kernel/src/gen.rs
+
 
 # Build Tracer with release profile
 RUN cargo build --release

@@ -38,8 +38,8 @@ which bpf-linker
 ### You need rust up component for the nighthly toolchain
 ```bash
 rustup component add rust-src --toolchain nightly-aarch64-unknown-linux-gnu
-rustup toolchain install nightly
-rustup default nightly
+rustup toolchain install nightly-2025-04-15
+rustup default nightly-2025-04-15
 ```
 
 ### Linux Headers

@@ -9,7 +9,7 @@ RUN apt-get install -y \
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-RUN rustup toolchain install stable && rustup toolchain install nightly --component rust-src
+RUN rustup toolchain install stable && rustup toolchain install nightly-2025-04-15 --component rust-src
 
 RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
 RUN cargo binstall cargo-nextest --secure
