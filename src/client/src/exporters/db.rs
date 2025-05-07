@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use log::info;
 use sqlx::pool::PoolOptions;
 use sqlx::{PgPool, Postgres, QueryBuilder};
@@ -37,15 +37,13 @@ impl AuroraClient {
 
             DatabaseAuth { username, password }
         } else {
+            let Some(db_secrets_arn) = config.database_secrets_arn.as_deref() else { bail!("No secrets arn found"); };
             println!(
                 "Using secrets manager: database_secrets_arn={:?}",
-                config
-                    .clone()
-                    .database_secrets_arn
-                    .unwrap_or("Database secrets arn not found".to_string())
+                db_secrets_arn
             );
             secrets_client
-                .get_secrets(&config.clone().database_secrets_arn.unwrap_or_default())
+                .get_secrets(&db_secrets_arn)
                 .await
                 .context("Failed to get secrets")?
         };
@@ -53,12 +51,14 @@ impl AuroraClient {
         // encode password to escape special chars that would break url
         let encoded_password =
             utf8_percent_encode(&db_secrets.password, NON_ALPHANUMERIC).to_string();
+        
+        let Some(database_host) = config.database_host.as_deref() else { bail!("No database host found"); };
 
         let url = format!(
             "postgres://{}:{}@{}/{}",
             db_secrets.username,
             encoded_password,
-            config.clone().database_host.unwrap(), // will crash if there are no secrets_host or name
+            database_host,
             config.database_name
         );
 
