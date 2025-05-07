@@ -5,10 +5,6 @@ set -e
 ROLE_ARN="${role_arn}"
 API_KEY="${api_key}"
 
-cat <<EOF > /tmp/env_vars.sh
-export GITHUB_USERNAME="${github_username}"
-export GITHUB_TOKEN="${github_token}"
-EOF
 
 chmod 600 /tmp/env_vars.sh  # Secure the file
 echo "Using ROLE_ARN: $ROLE_ARN"
@@ -111,7 +107,6 @@ cargo install --locked cargo-nextest
 # Build the Tracer binary
 echo "Building Tracer..."
 cd /root/tracer-client
-source /root/.cargo/env
 cargo build --release
 
 # Install the binary
@@ -147,5 +142,6 @@ grafana_workspace_url = "https://g-3f84880db9.grafana-workspace.us-east-1.amazon
 EOL
 
 echo "Configuration file created at /root/.config/tracer/tracer.toml"
+source ~/.bashrc
 
 echo "Tracer setup completed successfully at $(date)"
