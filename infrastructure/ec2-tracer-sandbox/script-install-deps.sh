@@ -1,10 +1,11 @@
 #!/bin/bash
 
 
+sed -i 's/\[ -z "\$PS1" \]/[ -z "$${PS1-}" ]/' /root/.bashrc || true
+
 # Accept role ARN and API key from terraform
 ROLE_ARN="${role_arn}"
 API_KEY="${api_key}"
-
 
 echo "Using ROLE_ARN: $ROLE_ARN"
 echo "Using API_KEY: $API_KEY"
@@ -13,10 +14,6 @@ LOG_FILE="/home/ubuntu/install_log.txt"
 exec > >(tee -a "$LOG_FILE") 2>&1  # Log both stdout & stderr
 
 echo "Starting installation at $(date)"
-
-
-
-source ~/.bashrc
 
 # Fix any broken dpkg processes
 sudo dpkg --configure -a || true  # Continue if no broken packages
@@ -43,19 +40,12 @@ sudo apt install -y \
     openssl \
     ca-certificates
 
-# Install Docker:
-
 echo "Installing docker"
-
 curl -fsSL https://get.docker.com -o get-docker.sh
 # No need for newgrp, it doesn't persist in scripts
 
-
-echo "moving to next steps"
-
 ARCH=$(uname -m)
 if [ "$ARCH" = "aarch64" ]; then
-    # Set environment variables for OpenSSL
     echo "Setting OpenSSL environment variables for ARM (aarch64)..."
     echo 'export OPENSSL_DIR=/usr/lib/aarch64-linux-gnu' | sudo tee -a /etc/profile
     echo 'export OPENSSL_LIB_DIR=/usr/lib/aarch64-linux-gnu' | sudo tee -a /etc/profile
@@ -66,10 +56,10 @@ else
     echo "Skipping OpenSSL config for non-aarch64 architecture: $ARCH"
 fi
 
-# Install Rust for root
 echo "Installing Rust..."
-
 curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+# Source Rust environment for current shell
 source /root/.cargo/env
 rustc --version
 
@@ -77,7 +67,6 @@ rustc --version
 echo 'export PATH=/root/.cargo/bin:$PATH' > /etc/profile.d/rust.sh
 chmod +x /etc/profile.d/rust.sh
 
-# Install GitHub CLI
 echo "Installing GitHub CLI..."
 type -p curl >/dev/null || sudo apt install curl -y
 curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
@@ -85,15 +74,11 @@ sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
 echo "deb [signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
 sudo apt update -y
 sudo apt install -y gh
-
-# Verify GitHub CLI installation
 gh --version || echo "Error: GitHub CLI not installed correctly" >> "$LOG_FILE"
 
-# Add Rust to system-wide path for immediate use
-echo "export PATH=/home/ubuntu/.cargo/bin:\$${PATH}" | sudo tee /etc/profile.d/rust.sh
+echo "export PATH=/home/ubuntu/.cargo/bin:\$PATH" | sudo tee /etc/profile.d/rust.sh
 sudo chmod +x /etc/profile.d/rust.sh
 
-# Clone the Tracer repository
 echo "Cloning Tracer repository..."
 if [ ! -d "/root/tracer-client" ]; then
     git clone https://github.com/Tracer-Cloud/tracer-client.git /root/tracer-client
@@ -102,35 +87,25 @@ else
     cd /root/tracer-client && git pull
 fi
 
-# Create /tmp/tracer directory with proper permissions. Note this is ephemeral and needs to exists on startup
 echo "Setting up /tmp/tracer directory and permissions..."
-# Idempotently create the tracer group
 groupadd -f tracer
-
-# Add users to tracer group
 usermod -aG tracer ubuntu
 usermod -aG tracer root
-
-# Create tracer directory with sticky group inheritance
 mkdir -p /tmp/tracer
 chown root:tracer /tmp/tracer
 chmod 2775 /tmp/tracer
 newgrp tracer
 
-
 cd /home/ubuntu/tracer-client
 
-# Install cargo-nextest
 echo "Installing cargo-nextest..."
 source /root/.cargo/env
 cargo install --locked cargo-nextest
 
-# Build the Tracer binary
 echo "Building Tracer..."
 cd /root/tracer-client
 cargo build --release
 
-# Install the binary
 echo "Installing Tracer binary..."
 sudo cp /root/tracer-client/target/release/tracer_cli /usr/local/bin/tracer
 sudo chmod +x /usr/local/bin/tracer
@@ -138,23 +113,14 @@ sudo chmod +x /usr/local/bin/tracer
 echo "Setting Up test Environment $(date)"
 cd /root/tracer-client
 
-echo "Runing deployment script for nextflow.."
-
-# # NOTE: adding this line because some r dependencies aren't found at times on aws archives especially in arm
-# echo "Updating sources list to use the main Ubuntu archive..."
-# sudo sed -i 's|http://.*.ec2.archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list
-# sudo apt-get update
-
-# FIXME: Recreate AMIs to use main branch instead performing checkout in deployment script
+echo "Running deployment script for nextflow..."
 ./deployments/scripts/setup_nextflow_test_env.sh
 
 echo "Installation completed successfully"
 
 echo "Setting up Tracer configuration..."
-# Create the directory for the config file
 mkdir -p /root/.config/tracer/
 
-# Write the configuration to tracer.toml
 cat <<EOL > /root/.config/tracer/tracer.toml
 polling_interval_ms = 1500
 service_url = "https://app.tracer.bio/api"
@@ -173,7 +139,4 @@ grafana_workspace_url = "https://g-3f84880db9.grafana-workspace.us-east-1.amazon
 EOL
 
 echo "Configuration file created at /root/.config/tracer/tracer.toml"
-
-source ~/.bashrc
-
 echo "Tracer setup completed successfully at $(date)"
