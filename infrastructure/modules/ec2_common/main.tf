@@ -2,7 +2,7 @@
 # Security Group for EC2
 # ---------------------------
 resource "aws_security_group" "tracer_rust_server_sg" {
-  name_prefix = "rust-sg-${var.name_suffix}"
+  name        = "rust-sg-${var.name_suffix}"
   description = "Allow SSH and outbound traffic"
   vpc_id      = var.vpc_id
 
@@ -100,8 +100,8 @@ resource "aws_iam_policy" "ec2_general_access" {
         Resource = "*"
       },
       {
-        Effect   = "Allow"
-        Action   = [
+        Effect = "Allow"
+        Action = [
           "batch:DescribeJobDefinitions",
           "batch:DescribeJobs",
           "batch:SubmitJob",
@@ -194,8 +194,8 @@ resource "aws_iam_role_policy" "service_access_policy" {
         Resource = "*"
       },
       {
-        Effect   = "Allow"
-        Action   = [
+        Effect = "Allow"
+        Action = [
           "batch:DescribeJobDefinitions",
           "batch:DescribeJobs",
           "batch:SubmitJob",
