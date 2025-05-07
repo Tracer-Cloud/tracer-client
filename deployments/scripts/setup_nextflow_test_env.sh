@@ -246,4 +246,4 @@ echo "Cloning private test pipelines"
 cd && git clone https://github.com/Tracer-Cloud/tracer-test-pipelines-bioinformatics.git --recurse-submodules
 
 # download all dependencies and checkout to tweaks branch
-cd ~/tracer-test-pipelines-bioinformatics && make && git fetch && git checkout david/ami_config_fix
+cd ~/tracer-test-pipelines-bioinformatics && make && git fetch
