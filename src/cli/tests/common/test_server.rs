@@ -41,6 +41,7 @@ impl TestServer {
             grafana_workspace_url: "".to_string(),
             server,
             config_sources: vec![],
+            sentry_dsn: None,
         };
 
         let db_client = AuroraClient::from_pool(pool);
