@@ -37,12 +37,3 @@ variable "root_volume_type" {
 #   default     = "ami-0e1bed4f06a3b463d" # x86-64 ami
 # }
 
-
-variable "github_token" {
-  description = "Github token, used for authenticating private repos"
-  sensitive   = true
-}
-
-variable "github_username" {
-  description = "Github username, used for authenticating private repos"
-}
