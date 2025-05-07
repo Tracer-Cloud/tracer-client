@@ -243,7 +243,7 @@ source ~/.bashrc
 # Setting Up Andrew's test pipelines
 echo "Cloning private test pipelines"
 
-cd && git clone https://$GITHUB_USERNAME:$GITHUB_TOKEN@github.com/Tracer-Cloud/tracer-test-pipelines-bioinformatics.git --recurse-submodules
+cd && git clone https://github.com/Tracer-Cloud/tracer-test-pipelines-bioinformatics.git --recurse-submodules
 
 # download all dependencies and checkout to tweaks branch
 cd ~/tracer-test-pipelines-bioinformatics && make && git fetch && git checkout david/ami_config_fix
