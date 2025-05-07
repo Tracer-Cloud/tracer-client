@@ -41,7 +41,7 @@ pub struct Config {
 
     pub database_secrets_arn: Option<String>,
     pub database_host: Option<String>,
-    pub database_name: Option<String>,
+    pub database_name: String,
 
     pub grafana_workspace_url: String,
     pub server: String,

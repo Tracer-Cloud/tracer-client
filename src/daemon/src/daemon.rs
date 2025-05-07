@@ -13,7 +13,6 @@ pub async fn run(
     cli_config_args: TracerCliInitArgs,
     config: Config,
 ) -> Result<()> {
-    // create the conn pool to aurora
     let db_client = AuroraClient::try_new(&config, None).await?;
 
     let addr: SocketAddr = config.server.parse()?;

@@ -28,7 +28,7 @@ impl AuroraClient {
     pub async fn try_new(config: &Config, pool_size: Option<u32>) -> Result<Self> {
         let secrets_client = SecretsClient::new(config.aws_init_type.clone()).await;
 
-        // NOTE: conditional added to fix integrations tests with docker mostly
+        // NOTE: conditionally added to fix integration tests with docker mostly
         let db_secrets = if std::env::var("USE_LOCAL_CREDENTIALS").is_ok() {
             let username =
                 std::env::var("DATABASE_USER").unwrap_or_else(|_| "postgres".to_string());
@@ -38,11 +38,14 @@ impl AuroraClient {
             DatabaseAuth { username, password }
         } else {
             println!(
-                "Using secrets manager: database_secrets_arn={}",
-                config.database_secrets_arn
+                "Using secrets manager: database_secrets_arn={:?}",
+                config
+                    .clone()
+                    .database_secrets_arn
+                    .unwrap_or("Database secrets arn not found".to_string())
             );
             secrets_client
-                .get_secrets(&config.database_secrets_arn)
+                .get_secrets(&config.clone().database_secrets_arn.unwrap_or_default())
                 .await
                 .context("Failed to get secrets")?
         };
@@ -53,7 +56,10 @@ impl AuroraClient {
 
         let url = format!(
             "postgres://{}:{}@{}/{}",
-            db_secrets.username, encoded_password, config.database_host, config.database_name
+            db_secrets.username,
+            encoded_password,
+            config.clone().database_host.unwrap(), // will crash if there are no secrets_host or name
+            config.database_name
         );
 
         // Use PgPoolOptions to set max_size
