@@ -34,8 +34,8 @@ impl TestServer {
             targets: vec![],
             aws_init_type: AwsConfig::Env,
             aws_region: AwsRegion::Eu,
-            database_secrets_arn: "".to_string(),
-            database_host: "should-not-be-used".to_string(), // cuz we have pg pool
+            database_secrets_arn: Some("".to_string()),
+            database_host: Some("should-not-be-used".to_string()), // cuz we have pg pool
             database_name: "should-not-be-used".to_string(),
             // todo: sqlite / postgres in transaction mode / many schemas
             grafana_workspace_url: "".to_string(),
