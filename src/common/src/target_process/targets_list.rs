@@ -817,6 +817,7 @@ pub static DEFAULT_DISPLAY_PROCESS_RULES: LazyLock<Vec<&'static str>> = LazyLock
         "dupRadar",
         "tximeta",
         "pheatmap",
+        "featurecounts",
         // Lower priority fallback matches
         "nextflow",
         "nf-core",

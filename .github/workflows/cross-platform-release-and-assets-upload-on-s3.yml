@@ -84,10 +84,10 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          rustup toolchain install nightly --component rust-src
-          cargo install bpf-linker
-          cargo install bindgen-cli
-          cargo install --git https://github.com/aya-rs/aya -- aya-tool
+          rustup toolchain install nightly-2025-04-15 --component rust-src
+           which bpf-linker || cargo install bpf-linker
+          which bindgen || cargo install bindgen-cli
+          which aya-tool || cargo install --git https://github.com/aya-rs/aya -- aya-tool
           aya-tool generate task_struct > src/ebpf/kernel/src/gen.rs
 
       - name: Build the binary
@@ -130,10 +130,10 @@ jobs:
           echo 'source $HOME/.cargo/env' >> ~/.bashrc
           source $HOME/.cargo/env
           rustup target add x86_64-unknown-linux-gnu
-          rustup toolchain install nightly --component rust-src
-          cargo install bpf-linker
-          cargo install bindgen-cli
-          cargo install --git https://github.com/aya-rs/aya -- aya-tool
+          rustup toolchain install nightly-2025-04-15 --component rust-src
+          which bpf-linker || cargo install bpf-linker
+          which bindgen || cargo install bindgen-cli
+          which aya-tool || cargo install --git https://github.com/aya-rs/aya -- aya-tool
 
       - uses: actions/checkout@v4
 

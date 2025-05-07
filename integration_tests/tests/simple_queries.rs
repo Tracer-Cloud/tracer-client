@@ -5,16 +5,20 @@ mod common;
 
 #[tokio::test]
 async fn test_queries_works() {
-    let container_name = "integrations_tests";
+    let db_profile = "db";
 
-    // Step 1: Start Docker Compose to run the container
-    common::start_docker_compose(container_name).await;
+    //  Step 1: Start *only* the database
+    common::start_docker_compose(db_profile).await;
 
-    // step 1b: connect and migrate on database
+    //  Step 2: Wait and run migrations
     let db_url = "postgres://postgres:postgres@localhost:5432/tracer_db";
     let pool = common::setup_db(db_url).await;
 
-    // Step 2: Monitor the container and wait for it to finish
+    // Step 3: Now start your test container
+    let container_name = "integrations_tests";
+    common::start_docker_compose(container_name).await;
+
+    // Step 4: Monitor test containers as usual
     let docker = Docker::connect_with_local_defaults().expect("Failed to connect to Docker");
 
     let log_handle = tokio::spawn({
@@ -47,7 +51,9 @@ async fn test_queries_works() {
     // query_datasets_processed(&pool, run_name).await;
     // todo: fix dataset recognition
 
+    // Tear everything down at the end
     common::end_docker_compose(container_name).await;
+    common::end_docker_compose(db_profile).await;
 }
 
 async fn query_and_assert_tool_tracked(pool: &PgPool, run_name: &str) {
