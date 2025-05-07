@@ -20,7 +20,7 @@ pub async fn run(
     } else {
         AuroraClient::try_new(&config, None).await?;
     };
-    
+
 
     let addr: SocketAddr = config.server.parse()?;
 

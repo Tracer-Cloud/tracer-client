@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use log::info;
 use sqlx::pool::PoolOptions;
 use sqlx::{PgPool, Postgres, QueryBuilder};
@@ -28,7 +28,7 @@ impl AuroraClient {
     pub async fn try_new(config: &Config, pool_size: Option<u32>) -> Result<Self> {
         let secrets_client = SecretsClient::new(config.aws_init_type.clone()).await;
 
-        // NOTE: conditional added to fix integrations tests with docker mostly
+        // NOTE: conditionally added to fix integration tests with docker mostly
         let db_secrets = if std::env::var("USE_LOCAL_CREDENTIALS").is_ok() {
             let username =
                 std::env::var("DATABASE_USER").unwrap_or_else(|_| "postgres".to_string());
@@ -37,12 +37,15 @@ impl AuroraClient {
 
             DatabaseAuth { username, password }
         } else {
+            let Some(db_secrets_arn) = config.database_secrets_arn.as_deref() else {
+                bail!("No secrets arn found");
+            };
             println!(
-                "Using secrets manager: database_secrets_arn={}",
-                config.database_secrets_arn
+                "Using secrets manager: database_secrets_arn={:?}",
+                db_secrets_arn
             );
             secrets_client
-                .get_secrets(&config.database_secrets_arn)
+                .get_secrets(db_secrets_arn)
                 .await
                 .context("Failed to get secrets")?
         };
@@ -51,9 +54,13 @@ impl AuroraClient {
         let encoded_password =
             utf8_percent_encode(&db_secrets.password, NON_ALPHANUMERIC).to_string();
 
+        let Some(database_host) = config.database_host.as_deref() else {
+            bail!("No database host found");
+        };
+
         let url = format!(
             "postgres://{}:{}@{}/{}",
-            db_secrets.username, encoded_password, config.database_host, config.database_name
+            db_secrets.username, encoded_password, database_host, config.database_name
         );
 
         // Use PgPoolOptions to set max_size

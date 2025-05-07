@@ -43,6 +43,7 @@ database_secrets_arn = "${database_secret_manager_arn}"
 database_host = "${db_endpoint}"
 database_name = "${database_name}"
 grafana_workspace_url = "${grafana_workspace_url}"
+sentry_dsn = "https://35e0843e6748d2c93dfd56716f2eecfe@o4509281671380992.ingest.us.sentry.io/4509281680949248"
 EOL
 
 echo "Configuration file created at /home/ubuntu/.config/tracer/tracer.toml"

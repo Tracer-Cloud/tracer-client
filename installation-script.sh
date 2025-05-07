@@ -464,6 +464,7 @@ database_secrets_arn = "arn:aws:secretsmanager:us-east-1:395261708130:secret:rds
 database_host = "tracer-development-cluster.cluster-cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432"
 database_name = "tracer_db"
 grafana_workspace_url = "https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com"
+sentry_dsn = "https://35e0843e6748d2c93dfd56716f2eecfe@o4509281671380992.ingest.us.sentry.io/4509281680949248"
 EOL
     )
 
@@ -484,6 +485,7 @@ database_host = "tracer-cluster-production.cluster-cdgizpzxtdp6.us-east-1.rds.am
 database_name = "tracer_db"
 endpoint = "https://sandbox.tracer.cloud/api/logs"
 grafana_workspace_url = "https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com"
+sentry_dsn = "https://35e0843e6748d2c93dfd56716f2eecfe@o4509281671380992.ingest.us.sentry.io/4509281680949248"
 EOL
     )
 
