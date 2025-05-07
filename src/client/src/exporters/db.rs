@@ -45,7 +45,7 @@ impl AuroraClient {
                 db_secrets_arn
             );
             secrets_client
-                .get_secrets(&db_secrets_arn)
+                .get_secrets(db_secrets_arn)
                 .await
                 .context("Failed to get secrets")?
         };
