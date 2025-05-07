@@ -26,6 +26,7 @@ tracer_daemon = { workspace = true }
 tracing-subscriber = { workspace = true }
 tracing-log = { workspace = true }
 tracing-appender = { workspace = true }
+sentry = { workspace = true }
 
 
 [dev-dependencies]

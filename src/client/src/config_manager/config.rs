@@ -47,6 +47,7 @@ pub struct Config {
     pub server: String,
 
     pub config_sources: Vec<String>,
+    pub sentry_dsn: Option<String>,
 }
 
 pub struct ConfigLoader;

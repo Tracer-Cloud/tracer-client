@@ -42,11 +42,26 @@ pub fn process_cli() -> Result<()> {
     let cli = Cli::parse();
     // Use the --config flag, if provided, when loading the configuration
     let config = ConfigLoader::load_config(cli.config.as_deref())?;
+
+    let _guard = (!cfg!(test)).then(|| {
+        config.sentry_dsn.as_deref().map(|dsn| {
+            sentry::init((
+                dsn,
+                sentry::ClientOptions {
+                    release: sentry::release_name!(),
+                    // Capture user IPs and potentially sensitive headers when using HTTP server integrations
+                    // see https://docs.sentry.io/platforms/rust/data-management/data-collected for more info
+                    send_default_pii: true,
+                    ..Default::default()
+                },
+            ))
+        })
+    });
+
     let api_client = DaemonClient::new(format!("http://{}", config.server));
 
     match cli.command {
         Commands::Init(args) => {
-            println!("Starting daemon...");
             let current_working_directory = env::current_dir()?;
 
             if !args.no_daemonize {
