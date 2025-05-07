@@ -158,6 +158,9 @@ mod tests {
     #[tokio::test]
     async fn test_log_handles_channel_errors() {
         // Create a channel with capacity 1
+        let pipeline_data = create_test_pipeline();
+        let (tx, _rx) = mpsc::channel::<Event>(1);
+        let recorder = LogRecorder::new(pipeline_data, tx.clone());
 
         // Close the receiver to force send errors
         drop(_rx);
@@ -177,4 +180,14 @@ mod tests {
     }
 
     // Helper function to create a test pipeline
+    fn create_test_pipeline() -> Arc<RwLock<PipelineMetadata>> {
+        let run = Run::new("test_run".to_string(), "test-id-123".to_string());
+        let pipeline = PipelineMetadata {
+            pipeline_name: "test_pipeline".to_string(),
+            run: Some(run),
+            tags: PipelineTags::default(),
+        };
+
+        Arc::new(RwLock::new(pipeline))
+    }
 }
