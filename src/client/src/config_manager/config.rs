@@ -39,8 +39,8 @@ pub struct Config {
     pub aws_init_type: AwsConfig,
     pub aws_region: AwsRegion,
 
-    pub database_secrets_arn: String,
-    pub database_host: String,
+    pub database_secrets_arn: Option<String>,
+    pub database_host: Option<String>,
     pub database_name: String,
 
     pub grafana_workspace_url: String,
