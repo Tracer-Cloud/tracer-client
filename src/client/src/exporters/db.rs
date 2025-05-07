@@ -37,7 +37,9 @@ impl AuroraClient {
 
             DatabaseAuth { username, password }
         } else {
-            let Some(db_secrets_arn) = config.database_secrets_arn.as_deref() else { bail!("No secrets arn found"); };
+            let Some(db_secrets_arn) = config.database_secrets_arn.as_deref() else {
+                bail!("No secrets arn found");
+            };
             println!(
                 "Using secrets manager: database_secrets_arn={:?}",
                 db_secrets_arn
@@ -51,15 +53,14 @@ impl AuroraClient {
         // encode password to escape special chars that would break url
         let encoded_password =
             utf8_percent_encode(&db_secrets.password, NON_ALPHANUMERIC).to_string();
-        
-        let Some(database_host) = config.database_host.as_deref() else { bail!("No database host found"); };
+
+        let Some(database_host) = config.database_host.as_deref() else {
+            bail!("No database host found");
+        };
 
         let url = format!(
             "postgres://{}:{}@{}/{}",
-            db_secrets.username,
-            encoded_password,
-            database_host,
-            config.database_name
+            db_secrets.username, encoded_password, database_host, config.database_name
         );
 
         // Use PgPoolOptions to set max_size
