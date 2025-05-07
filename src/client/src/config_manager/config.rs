@@ -47,6 +47,8 @@ pub struct Config {
     pub server: String,
 
     pub config_sources: Vec<String>,
+
+    pub log_forward_endpoint: Option<String>,
 }
 
 pub struct ConfigLoader;

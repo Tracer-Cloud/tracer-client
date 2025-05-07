@@ -72,12 +72,21 @@ impl AuroraClient {
         &self.pool
     }
 
-    pub async fn batch_insert_events(
+    /// closes the connection pool
+    pub async fn close(&self) -> Result<()> {
+        self.pool.close().await;
+        info!("Successfully closed connection pool");
+        Ok(())
+    }
+}
+
+impl LogWriter for AuroraClient {
+    async fn batch_insert_events(
         &self,
         run_name: &str,
         run_id: &str,
         pipeline_name: &str,
-        data: impl IntoIterator<Item = &Event>,
+        data: impl IntoIterator<Item=&Event>,
     ) -> Result<()> {
         let now = std::time::Instant::now();
 
@@ -93,7 +102,7 @@ impl AuroraClient {
             attributes, resource_attributes, tags
         )";
 
-        // when updating query, also update params
+        // when updating a query, also update params
         const PARAMS: usize = 31;
 
         fn _push_tuple(mut b: Separated<Postgres, &str>, event: EventInsert) {
@@ -181,13 +190,6 @@ impl AuroraClient {
             now.elapsed()
         );
 
-        Ok(())
-    }
-
-    /// closes the connection pool
-    pub async fn close(&self) -> Result<()> {
-        self.pool.close().await;
-        info!("Successfully closed connection pool");
         Ok(())
     }
 }

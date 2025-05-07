@@ -5,6 +5,7 @@ use tracer_client::config_manager::Config;
 use tracer_client::exporters::db::AuroraClient;
 use tracer_client::params::TracerCliInitArgs;
 use tracer_client::TracerClient;
+use tracer_client::LogWriter;
 use tracing::info;
 
 #[tokio::main]
@@ -14,7 +15,12 @@ pub async fn run(
     config: Config,
 ) -> Result<()> {
     // create the conn pool to aurora
-    let db_client = AuroraClient::try_new(&config, None).await?;
+    let db_client = if Some(config.log_forward_endpoint) {
+        LogWriter::try_new(&config).await?;
+    } else {
+        AuroraClient::try_new(&config, None).await?;
+    };
+    
 
     let addr: SocketAddr = config.server.parse()?;
 

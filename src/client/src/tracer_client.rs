@@ -27,6 +27,7 @@ use tracer_extracts::process_watcher::ProcessWatcher;
 use tracer_extracts::stdout::StdoutWatcher;
 use tracer_extracts::syslog::SyslogWatcher;
 use tracing::info;
+use crate::exporters::log_forward::LogForward;
 // NOTE: we might have to find a better alternative than passing the pipeline name to tracer client
 // directly. Currently with this approach, we do not need to generate a new pipeline name for every
 // new run.
@@ -67,7 +68,7 @@ impl TracerClient {
     pub async fn new(
         config: Config,
         workflow_directory: String,
-        db_client: AuroraClient,
+        db_client: LogForward,
         cli_args: TracerCliInitArgs, // todo: why Config AND TracerCliInitArgs? remove CliInitArgs
     ) -> Result<TracerClient> {
         // todo: do we need both config with db connection AND db_client?
