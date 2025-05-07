@@ -62,6 +62,7 @@ pub fn process_cli() -> Result<()> {
 
     match cli.command {
         Commands::Init(args) => {
+            println!("Starting daemon...");
             let current_working_directory = env::current_dir()?;
 
             if !args.no_daemonize {
