@@ -739,6 +739,7 @@ pub static ref TARGETS: Vec<Target> = [
     Target::new(TargetMatch::ProcessName("HTSlib".to_string())),
     Target::new(TargetMatch::ProcessName("htslib".to_string())),
     Target::new(TargetMatch::ProcessName("zlib".to_string())),
+    Target::new(TargetMatch::ProcessName("sim_fileopens".to_string())), // for tests
     Target::new(TargetMatch::ProcessName("libbz2".to_string())),
     Target::new(TargetMatch::ProcessName("liblzma".to_string())),
     Target::new(TargetMatch::ProcessName("libcurl".to_string())),
