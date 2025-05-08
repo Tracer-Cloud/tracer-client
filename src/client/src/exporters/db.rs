@@ -12,6 +12,8 @@ use tracer_aws::config::SecretsClient;
 use tracer_aws::types::secrets::DatabaseAuth;
 
 use tracing::debug;
+use crate::exporters::log_writer::LogWriter;
+
 const BIND_LIMIT: usize = 65535;
 
 pub struct AuroraClient {

@@ -5,8 +5,9 @@ use tracer_client::config_manager::Config;
 use tracer_client::exporters::db::AuroraClient;
 use tracer_client::params::TracerCliInitArgs;
 use tracer_client::TracerClient;
-use tracer_client::LogWriter;
 use tracing::info;
+use tracer_client::exporters::log_forward::LogForward;
+use tracer_client::exporters::log_writer::LogWriterEnum;
 
 #[tokio::main]
 pub async fn run(
@@ -15,12 +16,11 @@ pub async fn run(
     config: Config,
 ) -> Result<()> {
     // create the conn pool to aurora
-    let db_client = if Some(config.log_forward_endpoint) {
-        LogWriter::try_new(&config).await?;
+    let db_client = if !config.log_forward_endpoint.is_none() {
+        LogWriterEnum::Forward(LogForward::try_new(&config.log_forward_endpoint.clone().unwrap()).await?)
     } else {
-        AuroraClient::try_new(&config, None).await?;
+        LogWriterEnum::Aurora(AuroraClient::try_new(&config, None).await?)
     };
-
 
     let addr: SocketAddr = config.server.parse()?;
 
@@ -48,6 +48,7 @@ mod tests {
     use std::path::Path;
     use tracer_client::config_manager::{Config, ConfigLoader};
     use tracer_client::exporters::db::AuroraClient;
+    use tracer_client::exporters::log_writer::LogWriter;
     use tracer_client::params::TracerCliInitArgs;
     use tracer_client::TracerClient;
 
@@ -69,7 +70,7 @@ mod tests {
 
         setup_env_vars(region);
 
-        let aurora_client = AuroraClient::try_new(&config, None).await.unwrap();
+        let aurora_client: dyn LogWriter = AuroraClient::try_new(&config, None).await.unwrap();
 
         let mut tracer_client = TracerClient::new(
             config,

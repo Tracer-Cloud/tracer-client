@@ -13,7 +13,7 @@ chrono = { workspace = true }
 clap = { workspace = true }
 homedir = { workspace = true }
 log = { workspace = true }
-
+reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sysinfo = { workspace = true }
@@ -38,5 +38,4 @@ config = { workspace = true }
 tracer_common = { workspace = true }
 tracer_extracts = { workspace = true }
 tracer_ebpf_user = { workspace = true }
-
-reqwest = {workspace = true}
+async-trait = { workspace = true }

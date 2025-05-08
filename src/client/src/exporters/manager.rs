@@ -1,5 +1,4 @@
-use crate::exporters::db::AuroraClient;
-use crate::exporters::log_forward::LogForward;
+use crate::exporters::log_writer::LogWriterEnum;
 
 use std::sync::Arc;
 use tokio::sync::mpsc::Receiver;
@@ -7,16 +6,17 @@ use tokio::sync::Mutex;
 use tracer_common::types::current_run::PipelineMetadata;
 use tracer_common::types::event::Event;
 use tracing::debug;
+use crate::exporters::log_writer::LogWriter;
 
 pub struct ExporterManager {
-    pub db_client: LogForward,
+    pub db_client: LogWriterEnum,
     pub rx: Mutex<Receiver<Event>>,
     pipeline: Arc<tokio::sync::RwLock<PipelineMetadata>>,
 }
 
 impl ExporterManager {
     pub fn new(
-        db_client: LogForward,
+        db_client: LogWriterEnum,
         rx: Receiver<Event>,
         pipeline: Arc<tokio::sync::RwLock<PipelineMetadata>>,
     ) -> Self {

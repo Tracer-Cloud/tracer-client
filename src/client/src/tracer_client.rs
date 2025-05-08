@@ -4,7 +4,6 @@ use crate::config_manager::Config;
 use anyhow::{Context, Result};
 
 use crate::events::{send_alert_event, send_log_event, send_start_run_event};
-use crate::exporters::db::AuroraClient;
 use crate::exporters::manager::ExporterManager;
 use crate::params::TracerCliInitArgs;
 use chrono::{DateTime, TimeDelta, Utc};
@@ -27,7 +26,8 @@ use tracer_extracts::process_watcher::ProcessWatcher;
 use tracer_extracts::stdout::StdoutWatcher;
 use tracer_extracts::syslog::SyslogWatcher;
 use tracing::info;
-use crate::exporters::log_forward::LogForward;
+use crate::exporters::log_writer::LogWriterEnum;
+
 // NOTE: we might have to find a better alternative than passing the pipeline name to tracer client
 // directly. Currently with this approach, we do not need to generate a new pipeline name for every
 // new run.
@@ -68,7 +68,7 @@ impl TracerClient {
     pub async fn new(
         config: Config,
         workflow_directory: String,
-        db_client: LogForward,
+        db_client: LogWriterEnum,
         cli_args: TracerCliInitArgs, // todo: why Config AND TracerCliInitArgs? remove CliInitArgs
     ) -> Result<TracerClient> {
         // todo: do we need both config with db connection AND db_client?

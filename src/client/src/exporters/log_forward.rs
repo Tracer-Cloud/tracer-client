@@ -1,5 +1,9 @@
-use reqwest::Client;
 use serde::Serialize;
+use tracing::debug;
+use tracer_common::types::event::Event;
+use crate::exporters::log_writer::LogWriter;
+use reqwest::Client;
+use anyhow::Result; // Import anyhow's Result type
 
 #[derive(Serialize, Clone)]
 struct EventPayload {
@@ -11,11 +15,22 @@ struct EventPayload {
 
 pub struct LogForward {
     endpoint: String,
+    client: Client,
 }
 
 impl LogForward {
-    pub async fn try_new() -> Result<Self> {
-        self.endpoint = "http://sandbox.tracer.cloud/events".to_string(); //TODO get from confing file
+    pub async fn try_new(log_forward_endpoint: &str) -> Result<Self> {
+        Ok(LogForward {
+            endpoint: log_forward_endpoint.to_string(),
+            client: Client::new(),
+        })
+    }
+
+    // Add a close method to match the expected interface
+    pub async fn close(&self) -> Result<()> {
+        // Client doesn't need explicit closing, but we provide
+        // this method to satisfy the interface
+        Ok(())
     }
 }
 
@@ -43,8 +58,7 @@ impl LogWriter for LogForward {
             events,
         };
 
-        let client = Client::new();
-        let res = client
+        let res = self.client
             .post(&self.endpoint)
             .json(&payload)
             .send()

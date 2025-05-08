@@ -8,6 +8,7 @@ use tracer_aws::config::AwsConfig;
 use tracer_aws::types::aws_region::AwsRegion;
 use tracer_client::config_manager::Config;
 use tracer_client::exporters::db::AuroraClient;
+use tracer_client::exporters::log_writer::LogWriter;
 use tracer_client::params::TracerCliInitArgs;
 use tracer_client::TracerClient;
 use tracer_daemon::server::DaemonServer;
@@ -42,9 +43,10 @@ impl TestServer {
             server,
             config_sources: vec![],
             sentry_dsn: None,
+            log_forward_endpoint: None,
         };
 
-        let db_client = AuroraClient::from_pool(pool);
+        let db_client: dyn LogWriter = AuroraClient::from_pool(pool);
 
         let args = TracerCliInitArgs::default();
 
