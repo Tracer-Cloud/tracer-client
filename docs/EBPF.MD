@@ -52,7 +52,7 @@ sudo apt-get install -y linux-headers-$(uname -r)
 ### BPF Tools and Libraries
 
 ```bash
-sudo apt-get install -y libbpf-dev bpftool
+sudo apt-get install -y libbpf-dev linux-hwe-6.5-tools-common
 ```
 
 ### Build Essentials and Dependencies
