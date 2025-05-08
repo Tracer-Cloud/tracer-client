@@ -747,6 +747,7 @@ pub static ref TARGETS: Vec<Target> = [
     Target::new(TargetMatch::ProcessName("pthread".to_string())),
     Target::new(TargetMatch::BinPathStartsWith("/opt/conda/bin".to_string()))
         .set_filter_out(Some(OPT_CONDA_BIN_EXCEPTIONS.to_vec())),
+
 ]
 .to_vec();
 
@@ -802,11 +803,19 @@ pub static DEFAULT_DISPLAY_PROCESS_RULES: LazyLock<Vec<&'static str>> = LazyLock
         "pheatmap",
         "featurecounts",
         // Lower priority fallback matches
-        "nextflow",
-        "nf-core",
-        "airflow",
         "java",
         "python",
         "R",
+    ]
+});
+
+
+pub static DEFAULT_EXCLUDED_PROCESS_RULES: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
+    vec![
+        "spack",
+        "nextflow",
+        "nf-core",
+        "airflow",
+        ".command.sh"
     ]
 });
