@@ -10,6 +10,7 @@ authors = { workspace = true }
 sqlx = { workspace = true }
 tokio = { workspace = true }
 futures-util = {workspace = true }
+serde_json = { workspace = true }
 
 [dev-dependencies]
 bollard = { workspace = true }
