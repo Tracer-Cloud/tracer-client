@@ -214,9 +214,11 @@ impl ProcessWatcher {
 
         // Log completion events for each terminated process
         for start_trigger in terminated_processes {
-            let finish_trigger = pid_to_finish
-                .remove(&start_trigger.pid)
-                .expect("Process should be present in the map");
+            let Some(finish_trigger) = pid_to_finish.remove(&start_trigger.pid) else {
+                error!("Process doesn't exist: start_trigger={:?}", start_trigger);
+                continue;
+            };
+
             // should be safe since
             // - we've checked the key is present
             // - we have an exclusive lock on the state
