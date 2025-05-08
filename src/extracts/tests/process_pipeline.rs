@@ -361,7 +361,7 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
     );
     assert!(
         props.start_timestamp.contains('T'),
-        "Timestamp should be in ISO format with T separator"
+        "Timestamp should be in ISO time"
     );
 
     let finish_trigger = FinishTrigger {
