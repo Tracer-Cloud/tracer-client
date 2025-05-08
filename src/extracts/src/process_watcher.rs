@@ -133,7 +133,10 @@ impl ProcessWatcher {
     }
 
     /// Processes a batch of triggers, separating start and finish events
-    async fn process_triggers(self: &Arc<ProcessWatcher>, triggers: Vec<Trigger>) -> Result<()> {
+    pub async fn process_triggers(
+        self: &Arc<ProcessWatcher>,
+        triggers: Vec<Trigger>,
+    ) -> Result<()> {
         let mut start_triggers: Vec<ProcessTrigger> = vec![];
         let mut finish_triggers: Vec<FinishTrigger> = vec![];
 
@@ -145,16 +148,16 @@ impl ProcessWatcher {
             }
         }
 
-        // Process finish triggers first
-        if !finish_triggers.is_empty() {
-            debug!("Processing {} finishing processes", finish_triggers.len());
-            self.handle_process_terminations(finish_triggers).await?;
-        }
-
         // Then process start triggers
         if !start_triggers.is_empty() {
             debug!("Processing {} creating processes", start_triggers.len());
             self.handle_process_starts(start_triggers).await?;
+        }
+
+        // Process finish triggers first
+        if !finish_triggers.is_empty() {
+            debug!("Processing {} finishing processes", finish_triggers.len());
+            self.handle_process_terminations(finish_triggers).await?;
         }
 
         Ok(())
