@@ -74,12 +74,12 @@ async fn test_process_triggers_process_lifecycle() -> anyhow::Result<()> {
         .await
         .expect("Failed to receive event for process start");
 
-    if start_event.process_status != TracerProcessStatus::ToolExecution {
-        panic!(
-            "Expected ToolExecution status, got: {:?}",
-            start_event.process_status
-        );
-    }
+    assert_eq!(
+        start_event.process_status,
+        TracerProcessStatus::ToolExecution,
+        "Expected ToolExecution status, got: {:?}",
+        start_event.process_status
+    );
 
     let Some(EventAttributes::Process(ProcessProperties::ShortLived(props))) =
         &start_event.attributes
@@ -104,12 +104,12 @@ async fn test_process_triggers_process_lifecycle() -> anyhow::Result<()> {
         .await
         .expect("Failed to receive event for process finish");
 
-    if finish_event.process_status != TracerProcessStatus::FinishedToolExecution {
-        panic!(
-            "Expected FinishedToolExecution status, got: {:?}",
-            finish_event.process_status
-        );
-    }
+    assert_eq!(
+        finish_event.process_status,
+        TracerProcessStatus::FinishedToolExecution,
+        "Expected FinishedToolExecution status, got: {:?}",
+        finish_event.process_status
+    );
 
     let Some(EventAttributes::CompletedProcess(props)) = &finish_event.attributes else {
         panic!(
@@ -262,12 +262,12 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
             .expect("Failed to receive ToolExecution event");
     }
 
-    if execution_event.process_status != TracerProcessStatus::ToolExecution {
-        panic!(
-            "Expected ToolExecution event, got: {:?}",
-            execution_event.process_status
-        );
-    }
+    assert_eq!(
+        execution_event.process_status,
+        TracerProcessStatus::ToolExecution,
+        "Expected ToolExecution event, got: {:?}",
+        execution_event.process_status
+    );
 
     let Some(EventAttributes::Process(ProcessProperties::Full(props))) =
         &execution_event.attributes
@@ -314,12 +314,12 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
 
     let metrics_event = rx.recv().await.expect("Failed to receive metrics event");
 
-    if metrics_event.process_status != TracerProcessStatus::ToolMetricEvent {
-        panic!(
-            "Expected metrics event, got: {:?}",
-            metrics_event.process_status
-        );
-    }
+    assert_eq!(
+        metrics_event.process_status,
+        TracerProcessStatus::ToolMetricEvent,
+        "Expected metrics event, got: {:?}",
+        metrics_event.process_status
+    );
 
     let Some(EventAttributes::Process(ProcessProperties::Full(props))) = &metrics_event.attributes
     else {
@@ -377,12 +377,12 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
         .await
         .expect("Failed to receive event for process finish");
 
-    if finish_event.process_status != TracerProcessStatus::FinishedToolExecution {
-        panic!(
-            "Expected finish event, got: {:?}",
-            finish_event.process_status
-        );
-    }
+    assert_eq!(
+        finish_event.process_status,
+        TracerProcessStatus::FinishedToolExecution,
+        "Expected finish event, got: {:?}",
+        finish_event.process_status
+    );
 
     let Some(EventAttributes::CompletedProcess(props)) = &finish_event.attributes else {
         panic!(
