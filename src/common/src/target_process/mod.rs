@@ -1,7 +1,6 @@
 // File: src/target/mod.rs
 pub mod target_matching;
 pub mod targets_list;
-use crate::types::trigger::ProcessTrigger;
 use serde::{Deserialize, Serialize};
 use target_matching::{matches_target, TargetMatch};
 use targets_list::DEFAULT_DISPLAY_PROCESS_RULES;
@@ -65,14 +64,6 @@ pub struct Target {
 
 pub trait TargetMatchable {
     fn matches(&self, process_name: &str, command: &str, bin_path: &str) -> bool;
-
-    fn matches_process(&self, process: &ProcessTrigger) -> bool {
-        self.matches(
-            process.comm.as_str(),
-            process.argv.join(" ").as_str(),
-            process.file_name.as_str(),
-        )
-    }
 }
 
 impl Target {
