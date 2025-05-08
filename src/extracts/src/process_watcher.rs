@@ -1,9 +1,11 @@
+use std::collections::hash_map::Entry;
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 
 use crate::data_samples::DATA_SAMPLES_EXT;
 use crate::file_watcher::FileWatcher;
 use anyhow::Result;
 use chrono::Utc;
+use itertools::Itertools;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::Path;
@@ -319,37 +321,7 @@ impl ProcessWatcher {
             }
         }
 
-        // Get PIDs of processes already being monitored
-        let state = self.state.read().await;
-        let already_monitored_pids: HashSet<usize> = state
-            .monitoring
-            .values()
-            .flat_map(|processes| processes.iter().map(|p| p.pid))
-            .collect();
-
-        // Find processes that match our targets
-        let matched_processes = self.find_matching_processes(triggers).await?;
-
-        // Filter out already monitored processes and include parent processes
-        let interested_in: HashMap<_, _> = matched_processes
-            .into_iter()
-            .map(|(target, processes)| {
-                let processes = processes
-                    .into_iter()
-                    .flat_map(|proc| {
-                        // Get the process and its parents
-                        let mut parents = Self::get_process_hierarchy(&state, proc);
-                        // Filter out already monitored processes
-                        parents.retain(|p| !already_monitored_pids.contains(&p.pid));
-                        parents
-                    })
-                    .collect::<HashSet<_>>();
-
-                (target, processes)
-            })
-            .collect();
-
-        Ok(interested_in)
+        self.find_matching_processes(triggers).await
     }
 
     /// Refreshes system information for the specified PIDs
@@ -380,13 +352,48 @@ impl ProcessWatcher {
         Ok(())
     }
 
+    fn get_matched_target<'a, 'b>(
+        state: &'a ProcessState,
+        process: &'b ProcessTrigger,
+    ) -> Option<&'a Target> {
+        for target in state.targets.iter() {
+            if target.matches_process(process) {
+                return Some(target);
+            }
+        }
+
+        let eligible_targets_for_parents = state
+            .targets
+            .iter()
+            .filter(|target| !target.should_force_ancestor_to_match())
+            .collect_vec();
+
+        if eligible_targets_for_parents.is_empty() {
+            return None;
+        }
+
+        // here it's tempting to check if the parent is just in the monitoring list. However, we can't do that because
+        // parent may be matching but not yet set to be monitoring (e.g. because it just arrived or even is in the same batch)
+
+        let parents = Self::get_process_parents(state, process);
+        for parent in parents {
+            for target in eligible_targets_for_parents.iter() {
+                if target.matches_process(parent) {
+                    return Some(target);
+                }
+            }
+        }
+
+        None
+    }
+
     /// Gets a process and all its parent processes from the state
     ///
     /// Will panic if a cycle is detected in the process hierarchy.
-    fn get_process_hierarchy(
-        state: &ProcessState,
-        process: ProcessTrigger,
-    ) -> HashSet<ProcessTrigger> {
+    fn get_process_parents<'a>(
+        state: &'a ProcessState,
+        process: &'a ProcessTrigger,
+    ) -> HashSet<&'a ProcessTrigger> {
         let mut current_pid = process.ppid;
         let mut hierarchy = HashSet::new();
         // Keep track of visited PIDs to detect cycles
@@ -417,7 +424,7 @@ impl ProcessWatcher {
             visited_pids.insert(parent.pid);
 
             // Add parent to the hierarchy
-            hierarchy.insert(parent.clone());
+            hierarchy.insert(parent);
 
             // Move to the next parent
             current_pid = parent.ppid;
@@ -429,21 +436,17 @@ impl ProcessWatcher {
     async fn find_matching_processes(
         self: &Arc<ProcessWatcher>,
         triggers: Vec<ProcessTrigger>,
-    ) -> Result<Vec<(Target, HashSet<ProcessTrigger>)>> {
-        let mut matched_processes = vec![];
-        let targets = &self.state.read().await.targets;
+    ) -> Result<HashMap<Target, HashSet<ProcessTrigger>>> {
+        let state = self.state.read().await;
+        let mut matched_processes = HashMap::new();
 
-        for target in targets {
-            let mut matches: HashSet<ProcessTrigger> = HashSet::new();
-
-            for trigger in triggers.iter() {
-                if target.matches(&trigger.comm, &trigger.argv.join(" "), &trigger.file_name) {
-                    matches.insert(trigger.clone());
-                }
-            }
-
-            if !matches.is_empty() {
-                matched_processes.push((target.clone(), matches));
+        for trigger in triggers {
+            if let Some(matched_target) = Self::get_matched_target(&state, &trigger) {
+                let matched_target = matched_target.clone(); // todo: remove clone, or move targets to arcs?
+                matched_processes
+                    .entry(matched_target)
+                    .or_insert(HashSet::new())
+                    .insert(trigger);
             }
         }
 
