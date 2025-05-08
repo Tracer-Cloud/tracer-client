@@ -1,4 +1,3 @@
-use std::collections::hash_map::Entry;
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 
 use crate::data_samples::DATA_SAMPLES_EXT;
@@ -352,9 +351,9 @@ impl ProcessWatcher {
         Ok(())
     }
 
-    fn get_matched_target<'a, 'b>(
+    fn get_matched_target<'a>(
         state: &'a ProcessState,
-        process: &'b ProcessTrigger,
+        process: &ProcessTrigger,
     ) -> Option<&'a Target> {
         for target in state.targets.iter() {
             if target.matches_process(process) {
