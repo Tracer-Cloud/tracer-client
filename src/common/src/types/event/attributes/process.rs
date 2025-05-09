@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use chrono::{DateTime, Utc};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct InputFile {
@@ -12,11 +13,12 @@ pub struct InputFile {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct FullProcessProperties {
     pub tool_name: String,
-    pub tool_pid: String,
-    pub tool_parent_pid: String,
+
+    pub tool_pid: usize,
+    pub tool_parent_pid: usize,
     pub tool_binary_path: String,
     pub tool_cmd: String,
-    pub start_timestamp: String,
+    pub start_timestamp: DateTime<Utc>,
     pub process_cpu_utilization: f32,
     pub process_memory_usage: u64,
     pub process_memory_virtual: u64,
@@ -29,6 +31,7 @@ pub struct FullProcessProperties {
     pub input_files: Option<Vec<InputFile>>,
     pub container_id: Option<String>,
     pub job_id: Option<String>,
+
     pub working_directory: Option<String>,
     pub trace_id: Option<String>,
 }
@@ -36,10 +39,10 @@ pub struct FullProcessProperties {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ShortProcessProperties {
     pub tool_name: String,
-    pub tool_pid: String, // todo: usize?
-    pub tool_parent_pid: String,
+    pub tool_pid: usize,
+    pub tool_parent_pid: usize,
     pub tool_binary_path: String,
-    pub start_timestamp: String, // todo: timestamp
+    pub start_timestamp: DateTime<Utc>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -51,7 +54,7 @@ pub enum ProcessProperties {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompletedProcess {
     pub tool_name: String,
-    pub tool_pid: String,
+    pub tool_pid: usize,
     pub duration_sec: u64,
 }
 
