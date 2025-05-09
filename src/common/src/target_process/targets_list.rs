@@ -747,8 +747,29 @@ pub static ref TARGETS: Vec<Target> = [
     Target::new(TargetMatch::ProcessName("pthread".to_string())),
     Target::new(TargetMatch::BinPathStartsWith("/opt/conda/bin".to_string()))
         .set_filter_out(Some(OPT_CONDA_BIN_EXCEPTIONS.to_vec())),
+
 ]
 .to_vec();
+
+pub static ref DEFAULT_EXCLUDED_PROCESS_RULES : Vec<Target>  = vec![
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "spack".to_string(),
+    })),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "nextflow".to_string(),
+    })),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "nf-core".to_string(),
+    })),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: ".command.sh".to_string(),
+    })),
+].to_vec();
+
 
 }
 
@@ -756,7 +777,6 @@ pub static DEFAULT_DISPLAY_PROCESS_RULES: LazyLock<Vec<&'static str>> = LazyLock
     vec![
         "salmon",
         "deeptools",
-        "boost",
         "star",
         "macs3",
         "multiqc",
@@ -776,7 +796,6 @@ pub static DEFAULT_DISPLAY_PROCESS_RULES: LazyLock<Vec<&'static str>> = LazyLock
         "pre-commit",
         "pytest-workflow",
         "snakemake",
-        "airflow",
         "trimmomatic",
         "picard",
         "gatk4",
@@ -801,12 +820,18 @@ pub static DEFAULT_DISPLAY_PROCESS_RULES: LazyLock<Vec<&'static str>> = LazyLock
         "tximeta",
         "pheatmap",
         "featurecounts",
-        // Lower priority fallback matches
-        "nextflow",
-        "nf-core",
-        "airflow",
-        "java",
-        "python",
-        "R",
+        "cutadapt",
+        "pigz",
+        "igzip",
+        "fq",
+        "bbsplit",
+        "stty",
+        "uniq",
+        "tar",
+        "bgzip",
+        "trim_galore",
+        "trim_galore",
+        "tr",
+        "bedclip",
     ]
 });

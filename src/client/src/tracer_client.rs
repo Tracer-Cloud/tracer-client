@@ -2,6 +2,8 @@
 use crate::config_manager::Config;
 
 use anyhow::{Context, Result};
+use tracer_common::target_process::manager::TargetManager;
+use tracer_common::target_process::targets_list::DEFAULT_EXCLUDED_PROCESS_RULES;
 
 use crate::events::{send_alert_event, send_log_event, send_start_run_event};
 use crate::exporters::db::AuroraClient;
@@ -153,8 +155,12 @@ impl TracerClient {
         file_watcher: &Arc<RwLock<FileWatcher>>,
         system: &Arc<RwLock<System>>,
     ) -> Arc<ProcessWatcher> {
-        Arc::new(ProcessWatcher::new(
+        let target_manager = TargetManager::new(
             config.targets.clone(),
+            DEFAULT_EXCLUDED_PROCESS_RULES.to_vec(),
+        );
+        Arc::new(ProcessWatcher::new(
+            target_manager,
             log_recorder.clone(),
             file_watcher.clone(),
             system.clone(),

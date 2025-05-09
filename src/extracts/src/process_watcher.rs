@@ -1,3 +1,4 @@
+use tracer_common::target_process::manager::TargetManager;
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 
 use crate::data_samples::DATA_SAMPLES_EXT;
@@ -52,8 +53,8 @@ struct ProcessState {
     monitoring: HashMap<Target, HashSet<ProcessTrigger>>,
     // Groups datasets by the nextflow session UUID
     datasamples_tracker: HashMap<String, HashSet<String>>,
-    // List of targets to watch
-    targets: Vec<Target>,
+    // Manager maintaining target list and blacklist
+    target_manager: TargetManager,
 }
 
 /// Watches system processes and records events related to them
@@ -67,7 +68,7 @@ pub struct ProcessWatcher {
 
 impl ProcessWatcher {
     pub fn new(
-        targets: Vec<Target>,
+        target_manager: TargetManager,
         log_recorder: LogRecorder,
         file_watcher: Arc<RwLock<FileWatcher>>,
         system: Arc<RwLock<System>>,
@@ -75,7 +76,7 @@ impl ProcessWatcher {
         let state = Arc::new(RwLock::new(ProcessState {
             processes: HashMap::new(),
             monitoring: HashMap::new(),
-            targets: targets.clone(),
+            target_manager,
             datasamples_tracker: HashMap::new(),
         }));
 
@@ -91,7 +92,7 @@ impl ProcessWatcher {
     /// Updates the list of targets being watched
     pub async fn update_targets(self: &Arc<Self>, targets: Vec<Target>) -> Result<()> {
         let mut state = self.state.write().await;
-        state.targets = targets;
+        state.target_manager.targets = targets;
         Ok(())
     }
 
@@ -358,13 +359,12 @@ impl ProcessWatcher {
         state: &'a ProcessState,
         process: &ProcessTrigger,
     ) -> Option<&'a Target> {
-        for target in state.targets.iter() {
-            if target.matches_process(process) {
-                return Some(target);
-            }
+        if let Some(target) = state.target_manager.get_target_match(process) {
+            return Some(target);
         }
 
         let eligible_targets_for_parents = state
+            .target_manager
             .targets
             .iter()
             .filter(|target| !target.should_force_ancestor_to_match())
@@ -818,10 +818,12 @@ impl ProcessWatcher {
 mod tests {
     use super::*;
     use chrono::DateTime;
+    use rstest::rstest;
     use std::sync::Arc;
     use tempfile::TempDir;
     use tokio::sync::mpsc;
-    use tracer_common::target_process::target_matching::TargetMatch;
+    use tracer_common::target_process::target_matching::{CommandContainsStruct, TargetMatch};
+    use tracer_common::target_process::targets_list::TARGETS;
     use tracer_common::types::current_run::{PipelineMetadata, Run};
     use tracer_common::types::pipeline_tags::PipelineTags;
 
@@ -865,13 +867,13 @@ mod tests {
 
     // Helper function to set up a process watcher with specified targets and processes
     fn setup_process_watcher(
-        targets: Vec<Target>,
+        target_manager: TargetManager,
         processes: HashMap<usize, ProcessTrigger>,
     ) -> Arc<ProcessWatcher> {
         let state = ProcessState {
             processes,
             monitoring: HashMap::new(),
-            targets,
+            target_manager,
             datasamples_tracker: HashMap::new(),
         };
 
@@ -893,7 +895,8 @@ mod tests {
     async fn test_find_matching_processes_direct_match() {
         // Create a target and set up the watcher
         let target = Target::new(TargetMatch::ProcessName("test_process".to_string()));
-        let watcher = setup_process_watcher(vec![target.clone()], HashMap::new());
+        let mgr = TargetManager::new(vec![target.clone()], vec![]);
+        let watcher = setup_process_watcher(mgr, HashMap::new());
 
         // Create a process that directly matches the target
         let process = create_process_trigger(
@@ -919,7 +922,8 @@ mod tests {
     async fn test_find_matching_processes_no_match() {
         // Create a target and set up the watcher
         let target = Target::new(TargetMatch::ProcessName("test_process".to_string()));
-        let watcher = setup_process_watcher(vec![target], HashMap::new());
+        let mgr = TargetManager::new(vec![target.clone()], vec![]);
+        let watcher = setup_process_watcher(mgr, HashMap::new());
 
         // Create a process that doesn't match any target
         let process = create_process_trigger(
@@ -969,7 +973,8 @@ mod tests {
         processes.insert(parent_process.pid, parent_process);
 
         // Set up the watcher with these processes and target
-        let watcher = setup_process_watcher(vec![target.clone()], processes);
+        let mgr = TargetManager::new(vec![target.clone()], vec![]);
+        let watcher = setup_process_watcher(mgr, processes);
 
         // Test with the child process
         let result = watcher
@@ -1017,7 +1022,8 @@ mod tests {
         processes.insert(parent_process.pid, parent_process);
 
         // Set up the watcher with these processes and target
-        let watcher = setup_process_watcher(vec![target], processes);
+        let mgr = TargetManager::new(vec![target], vec![]);
+        let watcher = setup_process_watcher(mgr, processes);
 
         // Test with the child process
         let result = watcher
@@ -1027,5 +1033,161 @@ mod tests {
 
         // Assert the child process was NOT matched to the target because force_ancestor_to_match is true
         assert_eq!(result.len(), 0);
+    }
+
+    #[rstest]
+    #[case::excluded_bash(
+    create_process_trigger(
+        100,
+        1,
+        "bash",
+        vec!["/opt/conda/bin/bash", "script.sh"],
+        "/opt/conda/bin/bash"
+    ),
+    0,
+    "Should exclude bash in /opt/conda/bin due to filter_out exception list"
+)]
+    #[case::included_foo(
+    create_process_trigger(
+        101,
+        1,
+        "foo",
+        vec!["/opt/conda/bin/foo", "--version"],
+        "/opt/conda/bin/foo"
+    ),
+    1,
+    "Should match /opt/conda/bin/foo as it's not in filter_out exception list"
+)]
+    #[case::unmatched_usr_bash(
+    create_process_trigger(
+        102,
+        1,
+        "bash",
+        vec!["/usr/bin/bash", "other.sh"],
+        "/usr/bin/bash"
+    ),
+    0,
+    "Should not match bash in /usr/bin since there's no explicit target for it"
+)]
+    #[case::nextflow_local_conf_command(
+    create_process_trigger(
+        200,
+        1,
+        "local.conf",
+        vec![
+            "bash",
+            "-c",
+            ". spack/share/spack/setup-env.sh; spack env activate -d .; cd frameworks/nextflow && nextflow -c nextflow-config/local.config run pipelines/nf-core/rnaseq/main.nf -params-file nextflow-config/rnaseq-params.json -profile test"
+        ],
+        "/usr/bin/bash"
+    ),
+    0,
+    "Should not match local.conf-based bash wrapper"
+)]
+    #[case::nextflow_wrapper_bash_command(
+    create_process_trigger(
+        201,
+        1,
+        "nextflow",
+        vec![
+            "bash",
+            "-c",
+            ". spack/share/spack/setup-env.sh; spack env activate -d .; cd frameworks/nextflow && nextflow -c nextflow-config/local.config run pipelines/nf-core/rnaseq/main.nf -params-file nextflow-config/rnaseq-params.json -profile test"
+        ],
+        "/usr/bin/bash"
+    ),
+    0,
+    "Should not match bash-wrapped nextflow script (known wrapper)"
+)]
+    #[tokio::test]
+    async fn test_match_cases(
+        #[case] process: ProcessTrigger,
+        #[case] expected_count: usize,
+        #[case] msg: &str,
+    ) {
+        let mgr = TargetManager::new(TARGETS.to_vec(), vec![]);
+        let watcher = setup_process_watcher(mgr, HashMap::new());
+
+        let result = watcher
+            .find_matching_processes(vec![process])
+            .await
+            .unwrap();
+
+        assert_eq!(result.len(), expected_count, "{}", msg);
+    }
+
+    #[rstest]
+    #[case::command_script(
+    create_process_trigger(
+        202,
+        1,
+        "nextflow",
+        vec!["bash", "/nextflow_work/01/5152d22e188cfc22ef4c4c6cd9fc9e/.command.sh"],
+        "/usr/bin/bash"
+    )
+)]
+    #[case::command_dot_run(
+    create_process_trigger(
+        203,
+        1,
+        "nextflow",
+        vec![
+            "/bin/bash",
+            "/nextflow_work/01/5152d22e188cfc22ef4c4c6cd9fc9e/.command.run",
+            "nxf_trace"
+        ],
+        "/bin/bash"
+    )
+)]
+    #[tokio::test]
+    async fn test_nextflow_wrapped_scripts(#[case] process: ProcessTrigger) {
+        let mgr = TargetManager::new(TARGETS.to_vec(), vec![]);
+        let watcher = setup_process_watcher(mgr, HashMap::new());
+        let result = watcher
+            .find_matching_processes(vec![process])
+            .await
+            .unwrap();
+
+        assert_eq!(
+            result.len(),
+            0,
+            "Expected no matches for wrapped nextflow script"
+        );
+    }
+    fn dummy_process(name: &str, cmd: &str, path: &str) -> ProcessTrigger {
+        ProcessTrigger {
+            pid: 1,
+            ppid: 0,
+            comm: name.to_string(),
+            argv: cmd.split_whitespace().map(String::from).collect(),
+            file_name: path.to_string(),
+            started_at: chrono::Utc::now(),
+        }
+    }
+
+    #[test]
+    fn test_blacklist_excludes_match() {
+        let blacklist = vec![Target::new(TargetMatch::CommandContains(
+            CommandContainsStruct {
+                process_name: None,
+                command_content: "spack".to_string(),
+            },
+        ))];
+        let targets = vec![Target::new(TargetMatch::ProcessName("fastqc".to_string()))];
+
+        let mgr = TargetManager::new(targets, blacklist);
+        let proc = dummy_process("fastqc", "spack activate && fastqc", "/usr/bin/fastqc");
+
+        assert!(mgr.get_target_match(&proc).is_none());
+    }
+
+    #[test]
+    fn test_target_match_without_blacklist() {
+        let mgr = TargetManager::new(
+            vec![Target::new(TargetMatch::ProcessName("fastqc".to_string()))],
+            vec![],
+        );
+        let proc = dummy_process("fastqc", "fastqc file.fq", "/usr/bin/fastqc");
+        assert!(mgr.get_target_match(&proc).is_some());
     }
 }

@@ -1,4 +1,5 @@
 // File: src/target/mod.rs
+pub mod manager;
 pub mod target_matching;
 pub mod targets_list;
 use crate::types::trigger::ProcessTrigger;
@@ -44,12 +45,23 @@ impl DisplayName {
     }
 
     fn process_default_display_name(process_name: &str, commands: &[String]) -> String {
-        let cmdline = commands.join(" ").to_lowercase();
+        let tokens: Vec<String> = commands
+            .iter()
+            .flat_map(|cmd| cmd.split([' ', ';']))
+            .map(|token| {
+                std::path::Path::new(token)
+                    .file_stem()
+                    .map(|f| f.to_string_lossy().to_lowercase())
+                    .unwrap_or_else(|| token.to_lowercase())
+            })
+            .collect();
+
         for label in DEFAULT_DISPLAY_PROCESS_RULES.iter() {
-            if cmdline.contains(label) {
+            if tokens.iter().any(|t| t == label) {
                 return format!("{} ({})", label, process_name);
             }
         }
+
         process_name.to_string()
     }
 }
@@ -148,20 +160,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_process_default_display_name_with_mappings() {
-        let commands = vec![
-            "/opt/conda/bin/java".to_string(),
-            "-jar".to_string(),
-            "nextflow.jar".to_string(),
-        ];
-        let process_name = "Thread-4";
-
-        let display_name = DisplayName::process_default_display_name(process_name, &commands);
-
-        assert_eq!(display_name, "nextflow (Thread-4)");
-    }
-
-    #[test]
     fn test_process_default_display_name_without_mappings() {
         let commands = vec!["/usr/bin/somebinary".to_string()];
         let process_name = "SomeProcess";
@@ -172,12 +170,77 @@ mod tests {
     }
 
     #[test]
-    fn test_process_default_display_name_with_python() {
-        let commands = vec!["/usr/bin/python".to_string(), "script.py".to_string()];
-        let process_name = "Thread-8";
+    fn test_process_default_display_name_with_perl_wrapped_tool() {
+        let commands = vec![
+            "perl".to_string(),
+            "/opt/conda/bin/fastqc".to_string(),
+            "-t".to_string(),
+            "7".to_string(),
+        ];
+        let process_name = "Thread-2";
 
         let display_name = DisplayName::process_default_display_name(process_name, &commands);
 
-        assert_eq!(display_name, "python (Thread-8)");
+        assert_eq!(display_name, "fastqc (Thread-2)");
+    }
+
+    #[test]
+    fn test_process_default_display_name_with_bash_wrapped_script() {
+        let commands = vec![
+            "/bin/bash".to_string(),
+            "/opt/conda/bin/bbsplit.sh".to_string(),
+            "in=sample.fq.gz".to_string(),
+        ];
+        let process_name = "Thread-9";
+
+        let display_name = DisplayName::process_default_display_name(process_name, &commands);
+
+        assert_eq!(display_name, "bbsplit (Thread-9)");
+    }
+
+    #[test]
+    fn test_process_default_display_name_with_semicolon_chaining() {
+        let commands = vec![
+            "bash".to_string(),
+            "-c".to_string(),
+            ". spack/share/spack/setup-env.sh; fastqc sample.fq.gz".to_string(),
+        ];
+        let process_name = "Thread-10";
+
+        let display_name = DisplayName::process_default_display_name(process_name, &commands);
+
+        assert_eq!(display_name, "fastqc (Thread-10)");
+    }
+
+    #[test]
+    fn test_process_default_display_name_with_non_matching_tokens() {
+        let commands = vec![
+            "bash".to_string(),
+            "-c".to_string(),
+            "echo hello world".to_string(),
+        ];
+        let process_name = "Thread-11";
+
+        let display_name = DisplayName::process_default_display_name(process_name, &commands);
+
+        assert_eq!(display_name, "Thread-11");
+    }
+
+    #[test]
+    fn test_process_default_display_name_bgzip() {
+        let commands = vec![
+            "bgzip".to_string(),
+            "-c".to_string(),
+            "-f".to_string(),
+            "-l".to_string(),
+            "4".to_string(),
+            "@".to_string(),
+            "7".to_string(),
+        ];
+        let process_name = "/opt/conda/bin/bgzip";
+
+        let display_name = DisplayName::process_default_display_name(process_name, &commands);
+
+        assert_eq!(display_name, "bgzip (/opt/conda/bin/bgzip)");
     }
 }
