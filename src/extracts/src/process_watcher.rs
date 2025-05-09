@@ -465,7 +465,7 @@ impl ProcessWatcher {
         let display_name = target
             .get_display_name_object()
             .get_display_name(&process.file_name, process.argv.as_slice());
-        
+
         debug!("Display name: {}", display_name);
 
         let properties = {
