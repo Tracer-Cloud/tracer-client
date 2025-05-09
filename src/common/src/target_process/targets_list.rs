@@ -757,7 +757,6 @@ pub static DEFAULT_DISPLAY_PROCESS_RULES: LazyLock<Vec<&'static str>> = LazyLock
     vec![
         "salmon",
         "deeptools",
-        "boost",
         "star",
         "macs3",
         "multiqc",
@@ -777,7 +776,6 @@ pub static DEFAULT_DISPLAY_PROCESS_RULES: LazyLock<Vec<&'static str>> = LazyLock
         "pre-commit",
         "pytest-workflow",
         "snakemake",
-        "airflow",
         "trimmomatic",
         "picard",
         "gatk4",
@@ -802,20 +800,8 @@ pub static DEFAULT_DISPLAY_PROCESS_RULES: LazyLock<Vec<&'static str>> = LazyLock
         "tximeta",
         "pheatmap",
         "featurecounts",
-        // Lower priority fallback matches
-        "java",
-        "python",
-        "R",
     ]
 });
 
-
-pub static DEFAULT_EXCLUDED_PROCESS_RULES: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
-    vec![
-        "spack",
-        "nextflow",
-        "nf-core",
-        "airflow",
-        ".command.sh"
-    ]
-});
+pub static DEFAULT_EXCLUDED_PROCESS_RULES: LazyLock<Vec<&'static str>> =
+    LazyLock::new(|| vec!["spack", "nextflow", "nf-core", "airflow", ".command.sh"]);

@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use std::{borrow::Cow, path::Path};
 
+use super::targets_list::DEFAULT_EXCLUDED_PROCESS_RULES;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Hash, Eq)]
 pub struct CommandContainsStruct {
@@ -58,6 +59,14 @@ pub fn bin_path_contains(expected_content: &str, bin_path: &str) -> bool {
     bin_path_lower.contains(expected_content_lower.as_ref())
 }
 
+pub fn is_considered_noise(command: &str) -> bool {
+    let cmd = to_lowercase(command);
+
+    DEFAULT_EXCLUDED_PROCESS_RULES
+        .iter()
+        .any(|term| cmd.contains(term))
+}
+
 pub fn matches_target(
     target: &TargetMatch,
     process_name: &str,
@@ -83,7 +92,9 @@ pub fn matches_target(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::target_process::{DisplayName, Target, TargetMatchable};
+    use crate::target_process::{
+        targets_list::OPT_CONDA_BIN_EXCEPTIONS, DisplayName, Target, TargetMatchable,
+    };
 
     #[test]
     fn test_plotpca_command() {
@@ -320,5 +331,31 @@ mod tests {
             ),
             "test2"
         );
+    }
+
+    #[test]
+    fn test_is_considered_noise_with_bash_spack_command() {
+        let command = "/opt/conda/bin/python3 /some/path/spack activate";
+
+        assert!(is_considered_noise(command));
+    }
+
+    #[test]
+    fn test_is_considered_noise_with_legit_tool() {
+        let command = "/opt/conda/bin/fastqc somefile.fq";
+        assert!(!is_considered_noise(command));
+    }
+
+    #[test]
+    fn test_filter_out_bash() {
+        let target = Target::new(TargetMatch::BinPathStartsWith("/opt/conda/bin".to_string()))
+            .set_filter_out(Some(OPT_CONDA_BIN_EXCEPTIONS.to_vec()));
+
+        let matches = target.matches(
+            "bash",
+            "/opt/conda/bin/bash -c some_script",
+            "/opt/conda/bin/bash",
+        );
+        assert!(!matches, "bash should be filtered out and not matched");
     }
 }

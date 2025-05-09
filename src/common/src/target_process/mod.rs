@@ -3,7 +3,7 @@ pub mod target_matching;
 pub mod targets_list;
 use crate::types::trigger::ProcessTrigger;
 use serde::{Deserialize, Serialize};
-use target_matching::{matches_target, TargetMatch};
+use target_matching::{is_considered_noise, matches_target, TargetMatch};
 use targets_list::DEFAULT_DISPLAY_PROCESS_RULES;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Hash, Eq)]
@@ -126,6 +126,10 @@ impl Target {
 
 impl TargetMatchable for Target {
     fn matches(&self, process_name: &str, command: &str, bin_path: &str) -> bool {
+        if is_considered_noise(command) {
+            return false;
+        }
+
         matches_target(&self.match_type, process_name, command, bin_path)
             && (self.filter_out.is_none()
                 || !self
