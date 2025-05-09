@@ -822,6 +822,7 @@ mod tests {
     use tempfile::TempDir;
     use tokio::sync::mpsc;
     use tracer_common::target_process::target_matching::TargetMatch;
+    use tracer_common::target_process::targets_list::{OPT_CONDA_BIN_EXCEPTIONS, TARGETS};
     use tracer_common::types::current_run::{PipelineMetadata, Run};
     use tracer_common::types::pipeline_tags::PipelineTags;
 
@@ -1027,5 +1028,191 @@ mod tests {
 
         // Assert the child process was NOT matched to the target because force_ancestor_to_match is true
         assert_eq!(result.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_match_case_0() {
+        // Process with /opt/conda/bin/bash should be excluded via filter_out and not in target list
+
+        let target = TARGETS.to_vec();
+
+        let process = create_process_trigger(
+            100,
+            1,
+            "bash",
+            vec!["/opt/conda/bin/bash", "script.sh"],
+            "/opt/conda/bin/bash",
+        );
+
+        let watcher = setup_process_watcher(target, HashMap::new());
+        let result = watcher
+            .find_matching_processes(vec![process])
+            .await
+            .unwrap();
+
+        assert_eq!(
+            result.len(),
+            0,
+            "Should exclude bash in /opt/conda/bin due to filter_out exception list"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_match_case_1() {
+        // Process with /opt/conda/bin/foo should match (not in exception list)
+        let target = TARGETS.to_vec();
+
+        let process = create_process_trigger(
+            101,
+            1,
+            "foo",
+            vec!["/opt/conda/bin/foo", "--version"],
+            "/opt/conda/bin/foo",
+        );
+
+        let watcher = setup_process_watcher(target, HashMap::new());
+        let result = watcher
+            .find_matching_processes(vec![process])
+            .await
+            .unwrap();
+
+        assert_eq!(
+            result.len(),
+            1,
+            "Should match /opt/conda/bin/foo as it's not in filter_out exception list"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_match_case_2() {
+        // Process with /usr/bin/bash should match only if it exists in target
+        let target = TARGETS.to_vec();
+
+        let process = create_process_trigger(
+            102,
+            1,
+            "bash",
+            vec!["/usr/bin/bash", "other.sh"],
+            "/usr/bin/bash",
+        );
+
+        let watcher = setup_process_watcher(target, HashMap::new());
+        let result = watcher
+            .find_matching_processes(vec![process])
+            .await
+            .unwrap();
+
+        assert_eq!(
+            result.len(),
+            0,
+            "Should not match bash in /usr/bin since there's no explicit target for it"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_nextflow_local_conf_command() {
+        let process = create_process_trigger(
+            200,
+            1,
+            "local.conf",
+            vec![
+                "bash",
+                "-c",
+                ". spack/share/spack/setup-env.sh; spack env activate -d .; cd frameworks/nextflow && nextflow -c nextflow-config/local.config run pipelines/nf-core/rnaseq/main.nf -params-file nextflow-config/rnaseq-params.json -profile test"
+            ],
+            "/usr/bin/bash",
+        );
+
+        let watcher = setup_process_watcher(TARGETS.to_vec(), HashMap::new());
+        let result = watcher
+            .find_matching_processes(vec![process])
+            .await
+            .unwrap();
+
+        assert_eq!(
+            result.len(),
+            0,
+            "Unexpected match count for test_nextflow_local_conf_command"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_nextflow_wrapper_bash_command() {
+        let process = create_process_trigger(
+            201,
+            1,
+            "nextflow",
+            vec![
+                "bash",
+                "-c",
+                ". spack/share/spack/setup-env.sh; spack env activate -d .; cd frameworks/nextflow && nextflow -c nextflow-config/local.config run pipelines/nf-core/rnaseq/main.nf -params-file nextflow-config/rnaseq-params.json -profile test"
+            ],
+            "/usr/bin/bash",
+        );
+
+        let watcher = setup_process_watcher(TARGETS.to_vec(), HashMap::new());
+        let result = watcher
+            .find_matching_processes(vec![process])
+            .await
+            .unwrap();
+
+        assert_eq!(
+            result.len(),
+            0,
+            "Unexpected match count for test_nextflow_wrapper_bash_command"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_nextflow_command_wrapper_script() {
+        let process = create_process_trigger(
+            202,
+            1,
+            "nextflow",
+            vec![
+                "bash",
+                "/nextflow_work/01/5152d22e188cfc22ef4c4c6cd9fc9e/.command.sh",
+            ],
+            "/usr/bin/bash",
+        );
+
+        let watcher = setup_process_watcher(TARGETS.to_vec(), HashMap::new());
+        let result = watcher
+            .find_matching_processes(vec![process])
+            .await
+            .unwrap();
+
+        assert_eq!(
+            result.len(),
+            0,
+            "Unexpected match count for test_nextflow_command_wrapper_script"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_nextflow_command_dot_run() {
+        let process = create_process_trigger(
+            203,
+            1,
+            "nextflow",
+            vec![
+                "/bin/bash",
+                "/nextflow_work/01/5152d22e188cfc22ef4c4c6cd9fc9e/.command.run",
+                "nxf_trace",
+            ],
+            "/bin/bash",
+        );
+
+        let watcher = setup_process_watcher(TARGETS.to_vec(), HashMap::new());
+        let result = watcher
+            .find_matching_processes(vec![process])
+            .await
+            .unwrap();
+
+        assert_eq!(
+            result.len(),
+            0,
+            "Unexpected match count for test_nextflow_command_dot_run"
+        );
     }
 }
