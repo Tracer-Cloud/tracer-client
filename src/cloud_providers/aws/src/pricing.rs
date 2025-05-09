@@ -1,7 +1,7 @@
 use aws_sdk_pricing as pricing;
 use aws_sdk_pricing::types::Filter as PricingFilters;
-use log::{debug, error, warn};
 use tokio::time::{sleep, Duration};
+use tracing::{debug, error, info, trace, warn};
 
 use crate::config::{get_initialized_aws_conf, AwsConfig};
 use crate::types::pricing::{FlattenedData, PricingData};
@@ -51,31 +51,28 @@ impl PricingClient {
             if retry_count > 0 {
                 let delay = INITIAL_RETRY_DELAY * (2_u64.pow(retry_count - 1)); // Exponential backoff
                 debug!("Retry {} after {} seconds", retry_count, delay);
-                println!("Retry {} after {} seconds", retry_count, delay);
                 sleep(Duration::from_secs(delay)).await;
             }
 
             // Attempt to get pricing data
             match self.attempt_get_ec2_price(filters.clone()).await {
                 Ok(Some(data)) => {
-                    println!("Successfully retrieved pricing data.");
+                    debug!("Successfully retrieved pricing data.");
                     return Some(data);
                 }
                 Ok(None) => {
-                    println!("No matching data found, don't retry.");
+                    debug!("No matching data found, don't retry.");
                     return None; // No matching data found, don't retry
                 }
                 Err(e) => {
                     last_error = Some(e);
                     retry_count += 1;
                     warn!("Attempt {} failed, will retry", retry_count);
-                    println!("Attempt {} failed, will retry", retry_count);
                 }
             }
         }
 
         error!("All retries failed. Last error: {:?}", last_error);
-        println!("All retries failed. Last error: {:?}", last_error);
         None
     }
 
@@ -95,7 +92,7 @@ impl PricingClient {
     ) -> Result<Option<FlattenedData>, Box<dyn std::error::Error + Send + Sync>> {
         // Create paginated request to AWS Pricing API
 
-        println!("Filters being applied: {:?}", filters); // Print statement
+        debug!("Filters being applied: {:?}", filters); // Print statement
 
         let mut response = self
             .client
@@ -105,7 +102,7 @@ impl PricingClient {
             .into_paginator() // Handle pagination of results
             .send();
 
-        println!("API Request: {:?}", response); // Print statement (may need adjustment based on actual request)
+        trace!("API Request: {:?}", response); // Print statement (may need adjustment based on actual request)
 
         let mut data = Vec::new();
 
@@ -116,7 +113,7 @@ impl PricingClient {
             let output = output?;
 
             // Print the raw API response
-            println!("API Response: {:?}", output);
+            info!("API Response: {:?}", output);
 
             // Process each product in the current page
             for product in output.price_list() {
@@ -126,12 +123,11 @@ impl PricingClient {
                         // Print and log the parsed pricing data
                         // Convert the complex pricing data into a flattened format
                         let flat_data = FlattenedData::flatten_data(&pricing.into());
-                        println!("Flattened pricing data: {:?}", flat_data); // Print statement
+                        info!("Flattened pricing data: {:?}", flat_data); // Print statement
                         data.push(flat_data);
                     }
                     Err(e) => {
                         error!("Failed to parse product data: {:?}", e);
-                        println!("Failed to parse product data: {:?}", e);
                         continue; // Skip invalid products
                     }
                 }
@@ -139,7 +135,6 @@ impl PricingClient {
         }
 
         debug!("Processed pricing data length: {}", data.len());
-        println!("Processed pricing data length: {}", data.len());
 
         // Return the most expensive instance from the results
         // if data is empty the reduce will return OK(None)
