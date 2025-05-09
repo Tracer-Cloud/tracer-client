@@ -1,4 +1,5 @@
 use chrono::Utc;
+use tracer_common::target_process::manager::TargetManager;
 use std::process::Command;
 use std::sync::Arc;
 use std::time::Duration;
@@ -39,9 +40,13 @@ async fn test_process_triggers_process_lifecycle() -> anyhow::Result<()> {
         command_content: "test_command".to_string(),
     }))
     .set_display_name(DisplayName::Name("Test Process".to_string()));
+    let mgr = TargetManager::new(
+        vec![target],
+        vec![],
+    );
 
     let watcher = Arc::new(ProcessWatcher::new(
-        vec![target],
+        mgr,
         log_recorder,
         file_watcher,
         system,
@@ -145,8 +150,13 @@ async fn test_process_triggers_no_matching_targets() -> anyhow::Result<()> {
     }))
     .set_display_name(DisplayName::Name("Different Process".to_string()));
 
-    let watcher = Arc::new(ProcessWatcher::new(
+    let mgr = TargetManager::new(
         vec![target],
+        vec![],
+    );
+
+    let watcher = Arc::new(ProcessWatcher::new(
+        mgr,
         log_recorder,
         file_watcher,
         system,
@@ -229,8 +239,13 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
     }))
     .set_display_name(DisplayName::Name("Test Sleep Process".to_string()));
 
-    let watcher = Arc::new(ProcessWatcher::new(
+    let mgr = TargetManager::new(
         vec![target.clone()],
+        vec![],
+    );
+
+    let watcher = Arc::new(ProcessWatcher::new(
+        mgr,
         log_recorder,
         file_watcher,
         system.clone(),

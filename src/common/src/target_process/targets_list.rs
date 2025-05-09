@@ -751,6 +751,26 @@ pub static ref TARGETS: Vec<Target> = [
 ]
 .to_vec();
 
+pub static ref DEFAULT_EXCLUDED_PROCESS_RULES : Vec<Target>  = vec![
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "spack".to_string(),
+    })),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "nextflow".to_string(),
+    })),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "nf-core".to_string(),
+    })),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: ".command.sh".to_string(),
+    })),
+].to_vec();
+
+
 }
 
 pub static DEFAULT_DISPLAY_PROCESS_RULES: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
@@ -816,5 +836,5 @@ pub static DEFAULT_DISPLAY_PROCESS_RULES: LazyLock<Vec<&'static str>> = LazyLock
     ]
 });
 
-pub static DEFAULT_EXCLUDED_PROCESS_RULES: LazyLock<Vec<&'static str>> =
-    LazyLock::new(|| vec!["spack", "nextflow", "nf-core", "airflow", ".command.sh"]);
+// pub static DEFAULT_EXCLUDED_PROCESS_RULES: LazyLock<Vec<&'static str>> =
+//     LazyLock::new(|| vec!["spack", "nextflow", "nf-core", "airflow", ".command.sh"]);
