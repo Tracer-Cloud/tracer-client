@@ -106,7 +106,7 @@ which = { version = "6.0.0", default-features = false }
 bytes = "1.10.1"
 libc = { version = "0.2.172", default-features = false }
 
-sentry = { version = "0.37.0", features = ["anyhow"] }
+sentry = { version = "0.37.0", features = ["anyhow", "tracing"] }
 
 typed-builder = "0.18"
 futures-util = "0.3"

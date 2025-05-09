@@ -219,7 +219,7 @@ impl ProcessWatcher {
         // Log completion events for each terminated process
         for start_trigger in terminated_processes {
             let Some(finish_trigger) = pid_to_finish.remove(&start_trigger.pid) else {
-                error!("Process doesn't exist: start_trigger={:?}", start_trigger);
+                error!(start_trigger = ?start_trigger, "Process doesn't exist");
                 continue;
             };
 
@@ -273,10 +273,7 @@ impl ProcessWatcher {
         // Find processes we're interested in based on targets
         let interested_in = self.filter_processes_of_interest(triggers).await?;
 
-        debug!(
-            "After filtering, interested in {} processes",
-            interested_in.len()
-        );
+        debug!(interested_in = interested_in.len(), "filtering done",);
 
         if interested_in.is_empty() {
             return Ok(());
@@ -460,7 +457,7 @@ impl ProcessWatcher {
         target: &Target,
         process: &ProcessTrigger,
     ) -> Result<ProcessResult> {
-        debug!("Processing pid={}", process.pid);
+        debug!(pid = process.pid, "handle_new_process");
 
         let display_name = target
             .get_display_name_object()
@@ -514,6 +511,7 @@ impl ProcessWatcher {
     }
 
     /// Processes an already running process for metrics updates
+
     async fn update_running_process(
         self: &Arc<ProcessWatcher>,
         target: &Target,
@@ -530,14 +528,6 @@ impl ProcessWatcher {
                 // Process no longer exists
                 return Ok(ProcessResult::NotFound);
             };
-
-            debug!(
-                "Loaded process. PID: ebpf={}, system={:?}; Start Time: ebpf={}, system={:?};",
-                process.pid,
-                system_process.pid(),
-                process.started_at.timestamp(),
-                system_process.start_time()
-            );
 
             // Don't process input files for update events
             self.gather_process_data(system_process, display_name.clone(), false)
