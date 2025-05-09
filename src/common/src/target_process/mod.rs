@@ -47,14 +47,11 @@ impl DisplayName {
         let tokens: Vec<String> = commands
             .iter()
             .flat_map(|cmd| cmd.split([' ', ';']))
-            .map(|s| {
-                // Extract just the file name component if it looks like a path
-                std::path::Path::new(s)
+            .map(|token| {
+                std::path::Path::new(token)
                     .file_stem()
-                    .map(|f| f.to_string_lossy().to_string())
-                    .unwrap_or_else(|| s.to_string())
-                    .trim_matches(|c: char| !c.is_alphanumeric() && c != '_' && c != '-')
-                    .to_lowercase()
+                    .map(|f| f.to_string_lossy().to_lowercase())
+                    .unwrap_or_else(|| token.to_lowercase())
             })
             .collect();
 

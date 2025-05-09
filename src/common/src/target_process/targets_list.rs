@@ -809,6 +809,10 @@ pub static DEFAULT_DISPLAY_PROCESS_RULES: LazyLock<Vec<&'static str>> = LazyLock
         "uniq",
         "tar",
         "bgzip",
+        "trim_galore",
+        "trim_galore",
+        "tr",
+        "bedclip",
     ]
 });
 
