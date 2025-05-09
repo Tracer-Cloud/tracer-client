@@ -18,7 +18,7 @@ use tracer_common::types::event::attributes::process::{
 };
 use tracer_common::types::event::attributes::EventAttributes;
 use tracer_common::types::trigger::{FinishTrigger, ProcessTrigger, Trigger};
-use tracer_ebpf_user::{start_processing_events, TracerEbpf};
+use tracer_ebpf_libbpf::binding::start_processing_events;
 use tracing::{debug, error};
 
 enum ProcessResult {
