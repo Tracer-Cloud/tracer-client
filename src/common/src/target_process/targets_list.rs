@@ -68,7 +68,7 @@ pub static ref OPT_CONDA_BIN_EXCEPTIONS : Vec<TargetMatch> = vec![
     TargetMatch::BinPathLastComponent("autopep8".to_string()),
     TargetMatch::BinPathLastComponent("b2".to_string()),
     TargetMatch::BinPathLastComponent("balsam".to_string()),
-    TargetMatch::BinPathLastComponent("bash".to_string()),
+    // TargetMatch::BinPathLastComponent("bash".to_string()),
     TargetMatch::BinPathLastComponent("binstar".to_string()),
     TargetMatch::BinPathLastComponent("bjam".to_string()),
     TargetMatch::BinPathLastComponent("black".to_string()),
@@ -800,6 +800,12 @@ pub static DEFAULT_DISPLAY_PROCESS_RULES: LazyLock<Vec<&'static str>> = LazyLock
         "tximeta",
         "pheatmap",
         "featurecounts",
+        "cutadapt",
+        "pigz",
+        "igzip",
+        "fq",
+        "bbmap",
+        "stty",
     ]
 });
 
