@@ -806,6 +806,8 @@ pub static DEFAULT_DISPLAY_PROCESS_RULES: LazyLock<Vec<&'static str>> = LazyLock
         "fq",
         "bbmap",
         "stty",
+        "uniq",
+        "tar",
     ]
 });
 

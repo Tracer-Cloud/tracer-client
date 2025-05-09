@@ -46,7 +46,7 @@ impl DisplayName {
     fn process_default_display_name(process_name: &str, commands: &[String]) -> String {
         let tokens: Vec<String> = commands
             .iter()
-            .flat_map(|cmd| cmd.split(|c| c == ' ' || c == ';')) // Handle chained commands
+            .flat_map(|cmd| cmd.split([' ', ';'])) 
             .map(|s| {
                 s.trim_matches(|c: char| !c.is_alphanumeric() && c != '_' && c != '-')
                     .to_lowercase()
