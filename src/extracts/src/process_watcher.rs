@@ -818,6 +818,7 @@ impl ProcessWatcher {
 mod tests {
     use super::*;
     use chrono::DateTime;
+    use rstest::rstest;
     use std::sync::Arc;
     use tempfile::TempDir;
     use tokio::sync::mpsc;
@@ -1034,74 +1035,77 @@ mod tests {
         assert_eq!(result.len(), 0);
     }
 
-    #[tokio::test]
-    async fn test_match_case_0() {
-        // Process with /opt/conda/bin/bash should be excluded via filter_out and not in target list
-
-        let process = create_process_trigger(
-            100,
-            1,
+    #[rstest]
+    #[case::excluded_bash(
+    create_process_trigger(
+        100,
+        1,
+        "bash",
+        vec!["/opt/conda/bin/bash", "script.sh"],
+        "/opt/conda/bin/bash"
+    ),
+    0,
+    "Should exclude bash in /opt/conda/bin due to filter_out exception list"
+)]
+    #[case::included_foo(
+    create_process_trigger(
+        101,
+        1,
+        "foo",
+        vec!["/opt/conda/bin/foo", "--version"],
+        "/opt/conda/bin/foo"
+    ),
+    1,
+    "Should match /opt/conda/bin/foo as it's not in filter_out exception list"
+)]
+    #[case::unmatched_usr_bash(
+    create_process_trigger(
+        102,
+        1,
+        "bash",
+        vec!["/usr/bin/bash", "other.sh"],
+        "/usr/bin/bash"
+    ),
+    0,
+    "Should not match bash in /usr/bin since there's no explicit target for it"
+)]
+    #[case::nextflow_local_conf_command(
+    create_process_trigger(
+        200,
+        1,
+        "local.conf",
+        vec![
             "bash",
-            vec!["/opt/conda/bin/bash", "script.sh"],
-            "/opt/conda/bin/bash",
-        );
-
-        let mgr = TargetManager::new(TARGETS.to_vec(), vec![]);
-
-        let watcher = setup_process_watcher(mgr, HashMap::new());
-        let result = watcher
-            .find_matching_processes(vec![process])
-            .await
-            .unwrap();
-
-        assert_eq!(
-            result.len(),
-            0,
-            "Should exclude bash in /opt/conda/bin due to filter_out exception list"
-        );
-    }
-
-    #[tokio::test]
-    async fn test_match_case_1() {
-        // Process with /opt/conda/bin/foo should match (not in exception list)
-
-        let process = create_process_trigger(
-            101,
-            1,
-            "foo",
-            vec!["/opt/conda/bin/foo", "--version"],
-            "/opt/conda/bin/foo",
-        );
-
-        let mgr = TargetManager::new(TARGETS.to_vec(), vec![]);
-
-        let watcher = setup_process_watcher(mgr, HashMap::new());
-        let result = watcher
-            .find_matching_processes(vec![process])
-            .await
-            .unwrap();
-
-        assert_eq!(
-            result.len(),
-            1,
-            "Should match /opt/conda/bin/foo as it's not in filter_out exception list"
-        );
-    }
-
-    #[tokio::test]
-    async fn test_match_case_2() {
-        // Process with /usr/bin/bash should match only if it exists in target
-
-        let process = create_process_trigger(
-            102,
-            1,
+            "-c",
+            ". spack/share/spack/setup-env.sh; spack env activate -d .; cd frameworks/nextflow && nextflow -c nextflow-config/local.config run pipelines/nf-core/rnaseq/main.nf -params-file nextflow-config/rnaseq-params.json -profile test"
+        ],
+        "/usr/bin/bash"
+    ),
+    0,
+    "Should not match local.conf-based bash wrapper"
+)]
+    #[case::nextflow_wrapper_bash_command(
+    create_process_trigger(
+        201,
+        1,
+        "nextflow",
+        vec![
             "bash",
-            vec!["/usr/bin/bash", "other.sh"],
-            "/usr/bin/bash",
-        );
-
+            "-c",
+            ". spack/share/spack/setup-env.sh; spack env activate -d .; cd frameworks/nextflow && nextflow -c nextflow-config/local.config run pipelines/nf-core/rnaseq/main.nf -params-file nextflow-config/rnaseq-params.json -profile test"
+        ],
+        "/usr/bin/bash"
+    ),
+    0,
+    "Should not match bash-wrapped nextflow script (known wrapper)"
+)]
+    #[tokio::test]
+    async fn test_match_cases(
+        #[case] process: ProcessTrigger,
+        #[case] expected_count: usize,
+        #[case] msg: &str,
+    ) {
         let mgr = TargetManager::new(TARGETS.to_vec(), vec![]);
-
         let watcher = setup_process_watcher(mgr, HashMap::new());
 
         let result = watcher
@@ -1109,118 +1113,36 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(
-            result.len(),
-            0,
-            "Should not match bash in /usr/bin since there's no explicit target for it"
-        );
+        assert_eq!(result.len(), expected_count, "{}", msg);
     }
 
-    #[tokio::test]
-    async fn test_nextflow_local_conf_command() {
-        let process = create_process_trigger(
-            200,
-            1,
-            "local.conf",
-            vec![
-                "bash",
-                "-c",
-                ". spack/share/spack/setup-env.sh; spack env activate -d .; cd frameworks/nextflow && nextflow -c nextflow-config/local.config run pipelines/nf-core/rnaseq/main.nf -params-file nextflow-config/rnaseq-params.json -profile test"
-            ],
-            "/usr/bin/bash",
-        );
-        let mgr = TargetManager::new(TARGETS.to_vec(), vec![]);
-
-        let watcher = setup_process_watcher(mgr, HashMap::new());
-
-        let result = watcher
-            .find_matching_processes(vec![process])
-            .await
-            .unwrap();
-
-        assert_eq!(
-            result.len(),
-            0,
-            "Unexpected match count for test_nextflow_local_conf_command"
-        );
-    }
-
-    #[tokio::test]
-    async fn test_nextflow_wrapper_bash_command() {
-        let process = create_process_trigger(
-            201,
-            1,
-            "nextflow",
-            vec![
-                "bash",
-                "-c",
-                ". spack/share/spack/setup-env.sh; spack env activate -d .; cd frameworks/nextflow && nextflow -c nextflow-config/local.config run pipelines/nf-core/rnaseq/main.nf -params-file nextflow-config/rnaseq-params.json -profile test"
-            ],
-            "/usr/bin/bash",
-        );
-        let mgr = TargetManager::new(TARGETS.to_vec(), vec![]);
-
-        let watcher = setup_process_watcher(mgr, HashMap::new());
-
-        let result = watcher
-            .find_matching_processes(vec![process])
-            .await
-            .unwrap();
-
-        assert_eq!(
-            result.len(),
-            0,
-            "Unexpected match count for test_nextflow_wrapper_bash_command"
-        );
-    }
-
-    #[tokio::test]
-    async fn test_nextflow_command_wrapper_script() {
-        let process = create_process_trigger(
-            202,
-            1,
-            "nextflow",
-            vec![
-                "bash",
-                "/nextflow_work/01/5152d22e188cfc22ef4c4c6cd9fc9e/.command.sh",
-            ],
-            "/usr/bin/bash",
-        );
-
-        let mgr = TargetManager::new(TARGETS.to_vec(), vec![]);
-
-        let watcher = setup_process_watcher(mgr, HashMap::new());
-
-        let result = watcher
-            .find_matching_processes(vec![process])
-            .await
-            .unwrap();
-
-        assert_eq!(
-            result.len(),
-            0,
-            "Unexpected match count for test_nextflow_command_wrapper_script"
-        );
-    }
-
-    #[tokio::test]
-    async fn test_nextflow_command_dot_run() {
-        let process = create_process_trigger(
-            203,
-            1,
-            "nextflow",
-            vec![
-                "/bin/bash",
-                "/nextflow_work/01/5152d22e188cfc22ef4c4c6cd9fc9e/.command.run",
-                "nxf_trace",
-            ],
+    #[rstest]
+    #[case::command_script(
+    create_process_trigger(
+        202,
+        1,
+        "nextflow",
+        vec!["bash", "/nextflow_work/01/5152d22e188cfc22ef4c4c6cd9fc9e/.command.sh"],
+        "/usr/bin/bash"
+    )
+)]
+    #[case::command_dot_run(
+    create_process_trigger(
+        203,
+        1,
+        "nextflow",
+        vec![
             "/bin/bash",
-        );
-
+            "/nextflow_work/01/5152d22e188cfc22ef4c4c6cd9fc9e/.command.run",
+            "nxf_trace"
+        ],
+        "/bin/bash"
+    )
+)]
+    #[tokio::test]
+    async fn test_nextflow_wrapped_scripts(#[case] process: ProcessTrigger) {
         let mgr = TargetManager::new(TARGETS.to_vec(), vec![]);
-
         let watcher = setup_process_watcher(mgr, HashMap::new());
-
         let result = watcher
             .find_matching_processes(vec![process])
             .await
@@ -1229,10 +1151,9 @@ mod tests {
         assert_eq!(
             result.len(),
             0,
-            "Unexpected match count for test_nextflow_command_dot_run"
+            "Expected no matches for wrapped nextflow script"
         );
     }
-
     fn dummy_process(name: &str, cmd: &str, path: &str) -> ProcessTrigger {
         ProcessTrigger {
             pid: 1,

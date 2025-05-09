@@ -835,6 +835,3 @@ pub static DEFAULT_DISPLAY_PROCESS_RULES: LazyLock<Vec<&'static str>> = LazyLock
         "bedclip",
     ]
 });
-
-// pub static DEFAULT_EXCLUDED_PROCESS_RULES: LazyLock<Vec<&'static str>> =
-//     LazyLock::new(|| vec!["spack", "nextflow", "nf-core", "airflow", ".command.sh"]);
