@@ -804,10 +804,11 @@ pub static DEFAULT_DISPLAY_PROCESS_RULES: LazyLock<Vec<&'static str>> = LazyLock
         "pigz",
         "igzip",
         "fq",
-        "bbmap",
+        "bbsplit",
         "stty",
         "uniq",
         "tar",
+        "bgzip",
     ]
 });
 

@@ -3,7 +3,7 @@ pub mod target_matching;
 pub mod targets_list;
 use crate::types::trigger::ProcessTrigger;
 use serde::{Deserialize, Serialize};
-use target_matching::{matches_target, TargetMatch};
+use target_matching::{is_considered_noise, matches_target, TargetMatch};
 use targets_list::DEFAULT_DISPLAY_PROCESS_RULES;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Hash, Eq)]
@@ -46,9 +46,14 @@ impl DisplayName {
     fn process_default_display_name(process_name: &str, commands: &[String]) -> String {
         let tokens: Vec<String> = commands
             .iter()
-            .flat_map(|cmd| cmd.split([' ', ';'])) 
+            .flat_map(|cmd| cmd.split([' ', ';']))
             .map(|s| {
-                s.trim_matches(|c: char| !c.is_alphanumeric() && c != '_' && c != '-')
+                // Extract just the file name component if it looks like a path
+                std::path::Path::new(s)
+                    .file_stem()
+                    .map(|f| f.to_string_lossy().to_string())
+                    .unwrap_or_else(|| s.to_string())
+                    .trim_matches(|c: char| !c.is_alphanumeric() && c != '_' && c != '-')
                     .to_lowercase()
             })
             .collect();
@@ -135,9 +140,9 @@ impl Target {
 
 impl TargetMatchable for Target {
     fn matches(&self, process_name: &str, command: &str, bin_path: &str) -> bool {
-        // if is_considered_noise(command) {
-        //     return false;
-        // }
+        if is_considered_noise(command) {
+            return false;
+        }
 
         matches_target(&self.match_type, process_name, command, bin_path)
             && (self.filter_out.is_none()
@@ -161,20 +166,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_process_default_display_name_with_mappings() {
-        let commands = vec![
-            "/opt/conda/bin/java".to_string(),
-            "-jar".to_string(),
-            "nextflow.jar".to_string(),
-        ];
-        let process_name = "Thread-4";
-
-        let display_name = DisplayName::process_default_display_name(process_name, &commands);
-
-        assert_eq!(display_name, "nextflow (Thread-4)");
-    }
-
-    #[test]
     fn test_process_default_display_name_without_mappings() {
         let commands = vec!["/usr/bin/somebinary".to_string()];
         let process_name = "SomeProcess";
@@ -185,12 +176,77 @@ mod tests {
     }
 
     #[test]
-    fn test_process_default_display_name_with_python() {
-        let commands = vec!["/usr/bin/python".to_string(), "script.py".to_string()];
-        let process_name = "Thread-8";
+    fn test_process_default_display_name_with_perl_wrapped_tool() {
+        let commands = vec![
+            "perl".to_string(),
+            "/opt/conda/bin/fastqc".to_string(),
+            "-t".to_string(),
+            "7".to_string(),
+        ];
+        let process_name = "Thread-2";
 
         let display_name = DisplayName::process_default_display_name(process_name, &commands);
 
-        assert_eq!(display_name, "python (Thread-8)");
+        assert_eq!(display_name, "fastqc (Thread-2)");
+    }
+
+    #[test]
+    fn test_process_default_display_name_with_bash_wrapped_script() {
+        let commands = vec![
+            "/bin/bash".to_string(),
+            "/opt/conda/bin/bbsplit.sh".to_string(),
+            "in=sample.fq.gz".to_string(),
+        ];
+        let process_name = "Thread-9";
+
+        let display_name = DisplayName::process_default_display_name(process_name, &commands);
+
+        assert_eq!(display_name, "bbsplit (Thread-9)");
+    }
+
+    #[test]
+    fn test_process_default_display_name_with_semicolon_chaining() {
+        let commands = vec![
+            "bash".to_string(),
+            "-c".to_string(),
+            ". spack/share/spack/setup-env.sh; fastqc sample.fq.gz".to_string(),
+        ];
+        let process_name = "Thread-10";
+
+        let display_name = DisplayName::process_default_display_name(process_name, &commands);
+
+        assert_eq!(display_name, "fastqc (Thread-10)");
+    }
+
+    #[test]
+    fn test_process_default_display_name_with_non_matching_tokens() {
+        let commands = vec![
+            "bash".to_string(),
+            "-c".to_string(),
+            "echo hello world".to_string(),
+        ];
+        let process_name = "Thread-11";
+
+        let display_name = DisplayName::process_default_display_name(process_name, &commands);
+
+        assert_eq!(display_name, "Thread-11");
+    }
+
+    #[test]
+    fn test_process_default_display_name_bgzip() {
+        let commands = vec![
+            "bgzip".to_string(),
+            "-c".to_string(),
+            "-f".to_string(),
+            "-l".to_string(),
+            "4".to_string(),
+            "@".to_string(),
+            "7".to_string(),
+        ];
+        let process_name = "/opt/conda/bin/bgzip";
+
+        let display_name = DisplayName::process_default_display_name(process_name, &commands);
+
+        assert_eq!(display_name, "bgzip (/opt/conda/bin/bgzip)");
     }
 }

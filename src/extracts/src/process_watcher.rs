@@ -822,7 +822,7 @@ mod tests {
     use tempfile::TempDir;
     use tokio::sync::mpsc;
     use tracer_common::target_process::target_matching::TargetMatch;
-    use tracer_common::target_process::targets_list::{OPT_CONDA_BIN_EXCEPTIONS, TARGETS};
+    use tracer_common::target_process::targets_list::TARGETS;
     use tracer_common::types::current_run::{PipelineMetadata, Run};
     use tracer_common::types::pipeline_tags::PipelineTags;
 
