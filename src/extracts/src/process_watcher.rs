@@ -894,10 +894,7 @@ mod tests {
     async fn test_find_matching_processes_direct_match() {
         // Create a target and set up the watcher
         let target = Target::new(TargetMatch::ProcessName("test_process".to_string()));
-        let mgr = TargetManager::new(
-            vec![target.clone()],
-            vec![],
-        );
+        let mgr = TargetManager::new(vec![target.clone()], vec![]);
         let watcher = setup_process_watcher(mgr, HashMap::new());
 
         // Create a process that directly matches the target
@@ -924,10 +921,7 @@ mod tests {
     async fn test_find_matching_processes_no_match() {
         // Create a target and set up the watcher
         let target = Target::new(TargetMatch::ProcessName("test_process".to_string()));
-        let mgr = TargetManager::new(
-            vec![target.clone()],
-            vec![],
-        );
+        let mgr = TargetManager::new(vec![target.clone()], vec![]);
         let watcher = setup_process_watcher(mgr, HashMap::new());
 
         // Create a process that doesn't match any target
@@ -978,10 +972,7 @@ mod tests {
         processes.insert(parent_process.pid, parent_process);
 
         // Set up the watcher with these processes and target
-        let mgr = TargetManager::new(
-            vec![target.clone()],
-            vec![],
-        );
+        let mgr = TargetManager::new(vec![target.clone()], vec![]);
         let watcher = setup_process_watcher(mgr, processes);
 
         // Test with the child process
@@ -1030,12 +1021,8 @@ mod tests {
         processes.insert(parent_process.pid, parent_process);
 
         // Set up the watcher with these processes and target
-        let mgr = TargetManager::new(
-            vec![target],
-            vec![],
-        );
+        let mgr = TargetManager::new(vec![target], vec![]);
         let watcher = setup_process_watcher(mgr, processes);
-
 
         // Test with the child process
         let result = watcher
@@ -1051,7 +1038,6 @@ mod tests {
     async fn test_match_case_0() {
         // Process with /opt/conda/bin/bash should be excluded via filter_out and not in target list
 
-
         let process = create_process_trigger(
             100,
             1,
@@ -1060,10 +1046,7 @@ mod tests {
             "/opt/conda/bin/bash",
         );
 
-        let mgr = TargetManager::new(
-            TARGETS.to_vec(),
-            vec![],
-        );
+        let mgr = TargetManager::new(TARGETS.to_vec(), vec![]);
 
         let watcher = setup_process_watcher(mgr, HashMap::new());
         let result = watcher
@@ -1090,11 +1073,7 @@ mod tests {
             "/opt/conda/bin/foo",
         );
 
-
-        let mgr = TargetManager::new(
-            TARGETS.to_vec(),
-            vec![],
-        );
+        let mgr = TargetManager::new(TARGETS.to_vec(), vec![]);
 
         let watcher = setup_process_watcher(mgr, HashMap::new());
         let result = watcher
@@ -1121,10 +1100,7 @@ mod tests {
             "/usr/bin/bash",
         );
 
-        let mgr = TargetManager::new(
-            TARGETS.to_vec(),
-            vec![],
-        );
+        let mgr = TargetManager::new(TARGETS.to_vec(), vec![]);
 
         let watcher = setup_process_watcher(mgr, HashMap::new());
 
@@ -1153,10 +1129,7 @@ mod tests {
             ],
             "/usr/bin/bash",
         );
-        let mgr = TargetManager::new(
-            TARGETS.to_vec(),
-            vec![],
-        );
+        let mgr = TargetManager::new(TARGETS.to_vec(), vec![]);
 
         let watcher = setup_process_watcher(mgr, HashMap::new());
 
@@ -1185,13 +1158,9 @@ mod tests {
             ],
             "/usr/bin/bash",
         );
-        let mgr = TargetManager::new(
-            TARGETS.to_vec(),
-            vec![],
-        );
+        let mgr = TargetManager::new(TARGETS.to_vec(), vec![]);
 
         let watcher = setup_process_watcher(mgr, HashMap::new());
-
 
         let result = watcher
             .find_matching_processes(vec![process])
@@ -1218,13 +1187,9 @@ mod tests {
             "/usr/bin/bash",
         );
 
-        let mgr = TargetManager::new(
-            TARGETS.to_vec(),
-            vec![],
-        );
+        let mgr = TargetManager::new(TARGETS.to_vec(), vec![]);
 
         let watcher = setup_process_watcher(mgr, HashMap::new());
-
 
         let result = watcher
             .find_matching_processes(vec![process])
@@ -1252,13 +1217,10 @@ mod tests {
             "/bin/bash",
         );
 
-        let mgr = TargetManager::new(
-            TARGETS.to_vec(),
-            vec![],
-        );
+        let mgr = TargetManager::new(TARGETS.to_vec(), vec![]);
 
         let watcher = setup_process_watcher(mgr, HashMap::new());
-        
+
         let result = watcher
             .find_matching_processes(vec![process])
             .await
