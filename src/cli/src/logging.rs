@@ -28,10 +28,6 @@ pub fn setup_logging() -> Result<()> {
     // Set up the subscriber with our custom layer
     let subscriber = tracing_subscriber::registry().with(filter).with(file_layer);
 
-    // Set the subscriber as the default
-    tracing::subscriber::set_global_default(subscriber)
-        .context("Failed to set tracing subscriber")?;
-
     // Log initialization message
     tracing::info!("Logging system initialized. Writing to {}", LOG_FILE);
 

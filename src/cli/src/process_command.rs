@@ -14,6 +14,9 @@ use tracer_common::debug_log::Logger;
 use tracer_daemon::client::DaemonClient;
 use tracer_daemon::daemon::run;
 use tracer_daemon::structs::{Message, TagData, UploadData};
+use tracing::Subscriber;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 pub fn start_daemon() -> Outcome<()> {
     let _ = std::fs::create_dir_all(WORKING_DIR);
@@ -45,6 +48,10 @@ pub fn process_cli() -> Result<()> {
 
     let _guard = (!cfg!(test)).then(|| {
         config.sentry_dsn.as_deref().map(|dsn| {
+            tracing_subscriber::Registry::default()
+                .with(sentry::integrations::tracing::layer())
+                .init();
+
             sentry::init((
                 dsn,
                 sentry::ClientOptions {
@@ -52,6 +59,7 @@ pub fn process_cli() -> Result<()> {
                     // Capture user IPs and potentially sensitive headers when using HTTP server integrations
                     // see https://docs.sentry.io/platforms/rust/data-management/data-collected for more info
                     send_default_pii: true,
+                    traces_sample_rate: 0.2,
                     ..Default::default()
                 },
             ))
