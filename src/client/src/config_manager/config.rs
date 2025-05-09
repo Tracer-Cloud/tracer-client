@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use clap::builder::Str;
 use log::info;
 use serde::{Deserialize, Serialize};
 
@@ -21,10 +22,14 @@ use tracer_common::target_process::Target;
 const DEFAULT_API_KEY: &str = "EAjg7eHtsGnP3fTURcPz1";
 const DEFAULT_CONFIG_FILE_LOCATION_FROM_HOME: &str = ".config/tracer";
 const PROCESS_POLLING_INTERVAL_MS: u64 = 5;
-const BATCH_SUBMISSION_INTERVAL_MS: u64 = 10000;
+const BATCH_SUBMISSION_INTERVAL_MS: u64 = 5000;
 const NEW_RUN_PAUSE_MS: u64 = 10 * 60 * 1000;
 const PROCESS_METRICS_SEND_INTERVAL_MS: u64 = 10000;
 const FILE_SIZE_NOT_CHANGING_PERIOD_MS: u64 = 1000 * 60;
+const LOG_FORWARD_ENDPOINT: &str = "http://192.168.5.2:3000/api/logs-forward";
+const SENTRY_DSN: &str = "https://35e0843e6748d2c93dfd56716f2eecfe@o4509281671380992.ingest.us.sentry.io/4509281680949248";
+const GRAFANA_WORKSPACE_URL: &str = "https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com";
+const AWS_REGION: &str = "us-east-2";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Config {
@@ -125,6 +130,8 @@ impl ConfigLoader {
                     return Ok(fname.to_string());
                 }
             }
+
+            return Ok("tracer.toml".to_string()); // TODO: remove this after the dev experience is better (only temporary change)
             anyhow::bail!("No default config file found in {:?}", dir);
         }
     }
@@ -187,10 +194,15 @@ impl ConfigLoader {
                 PROCESS_METRICS_SEND_INTERVAL_MS,
             )?
             .set_default("aws_init_type", AwsConfig::Profile(aws_default_profile))?
-            .set_default("aws_region", "us-east-2")?
+            .set_default("aws_region", AWS_REGION)?
             .set_default("database_name", "tracer_db")?
             .set_default("server", "127.0.0.1:8722")?
-            .set_default::<&str, Vec<&str>>("targets", vec![])?;
+            .set_default::<&str, Vec<&str>>("targets", vec![])?
+            .set_default("log_forward_endpoint", LOG_FORWARD_ENDPOINT)?
+            .set_default("sentry_dsn", SENTRY_DSN)?
+            .set_default("grafana_workspace_url", GRAFANA_WORKSPACE_URL)?
+            .set_default("database_secrets_arn", Some(None::<String>))?
+            .set_default("database_host", Some(None::<String>))?;
 
         // set overrides
         builder = builder.set_override::<&str, Vec<&str>>("config_sources", vec![])?;

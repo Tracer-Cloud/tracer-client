@@ -46,4 +46,11 @@ impl LogWriterEnum {
             LogWriterEnum::Forward(client) => client.close().await,
         }
     }
+
+    pub fn variant_name(&self) -> &'static str {
+        match self {
+            LogWriterEnum::Forward(_) => "LogForward",
+            LogWriterEnum::Aurora(_) => "AuroraClient",
+        }
+    }
 }

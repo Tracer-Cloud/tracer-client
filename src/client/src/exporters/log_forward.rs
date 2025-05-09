@@ -1,16 +1,22 @@
 use serde::Serialize;
-use tracing::debug;
+use tracing::{debug, info};
 use tracer_common::types::event::Event;
 use crate::exporters::log_writer::LogWriter;
+use tracer_common::types::extracts::db::EventInsert;
+use anyhow::{bail, Result};
+use std::convert::TryFrom;
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
+use sqlx::PgPool;
+use sqlx::pool::PoolOptions;
 use reqwest::Client;
-use anyhow::Result; // Import anyhow's Result type
+use tracer_aws::config::SecretsClient;
+use tracer_aws::types::secrets::DatabaseAuth;
+use crate::config_manager::Config;
+use crate::exporters::db::AuroraClient;
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Debug)]
 struct EventPayload {
-    run_name: String,
-    run_id: String,
-    pipeline_name: String,
-    events: Vec<Event>,
+    events: Vec<EventInsert>,
 }
 
 pub struct LogForward {
@@ -34,6 +40,7 @@ impl LogForward {
     }
 }
 
+
 impl LogWriter for LogForward {
     async fn batch_insert_events(
         &self,
@@ -44,28 +51,40 @@ impl LogWriter for LogForward {
     ) -> Result<()> {
         let now = std::time::Instant::now();
 
-        let events: Vec<Event> = data.into_iter().cloned().collect();
+        let events: Result<Vec<EventInsert>> = data
+            .into_iter()
+            .map(|event| EventInsert::try_from(event.clone()))
+            .collect();
+
+        let events = events?;
 
         if events.is_empty() {
             debug!("No data to send");
             return Ok(());
         }
 
-        let payload = EventPayload {
-            run_name: run_name.to_string(),
-            run_id: run_id.to_string(),
-            pipeline_name: pipeline_name.to_string(),
-            events,
-        };
+        let payload = EventPayload { events };
 
-        let res = self.client
+        info!("Sending payload to endpoint {} with {} events", self.endpoint, payload.events.len());
+        debug!("Payload structure: {:?}", payload);
+
+        let res = match self.client
             .post(&self.endpoint)
             .json(&payload)
             .send()
-            .await?;
+            .await {
+            Ok(response) => response,
+            Err(e) => {
+                return Err(anyhow::anyhow!("HTTP request failed: {:?}", e));
+            }
+        };
 
-        if !res.status().is_success() {
-            return Err(anyhow::anyhow!("Failed to send logs: {}", res.status()));
+        let status = res.status();
+        debug!("Response status: {}", status);
+
+        if !status.is_success() {
+            let error_body = res.text().await.unwrap_or_else(|_| "Could not read error response".to_string());
+            return Err(anyhow::anyhow!("Failed to send logs: {} - {}", status, error_body));
         }
 
         debug!(
