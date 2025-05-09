@@ -806,7 +806,7 @@ pub static ref TARGETS: Vec<Target> = [
     Target::new(TargetMatch::ProcessName("python2".to_string()))
         .set_display_name(DisplayName::UseFirstArgumentBaseName()),
     Target::new(TargetMatch::ProcessName("python3".to_string()))
-        .set_display_name(DisplayName::UseFirstArgumentBaseName()),
+        .set_display_name(DisplayName::Name("python3".to_string())),
     Target::new(TargetMatch::ProcessName("perl".to_string()))
         .set_display_name(DisplayName::UseFirstArgumentBaseName()),
     Target::new(TargetMatch::BinPathStartsWith("/opt/conda/bin".to_string()))
