@@ -1,11 +1,5 @@
 #!/bin/bash
 
-# Check if Python is available
-if ! command -v python3 &> /dev/null; then
-    echo "Python is required but not installed. Exiting."
-    exit 1
-fi
-
 # Get script directory
 SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 
@@ -22,9 +16,16 @@ done
 
 echo "Generated test datasets: test1.fa, test2.fa, test3.fa"
 
-# Process each dataset using Python script
+# Process each dataset using native tools (no Python)
 for file in "$DATASET_DIR"/*.fa; do
-    python3 "$SCRIPT_DIR/sim_fileopens.py" "$file"
+    echo "Processing dataset: $file"
+    # Use gzip to compress the file (gzip uses zlib, which is in our target list)
+    gzip -c "$file" > "$file.gz"
+    # Decompress the file
+    gzip -d -c "$file.gz" > "$file.decompressed"
+    # Wait to make sure the process is captured
+    sleep 2
+    echo "Finished processing: $file"
 done
 
 # Cleanup after processing

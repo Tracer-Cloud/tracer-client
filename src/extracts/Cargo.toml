@@ -27,3 +27,7 @@ dirs = { workspace = true }
 walkdir = { workspace = true }
 tempfile = { workspace = true }
 tracer_common = { workspace = true }
+
+
+[dev-dependencies]
+rstest = { workspace = true }
