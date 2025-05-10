@@ -9,6 +9,7 @@ pub enum LogWriterEnum {
     Forward(LogForward),
 }
 
+#[allow(async_fn_in_trait)]
 pub trait LogWriter {
     async fn batch_insert_events(
         &self,

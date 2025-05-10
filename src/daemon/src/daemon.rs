@@ -16,7 +16,7 @@ pub async fn run(
     config: Config,
 ) -> Result<()> {
     // create the conn pool to aurora
-    let db_client = if !config.log_forward_endpoint.is_none() {
+    let db_client = if config.log_forward_endpoint.is_some() {
         LogWriterEnum::Forward(
             LogForward::try_new(&config.log_forward_endpoint.clone().unwrap()).await?,
         )

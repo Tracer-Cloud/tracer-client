@@ -4,7 +4,6 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use clap::builder::Str;
 use log::info;
 use serde::{Deserialize, Serialize};
 
@@ -133,7 +132,7 @@ impl ConfigLoader {
             }
 
             return Ok("tracer.toml".to_string()); // TODO: remove this after the dev experience is better (only temporary change)
-            anyhow::bail!("No default config file found in {:?}", dir);
+                                                  // anyhow::bail!("No default config file found in {:?}", dir);
         }
     }
 

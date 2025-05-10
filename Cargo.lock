@@ -5300,7 +5300,6 @@ name = "tracer_client"
 version = "2025.5.1+1"
 dependencies = [
  "anyhow",
- "async-trait",
  "chrono",
  "clap",
  "config",

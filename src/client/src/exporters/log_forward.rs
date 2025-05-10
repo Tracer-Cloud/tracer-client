@@ -1,15 +1,8 @@
-use crate::config_manager::Config;
-use crate::exporters::db::AuroraClient;
 use crate::exporters::log_writer::LogWriter;
-use anyhow::{bail, Result};
-use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
+use anyhow::Result;
 use reqwest::Client;
 use serde::Serialize;
-use sqlx::pool::PoolOptions;
-use sqlx::PgPool;
 use std::convert::TryFrom;
-use tracer_aws::config::SecretsClient;
-use tracer_aws::types::secrets::DatabaseAuth;
 use tracer_common::types::event::Event;
 use tracer_common::types::extracts::db::EventInsert;
 use tracing::{debug, info};
@@ -49,6 +42,11 @@ impl LogWriter for LogForward {
         data: impl IntoIterator<Item = &Event>,
     ) -> Result<()> {
         let now = std::time::Instant::now();
+
+        println!(
+            "run_id: {:?}, run_name: {:?}, pipeline_name: {:?}",
+            run_id, run_name, pipeline_name
+        );
 
         let events: Result<Vec<EventInsert>> = data
             .into_iter()
