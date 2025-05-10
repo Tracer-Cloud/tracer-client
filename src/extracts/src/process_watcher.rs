@@ -187,7 +187,10 @@ impl ProcessWatcher {
     }
 
     /// Processes a batch of triggers, separating start and finish events
-    async fn process_triggers(self: &Arc<ProcessWatcher>, triggers: Vec<Trigger>) -> Result<()> {
+    pub async fn process_triggers(
+        self: &Arc<ProcessWatcher>,
+        triggers: Vec<Trigger>,
+    ) -> Result<()> {
         let mut start_triggers: Vec<ProcessTrigger> = vec![];
         let mut finish_triggers: Vec<FinishTrigger> = vec![];
 
