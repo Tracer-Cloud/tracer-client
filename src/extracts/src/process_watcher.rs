@@ -111,9 +111,7 @@ impl ProcessWatcher {
         let (tx, rx) = mpsc::unbounded_channel::<Trigger>();
 
         // Start the eBPF event processing
-        if let Err(e) = start_processing_events(tx) {
-            return Err(e);
-        }
+        start_processing_events(tx)?;
 
         // Start the event processing loop
         let watcher = Arc::clone(&self);
