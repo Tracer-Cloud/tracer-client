@@ -3,6 +3,8 @@ use anyhow::{Context, Result};
 use std::net::SocketAddr;
 use tracer_client::config_manager::Config;
 use tracer_client::exporters::db::AuroraClient;
+use tracer_client::exporters::log_forward::LogForward;
+use tracer_client::exporters::log_writer::LogWriterEnum;
 use tracer_client::params::TracerCliInitArgs;
 use tracer_client::TracerClient;
 use tracing::info;
@@ -13,7 +15,16 @@ pub async fn run(
     cli_config_args: TracerCliInitArgs,
     config: Config,
 ) -> Result<()> {
-    let db_client = AuroraClient::try_new(&config, None).await?;
+    // create the conn pool to aurora
+    let db_client = if config.log_forward_endpoint.is_some() {
+        LogWriterEnum::Forward(
+            LogForward::try_new(&config.log_forward_endpoint.clone().unwrap()).await?,
+        )
+    } else {
+        LogWriterEnum::Aurora(AuroraClient::try_new(&config, None).await?)
+    };
+
+    info!("Using {}", db_client.variant_name());
 
     let addr: SocketAddr = config.server.parse()?;
 
@@ -41,6 +52,8 @@ mod tests {
     use std::path::Path;
     use tracer_client::config_manager::{Config, ConfigLoader};
     use tracer_client::exporters::db::AuroraClient;
+    use tracer_client::exporters::log_forward::LogForward;
+    use tracer_client::exporters::log_writer::{LogWriter, LogWriterEnum};
     use tracer_client::params::TracerCliInitArgs;
     use tracer_client::TracerClient;
 
@@ -55,24 +68,34 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_monitor_processes_with_tracer_client() {
+    async fn test_monitor_processes_with_tracer_client() -> Result<(), anyhow::Error> {
         let config = load_test_config();
-        let pwd = std::env::current_dir().unwrap();
+        let pwd = std::env::current_dir()?;
         let region = "us-east-2";
 
         setup_env_vars(region);
 
-        let aurora_client = AuroraClient::try_new(&config, None).await.unwrap();
+        // let aurora_client: dyn LogWriter = AuroraClient::try_new(&config, None).await.unwrap();
+
+        let log_forward_client = LogWriterEnum::Forward(
+            LogForward::try_new(&config.log_forward_endpoint.clone().unwrap())
+                .await
+                .expect("Failed to create LogForward"),
+        );
 
         let mut tracer_client = TracerClient::new(
             config,
             pwd.to_str().unwrap().to_string(),
-            aurora_client,
+            log_forward_client,
             TracerCliInitArgs::default(),
         )
         .await
         .unwrap();
         let result = monitor_processes_with_tracer_client(&mut tracer_client).await;
-        assert!(result.is_ok());
+        if result.is_ok() {
+            Ok(result?)
+        } else {
+            Err(result.unwrap_err())
+        }
     }
 }

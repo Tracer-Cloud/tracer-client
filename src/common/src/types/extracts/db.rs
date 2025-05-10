@@ -3,11 +3,12 @@ use serde_json::{json, Map, Value};
 
 use anyhow::Context;
 
-use std::convert::TryFrom;
-
 use crate::types::event::attributes::process::ProcessProperties;
 use crate::types::event::{attributes::EventAttributes, Event};
+use serde::Serialize;
+use std::convert::TryFrom;
 
+#[derive(Serialize, Clone, Debug)]
 pub struct EventInsert {
     pub timestamp: DateTime<Utc>,
     pub body: String,
