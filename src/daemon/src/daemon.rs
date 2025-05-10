@@ -3,11 +3,11 @@ use anyhow::{Context, Result};
 use std::net::SocketAddr;
 use tracer_client::config_manager::Config;
 use tracer_client::exporters::db::AuroraClient;
+use tracer_client::exporters::log_forward::LogForward;
+use tracer_client::exporters::log_writer::LogWriterEnum;
 use tracer_client::params::TracerCliInitArgs;
 use tracer_client::TracerClient;
 use tracing::info;
-use tracer_client::exporters::log_forward::LogForward;
-use tracer_client::exporters::log_writer::LogWriterEnum;
 
 #[tokio::main]
 pub async fn run(
@@ -17,13 +17,15 @@ pub async fn run(
 ) -> Result<()> {
     // create the conn pool to aurora
     let db_client = if !config.log_forward_endpoint.is_none() {
-        LogWriterEnum::Forward(LogForward::try_new(&config.log_forward_endpoint.clone().unwrap()).await?)
+        LogWriterEnum::Forward(
+            LogForward::try_new(&config.log_forward_endpoint.clone().unwrap()).await?,
+        )
     } else {
         LogWriterEnum::Aurora(AuroraClient::try_new(&config, None).await?)
     };
 
     info!("Using {}", db_client.variant_name());
-    
+
     let addr: SocketAddr = config.server.parse()?;
 
     let client = TracerClient::new(config, workflow_directory_path, db_client, cli_config_args)
@@ -76,11 +78,10 @@ mod tests {
         // let aurora_client: dyn LogWriter = AuroraClient::try_new(&config, None).await.unwrap();
 
         let log_forward_client = LogWriterEnum::Forward(
-            LogForward::try_new(&config.log_forward_endpoint
-                .clone()
-                .unwrap())
+            LogForward::try_new(&config.log_forward_endpoint.clone().unwrap())
                 .await
-                .expect("Failed to create LogForward"));
+                .expect("Failed to create LogForward"),
+        );
 
         let mut tracer_client = TracerClient::new(
             config,

@@ -1,6 +1,6 @@
-use tracer_common::types::event::Event;
 use crate::exporters::db::AuroraClient;
 use crate::exporters::log_forward::LogForward;
+use tracer_common::types::event::Event;
 
 use anyhow::Result;
 
@@ -29,10 +29,14 @@ impl LogWriter for LogWriterEnum {
     ) -> Result<()> {
         match self {
             LogWriterEnum::Aurora(client) => {
-                client.batch_insert_events(run_name, run_id, pipeline_name, data).await
+                client
+                    .batch_insert_events(run_name, run_id, pipeline_name, data)
+                    .await
             }
             LogWriterEnum::Forward(client) => {
-                client.batch_insert_events(run_name, run_id, pipeline_name, data).await
+                client
+                    .batch_insert_events(run_name, run_id, pipeline_name, data)
+                    .await
             }
         }
     }

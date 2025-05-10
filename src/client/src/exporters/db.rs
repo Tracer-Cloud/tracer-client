@@ -11,8 +11,8 @@ use sqlx::query_builder::Separated;
 use tracer_aws::config::SecretsClient;
 use tracer_aws::types::secrets::DatabaseAuth;
 
-use tracing::debug;
 use crate::exporters::log_writer::LogWriter;
+use tracing::debug;
 
 const BIND_LIMIT: usize = 65535;
 
@@ -95,7 +95,7 @@ impl LogWriter for AuroraClient {
         run_name: &str,
         run_id: &str,
         pipeline_name: &str,
-        data: impl IntoIterator<Item=&Event>,
+        data: impl IntoIterator<Item = &Event>,
     ) -> Result<()> {
         let now = std::time::Instant::now();
 

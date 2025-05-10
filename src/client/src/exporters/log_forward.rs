@@ -1,18 +1,18 @@
-use serde::Serialize;
-use tracing::{debug, info};
-use tracer_common::types::event::Event;
-use crate::exporters::log_writer::LogWriter;
-use tracer_common::types::extracts::db::EventInsert;
-use anyhow::{bail, Result};
-use std::convert::TryFrom;
-use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
-use sqlx::PgPool;
-use sqlx::pool::PoolOptions;
-use reqwest::Client;
-use tracer_aws::config::SecretsClient;
-use tracer_aws::types::secrets::DatabaseAuth;
 use crate::config_manager::Config;
 use crate::exporters::db::AuroraClient;
+use crate::exporters::log_writer::LogWriter;
+use anyhow::{bail, Result};
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
+use reqwest::Client;
+use serde::Serialize;
+use sqlx::pool::PoolOptions;
+use sqlx::PgPool;
+use std::convert::TryFrom;
+use tracer_aws::config::SecretsClient;
+use tracer_aws::types::secrets::DatabaseAuth;
+use tracer_common::types::event::Event;
+use tracer_common::types::extracts::db::EventInsert;
+use tracing::{debug, info};
 
 #[derive(Serialize, Clone, Debug)]
 struct EventPayload {
@@ -40,7 +40,6 @@ impl LogForward {
     }
 }
 
-
 impl LogWriter for LogForward {
     async fn batch_insert_events(
         &self,
@@ -65,14 +64,14 @@ impl LogWriter for LogForward {
 
         let payload = EventPayload { events };
 
-        info!("Sending payload to endpoint {} with {} events", self.endpoint, payload.events.len());
+        info!(
+            "Sending payload to endpoint {} with {} events",
+            self.endpoint,
+            payload.events.len()
+        );
         debug!("Payload structure: {:?}", payload);
 
-        let res = match self.client
-            .post(&self.endpoint)
-            .json(&payload)
-            .send()
-            .await {
+        let res = match self.client.post(&self.endpoint).json(&payload).send().await {
             Ok(response) => response,
             Err(e) => {
                 return Err(anyhow::anyhow!("HTTP request failed: {:?}", e));
@@ -83,8 +82,15 @@ impl LogWriter for LogForward {
         debug!("Response status: {}", status);
 
         if !status.is_success() {
-            let error_body = res.text().await.unwrap_or_else(|_| "Could not read error response".to_string());
-            return Err(anyhow::anyhow!("Failed to send logs: {} - {}", status, error_body));
+            let error_body = res
+                .text()
+                .await
+                .unwrap_or_else(|_| "Could not read error response".to_string());
+            return Err(anyhow::anyhow!(
+                "Failed to send logs: {} - {}",
+                status,
+                error_body
+            ));
         }
 
         debug!(

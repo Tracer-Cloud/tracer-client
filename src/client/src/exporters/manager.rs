@@ -1,12 +1,12 @@
 use crate::exporters::log_writer::LogWriterEnum;
 
+use crate::exporters::log_writer::LogWriter;
 use std::sync::Arc;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::Mutex;
 use tracer_common::types::current_run::PipelineMetadata;
 use tracer_common::types::event::Event;
 use tracing::debug;
-use crate::exporters::log_writer::LogWriter;
 
 pub struct ExporterManager {
     pub db_client: LogWriterEnum,

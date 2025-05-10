@@ -45,22 +45,22 @@ pub struct TestServer {
 //             sentry_dsn: None,
 //             log_forward_endpoint: None,
 //         };
-// 
+//
 //         let db_client: dyn LogWriter = AuroraClient::from_pool(pool);
-// 
+//
 //         let args = TracerCliInitArgs::default();
-// 
+//
 //         TracerClient::new(config, path, db_client, args).await
 //     }
-// 
+//
 //     async fn get_tracer(pool: PgPool, path: String) -> Result<DaemonServer, anyhow::Error> {
 //         let server: SocketAddr = "127.0.0.1:0".parse()?; // 0: means port will be picked by the OS
 //         let client = Self::setup_client(pool, server.to_string(), path).await?;
-// 
+//
 //         let server = DaemonServer::bind(client, server).await?;
 //         Ok(server)
 //     }
-// 
+//
 //     pub async fn send_command(&self, command: &[&str]) -> Assert {
 //         let mut cmd = Command::cargo_bin("tracer_cli").unwrap();
 //         cmd.env("TRACER_SERVER", self.addr.to_string());
@@ -68,25 +68,25 @@ pub struct TestServer {
 //         cmd.env("RUST_BACKTRACE", "1");
 //         cmd.args(command);
 //         cmd.timeout(std::time::Duration::from_secs(30));
-// 
+//
 //         tokio::task::spawn_blocking(move || cmd.assert())
 //             .await
 //             .unwrap()
 //     }
-// 
+//
 //     pub async fn launch(pool: PgPool) -> anyhow::Result<Self> {
 //         let dir = TempDir::new()?;
 //         let server = Self::get_tracer(pool, dir.path().to_str().unwrap().to_string()).await?;
-// 
+//
 //         let addr = server.local_addr()?;
 //         println!("server listening on {}", addr);
-// 
+//
 //         let handle = tokio::task::spawn(server.run());
 //         // todo: do health check N times?
-// 
+//
 //         Ok(Self { dir, handle, addr })
 //     }
-// 
+//
 //     pub async fn finished(self) -> anyhow::Result<()> {
 //         self.handle.await??;
 //         Ok(())
