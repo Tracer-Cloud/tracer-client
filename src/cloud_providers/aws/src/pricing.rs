@@ -1,6 +1,5 @@
 use aws_sdk_pricing as pricing;
 use aws_sdk_pricing::types::Filter as PricingFilters;
-use log::{debug, error, warn};
 use tokio::time::{sleep, Duration};
 use tracing::{debug, error, info, trace, warn};
 

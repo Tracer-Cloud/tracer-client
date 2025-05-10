@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
+use itertools::Itertools;
 use sysinfo::{Pid, Process, ProcessRefreshKind, ProcessStatus, System};
 use tokio::sync::{mpsc, RwLock};
 use tracer_common::recorder::LogRecorder;
@@ -20,6 +21,7 @@ use tracer_common::types::event::attributes::EventAttributes;
 use tracer_common::types::trigger::{FinishTrigger, ProcessTrigger, Trigger};
 use tracer_ebpf_libbpf::start_processing_events;
 use tracing::{debug, error};
+use tracer_common::target_process::manager::TargetManager;
 
 enum ProcessResult {
     NotFound,
@@ -52,7 +54,7 @@ struct ProcessState {
     // Groups datasets by the nextflow session UUID
     datasamples_tracker: HashMap<String, HashSet<String>>,
     // List of targets to watch
-    targets: Vec<Target>,
+    target_manager: TargetManager,
     // Store task handle to ensure it stays alive
     ebpf_task: Option<tokio::task::JoinHandle<()>>,
 }
@@ -68,7 +70,7 @@ pub struct ProcessWatcher {
 
 impl ProcessWatcher {
     pub fn new(
-        targets: Vec<Target>,
+        target_manager: TargetManager,
         log_recorder: LogRecorder,
         file_watcher: Arc<RwLock<FileWatcher>>,
         system: Arc<RwLock<System>>,
@@ -76,7 +78,7 @@ impl ProcessWatcher {
         let state = Arc::new(RwLock::new(ProcessState {
             processes: HashMap::new(),
             monitoring: HashMap::new(),
-            targets: targets.clone(),
+            target_manager,
             datasamples_tracker: HashMap::new(),
             ebpf_task: None,
         }));
@@ -93,7 +95,7 @@ impl ProcessWatcher {
     /// Updates the list of targets being watched
     pub async fn update_targets(self: &Arc<Self>, targets: Vec<Target>) -> Result<()> {
         let mut state = self.state.write().await;
-        state.targets = targets;
+        state.target_manager.targets = targets;
         Ok(())
     }
 
@@ -489,28 +491,105 @@ impl ProcessWatcher {
         hierarchy
     }
 
-    async fn find_matching_processes(
-        self: &Arc<ProcessWatcher>,
-        triggers: Vec<ProcessTrigger>,
-    ) -> Result<Vec<(Target, HashSet<ProcessTrigger>)>> {
-        let mut matched_processes = vec![];
-        let targets = &self.state.read().await.targets;
+    /// Gets a process and all its parent processes from the state
+    ///
+    /// Will panic if a cycle is detected in the process hierarchy.
+    fn get_process_parents<'a>(
+        state: &'a ProcessState,
+        process: &'a ProcessTrigger,
+    ) -> HashSet<&'a ProcessTrigger> {
+        let mut current_pid = process.ppid;
+        let mut hierarchy = HashSet::new();
+        // Keep track of visited PIDs to detect cycles
+        let mut visited_pids = HashSet::new();
 
-        for target in targets {
-            let mut matches: HashSet<ProcessTrigger> = HashSet::new();
+        // Store the process PID before moving the process
+        let process_pid = process.pid;
 
-            for trigger in triggers.iter() {
-                if target.matches(&trigger.comm, &trigger.argv.join(" "), &trigger.file_name) {
-                    matches.insert(trigger.clone());
-                }
+        // Insert the process into the hierarchy (this moves the process)
+        hierarchy.insert(process);
+
+        // Add the starting process PID to visited
+        visited_pids.insert(process_pid);
+
+        // Traverse up the process tree to include all parent processes
+        while let Some(parent) = state.processes.get(&current_pid) {
+            // Check if we've seen this PID before - that would indicate a cycle
+            if visited_pids.contains(&parent.pid) {
+                // We have a cycle in the process hierarchy - this shouldn't happen
+                // in normal scenarios, but we'll panic to prevent infinite loops
+                panic!(
+                    "Cycle detected in process hierarchy! PID {} appears twice in parent chain",
+                    parent.pid
+                );
             }
 
-            if !matches.is_empty() {
-                matched_processes.push((target.clone(), matches));
+            // Track that we've visited this PID
+            visited_pids.insert(parent.pid);
+
+            // Add parent to the hierarchy
+            hierarchy.insert(parent);
+
+            // Move to the next parent
+            current_pid = parent.ppid;
+        }
+
+        hierarchy
+    }
+
+
+    pub async fn find_matching_processes(
+        self: &Arc<ProcessWatcher>,
+        triggers: Vec<ProcessTrigger>,
+    ) -> Result<HashMap<Target, HashSet<ProcessTrigger>>> {
+        let state = self.state.read().await;
+        let mut matched_processes = HashMap::new();
+
+        for trigger in triggers {
+            if let Some(matched_target) = Self::get_matched_target(&state, &trigger) {
+                let matched_target = matched_target.clone(); // todo: remove clone, or move targets to arcs?
+                matched_processes
+                    .entry(matched_target)
+                    .or_insert(HashSet::new())
+                    .insert(trigger);
             }
         }
 
         Ok(matched_processes)
+    }
+
+    fn get_matched_target<'a>(
+        state: &'a ProcessState,
+        process: &ProcessTrigger,
+    ) -> Option<&'a Target> {
+        if let Some(target) = state.target_manager.get_target_match(process) {
+            return Some(target);
+        }
+
+        let eligible_targets_for_parents = state
+            .target_manager
+            .targets
+            .iter()
+            .filter(|target| !target.should_force_ancestor_to_match())
+            .collect_vec();
+
+        if eligible_targets_for_parents.is_empty() {
+            return None;
+        }
+
+        // here it's tempting to check if the parent is just in the monitoring list. However, we can't do that because
+        // parent may be matching but not yet set to be monitoring (e.g. because it just arrived or even is in the same batch)
+
+        let parents = Self::get_process_parents(state, process);
+        for parent in parents {
+            for target in eligible_targets_for_parents.iter() {
+                if target.matches_process(parent) {
+                    return Some(target);
+                }
+            }
+        }
+
+        None
     }
 
     async fn handle_new_process(
