@@ -13,7 +13,7 @@ chrono = { workspace = true }
 clap = { workspace = true }
 homedir = { workspace = true }
 log = { workspace = true }
-
+reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sysinfo = { workspace = true }

@@ -17,10 +17,10 @@
 #-------------------------------------------------------------------------------
 # https://github.com/Tracer-Cloud/tracer-client/releases/download/v0.0.8/tracer-universal-apple-darwin.tar.gz
 SCRIPT_VERSION="v0.0.1"
-TRACER_VERSION="${TRACER_VERSION:-"v2025.5.1+1"}" # Default to "v2025.5.1+1"
+TRACER_VERSION="development"
 TRACER_LINUX_URL_X86_64="https://tracer-releases.s3.us-east-1.amazonaws.com/tracer-x86_64-unknown-linux-gnu.tar.gz"
-TRACER_LINUX_URL_ARM="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer_cli-aarch64-unknown-linux-gnu.tar.gz"
-TRACER_AMAZON_LINUX_URL_X86_64="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-x86_64-amazon-linux-gnu.tar.gz"
+TRACER_LINUX_URL_ARM="https://tracer-releases.s3.us-east-1.amazonaws.com/tracer-aarch64-unknown-linux-gnu.tar.gz"
+TRACER_AMAZON_LINUX_URL_X86_64="https://tracer-releases.s3.us-east-1.amazonaws.com/tracer-x86_64-amazon-linux-gnu.tar.gz"
 TRACER_MACOS_AARCH_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-aarch64-apple-darwin.tar.gz"
 TRACER_MACOS_X86_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-x86_64-apple-darwin.tar.gz"
 
@@ -319,14 +319,14 @@ function download_tracer() {
     printpinfo "Extracting package..."
     tar -xzf "${DLTARGET}/${PACKAGE_NAME}" -C "$EXTRACTTARGET"
     printmsg " done."
-    chmod +x "${EXTRACTTARGET}/tracer_cli"
+    chmod +x "${EXTRACTTARGET}/tracer"
     if [ $? -ne 0 ]; then
         printerror "Failed to set executable permissions on extracted binary. Please check your permissions and mount flags."
         exit 1
     fi
 
     # move binary to bin dir
-    mv "${EXTRACTTARGET}/tracer_cli" "$BINDIR/tracer"
+    mv "${EXTRACTTARGET}/tracer" "$BINDIR/tracer"
     if [ $? -ne 0 ]; then
         printerror "Failed to move Tracer binary to ${Blu}$BINDIR${RCol}. Please check your permissions and try again."
         exit 1
@@ -448,7 +448,7 @@ send_event() {
 #-------------------------------------------------------------------------------
 setup_tracer_configuration_file() {
     # Define the content of the tracer.toml file
-    TRACER_DEV_TOML_CONTENT=$(
+    TRACER_TOML_CONTENT=$(
         cat <<EOL
 polling_interval_ms = 1500
 api_key = "$API_KEY"
@@ -460,52 +460,27 @@ file_size_not_changing_period_ms = 60000
 process_metrics_send_interval_ms = 10000
 aws_region = "us-east-2"
 aws_role_arn = "arn:aws:iam::395261708130:role/TestTracerClientServiceRole"
+
 database_secrets_arn = "arn:aws:secretsmanager:us-east-1:395261708130:secret:rds!cluster-51d6638e-5975-4a26-95d3-e271ac9b2a04-dOWVVO"
 database_host = "tracer-development-cluster.cluster-cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432"
-database_name = "tracer_db"
-grafana_workspace_url = "https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com"
-sentry_dsn = "https://35e0843e6748d2c93dfd56716f2eecfe@o4509281671380992.ingest.us.sentry.io/4509281680949248"
-EOL
-    )
 
-        TRACER_PROD_TOML_CONTENT=$(
-        cat <<EOL
-polling_interval_ms = 1500
-api_key = "$API_KEY"
-service_url = "https://app.tracer.bio/api"
-process_polling_interval_ms = 25
-batch_submission_interval_ms = 5000
-new_run_pause_ms = 600000
-file_size_not_changing_period_ms = 60000
-process_metrics_send_interval_ms = 10000
-aws_region = "us-east-2"
-aws_role_arn = "arn:aws:iam::395261708130:role/TestTracerClientServiceRole"
-database_secrets_arn = "arn:aws:secretsmanager:us-east-1:395261708130:secret:rds!cluster-cd690a09-953c-42e9-9d9f-1ed0b434d226-M0wZYA"
-database_host = "tracer-cluster-production.cluster-cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432"
 database_name = "tracer_db"
-endpoint = "https://sandbox.tracer.cloud/api/logs"
+
 grafana_workspace_url = "https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com"
-sentry_dsn = "https://35e0843e6748d2c93dfd56716f2eecfe@o4509281671380992.ingest.us.sentry.io/4509281680949248"
 EOL
     )
 
     # Create the destination directory if it doesn't exist
     mkdir -p ~/.config/tracer
 
-    # Create the tracer configuration files with the specified content directly in the target directory
-    echo "$TRACER_DEV_TOML_CONTENT" > ~/.config/tracer/tracer.development.toml \
-    && echo "$TRACER_PROD_TOML_CONTENT" > ~/.config/tracer/tracer.production.toml
+    # Create the tracer.toml file with the specified content directly in the target directory
+    echo "$TRACER_TOML_CONTENT" > ~/.config/tracer/tracer.toml
 
-    # Confirm the files have been created with the correct content
+    # Confirm the file has been created with the correct content
     if [ $? -eq 0 ]; then
-        echo "tracer.development.toml and tracer.production.toml have been successfully created in ~/.config/tracer/"
+        echo "tracer.toml has been successfully created in ~/.config/tracer/tracer.toml"
     else
-        echo "Failed to create tracer configuration files"
-    fi
-
-    # Testing overrides
-    if [ -d "$HOME/tracer-client" ]; then
-        cp ~/.config/tracer/tracer.development.toml "$HOME/tracer-client/tracer.local.toml"
+        echo "Failed to create tracer.toml"
     fi
 }
 
