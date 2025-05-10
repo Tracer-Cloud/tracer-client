@@ -34,7 +34,7 @@ sudo apt install clang libelf1 libelf-dev zlib1g-dev
 
 # Clone *and* pull submodules in one go
 git clone --recurse-submodules https://github.com/Tracer-Cloud/tracer-client
-cd ebpf-libbpf
+cd src/ebpf-libbpf
 
 # (Or, if you already cloned)
 git submodule update --init --recursive
