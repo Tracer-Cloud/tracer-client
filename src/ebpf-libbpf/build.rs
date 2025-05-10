@@ -28,9 +28,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Tell cargo where to find the libraries
     println!("cargo:rustc-link-search=native={}", out_dir);
 
-    // Use full paths to the static libraries to ensure correct linking
-    println!("cargo:rustc-link-arg={}/libbootstrap.a", out_dir);
-    println!("cargo:rustc-link-arg={}/libbpf.a", out_dir);
+    // Link to the static libraries
+    println!("cargo:rustc-link-lib=static=bootstrap");
+    println!("cargo:rustc-link-lib=static=bpf");
 
     // Link required system libraries
     println!("cargo:rustc-link-lib=elf");

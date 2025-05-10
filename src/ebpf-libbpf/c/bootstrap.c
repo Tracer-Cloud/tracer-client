@@ -55,21 +55,21 @@ static int handle_event_standalone(void *ctx, void *data, size_t data_sz)
 	tm = localtime(&t);
 	strftime(ts, sizeof(ts), "%H:%M:%S", tm);
 
-	if (e->exit_event)
+	if (e->event_type == 1) // ProcessEnterType::Finish
 	{
-		printf("%-8s %-5s %-16s %-7d %-7d [%u] ts: %llu\n", ts, "EXIT", e->comm, e->pid,
-					 e->ppid, e->exit_code, e->started_at);
+		printf("%-8s %-5s %-16s %-7d %-7d [finished] ts: %llu\n", ts, "EXIT", e->comm, e->pid,
+					 e->ppid, e->time);
 	}
-	else
+	else // ProcessEnterType::Start
 	{
 		printf("%-8s %-5s %-16s %-7d %-7d %s ts: %llu\n", ts, "EXEC", e->comm, e->pid,
-					 e->ppid, e->file_name, e->started_at);
+					 e->ppid, e->file_name, e->time);
 
 		/* Print argv if available */
-		if (e->argc > 0)
+		if (e->len > 0)
 		{
-			printf("    argv[%d]: ", e->argc);
-			for (i = 0; i < e->argc; i++)
+			printf("    argv[%ld]: ", e->len);
+			for (i = 0; i < e->len; i++)
 			{
 				printf("%s ", e->argv[i]);
 			}

@@ -5,6 +5,7 @@ use std::sync::{mpsc as std_mpsc, Arc};
 use tokio::sync::mpsc::Sender;
 use tokio::task;
 use tracer_common::types::trigger::Trigger;
+use tracer_ebpf_common::process_enter::ProcessRawTrigger;
 
 // Define the FFI interface to the C function
 #[link(name = "bootstrap", kind = "static")]
@@ -51,18 +52,29 @@ pub fn start_processing_events(tx: Sender<Trigger>) -> Result<()> {
 
             // Parse events from the buffer
             let buffer_slice = &context.buffer[..filled_bytes];
-            let event_size = std::mem::size_of::<Trigger>();
+            let event_size = std::mem::size_of::<ProcessRawTrigger>();
             let event_count = filled_bytes / event_size;
             let mut events = Vec::with_capacity(event_count);
 
             for i in 0..event_count {
-                let event_ptr = buffer_slice.as_ptr().add(i * event_size) as *const Trigger;
-                let event = ptr::read(event_ptr);
-                events.push(event);
+                let event_ptr =
+                    buffer_slice.as_ptr().add(i * event_size) as *const ProcessRawTrigger;
+                let raw_event = ptr::read(event_ptr);
+
+                // Convert from ProcessRawTrigger to Trigger
+                match (&raw_event).try_into() {
+                    Ok(trigger) => events.push(trigger),
+                    Err(e) => {
+                        eprintln!("Error converting event: {:?}", e);
+                        continue;
+                    }
+                }
             }
 
             // Send the events to our channel
-            let _ = context.shared_context.events_tx.send(events);
+            if !events.is_empty() {
+                let _ = context.shared_context.events_tx.send(events);
+            }
 
             // Signal that we should call initialize again
             let _ = context.shared_context.initialize_tx.send(());
