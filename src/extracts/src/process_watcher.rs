@@ -18,7 +18,7 @@ use tracer_common::types::event::attributes::process::{
 };
 use tracer_common::types::event::attributes::EventAttributes;
 use tracer_common::types::trigger::{FinishTrigger, ProcessTrigger, Trigger};
-use tracer_ebpf_libbpf::binding::start_processing_events;
+use tracer_ebpf_libbpf::start_processing_events;
 use tracing::{debug, error};
 
 enum ProcessResult {
@@ -57,7 +57,7 @@ struct ProcessState {
 
 /// Watches system processes and records events related to them
 pub struct ProcessWatcher {
-    ebpf: once_cell::sync::OnceCell<TracerEbpf>, // not tokio, because TracerEbpf is sync
+    ebpf: once_cell::sync::OnceCell<()>, // not tokio, because ebpf initialisation is sync
     log_recorder: LogRecorder,
     file_watcher: Arc<RwLock<FileWatcher>>,
     system: Arc<RwLock<System>>,
@@ -101,7 +101,7 @@ impl ProcessWatcher {
         Ok(())
     }
 
-    fn initialize_ebpf(self: Arc<Self>) -> Result<TracerEbpf, anyhow::Error> {
+    fn initialize_ebpf(self: Arc<Self>) -> Result<(), anyhow::Error> {
         let (tx, rx) = mpsc::channel::<Trigger>(100);
         let ebpf = start_processing_events(tx.clone())?;
 

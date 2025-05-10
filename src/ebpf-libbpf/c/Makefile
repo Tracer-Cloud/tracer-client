@@ -42,11 +42,11 @@ $(call allow-override,CC,$(CROSS_COMPILE)cc)
 $(call allow-override,LD,$(CROSS_COMPILE)ld)
 
 .PHONY: all clean
-all: bootstrap libkernel.a
+all: bootstrap libbootstrap.a
 
 clean:
 	$(call msg,CLEAN)
-	$(Q)rm -rf $(OUTPUT) bootstrap libkernel.a
+	$(Q)rm -rf $(OUTPUT) bootstrap libbootstrap.a
 
 $(OUTPUT) $(OUTPUT)/libbpf $(BPFTOOL_OUTPUT):
 	$(call msg,MKDIR,$@)
@@ -95,7 +95,7 @@ $(OUTPUT)/bootstrap_lib.o: bootstrap.c $(OUTPUT)/bootstrap.skel.h $(wildcard *.h
 	$(call msg,CC,$@)
 	$(Q)$(CC) $(CFLAGS) -DLIBRARY_MODE $(INCLUDES) -c $(filter %.c,$^) -o $@
 
-libkernel.a: $(OUTPUT)/bootstrap_lib.o $(LIBBPF_OBJ) | $(OUTPUT)
+libbootstrap.a: $(OUTPUT)/bootstrap_lib.o $(LIBBPF_OBJ) | $(OUTPUT)
 	$(call msg,STATICLIB,$@)
 	$(Q)$(AR) rcs $@ $^
 

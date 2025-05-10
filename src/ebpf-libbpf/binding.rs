@@ -1,14 +1,13 @@
 use anyhow::Result;
 use std::ffi::c_void;
-use std::mem;
 use std::ptr;
-use std::sync::{mpsc as std_mpsc, Arc, Mutex};
+use std::sync::{mpsc as std_mpsc, Arc};
 use tokio::sync::mpsc::Sender;
 use tokio::task;
-use tracer_common::types::event::Event;
+use tracer_common::types::trigger::Trigger;
 
 // Define the FFI interface to the C function
-#[link(name = "kernel", kind = "static")]
+#[link(name = "bootstrap", kind = "static")]
 extern "C" {
     // Corresponds to the initialize function in bootstrap_api.h
     fn initialize(
@@ -21,7 +20,7 @@ extern "C" {
 
 // Define a struct to hold our context
 struct ProcessingContext {
-    events_tx: std_mpsc::Sender<Vec<Event>>,
+    events_tx: std_mpsc::Sender<Vec<Trigger>>,
     initialize_tx: std_mpsc::Sender<()>,
 }
 
@@ -31,11 +30,11 @@ struct BufferContext {
     shared_context: Arc<ProcessingContext>,
 }
 
-pub fn start_processing_events(tx: Sender<Event>) -> Result<()> {
-    // Create a channel for sending events from the C callback to our Rust thread
-    let (events_tx, events_rx) = std_mpsc::channel::<Vec<Event>>();
+pub fn start_processing_events(tx: Sender<Trigger>) -> Result<()> {
+    // Channel for sending events from the C callback to our Rust thread
+    let (events_tx, events_rx) = std_mpsc::channel::<Vec<Trigger>>();
 
-    // Create a channel for signaling when to call initialize again
+    // Channel for signaling when to call initialize again
     let (initialize_tx, initialize_rx) = std_mpsc::channel::<()>();
 
     // Create our shared context
@@ -44,7 +43,7 @@ pub fn start_processing_events(tx: Sender<Event>) -> Result<()> {
         initialize_tx,
     });
 
-    // Define our callback function that will be called by the C code
+    // Callback to be invoked by the C code, notifying Rust of writes to the shared buffer
     extern "C" fn callback_func(context_ptr: *mut c_void, filled_bytes: usize) {
         unsafe {
             // Get our context
@@ -52,12 +51,12 @@ pub fn start_processing_events(tx: Sender<Event>) -> Result<()> {
 
             // Parse events from the buffer
             let buffer_slice = &context.buffer[..filled_bytes];
-            let event_size = std::mem::size_of::<Event>();
+            let event_size = std::mem::size_of::<Trigger>();
             let event_count = filled_bytes / event_size;
             let mut events = Vec::with_capacity(event_count);
 
             for i in 0..event_count {
-                let event_ptr = buffer_slice.as_ptr().add(i * event_size) as *const Event;
+                let event_ptr = buffer_slice.as_ptr().add(i * event_size) as *const Trigger;
                 let event = ptr::read(event_ptr);
                 events.push(event);
             }
@@ -112,7 +111,7 @@ pub fn start_processing_events(tx: Sender<Event>) -> Result<()> {
         }
     });
 
-    // Spawn a Tokio task to forward events from the std channel to the Tokio channel
+    // Task to forward events from internal std channel to external Tokio channel
     task::spawn(async move {
         while let Ok(events) = events_rx.recv() {
             for event in events {

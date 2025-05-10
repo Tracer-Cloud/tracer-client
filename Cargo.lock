@@ -5389,7 +5389,6 @@ name = "tracer_ebpf_libbpf"
 version = "2025.5.1+1"
 dependencies = [
  "anyhow",
- "aya-build",
  "bytes",
  "env_logger",
  "log",
@@ -5398,7 +5397,6 @@ dependencies = [
  "tokio-util",
  "tracer_common",
  "tracer_ebpf_common",
- "tracer_ebpf_kernel",
  "tracing",
 ]
 

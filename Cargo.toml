@@ -23,6 +23,7 @@ default-members = [
     "integration_tests",
     "src/ebpf/common",
     "src/ebpf/user",
+    "src/ebpf-libbpf"
 ]
 
 [workspace.package]
