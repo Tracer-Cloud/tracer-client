@@ -21,10 +21,7 @@ pub struct TestServer {
 }
 
 impl TestServer {
-    async fn setup_client(
-        server: String,
-        path: String,
-    ) -> Result<TracerClient, anyhow::Error> {
+    async fn setup_client(server: String, path: String) -> Result<TracerClient, anyhow::Error> {
         let config = Config {
             api_key: "EAjg7eHtsGnP3fTURcPz1".to_string(),
             process_polling_interval_ms: 100,
