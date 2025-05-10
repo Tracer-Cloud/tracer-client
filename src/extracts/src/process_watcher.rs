@@ -4,14 +4,15 @@ use crate::data_samples::DATA_SAMPLES_EXT;
 use crate::file_watcher::FileWatcher;
 use anyhow::Result;
 use chrono::Utc;
+use itertools::Itertools;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
-use itertools::Itertools;
 use sysinfo::{Pid, Process, ProcessRefreshKind, ProcessStatus, System};
 use tokio::sync::{mpsc, RwLock};
 use tracer_common::recorder::LogRecorder;
+use tracer_common::target_process::manager::TargetManager;
 use tracer_common::target_process::{Target, TargetMatchable};
 use tracer_common::types::event::attributes::process::{
     CompletedProcess, DataSetsProcessed, FullProcessProperties, InputFile, ProcessProperties,
@@ -21,7 +22,6 @@ use tracer_common::types::event::attributes::EventAttributes;
 use tracer_common::types::trigger::{FinishTrigger, ProcessTrigger, Trigger};
 use tracer_ebpf_libbpf::start_processing_events;
 use tracing::{debug, error};
-use tracer_common::target_process::manager::TargetManager;
 
 enum ProcessResult {
     NotFound,
@@ -536,7 +536,6 @@ impl ProcessWatcher {
 
         hierarchy
     }
-
 
     pub async fn find_matching_processes(
         self: &Arc<ProcessWatcher>,
