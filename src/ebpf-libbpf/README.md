@@ -33,7 +33,7 @@ Advantages over linking against system libraries include:
 sudo apt install clang libelf1 libelf-dev zlib1g-dev
 
 # Clone *and* pull submodules in one go
-git clone --recurse-submodules https://github.com/
+git clone --recurse-submodules https://github.com/Tracer-Cloud/tracer-client
 cd ebpf-libbpf
 
 # (Or, if you already cloned)
