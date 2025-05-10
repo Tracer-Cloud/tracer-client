@@ -65,7 +65,7 @@ pub fn start_processing_events(tx: Sender<Trigger>) -> anyhow::Result<TracerEbpf
 }
 
 pub fn load_ebpf() -> anyhow::Result<Ebpf> {
-    // env_logger::init();
+    env_logger::init();
 
     // Bump the memlock rlimit. This is needed for older kernels that don't use the
     // new memcg based accounting, see https://lwn.net/Articles/837122/
