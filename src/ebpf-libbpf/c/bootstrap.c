@@ -86,6 +86,19 @@ static int handle_event_lib(void *ctx, void *data, size_t data_sz)
 	struct lib_ctx *lib_ctx = (struct lib_ctx *)ctx;
 	static size_t filled_bytes = 0;
 
+	// Validate data and size
+	if (!data || data_sz == 0)
+	{
+		return 0;
+	}
+
+	// Check if the event size makes sense
+	if (data_sz != sizeof(struct event))
+	{
+		fprintf(stderr, "C: Warning: Event size mismatch - got %zu, expected %zu\n",
+						data_sz, sizeof(struct event));
+	}
+
 	// Don't overflow the buffer
 	if (filled_bytes + data_sz > lib_ctx->buffer_size)
 	{
@@ -99,6 +112,8 @@ static int handle_event_lib(void *ctx, void *data, size_t data_sz)
 		// If the event is too large for the buffer, we have to skip it
 		if (data_sz > lib_ctx->buffer_size)
 		{
+			fprintf(stderr, "C: Event too large for buffer (%zu > %zu), skipping\n",
+							data_sz, lib_ctx->buffer_size);
 			return 0;
 		}
 	}
@@ -107,8 +122,8 @@ static int handle_event_lib(void *ctx, void *data, size_t data_sz)
 	memcpy((char *)lib_ctx->buffer + filled_bytes, data, data_sz);
 	filled_bytes += data_sz;
 
-	// If we have a reasonable amount of data, flush it
-	if (filled_bytes >= lib_ctx->buffer_size / 2)
+	// Always flush immediately
+	if (filled_bytes > 0)
 	{
 		lib_ctx->callback(lib_ctx->callback_ctx, filled_bytes);
 		filled_bytes = 0;
@@ -128,6 +143,17 @@ int initialize(void *buffer, size_t byte_count, event_callback_t callback, void 
 			.skel = NULL,
 			.rb = NULL};
 	int err;
+
+	// Safety: maximum number of events to process in one batch
+	const int max_events_per_poll = 100;
+	// Safety: maximum time to run before returning (in seconds)
+	const int max_runtime_seconds = 30;
+	// Safety: maximum number of polling iterations
+	const int max_poll_iterations = 5;
+
+	time_t start_time = time(NULL);
+	int poll_count = 0;
+	int total_events = 0;
 
 	/* Set up libbpf errors and debug info callback */
 	libbpf_set_print(libbpf_print_fn);
@@ -168,7 +194,36 @@ int initialize(void *buffer, size_t byte_count, event_callback_t callback, void 
 	/* Process events */
 	while (!exiting)
 	{
+		poll_count++;
+
+		// Safety check for maximum iterations
+		if (poll_count > max_poll_iterations)
+		{
+			break;
+		}
+
+		// Safety check for maximum runtime
+		time_t current_time = time(NULL);
+		if (difftime(current_time, start_time) > max_runtime_seconds)
+		{
+			break;
+		}
+
+		// Poll with short timeout
 		err = ring_buffer__poll(ctx.rb, 100 /* timeout, ms */);
+
+		// Count total events processed
+		if (err > 0)
+		{
+			total_events += err;
+
+			// Safety check for maximum events
+			if (total_events > max_events_per_poll)
+			{
+				break;
+			}
+		}
+
 		/* Ctrl-C will cause -EINTR */
 		if (err == -EINTR)
 		{

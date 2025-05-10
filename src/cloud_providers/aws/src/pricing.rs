@@ -95,7 +95,7 @@ impl PricingClient {
     ) -> Result<Option<FlattenedData>, Box<dyn std::error::Error + Send + Sync>> {
         // Create paginated request to AWS Pricing API
 
-        println!("Filters being applied: {:?}", filters); // Print statement
+        // println!("Filters being applied: {:?}", filters); // Print statement
 
         let mut response = self
             .client
@@ -116,7 +116,7 @@ impl PricingClient {
             let output = output?;
 
             // Print the raw API response
-            println!("API Response: {:?}", output);
+            // println!("API Response: {:?}", output);
 
             // Process each product in the current page
             for product in output.price_list() {
@@ -126,7 +126,7 @@ impl PricingClient {
                         // Print and log the parsed pricing data
                         // Convert the complex pricing data into a flattened format
                         let flat_data = FlattenedData::flatten_data(&pricing.into());
-                        println!("Flattened pricing data: {:?}", flat_data); // Print statement
+                        // println!("Flattened pricing data: {:?}", flat_data); // Print statement
                         data.push(flat_data);
                     }
                     Err(e) => {
