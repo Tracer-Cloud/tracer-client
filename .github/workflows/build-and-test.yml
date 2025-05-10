@@ -30,8 +30,10 @@ jobs:
           --health-retries 5
 
     steps:
-      - name: Check out
+      - name: Check out repository with submodules
         uses: actions/checkout@v4.1.4
+        with:
+          submodules: recursive  # This will fetch all submodules recursively
 
       - name: Setup Rust toolchain
         run: |
@@ -60,11 +62,26 @@ jobs:
       - name: Install build dependencies
         run: |
           rustup toolchain install nightly-2025-04-15 --component rust-src
-          which bpf-linker || cargo install bpf-linker
-          which bindgen || cargo install bindgen-cli
-          which aya-tool || cargo install --git https://github.com/aya-rs/aya -- aya-tool
-          aya-tool generate task_struct > src/ebpf/kernel/src/gen.rs
+          
+          # Install necessary eBPF dependencies
+          sudo apt-get update
+          sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm
 
+      # Verify submodules are properly loaded
+      - name: Verify submodule content
+        run: |
+          # List files in the vendor directory to ensure vmlinux.h is present
+          find vendor -name "vmlinux.h" -type f || echo "vmlinux.h not found in vendor"
+          
+          # Debug output for troubleshooting
+          ls -la vendor/ || echo "No vendor directory found"
+          
+          # If the file is still missing after submodule checkout, report where it should be
+          if [ ! -f vendor/vmlinux.h/include/x86/vmlinux.h ]; then
+            echo "WARNING: Expected vmlinux.h file is missing at vendor/vmlinux.h/include/x86/vmlinux.h"
+            # Uncomment below if you want to create directory structure for further debugging
+            # mkdir -p vendor/vmlinux.h/include/x86
+          fi
 
       - name: Check Formatting
         run: cargo fmt -- --check
@@ -124,4 +141,3 @@ jobs:
 
       - name: Run Parallel tests
         run: make test-parallel
-

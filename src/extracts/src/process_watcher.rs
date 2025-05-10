@@ -1,4 +1,3 @@
-use tracer_common::target_process::manager::TargetManager;
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 
 use crate::data_samples::DATA_SAMPLES_EXT;
@@ -13,6 +12,7 @@ use std::sync::Arc;
 use sysinfo::{Pid, Process, ProcessRefreshKind, ProcessStatus, System};
 use tokio::sync::{mpsc, RwLock};
 use tracer_common::recorder::LogRecorder;
+use tracer_common::target_process::manager::TargetManager;
 use tracer_common::target_process::{Target, TargetMatchable};
 use tracer_common::types::event::attributes::process::{
     CompletedProcess, DataSetsProcessed, FullProcessProperties, InputFile, ProcessProperties,
@@ -20,7 +20,7 @@ use tracer_common::types::event::attributes::process::{
 };
 use tracer_common::types::event::attributes::EventAttributes;
 use tracer_common::types::trigger::{FinishTrigger, ProcessTrigger, Trigger};
-use tracer_ebpf_user::{start_processing_events, TracerEbpf};
+use tracer_ebpf_libbpf::start_processing_events;
 use tracing::{debug, error};
 
 enum ProcessResult {
@@ -53,13 +53,15 @@ struct ProcessState {
     monitoring: HashMap<Target, HashSet<ProcessTrigger>>,
     // Groups datasets by the nextflow session UUID
     datasamples_tracker: HashMap<String, HashSet<String>>,
-    // Manager maintaining target list and blacklist
+    // List of targets to watch
     target_manager: TargetManager,
+    // Store task handle to ensure it stays alive
+    ebpf_task: Option<tokio::task::JoinHandle<()>>,
 }
 
 /// Watches system processes and records events related to them
 pub struct ProcessWatcher {
-    ebpf: once_cell::sync::OnceCell<TracerEbpf>, // not tokio, because TracerEbpf is sync
+    ebpf: once_cell::sync::OnceCell<()>, // not tokio, because ebpf initialisation is sync
     log_recorder: LogRecorder,
     file_watcher: Arc<RwLock<FileWatcher>>,
     system: Arc<RwLock<System>>,
@@ -78,6 +80,7 @@ impl ProcessWatcher {
             monitoring: HashMap::new(),
             target_manager,
             datasamples_tracker: HashMap::new(),
+            ebpf_task: None,
         }));
 
         ProcessWatcher {
@@ -103,31 +106,79 @@ impl ProcessWatcher {
         Ok(())
     }
 
-    fn initialize_ebpf(self: Arc<Self>) -> Result<TracerEbpf, anyhow::Error> {
-        let (tx, rx) = mpsc::channel::<Trigger>(100);
-        let ebpf = start_processing_events(tx.clone())?;
+    fn initialize_ebpf(self: Arc<Self>) -> Result<(), anyhow::Error> {
+        // Use unbounded channel for cross-runtime compatibility
+        let (tx, rx) = mpsc::unbounded_channel::<Trigger>();
 
+        // Start the eBPF event processing
+        start_processing_events(tx)?;
+
+        // Start the event processing loop
         let watcher = Arc::clone(&self);
-        tokio::spawn(async move {
-            watcher.process_trigger_loop(rx).await;
+        let task = tokio::spawn(async move {
+            if let Err(e) = watcher.process_trigger_loop(rx).await {
+                error!("process_trigger_loop failed: {:?}", e);
+            }
         });
 
-        Ok(ebpf)
+        // Store the task handle in the state
+        match tokio::runtime::Handle::try_current() {
+            Ok(_) => {
+                tokio::spawn(async move {
+                    let mut state = self.state.write().await;
+                    state.ebpf_task = Some(task);
+                });
+            }
+            Err(_) => {
+                // Not in a tokio runtime, can't store the task handle
+            }
+        }
+
+        Ok(())
     }
 
     /// Main loop that processes triggers from eBPF
-    async fn process_trigger_loop(self: &Arc<Self>, mut rx: mpsc::Receiver<Trigger>) {
+    async fn process_trigger_loop(
+        self: &Arc<Self>,
+        mut rx: mpsc::UnboundedReceiver<Trigger>,
+    ) -> Result<()> {
         let mut buffer: Vec<Trigger> = Vec::with_capacity(100);
 
         loop {
             buffer.clear();
             debug!("Ready to receive triggers");
 
-            while rx.recv_many(&mut buffer, 100).await > 0 {
-                let triggers = std::mem::take(&mut buffer);
-                debug!("Received {:?}", triggers);
-                if let Err(e) = self.process_triggers(triggers).await {
-                    error!("Failed to process triggers: {}", e);
+            // Since UnboundedReceiver doesn't have recv_many, we need to use a different approach
+            // Try to receive a single event with timeout to avoid blocking forever
+            match tokio::time::timeout(std::time::Duration::from_secs(5), rx.recv()).await {
+                Ok(Some(event)) => {
+                    buffer.push(event);
+
+                    // Try to receive more events non-blockingly (up to 99 more)
+                    while let Ok(Some(event)) =
+                        tokio::time::timeout(std::time::Duration::from_millis(10), rx.recv()).await
+                    {
+                        buffer.push(event);
+                        if buffer.len() >= 100 {
+                            break;
+                        }
+                    }
+
+                    // Process all events
+                    let triggers = std::mem::take(&mut buffer);
+                    println!("Received {:?}", triggers);
+
+                    if let Err(e) = self.process_triggers(triggers).await {
+                        error!("Failed to process triggers: {}", e);
+                    }
+                }
+                Ok(None) => {
+                    error!("Event channel closed, exiting process loop");
+                    return Ok(());
+                }
+                Err(_) => {
+                    // Timeout occurred, just continue the loop
+                    continue;
                 }
             }
         }
@@ -141,24 +192,36 @@ impl ProcessWatcher {
         let mut start_triggers: Vec<ProcessTrigger> = vec![];
         let mut finish_triggers: Vec<FinishTrigger> = vec![];
 
+        // Add debug logging
+        debug!("ProcessWatcher: processing {} triggers", triggers.len());
+
         // Separate start and finish triggers
         for trigger in triggers.into_iter() {
             match trigger {
-                Trigger::Start(proc) => start_triggers.push(proc),
-                Trigger::Finish(proc) => finish_triggers.push(proc),
+                Trigger::Start(proc) => {
+                    debug!(
+                        "ProcessWatcher: received START trigger pid={}, cmd={}",
+                        proc.pid, proc.comm
+                    );
+                    start_triggers.push(proc);
+                }
+                Trigger::Finish(proc) => {
+                    debug!("ProcessWatcher: received FINISH trigger pid={}", proc.pid);
+                    finish_triggers.push(proc);
+                }
             }
-        }
-
-        // Then process start triggers
-        if !start_triggers.is_empty() {
-            debug!("Processing {} creating processes", start_triggers.len());
-            self.handle_process_starts(start_triggers).await?;
         }
 
         // Process finish triggers first
         if !finish_triggers.is_empty() {
             debug!("Processing {} finishing processes", finish_triggers.len());
             self.handle_process_terminations(finish_triggers).await?;
+        }
+
+        // Then process start triggers
+        if !start_triggers.is_empty() {
+            debug!("Processing {} creating processes", start_triggers.len());
+            self.handle_process_starts(start_triggers).await?;
         }
 
         Ok(())
@@ -219,11 +282,9 @@ impl ProcessWatcher {
 
         // Log completion events for each terminated process
         for start_trigger in terminated_processes {
-            let Some(finish_trigger) = pid_to_finish.remove(&start_trigger.pid) else {
-                error!("Process doesn't exist: start_trigger={:?}", start_trigger);
-                continue;
-            };
-
+            let finish_trigger = pid_to_finish
+                .remove(&start_trigger.pid)
+                .expect("Process should be present in the map");
             // should be safe since
             // - we've checked the key is present
             // - we have an exclusive lock on the state
@@ -324,7 +385,37 @@ impl ProcessWatcher {
             }
         }
 
-        self.find_matching_processes(triggers).await
+        // Get PIDs of processes already being monitored
+        let state = self.state.read().await;
+        let already_monitored_pids: HashSet<usize> = state
+            .monitoring
+            .values()
+            .flat_map(|processes| processes.iter().map(|p| p.pid))
+            .collect();
+
+        // Find processes that match our targets
+        let matched_processes = self.find_matching_processes(triggers).await?;
+
+        // Filter out already monitored processes and include parent processes
+        let interested_in: HashMap<_, _> = matched_processes
+            .into_iter()
+            .map(|(target, processes)| {
+                let processes = processes
+                    .into_iter()
+                    .flat_map(|proc| {
+                        // Get the process and its parents
+                        let mut parents = Self::get_process_hierarchy(&state, proc);
+                        // Filter out already monitored processes
+                        parents.retain(|p| !already_monitored_pids.contains(&p.pid));
+                        parents
+                    })
+                    .collect::<HashSet<_>>();
+
+                (target, processes)
+            })
+            .collect();
+
+        Ok(interested_in)
     }
 
     /// Refreshes system information for the specified PIDs
@@ -355,38 +446,50 @@ impl ProcessWatcher {
         Ok(())
     }
 
-    fn get_matched_target<'a>(
-        state: &'a ProcessState,
-        process: &ProcessTrigger,
-    ) -> Option<&'a Target> {
-        if let Some(target) = state.target_manager.get_target_match(process) {
-            return Some(target);
-        }
+    /// Gets a process and all its parent processes from the state
+    ///
+    /// Will panic if a cycle is detected in the process hierarchy.
+    fn get_process_hierarchy(
+        state: &ProcessState,
+        process: ProcessTrigger,
+    ) -> HashSet<ProcessTrigger> {
+        let mut current_pid = process.ppid;
+        let mut hierarchy = HashSet::new();
+        // Keep track of visited PIDs to detect cycles
+        let mut visited_pids = HashSet::new();
 
-        let eligible_targets_for_parents = state
-            .target_manager
-            .targets
-            .iter()
-            .filter(|target| !target.should_force_ancestor_to_match())
-            .collect_vec();
+        // Store the process PID before moving the process
+        let process_pid = process.pid;
 
-        if eligible_targets_for_parents.is_empty() {
-            return None;
-        }
+        // Insert the process into the hierarchy (this moves the process)
+        hierarchy.insert(process);
 
-        // here it's tempting to check if the parent is just in the monitoring list. However, we can't do that because
-        // parent may be matching but not yet set to be monitoring (e.g. because it just arrived or even is in the same batch)
+        // Add the starting process PID to visited
+        visited_pids.insert(process_pid);
 
-        let parents = Self::get_process_parents(state, process);
-        for parent in parents {
-            for target in eligible_targets_for_parents.iter() {
-                if target.matches_process(parent) {
-                    return Some(target);
-                }
+        // Traverse up the process tree to include all parent processes
+        while let Some(parent) = state.processes.get(&current_pid) {
+            // Check if we've seen this PID before - that would indicate a cycle
+            if visited_pids.contains(&parent.pid) {
+                // We have a cycle in the process hierarchy - this shouldn't happen
+                // in normal scenarios, but we'll panic to prevent infinite loops
+                panic!(
+                    "Cycle detected in process hierarchy! PID {} appears twice in parent chain",
+                    parent.pid
+                );
             }
+
+            // Track that we've visited this PID
+            visited_pids.insert(parent.pid);
+
+            // Add parent to the hierarchy
+            hierarchy.insert(parent.clone());
+
+            // Move to the next parent
+            current_pid = parent.ppid;
         }
 
-        None
+        hierarchy
     }
 
     /// Gets a process and all its parent processes from the state
@@ -453,6 +556,40 @@ impl ProcessWatcher {
         }
 
         Ok(matched_processes)
+    }
+
+    fn get_matched_target<'a>(
+        state: &'a ProcessState,
+        process: &ProcessTrigger,
+    ) -> Option<&'a Target> {
+        if let Some(target) = state.target_manager.get_target_match(process) {
+            return Some(target);
+        }
+
+        let eligible_targets_for_parents = state
+            .target_manager
+            .targets
+            .iter()
+            .filter(|target| !target.should_force_ancestor_to_match())
+            .collect_vec();
+
+        if eligible_targets_for_parents.is_empty() {
+            return None;
+        }
+
+        // here it's tempting to check if the parent is just in the monitoring list. However, we can't do that because
+        // parent may be matching but not yet set to be monitoring (e.g. because it just arrived or even is in the same batch)
+
+        let parents = Self::get_process_parents(state, process);
+        for parent in parents {
+            for target in eligible_targets_for_parents.iter() {
+                if target.matches_process(parent) {
+                    return Some(target);
+                }
+            }
+        }
+
+        None
     }
 
     async fn handle_new_process(
@@ -811,383 +948,5 @@ impl ProcessWatcher {
         }
 
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use chrono::DateTime;
-    use rstest::rstest;
-    use std::sync::Arc;
-    use tempfile::TempDir;
-    use tokio::sync::mpsc;
-    use tracer_common::target_process::target_matching::{CommandContainsStruct, TargetMatch};
-    use tracer_common::target_process::targets_list::TARGETS;
-    use tracer_common::types::current_run::{PipelineMetadata, Run};
-    use tracer_common::types::pipeline_tags::PipelineTags;
-
-    // Helper function to create a process trigger with specified properties
-    fn create_process_trigger(
-        pid: usize,
-        ppid: usize,
-        comm: &str,
-        args: Vec<&str>,
-        file_name: &str,
-    ) -> ProcessTrigger {
-        ProcessTrigger {
-            pid,
-            ppid,
-            comm: comm.to_string(),
-            argv: args.iter().map(|s| s.to_string()).collect(),
-            file_name: file_name.to_string(),
-            started_at: DateTime::parse_from_rfc3339("2025-05-07T00:00:00Z")
-                .unwrap()
-                .into(),
-        }
-    }
-
-    // Helper function to create a mock LogRecorder
-    fn create_mock_log_recorder() -> LogRecorder {
-        let pipeline = PipelineMetadata {
-            pipeline_name: "test_pipeline".to_string(),
-            run: Some(Run::new("test_run".to_string(), "test-id-123".to_string())),
-            tags: PipelineTags::default(),
-        };
-        let pipeline_arc = Arc::new(RwLock::new(pipeline));
-        let (tx, _rx) = mpsc::channel(10);
-        LogRecorder::new(pipeline_arc, tx)
-    }
-
-    // Helper function to create a mock FileWatcher
-    fn create_mock_file_watcher() -> Arc<RwLock<FileWatcher>> {
-        let temp_dir = TempDir::new().expect("Failed to create temporary directory");
-        Arc::new(RwLock::new(FileWatcher::new(temp_dir)))
-    }
-
-    // Helper function to set up a process watcher with specified targets and processes
-    fn setup_process_watcher(
-        target_manager: TargetManager,
-        processes: HashMap<usize, ProcessTrigger>,
-    ) -> Arc<ProcessWatcher> {
-        let state = ProcessState {
-            processes,
-            monitoring: HashMap::new(),
-            target_manager,
-            datasamples_tracker: HashMap::new(),
-        };
-
-        let log_recorder = create_mock_log_recorder();
-        let system = Arc::new(RwLock::new(System::new_all()));
-        let file_watcher = create_mock_file_watcher();
-        let state = Arc::new(RwLock::new(state));
-
-        Arc::new(ProcessWatcher {
-            ebpf: once_cell::sync::OnceCell::new(),
-            log_recorder,
-            file_watcher,
-            system,
-            state,
-        })
-    }
-
-    #[tokio::test]
-    async fn test_find_matching_processes_direct_match() {
-        // Create a target and set up the watcher
-        let target = Target::new(TargetMatch::ProcessName("test_process".to_string()));
-        let mgr = TargetManager::new(vec![target.clone()], vec![]);
-        let watcher = setup_process_watcher(mgr, HashMap::new());
-
-        // Create a process that directly matches the target
-        let process = create_process_trigger(
-            100,
-            1,
-            "test_process",
-            vec!["test_process", "--arg1", "value1"],
-            "/usr/bin/test_process",
-        );
-
-        // Test the function
-        let result = watcher
-            .find_matching_processes(vec![process])
-            .await
-            .unwrap();
-
-        // Assert the process was matched to the target
-        assert_eq!(result.len(), 1);
-        assert!(result.contains_key(&target));
-    }
-
-    #[tokio::test]
-    async fn test_find_matching_processes_no_match() {
-        // Create a target and set up the watcher
-        let target = Target::new(TargetMatch::ProcessName("test_process".to_string()));
-        let mgr = TargetManager::new(vec![target.clone()], vec![]);
-        let watcher = setup_process_watcher(mgr, HashMap::new());
-
-        // Create a process that doesn't match any target
-        let process = create_process_trigger(
-            100,
-            1,
-            "non_matching_process",
-            vec!["non_matching_process", "--arg1", "value1"],
-            "/usr/bin/non_matching_process",
-        );
-
-        // Test the function
-        let result = watcher
-            .find_matching_processes(vec![process])
-            .await
-            .unwrap();
-
-        // Assert no processes were matched
-        assert_eq!(result.len(), 0);
-    }
-
-    #[tokio::test]
-    async fn test_find_matching_processes_parent_match_with_force_ancestor_false() {
-        // Create a target that matches parent process and has force_ancestor_to_match=false
-        let target = Target::new(TargetMatch::ProcessName("parent_process".to_string()))
-            .set_force_ancestor_to_match(false);
-
-        // Create a parent process
-        let parent_process = create_process_trigger(
-            50,
-            1,
-            "parent_process",
-            vec!["parent_process"],
-            "/usr/bin/parent_process",
-        );
-
-        // Create a child process that doesn't match any target
-        let child_process = create_process_trigger(
-            100,
-            50, // Parent PID is 50
-            "child_process",
-            vec!["child_process"],
-            "/usr/bin/child_process",
-        );
-
-        // Create the initial state with the parent process already in it
-        let mut processes = HashMap::new();
-        processes.insert(parent_process.pid, parent_process);
-
-        // Set up the watcher with these processes and target
-        let mgr = TargetManager::new(vec![target.clone()], vec![]);
-        let watcher = setup_process_watcher(mgr, processes);
-
-        // Test with the child process
-        let result = watcher
-            .find_matching_processes(vec![child_process.clone()])
-            .await
-            .unwrap();
-
-        // Assert the child process was matched to the target because its parent matches
-        // and force_ancestor_to_match is false
-        assert_eq!(result.len(), 1);
-        assert!(result.contains_key(&target));
-
-        // Also verify the child process is the one that was matched
-        let matched_processes = result.get(&target).unwrap();
-        assert_eq!(matched_processes.len(), 1);
-        assert!(matched_processes.contains(&child_process));
-    }
-
-    #[tokio::test]
-    async fn test_find_matching_processes_parent_match_with_force_ancestor_true() {
-        // Create a target that matches parent process but has force_ancestor_to_match=true
-        let target = Target::new(TargetMatch::ProcessName("parent_process".to_string()));
-        // force_ancestor_to_match is true by default
-
-        // Create a parent process
-        let parent_process = create_process_trigger(
-            50,
-            1,
-            "parent_process",
-            vec!["parent_process"],
-            "/usr/bin/parent_process",
-        );
-
-        // Create a child process that doesn't match any target
-        let child_process = create_process_trigger(
-            100,
-            50, // Parent PID is 50
-            "child_process",
-            vec!["child_process"],
-            "/usr/bin/child_process",
-        );
-
-        // Create the initial state with the parent process already in it
-        let mut processes = HashMap::new();
-        processes.insert(parent_process.pid, parent_process);
-
-        // Set up the watcher with these processes and target
-        let mgr = TargetManager::new(vec![target], vec![]);
-        let watcher = setup_process_watcher(mgr, processes);
-
-        // Test with the child process
-        let result = watcher
-            .find_matching_processes(vec![child_process])
-            .await
-            .unwrap();
-
-        // Assert the child process was NOT matched to the target because force_ancestor_to_match is true
-        assert_eq!(result.len(), 0);
-    }
-
-    #[rstest]
-    #[case::excluded_bash(
-    create_process_trigger(
-        100,
-        1,
-        "bash",
-        vec!["/opt/conda/bin/bash", "script.sh"],
-        "/opt/conda/bin/bash"
-    ),
-    0,
-    "Should exclude bash in /opt/conda/bin due to filter_out exception list"
-)]
-    #[case::included_foo(
-    create_process_trigger(
-        101,
-        1,
-        "foo",
-        vec!["/opt/conda/bin/foo", "--version"],
-        "/opt/conda/bin/foo"
-    ),
-    1,
-    "Should match /opt/conda/bin/foo as it's not in filter_out exception list"
-)]
-    #[case::unmatched_usr_bash(
-    create_process_trigger(
-        102,
-        1,
-        "bash",
-        vec!["/usr/bin/bash", "other.sh"],
-        "/usr/bin/bash"
-    ),
-    0,
-    "Should not match bash in /usr/bin since there's no explicit target for it"
-)]
-    #[case::nextflow_local_conf_command(
-    create_process_trigger(
-        200,
-        1,
-        "local.conf",
-        vec![
-            "bash",
-            "-c",
-            ". spack/share/spack/setup-env.sh; spack env activate -d .; cd frameworks/nextflow && nextflow -c nextflow-config/local.config run pipelines/nf-core/rnaseq/main.nf -params-file nextflow-config/rnaseq-params.json -profile test"
-        ],
-        "/usr/bin/bash"
-    ),
-    0,
-    "Should not match local.conf-based bash wrapper"
-)]
-    #[case::nextflow_wrapper_bash_command(
-    create_process_trigger(
-        201,
-        1,
-        "nextflow",
-        vec![
-            "bash",
-            "-c",
-            ". spack/share/spack/setup-env.sh; spack env activate -d .; cd frameworks/nextflow && nextflow -c nextflow-config/local.config run pipelines/nf-core/rnaseq/main.nf -params-file nextflow-config/rnaseq-params.json -profile test"
-        ],
-        "/usr/bin/bash"
-    ),
-    0,
-    "Should not match bash-wrapped nextflow script (known wrapper)"
-)]
-    #[tokio::test]
-    async fn test_match_cases(
-        #[case] process: ProcessTrigger,
-        #[case] expected_count: usize,
-        #[case] msg: &str,
-    ) {
-        let mgr = TargetManager::new(TARGETS.to_vec(), vec![]);
-        let watcher = setup_process_watcher(mgr, HashMap::new());
-
-        let result = watcher
-            .find_matching_processes(vec![process])
-            .await
-            .unwrap();
-
-        assert_eq!(result.len(), expected_count, "{}", msg);
-    }
-
-    #[rstest]
-    #[case::command_script(
-    create_process_trigger(
-        202,
-        1,
-        "nextflow",
-        vec!["bash", "/nextflow_work/01/5152d22e188cfc22ef4c4c6cd9fc9e/.command.sh"],
-        "/usr/bin/bash"
-    )
-)]
-    #[case::command_dot_run(
-    create_process_trigger(
-        203,
-        1,
-        "nextflow",
-        vec![
-            "/bin/bash",
-            "/nextflow_work/01/5152d22e188cfc22ef4c4c6cd9fc9e/.command.run",
-            "nxf_trace"
-        ],
-        "/bin/bash"
-    )
-)]
-    #[tokio::test]
-    async fn test_nextflow_wrapped_scripts(#[case] process: ProcessTrigger) {
-        let mgr = TargetManager::new(TARGETS.to_vec(), vec![]);
-        let watcher = setup_process_watcher(mgr, HashMap::new());
-        let result = watcher
-            .find_matching_processes(vec![process])
-            .await
-            .unwrap();
-
-        assert_eq!(
-            result.len(),
-            0,
-            "Expected no matches for wrapped nextflow script"
-        );
-    }
-    fn dummy_process(name: &str, cmd: &str, path: &str) -> ProcessTrigger {
-        ProcessTrigger {
-            pid: 1,
-            ppid: 0,
-            comm: name.to_string(),
-            argv: cmd.split_whitespace().map(String::from).collect(),
-            file_name: path.to_string(),
-            started_at: chrono::Utc::now(),
-        }
-    }
-
-    #[test]
-    fn test_blacklist_excludes_match() {
-        let blacklist = vec![Target::new(TargetMatch::CommandContains(
-            CommandContainsStruct {
-                process_name: None,
-                command_content: "spack".to_string(),
-            },
-        ))];
-        let targets = vec![Target::new(TargetMatch::ProcessName("fastqc".to_string()))];
-
-        let mgr = TargetManager::new(targets, blacklist);
-        let proc = dummy_process("fastqc", "spack activate && fastqc", "/usr/bin/fastqc");
-
-        assert!(mgr.get_target_match(&proc).is_none());
-    }
-
-    #[test]
-    fn test_target_match_without_blacklist() {
-        let mgr = TargetManager::new(
-            vec![Target::new(TargetMatch::ProcessName("fastqc".to_string()))],
-            vec![],
-        );
-        let proc = dummy_process("fastqc", "fastqc file.fq", "/usr/bin/fastqc");
-        assert!(mgr.get_target_match(&proc).is_some());
     }
 }

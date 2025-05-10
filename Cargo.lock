@@ -5439,6 +5439,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "tracer_ebpf_libbpf"
+version = "2025.5.1+1"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "env_logger",
+ "log",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tracer_common",
+ "tracer_ebpf_common",
+ "tracing",
+]
+
+[[package]]
 name = "tracer_ebpf_user"
 version = "2025.5.1+1"
 dependencies = [
@@ -5480,6 +5496,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracer_common",
+ "tracer_ebpf_libbpf",
  "tracer_ebpf_user",
  "tracing",
  "walkdir",

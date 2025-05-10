@@ -73,3 +73,6 @@ script-second-script.sh
 
 #
 **/.claude/settings.local.json
+
+#
+README.local.md

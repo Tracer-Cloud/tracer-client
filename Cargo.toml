@@ -11,6 +11,7 @@ members = [
     "src/ebpf/common",
     "src/ebpf/kernel",
     "src/ebpf/user",
+    "src/ebpf-libbpf"
 ]
 default-members = [
     "src/cli",
@@ -22,6 +23,7 @@ default-members = [
     "integration_tests",
     "src/ebpf/common",
     "src/ebpf/user",
+    "src/ebpf-libbpf"
 ]
 
 [workspace.package]

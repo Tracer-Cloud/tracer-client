@@ -41,7 +41,7 @@ test-tracer: setup_nextest ## Run tests single threaded due to s3 race condition
 	AWS_REGION=us-east-2 \
 	AWS_ENDPOINT=https://s3.us-east-2.amazonaws.com \
 	CARGO_NEXTEST_NO_CAPTURE=1 \
-	cargo nextest run --test-threads=1  --workspace --exclude integration_tests --exclude tracer_ebpf_kernel --config 'target."cfg(all())".runner="sudo -E"'
+	cargo nextest run --test-threads=1  --workspace --exclude integration_tests --exclude tracer_ebpf_kernel --config 'target."cfg(all())".runner="sudo -E"' --no-fail-fast
 
 
 test-simple_queries: setup_nextest ## Run Docker Based Tests(Simple Queries)
