@@ -6,7 +6,7 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
     mpsc as std_mpsc, Arc,
 };
-use std::time::{Duration, Instant};
+use std::time::{Duration};
 use tokio::sync::mpsc::UnboundedSender;
 use tracer_common::types::trigger::Trigger;
 use tracer_ebpf_common::process_enter::{ProcessEnterType, ProcessRawTrigger};
@@ -53,7 +53,7 @@ extern "C" {
 // Safety limits to prevent resource exhaustion
 const MAX_ITERATIONS: usize = 1000;
 const BUFFER_SIZE: usize = 4096;
-const MAX_RUNTIME_SECONDS: u64 = 60; // Force exit after 1 minute if stuck
+// const MAX_RUNTIME_SECONDS: u64 = 60; // Force exit after 1 minute if stuck
 
 // Define a struct to hold our context
 struct ProcessingContext {
@@ -212,11 +212,11 @@ pub fn start_processing_events(tx: UnboundedSender<Trigger>) -> Result<()> {
     // Spawn a thread to handle calling initialize
     let shared_context_clone = shared_context.clone();
     std::thread::spawn(move || {
-        let start_time = Instant::now();
-        let mut iteration_count = 0;
+        // let start_time = Instant::now();
+        // let mut iteration_count = 0;
 
         loop {
-            iteration_count += 1;
+            // iteration_count += 1;
 
             // Safety check - limit iterations to prevent infinite loops
             // if iteration_count > MAX_ITERATIONS {
