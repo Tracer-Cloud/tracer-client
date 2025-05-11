@@ -1,6 +1,6 @@
 FROM lukemathwalker/cargo-chef:latest-rust-1.86.0 AS chef
 WORKDIR /app
-RUN apt update && apt install lld clang -y
+RUN apt update && apt install lld clang git -y
 FROM chef AS planner
 COPY . /app/
 
@@ -22,6 +22,8 @@ RUN rustup toolchain install nightly-2025-04-15 --component rust-src
 RUN cargo install bpf-linker && cargo install bindgen-cli && cargo install --git https://github.com/aya-rs/aya -- aya-tool
 
 COPY . /app/
+
+RUN cd /app/src/ebpf-libbpf && git submodule update --init --recursive && cd /app/
 
 RUN aya-tool generate task_struct > /app/src/ebpf/kernel/src/gen.rs
 

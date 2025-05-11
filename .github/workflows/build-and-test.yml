@@ -90,7 +90,7 @@ jobs:
         run: cargo check --locked --all-targets
 
       - name: Lint with Clippy
-        run: make clippy
+        run: cargo clippy -- -D warnings
 
       - name: Run tests
         env:
@@ -104,7 +104,7 @@ jobs:
           TRACER_DATABASE_NAME: ${{ secrets.TRACER_DATABASE_NAME }}
           TRACER_DATABASE_HOST: "localhost:5432"
           DATABASE_URL: "postgresql://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/tracer_db" # localhost since VM
-        run: make test
+        run: cargo test
 
   run-integrations:
       name: Build and Test Integrations
@@ -133,7 +133,7 @@ jobs:
           docker compose build integrations_tests parallel_tests
 
       - name: Run Simple Queries tests
-        run: make test-simple_queries
+        run: cargo test --test simple_queries -p integration_tests -- --nocapture
 
       - name: Run Parallel tests
-        run: make test-parallel
+        run: cargo test --test parallel -p integration_tests -- --nocapture
