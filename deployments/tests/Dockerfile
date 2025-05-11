@@ -23,6 +23,8 @@ RUN cargo install bpf-linker && cargo install bindgen-cli && cargo install --git
 
 COPY . /app/
 
+RUN cd /app/src/ebpf-libbpf && git submodule update --init --recursive && cd /app/
+
 RUN aya-tool generate task_struct > /app/src/ebpf/kernel/src/gen.rs
 
 # Build our project
