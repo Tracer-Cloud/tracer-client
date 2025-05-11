@@ -90,21 +90,10 @@ jobs:
         run: cargo check --locked --all-targets
 
       - name: Lint with Clippy
-        run: make clippy
+        run: cargo clippy -- -D warnings
 
       - name: Run tests
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: "us-east-2"
-          AWS_ENDPOINT: "https://s3.us-east-2.amazonaws.com"
-          RUST_LOG: "debug"
-          RUST_BACKTRACE: 1
-          TRACER_DATABASE_SECRETS_ARN: ${{ secrets.TRACER_DATABASE_LOCAL_SECRETS_ARN }}
-          TRACER_DATABASE_NAME: ${{ secrets.TRACER_DATABASE_NAME }}
-          TRACER_DATABASE_HOST: "localhost:5432"
-          DATABASE_URL: "postgresql://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/tracer_db" # localhost since VM
-        run: make test
+        run: cargo test
 
   run-integrations:
       name: Build and Test Integrations
@@ -133,7 +122,7 @@ jobs:
           docker compose build integrations_tests parallel_tests
 
       - name: Run Simple Queries tests
-        run: make test-simple_queries
+        run: cargo test --test simple_queries -p integration_tests -- --nocapture
 
       - name: Run Parallel tests
-        run: make test-parallel
+        run: cargo test --test parallel -p integration_tests -- --nocapture
