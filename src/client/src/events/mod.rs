@@ -5,7 +5,7 @@ use run_details::{generate_run_id, generate_run_name};
 use serde_json::json;
 use sysinfo::System;
 use tracer_aws::aws_metadata::get_aws_instance_metadata;
-use tracer_aws::config::PricingClient;
+use tracer_aws::pricing::PricingSource;
 use tracer_aws::types::pricing::EC2FilterBuilder;
 use tracer_common::debug_log::Logger;
 use tracer_common::types::event::attributes::system_metrics::SystemProperties;
@@ -48,7 +48,7 @@ pub struct RunEventOut {
 
 async fn gather_system_properties(
     system: &System,
-    pricing_client: &PricingClient,
+    pricing_client: &PricingSource,
 ) -> SystemProperties {
     let aws_metadata = get_aws_instance_metadata().await;
     let is_aws_instance = aws_metadata.is_some();
@@ -60,7 +60,7 @@ async fn gather_system_properties(
         }
         .to_filter();
         pricing_client
-            .get_ec2_instance_price(filters)
+            .get_ec2_instance_price(Some(filters))
             .await
             .map(|v| v.price_per_unit)
     } else {
@@ -90,7 +90,7 @@ async fn gather_system_properties(
 pub async fn send_start_run_event(
     system: &System,
     pipeline_name: &str,
-    pricing_client: &PricingClient,
+    pricing_client: &PricingSource,
     tag_name: &Option<String>,
 ) -> Result<RunEventOut> {
     info!("Starting new pipeline...");

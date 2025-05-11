@@ -4,8 +4,8 @@ mod common;
 
 pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("../../migrations");
 
-#[sqlx::test(migrator = "MIGRATOR")]
-async fn info(pool: PgPool) {
+#[tokio::test]
+async fn info() {
     let server = common::test_server::TestServer::launch().await.unwrap();
 
     server
@@ -19,8 +19,8 @@ async fn info(pool: PgPool) {
     server.finished().await.unwrap()
 }
 
-#[sqlx::test(migrator = "MIGRATOR")]
-async fn log(pool: PgPool) {
+#[tokio::test]
+async fn log() {
     let server = common::test_server::TestServer::launch().await.unwrap();
 
     server
@@ -35,8 +35,8 @@ async fn log(pool: PgPool) {
     server.finished().await.unwrap()
 }
 
-#[sqlx::test(migrator = "MIGRATOR")]
-async fn alert(pool: PgPool) {
+#[tokio::test]
+async fn alert() {
     let server = common::test_server::TestServer::launch().await.unwrap();
 
     server
@@ -51,8 +51,8 @@ async fn alert(pool: PgPool) {
     server.finished().await.unwrap()
 }
 
-#[sqlx::test(migrator = "MIGRATOR")]
-async fn end(pool: PgPool) {
+#[tokio::test]
+async fn end() {
     let server = common::test_server::TestServer::launch().await.unwrap();
 
     server
@@ -67,8 +67,8 @@ async fn end(pool: PgPool) {
     server.finished().await.unwrap()
 }
 
-#[sqlx::test(migrator = "MIGRATOR")]
-async fn tag(pool: PgPool) {
+#[tokio::test]
+async fn tag() {
     let server = common::test_server::TestServer::launch().await.unwrap();
 
     server
@@ -83,8 +83,8 @@ async fn tag(pool: PgPool) {
     server.finished().await.unwrap()
 }
 
-#[sqlx::test(migrator = "MIGRATOR")]
-async fn upload(pool: PgPool) {
+#[tokio::test]
+async fn upload() {
     let server = common::test_server::TestServer::launch().await.unwrap();
 
     server

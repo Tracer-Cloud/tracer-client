@@ -4,6 +4,7 @@ use sqlx::PgPool;
 mod common;
 
 #[tokio::test]
+#[ignore = "Integrations Test runs Seperately"]
 async fn test_queries_works() {
     let db_profile = "db";
 
