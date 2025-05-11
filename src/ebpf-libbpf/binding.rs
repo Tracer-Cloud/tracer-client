@@ -6,7 +6,7 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
     mpsc as std_mpsc, Arc,
 };
-use std::time::{Duration};
+use std::time::Duration;
 use tokio::sync::mpsc::UnboundedSender;
 use tracer_common::types::trigger::Trigger;
 use tracer_ebpf_common::process_enter::{ProcessEnterType, ProcessRawTrigger};
