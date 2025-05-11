@@ -116,7 +116,7 @@ jobs:
 
       - name: Setup Rust toolchain
         run: |
-          rustup toolchain install stable --profile minima
+          rustup toolchain install stable --profile minimal
 
       - name: Create .env file from GitHub Secrets
         run: |
