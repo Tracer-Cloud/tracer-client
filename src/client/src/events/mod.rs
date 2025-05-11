@@ -5,7 +5,6 @@ use run_details::{generate_run_id, generate_run_name};
 use serde_json::json;
 use sysinfo::System;
 use tracer_aws::aws_metadata::get_aws_instance_metadata;
-use tracer_aws::config::PricingClient;
 use tracer_aws::pricing::PricingSource;
 use tracer_aws::types::pricing::EC2FilterBuilder;
 use tracer_common::debug_log::Logger;

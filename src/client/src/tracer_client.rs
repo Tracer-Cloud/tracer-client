@@ -122,7 +122,7 @@ impl TracerClient {
         })
     }
 
-    async fn init_pricing_client(config: &Config) -> PricingSource {
+    async fn init_pricing_client(_config: &Config) -> PricingSource {
         PricingSource::Static
     }
 
