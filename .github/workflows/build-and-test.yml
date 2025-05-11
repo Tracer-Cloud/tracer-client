@@ -55,9 +55,6 @@ jobs:
           key: ${{ runner.os }}-${{ runner.os }}-${{ runner.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-${{ runner.os }}-${{ runner.arch }}-cargo-
 
-      - name: Set up cargo Nextest
-        run: |
-          which cargo-nextest || cargo install cargo-nextest
 
       - name: Install build dependencies
         run: |
@@ -66,6 +63,9 @@ jobs:
           # Install necessary eBPF dependencies
           sudo apt-get update
           sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm
+          # FIXES missing bin error
+          which bpf-linker || cargo install bpf-linker
+          
 
       # Verify submodules are properly loaded
       - name: Verify submodule content
@@ -104,7 +104,7 @@ jobs:
           TRACER_DATABASE_NAME: ${{ secrets.TRACER_DATABASE_NAME }}
           TRACER_DATABASE_HOST: "localhost:5432"
           DATABASE_URL: "postgresql://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/tracer_db" # localhost since VM
-        run: ./scripts/migrate.sh "$DATABASE_URL" && make test-tracer
+        run: make test
 
   run-integrations:
       name: Build and Test Integrations
@@ -117,10 +117,6 @@ jobs:
       - name: Setup Rust toolchain
         run: |
           rustup toolchain install stable --profile minimal
-
-      - name: Set up cargo Nextest
-        run: |
-          which cargo-nextest || cargo install cargo-nextest
 
       - name: Create .env file from GitHub Secrets
         run: |

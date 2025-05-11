@@ -2,6 +2,7 @@
 use crate::config_manager::Config;
 
 use anyhow::{Context, Result};
+use tracer_aws::pricing::PricingSource;
 use tracer_common::target_process::manager::TargetManager;
 use tracer_common::target_process::targets_list::DEFAULT_EXCLUDED_PROCESS_RULES;
 
@@ -16,7 +17,6 @@ use std::time::{Duration, Instant};
 use sysinfo::System;
 use tokio::fs;
 use tokio::sync::{mpsc, RwLock};
-use tracer_aws::config::PricingClient;
 use tracer_common::constants::{DEFAULT_SERVICE_URL, FILE_CACHE_DIR};
 use tracer_common::recorder::LogRecorder;
 use tracer_common::types::current_run::{PipelineMetadata, Run};
@@ -55,7 +55,7 @@ pub struct TracerClient {
     syslog_lines_buffer: LinesBufferArc,
     stdout_lines_buffer: LinesBufferArc,
     stderr_lines_buffer: LinesBufferArc,
-    pub pricing_client: PricingClient,
+    pub pricing_client: PricingSource,
     pub config: Config,
 
     log_recorder: LogRecorder,
@@ -76,6 +76,7 @@ impl TracerClient {
         // todo: do we need both config with db connection AND db_client?
         info!("Initializing TracerClient with API Key: {}", config.api_key);
 
+        // TODO: taking out pricing client for now
         let pricing_client = Self::init_pricing_client(&config).await;
         let file_watcher = Self::init_file_watcher().await?;
         let pipeline = Self::init_pipeline(&cli_args);
@@ -121,8 +122,8 @@ impl TracerClient {
         })
     }
 
-    async fn init_pricing_client(config: &Config) -> PricingClient {
-        PricingClient::new(config.aws_init_type.clone(), "us-east-1").await
+    async fn init_pricing_client(_config: &Config) -> PricingSource {
+        PricingSource::Static
     }
 
     async fn init_file_watcher() -> Result<Arc<RwLock<FileWatcher>>> {
