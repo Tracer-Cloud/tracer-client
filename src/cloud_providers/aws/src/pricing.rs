@@ -29,7 +29,7 @@ impl PricingSource {
 
 /// Client for interacting with AWS Pricing API
 pub struct PricingClient {
-    pub client: pricing::client::Client,
+    pub client: Option<pricing::client::Client>,
 }
 
 impl PricingClient {
@@ -39,8 +39,11 @@ impl PricingClient {
         let region = "us-east-1";
         let config = get_initialized_aws_conf(initialization_conf, region).await;
 
-        Self {
-            client: pricing::client::Client::new(&config),
+        match config {
+            Some(conf) => Self {
+                client: Some(pricing::client::Client::new(&conf)),
+            },
+            None => Self { client: None },
         }
     }
 
@@ -59,6 +62,18 @@ impl PricingClient {
         &self,
         filters: Vec<PricingFilters>,
     ) -> Option<FlattenedData> {
+        // If AWS config was None during initialization, always return a zero-price result
+        if self.client.is_none() {
+            return Some(FlattenedData {
+                instance_type: "unknown".to_string(),
+                region_code: "unknown".to_string(),
+                vcpu: "unknown".to_string(),
+                memory: "unknown".to_string(),
+                price_per_unit: 0.0,
+                unit: "Hrs".to_string(),
+            });
+        }
+
         // Retry configuration
         const MAX_RETRIES: u32 = 3;
         const INITIAL_RETRY_DELAY: u64 = 1; // seconds
@@ -116,6 +131,8 @@ impl PricingClient {
 
         let mut response = self
             .client
+            .clone()
+            .unwrap()
             .get_products()
             .service_code("AmazonEC2".to_string()) // Specifically query EC2 prices
             .set_filters(Some(filters)) // Apply the filters (instance type, OS, etc)

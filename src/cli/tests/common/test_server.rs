@@ -43,7 +43,7 @@ impl TestServer {
             log_forward_endpoint: None,
         };
 
-        let log_forward_endpoint = "https://sandbox.tracer.cloud/api/logs-forward";
+        let log_forward_endpoint = "https://sandbox.tracer.cloud/api/logs-forward/dev";
 
         let log_forward_client = LogWriterEnum::Forward(
             LogForward::try_new(log_forward_endpoint)

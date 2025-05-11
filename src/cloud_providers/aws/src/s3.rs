@@ -15,7 +15,7 @@ impl S3Client {
         let config = get_initialized_aws_conf(initialization_conf, region).await;
 
         Self {
-            client: aws_sdk_s3::Client::new(&config),
+            client: aws_sdk_s3::Client::new(&config.unwrap()),
             region: region.to_string(),
         }
     }
