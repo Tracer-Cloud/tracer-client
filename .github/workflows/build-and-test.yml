@@ -66,6 +66,9 @@ jobs:
           # Install necessary eBPF dependencies
           sudo apt-get update
           sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm
+          # FIXES missing bin error
+          which bpf-linker || cargo install bpf-linker
+          
 
       # Verify submodules are properly loaded
       - name: Verify submodule content
