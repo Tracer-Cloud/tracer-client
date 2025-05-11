@@ -11,7 +11,7 @@ impl SecretsClient {
         let config = get_initialized_aws_conf(initialization_conf, region).await;
 
         Self {
-            client: Client::new(&config),
+            client: Client::new(&config.unwrap()),
         }
     }
 

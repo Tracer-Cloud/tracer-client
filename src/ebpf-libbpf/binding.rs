@@ -219,22 +219,22 @@ pub fn start_processing_events(tx: UnboundedSender<Trigger>) -> Result<()> {
             iteration_count += 1;
 
             // Safety check - limit iterations to prevent infinite loops
-            if iteration_count > MAX_ITERATIONS {
-                eprintln!(
-                    "Reached maximum iterations ({}): Exiting for safety",
-                    MAX_ITERATIONS
-                );
-                std::process::exit(2);
-            }
+            // if iteration_count > MAX_ITERATIONS {
+            //     eprintln!(
+            //         "Reached maximum iterations ({}): Exiting for safety",
+            //         MAX_ITERATIONS
+            //     );
+            //     std::process::exit(2);
+            // }
 
             // Safety check - time limit to prevent hanging
-            if start_time.elapsed() > Duration::from_secs(MAX_RUNTIME_SECONDS) {
-                eprintln!(
-                    "Maximum runtime ({} seconds) exceeded: Exiting for safety",
-                    MAX_RUNTIME_SECONDS
-                );
-                std::process::exit(3);
-            }
+            // if start_time.elapsed() > Duration::from_secs(MAX_RUNTIME_SECONDS) {
+            //     eprintln!(
+            //         "Maximum runtime ({} seconds) exceeded: Exiting for safety",
+            //         MAX_RUNTIME_SECONDS
+            //     );
+            //     std::process::exit(3);
+            // }
 
             // Allocate a buffer for the C function to write to
             let buffer = vec![0u8; BUFFER_SIZE];

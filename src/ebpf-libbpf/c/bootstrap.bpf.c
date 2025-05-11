@@ -14,6 +14,7 @@ struct
 	__uint(max_entries, 256 * 1024);
 } rb SEC(".maps");
 
+// Function triggered when a process is started
 SEC("tp/sched/sched_process_exec")
 int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 {
@@ -25,6 +26,9 @@ int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 	unsigned long arg_start, arg_end;
 	unsigned long arg_ptr;
 	int i;
+
+	/* Debug print for process start */
+	bpf_printk("Process start detected\n");
 
 	/* reserve sample from BPF ringbuf */
 	e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
@@ -83,6 +87,7 @@ submit:
 	return 0;
 }
 
+// Function triggered when a process is finished
 SEC("tp/sched/sched_process_exit")
 int handle_exit(struct trace_event_raw_sched_process_template *ctx)
 {
@@ -90,6 +95,9 @@ int handle_exit(struct trace_event_raw_sched_process_template *ctx)
 	struct event *e;
 	pid_t pid, tid;
 	u64 id;
+
+	/* Debug print for process exit */
+	bpf_printk("Process exit detected\n");
 
 	/* get PID and TID of exiting thread/process */
 	id = bpf_get_current_pid_tgid();

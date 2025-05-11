@@ -42,7 +42,7 @@ impl From<AwsConfig> for ValueKind {
 pub async fn get_initialized_aws_conf(
     initialization_conf: AwsConfig,
     region: &'static str,
-) -> SdkConfig {
+) -> Option<SdkConfig> {
     let config_loader = aws_config::defaults(BehaviorVersion::latest());
     let config = match initialization_conf {
         AwsConfig::Profile(profile) => config_loader.profile_name(profile),
@@ -52,10 +52,11 @@ pub async fn get_initialized_aws_conf(
                 .build()
                 .await;
 
-            let assumed_credentials_provider = assumed_role_provider
-                .provide_credentials()
-                .await
-                .expect("Failed to get assumed session role");
+            let assumed_credentials_provider =
+                match assumed_role_provider.provide_credentials().await {
+                    Ok(creds) => creds,
+                    Err(_) => return None,
+                };
 
             config_loader.credentials_provider(assumed_credentials_provider)
         }
@@ -65,14 +66,12 @@ pub async fn get_initialized_aws_conf(
     .load()
     .await;
 
-    let credentials_provider = config
-        .credentials_provider()
-        .expect("Failed to get credentials_provider");
+    let credentials_provider = config.credentials_provider()?;
 
-    let _ = credentials_provider
-        .provide_credentials()
-        .await
-        .expect("No Credentials Loaded");
+    match credentials_provider.provide_credentials().await {
+        Ok(_) => {}
+        Err(_) => return None,
+    };
 
-    config
+    Some(config)
 }
