@@ -62,6 +62,15 @@ impl DisplayName {
             }
         }
 
+        // If process name contains a valid path, return just the file stem
+        if let Some(stem) = std::path::Path::new(process_name)
+            .file_stem()
+            .map(|s| s.to_string_lossy().to_string())
+        {
+            return stem;
+        }
+
+        // Fallback: return as-is
         process_name.to_string()
     }
 }
