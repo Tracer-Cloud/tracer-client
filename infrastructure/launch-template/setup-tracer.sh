@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+echo "Updating Repositories $(date)"
+cd /root/tracer-test-pipelines-bioinformatics && git pull origin main && cd
+echo "Repositories Updated Successfully $(date)"
+
 # Accept role ARN and API key from Terraform environment
 echo "Setting up Tracer"
 
