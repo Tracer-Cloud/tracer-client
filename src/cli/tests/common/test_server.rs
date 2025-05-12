@@ -40,7 +40,8 @@ impl TestServer {
             server,
             config_sources: vec![],
             sentry_dsn: None,
-            log_forward_endpoint: None,
+            log_forward_endpoint_dev: None,
+            log_forward_endpoint_prod: None,
         };
 
         let log_forward_endpoint = "https://sandbox.tracer.cloud/api/logs-forward/dev";

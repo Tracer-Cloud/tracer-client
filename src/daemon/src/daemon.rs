@@ -16,12 +16,28 @@ pub async fn run(
     config: Config,
 ) -> Result<()> {
     // create the conn pool to aurora
-    let db_client = if config.log_forward_endpoint.is_some() {
-        LogWriterEnum::Forward(
-            LogForward::try_new(&config.log_forward_endpoint.clone().unwrap()).await?,
-        )
-    } else {
+    let db_client = if config.log_forward_endpoint_dev.is_none() {
         LogWriterEnum::Aurora(AuroraClient::try_new(&config, None).await?)
+    } else {
+        println!("cli_config_args: {:?}", &cli_config_args);
+        // if we pass --is-dev=false, we use the prod endpoint
+        // if we pass --is-dev=true or don't pass the value, we use the dev endpoint
+        let forward_endpoint =
+            if cli_config_args.is_dev.is_some() && cli_config_args.is_dev.unwrap().eq(&false) {
+                println!(
+                    "Using prod endpoint: {}",
+                    &config.log_forward_endpoint_prod.as_ref().unwrap()
+                );
+                &config.log_forward_endpoint_prod.as_ref().unwrap()
+            } else {
+                println!(
+                    "Using dev endpoint: {}",
+                    &config.log_forward_endpoint_dev.as_ref().unwrap()
+                );
+                &config.log_forward_endpoint_dev.as_ref().unwrap()
+            };
+
+        LogWriterEnum::Forward(LogForward::try_new(forward_endpoint).await?)
     };
 
     info!("Using {}", db_client.variant_name());
@@ -78,7 +94,7 @@ mod tests {
         // let aurora_client: dyn LogWriter = AuroraClient::try_new(&config, None).await.unwrap();
 
         let log_forward_client = LogWriterEnum::Forward(
-            LogForward::try_new(&config.log_forward_endpoint.clone().unwrap())
+            LogForward::try_new(&config.log_forward_endpoint_dev.clone().unwrap())
                 .await
                 .expect("Failed to create LogForward"),
         );

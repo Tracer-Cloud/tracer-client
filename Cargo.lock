@@ -5197,6 +5197,7 @@ dependencies = [
  "chrono",
  "dotenv",
  "itertools 0.14.0",
+ "log",
  "reqwest",
  "serde",
  "tokio",

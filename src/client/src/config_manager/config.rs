@@ -26,7 +26,7 @@ const NEW_RUN_PAUSE_MS: u64 = 10 * 60 * 1000;
 const PROCESS_METRICS_SEND_INTERVAL_MS: u64 = 10000;
 const FILE_SIZE_NOT_CHANGING_PERIOD_MS: u64 = 1000 * 60;
 const LOG_FORWARD_ENDPOINT_DEV: &str = "https://sandbox.tracer.cloud/api/logs-forward/dev";
-// const LOG_FORWARD_ENDPOINT_PROD: &str = "https://sandbox.tracer.cloud/api/logs-forward/prod";
+const LOG_FORWARD_ENDPOINT_PROD: &str = "https://sandbox.tracer.cloud/api/logs-forward/prod";
 const SENTRY_DSN: &str = "https://35e0843e6748d2c93dfd56716f2eecfe@o4509281671380992.ingest.us.sentry.io/4509281680949248";
 const GRAFANA_WORKSPACE_URL: &str =
     "https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com";
@@ -55,7 +55,8 @@ pub struct Config {
     pub config_sources: Vec<String>,
     pub sentry_dsn: Option<String>,
 
-    pub log_forward_endpoint: Option<String>,
+    pub log_forward_endpoint_dev: Option<String>,
+    pub log_forward_endpoint_prod: Option<String>,
 }
 
 pub struct ConfigLoader;
@@ -199,7 +200,8 @@ impl ConfigLoader {
             .set_default("database_name", "tracer_db")?
             .set_default("server", "127.0.0.1:8722")?
             .set_default::<&str, Vec<&str>>("targets", vec![])?
-            .set_default("log_forward_endpoint", LOG_FORWARD_ENDPOINT_DEV)?
+            .set_default("log_forward_endpoint_dev", LOG_FORWARD_ENDPOINT_DEV)?
+            .set_default("log_forward_endpoint_prod", LOG_FORWARD_ENDPOINT_PROD)?
             .set_default("sentry_dsn", SENTRY_DSN)?
             .set_default("grafana_workspace_url", GRAFANA_WORKSPACE_URL)?
             .set_default("database_secrets_arn", Some(None::<String>))?
