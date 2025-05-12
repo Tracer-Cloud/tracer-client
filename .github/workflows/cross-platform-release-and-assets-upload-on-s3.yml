@@ -126,7 +126,8 @@ jobs:
         run: |
           yum update -y
           yum groupinstall -y "Development Tools"
-          yum install -y git gcc openssl-devel pkgconfig cmake tar gzip unzip bpftool clang clang-devel llvm-devel
+          sudo yum  install -y kernel-devel kernel-headers clang llvm libbpf-devel
+
 
       - name: Install Rust
         run: |
