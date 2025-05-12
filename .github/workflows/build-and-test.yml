@@ -1,12 +1,9 @@
 name: Rust CI
 on:
-  push:
-    branches:
-      - "main"
-      - "staging"
   pull_request:
-    branches:
+    branches: 
       - "**"
+
 env:
   CARGO_TERM_COLOR: always # Ensures colored output in GitHub Actions logs
 
@@ -62,26 +59,7 @@ jobs:
           
           # Install necessary eBPF dependencies
           sudo apt-get update
-          sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm
-          # FIXES missing bin error
-          which bpf-linker || cargo install bpf-linker
-          
-
-      # Verify submodules are properly loaded
-      - name: Verify submodule content
-        run: |
-          # List files in the vendor directory to ensure vmlinux.h is present
-          find vendor -name "vmlinux.h" -type f || echo "vmlinux.h not found in vendor"
-          
-          # Debug output for troubleshooting
-          ls -la vendor/ || echo "No vendor directory found"
-          
-          # If the file is still missing after submodule checkout, report where it should be
-          if [ ! -f vendor/vmlinux.h/include/x86/vmlinux.h ]; then
-            echo "WARNING: Expected vmlinux.h file is missing at vendor/vmlinux.h/include/x86/vmlinux.h"
-            # Uncomment below if you want to create directory structure for further debugging
-            # mkdir -p vendor/vmlinux.h/include/x86
-          fi
+          sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm          
 
       - name: Check Formatting
         run: cargo fmt -- --check
@@ -93,17 +71,6 @@ jobs:
         run: cargo clippy -- -D warnings
 
       - name: Run tests
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: "us-east-2"
-          AWS_ENDPOINT: "https://s3.us-east-2.amazonaws.com"
-          RUST_LOG: "debug"
-          RUST_BACKTRACE: 1
-          TRACER_DATABASE_SECRETS_ARN: ${{ secrets.TRACER_DATABASE_LOCAL_SECRETS_ARN }}
-          TRACER_DATABASE_NAME: ${{ secrets.TRACER_DATABASE_NAME }}
-          TRACER_DATABASE_HOST: "localhost:5432"
-          DATABASE_URL: "postgresql://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/tracer_db" # localhost since VM
         run: cargo test
 
   run-integrations:
@@ -117,6 +84,7 @@ jobs:
       - name: Setup Rust toolchain
         run: |
           rustup toolchain install stable --profile minimal
+          rustup toolchain install nightly-2025-04-15 --component rust-src
 
       - name: Create .env file from GitHub Secrets
         run: |
