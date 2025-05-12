@@ -4,9 +4,9 @@ mod common;
 
 pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("../../migrations");
 
-#[sqlx::test(migrator = "MIGRATOR")]
-async fn info(pool: PgPool) {
-    let server = common::test_server::TestServer::launch(pool).await.unwrap();
+#[tokio::test]
+async fn info() {
+    let server = common::test_server::TestServer::launch().await.unwrap();
 
     server
         .send_command(&["info"])
@@ -19,9 +19,9 @@ async fn info(pool: PgPool) {
     server.finished().await.unwrap()
 }
 
-#[sqlx::test(migrator = "MIGRATOR")]
-async fn log(pool: PgPool) {
-    let server = common::test_server::TestServer::launch(pool).await.unwrap();
+#[tokio::test]
+async fn log() {
+    let server = common::test_server::TestServer::launch().await.unwrap();
 
     server
         .send_command(&["log", "some_message"])
@@ -35,9 +35,9 @@ async fn log(pool: PgPool) {
     server.finished().await.unwrap()
 }
 
-#[sqlx::test(migrator = "MIGRATOR")]
-async fn alert(pool: PgPool) {
-    let server = common::test_server::TestServer::launch(pool).await.unwrap();
+#[tokio::test]
+async fn alert() {
+    let server = common::test_server::TestServer::launch().await.unwrap();
 
     server
         .send_command(&["alert", "some_message"])
@@ -51,9 +51,9 @@ async fn alert(pool: PgPool) {
     server.finished().await.unwrap()
 }
 
-#[sqlx::test(migrator = "MIGRATOR")]
-async fn end(pool: PgPool) {
-    let server = common::test_server::TestServer::launch(pool).await.unwrap();
+#[tokio::test]
+async fn end() {
+    let server = common::test_server::TestServer::launch().await.unwrap();
 
     server
         .send_command(&["end"])
@@ -67,9 +67,9 @@ async fn end(pool: PgPool) {
     server.finished().await.unwrap()
 }
 
-#[sqlx::test(migrator = "MIGRATOR")]
-async fn tag(pool: PgPool) {
-    let server = common::test_server::TestServer::launch(pool).await.unwrap();
+#[tokio::test]
+async fn tag() {
+    let server = common::test_server::TestServer::launch().await.unwrap();
 
     server
         .send_command(&["tag", "tag1", "tag2"])
@@ -83,9 +83,9 @@ async fn tag(pool: PgPool) {
     server.finished().await.unwrap()
 }
 
-#[sqlx::test(migrator = "MIGRATOR")]
-async fn upload(pool: PgPool) {
-    let server = common::test_server::TestServer::launch(pool).await.unwrap();
+#[tokio::test]
+async fn upload() {
+    let server = common::test_server::TestServer::launch().await.unwrap();
 
     server
         .send_command(&["upload", "/Users/blaginin/jbr_err_pid1039.log"]) // random file

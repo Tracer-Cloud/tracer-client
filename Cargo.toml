@@ -9,8 +9,7 @@ members = [
     "src/common",
     "integration_tests",
     "src/ebpf/common",
-    "src/ebpf/kernel",
-    "src/ebpf/user",
+    "src/ebpf-libbpf"
 ]
 default-members = [
     "src/cli",
@@ -21,7 +20,7 @@ default-members = [
     "src/common",
     "integration_tests",
     "src/ebpf/common",
-    "src/ebpf/user",
+    "src/ebpf-libbpf"
 ]
 
 [workspace.package]
@@ -39,9 +38,7 @@ tracer_common = { path = "src/common" }
 tracer_extracts = { path = "src/extracts" }
 tracer_daemon = { path = "src/daemon" }
 tracer_cli = { path = "src/cli" }
-tracer_ebpf_kernel = { path = "src/ebpf/kernel" }
 tracer_ebpf_common = { path = "src/ebpf/common" }
-tracer_ebpf_user = { path = "src/ebpf/user" }
 
 
 anyhow = "1.0.98"
@@ -97,21 +94,11 @@ env_logger = "0.11"
 dotenv = "0.15"
 bollard = "0.18.1"
 assert_cmd = "2.0"
-aya = { version = "0.13.1", default-features = false }
-aya-build = { git = "https://github.com/aya-rs/aya.git", default-features = false }
-aya-ebpf = { version = "0.1.1", default-features = false }
-aya-log = { version = "0.2.1", default-features = false }
-aya-log-ebpf = { version = "0.1.1", default-features = false }
 which = { version = "6.0.0", default-features = false }
 bytes = "1.10.1"
 libc = { version = "0.2.172", default-features = false }
-
 sentry = { version = "0.37.0", features = ["anyhow"] }
 rstest = "0.25.0"
 
 typed-builder = "0.18"
 futures-util = "0.3"
-
-[profile.release.package.tracer_ebpf_kernel]
-debug = 2
-codegen-units = 1

@@ -8,6 +8,8 @@ use tracer_aws::config::AwsConfig;
 use tracer_aws::types::aws_region::AwsRegion;
 use tracer_client::config_manager::Config;
 use tracer_client::exporters::db::AuroraClient;
+use tracer_client::exporters::log_forward::LogForward;
+use tracer_client::exporters::log_writer::{LogWriter, LogWriterEnum};
 use tracer_client::params::TracerCliInitArgs;
 use tracer_client::TracerClient;
 use tracer_daemon::server::DaemonServer;
@@ -19,11 +21,7 @@ pub struct TestServer {
 }
 
 impl TestServer {
-    async fn setup_client(
-        pool: PgPool,
-        server: String,
-        path: String,
-    ) -> Result<TracerClient, anyhow::Error> {
+    async fn setup_client(server: String, path: String) -> Result<TracerClient, anyhow::Error> {
         let config = Config {
             api_key: "EAjg7eHtsGnP3fTURcPz1".to_string(),
             process_polling_interval_ms: 100,
@@ -42,18 +40,26 @@ impl TestServer {
             server,
             config_sources: vec![],
             sentry_dsn: None,
+            log_forward_endpoint_dev: None,
+            log_forward_endpoint_prod: None,
         };
 
-        let db_client = AuroraClient::from_pool(pool);
+        let log_forward_endpoint = "https://sandbox.tracer.cloud/api/logs-forward/dev";
+
+        let log_forward_client = LogWriterEnum::Forward(
+            LogForward::try_new(log_forward_endpoint)
+                .await
+                .expect("Failed to create LogForward"),
+        );
 
         let args = TracerCliInitArgs::default();
 
-        TracerClient::new(config, path, db_client, args).await
+        TracerClient::new(config, path, log_forward_client, args).await
     }
 
-    async fn get_tracer(pool: PgPool, path: String) -> Result<DaemonServer, anyhow::Error> {
+    async fn get_tracer(path: String) -> Result<DaemonServer, anyhow::Error> {
         let server: SocketAddr = "127.0.0.1:0".parse()?; // 0: means port will be picked by the OS
-        let client = Self::setup_client(pool, server.to_string(), path).await?;
+        let client = Self::setup_client(server.to_string(), path).await?;
 
         let server = DaemonServer::bind(client, server).await?;
         Ok(server)
@@ -72,9 +78,9 @@ impl TestServer {
             .unwrap()
     }
 
-    pub async fn launch(pool: PgPool) -> anyhow::Result<Self> {
+    pub async fn launch() -> anyhow::Result<Self> {
         let dir = TempDir::new()?;
-        let server = Self::get_tracer(pool, dir.path().to_str().unwrap().to_string()).await?;
+        let server = Self::get_tracer(dir.path().to_str().unwrap().to_string()).await?;
 
         let addr = server.local_addr()?;
         println!("server listening on {}", addr);

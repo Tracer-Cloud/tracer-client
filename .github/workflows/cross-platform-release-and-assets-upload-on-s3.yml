@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - main
+      - dev
   pull_request:
     branches:
       - main
+      - dev
 
 jobs:
   build-and-release:
@@ -24,30 +26,10 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     steps:
-      - uses: actions/checkout@v4.1.4
-
-      - name: Update version in Cargo.toml
-        run: |
-          # Format: vYYYY.MM.DD.HH (e.g., v2025.03.27.22)
-          DATE_TAG=$(date -u +"v%Y.%m.%d.%H")
-
-          # Extract date components using cut and remove leading zeros
-          YEAR=$(echo ${DATE_TAG} | cut -d'v' -f2 | cut -d'.' -f1)
-          MONTH=$(echo ${DATE_TAG} | cut -d'.' -f2 | sed 's/^0*//')
-          DAY=$(echo ${DATE_TAG} | cut -d'.' -f3 | sed 's/^0*//')
-          HOUR=$(echo ${DATE_TAG} | cut -d'.' -f4)
-
-          # Resolve branch name from PR or fallback to ref_name
-          BRANCH="${{ github.event.pull_request.head.ref || github.ref_name }}"
-
-          # Sanitize branch name for Cargo SemVer metadata
-          BRANCH_NAME=$(echo "$BRANCH" | tr '/' '-' | tr '_' '-' | sed 's/[^a-zA-Z0-9-]//g')
-
-          # Compose SemVer-compatible version string
-          CARGO_VERSION="${YEAR}.${MONTH}.${DAY}+${HOUR}-${BRANCH_NAME}"
-
-          # Update version in Cargo.toml
-          sed -i.bak "s/^version = .*/version = \"${CARGO_VERSION}\"/" Cargo.toml
+      - name: Check out repository with submodules
+        uses: actions/checkout@v4.1.4
+        with:
+          submodules: recursive  # This will fetch all submodules recursively
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -85,10 +67,32 @@ jobs:
       - name: Install build dependencies
         run: |
           rustup toolchain install nightly-2025-04-15 --component rust-src
-           which bpf-linker || cargo install bpf-linker
-          which bindgen || cargo install bindgen-cli
-          which aya-tool || cargo install --git https://github.com/aya-rs/aya -- aya-tool
-          aya-tool generate task_struct > src/ebpf/kernel/src/gen.rs
+          
+          # Install necessary eBPF dependencies
+          sudo apt-get update
+          sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm          
+
+      # Verify submodules are properly loaded
+      - name: Verify submodule content
+        run: |
+          # Find all vmlinux.h files
+          vmlinux_files=$(find vendor -name "vmlinux.h")
+          
+          # Check if any vmlinux.h files exist
+          if [ -z "$vmlinux_files" ]; then
+            echo "ERROR: No vmlinux.h files found in vendor directory"
+            exit 1
+          fi
+          
+          # Print out the found vmlinux.h files for debugging
+          echo "Found vmlinux.h files:"
+          echo "$vmlinux_files"
+          
+          # Optional: Check for specific directories or files you expect
+          if [ ! -d "vendor/bpftool" ] || [ ! -d "vendor/libbpf" ]; then
+            echo "WARNING: Expected vendor subdirectories are missing"
+          fi
+  
 
       - name: Build the binary
         run: cargo build --release --target ${{ matrix.target }}
@@ -122,7 +126,8 @@ jobs:
         run: |
           yum update -y
           yum groupinstall -y "Development Tools"
-          yum install -y git gcc openssl-devel pkgconfig cmake tar gzip unzip bpftool clang clang-devel llvm-devel
+          sudo yum  install -y kernel-devel kernel-headers clang llvm libbpf-devel
+
 
       - name: Install Rust
         run: |
@@ -131,29 +136,11 @@ jobs:
           source $HOME/.cargo/env
           rustup target add x86_64-unknown-linux-gnu
           rustup toolchain install nightly-2025-04-15 --component rust-src
-          which bpf-linker || cargo install bpf-linker
-          which bindgen || cargo install bindgen-cli
-          which aya-tool || cargo install --git https://github.com/aya-rs/aya -- aya-tool
 
-      - uses: actions/checkout@v4
-
-      - name: Generate kernel bindings
-        run: |
-          source $HOME/.cargo/env
-          aya-tool generate task_struct > src/ebpf/kernel/src/gen.rs
-
-      - name: Update version in Cargo.toml
-        run: |
-          DATE_TAG=$(date -u +"v%Y.%m.%d.%H")
-          YEAR=$(echo ${DATE_TAG} | cut -d'v' -f2 | cut -d'.' -f1)
-          MONTH=$(echo ${DATE_TAG} | cut -d'.' -f2 | sed 's/^0*//')
-          DAY=$(echo ${DATE_TAG} | cut -d'.' -f3 | sed 's/^0*//')
-          HOUR=$(echo ${DATE_TAG} | cut -d'.' -f4)
-          BRANCH="${{ github.event.pull_request.head.ref || github.ref_name }}"
-          BRANCH_NAME=$(echo "$BRANCH" | tr '/' '-' | tr '_' '-' | sed 's/[^a-zA-Z0-9-]//g')
-          CARGO_VERSION="${YEAR}.${MONTH}.${DAY}+${HOUR}-${BRANCH_NAME}"
-          sed -i.bak "s/^version = .*/version = \"${CARGO_VERSION}\"/" Cargo.toml
-          echo "Built version: $CARGO_VERSION"
+      - name: Check out repository with submodules
+        uses: actions/checkout@v4.1.4
+        with:
+          submodules: recursive  # This will fetch all submodules recursively
 
       - name: Build the binary
         run: |

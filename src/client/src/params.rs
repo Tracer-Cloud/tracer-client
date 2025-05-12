@@ -19,4 +19,7 @@ pub struct TracerCliInitArgs {
     /// Run agent as a standalone process rather than a daemon
     #[clap(long)]
     pub no_daemonize: bool,
+
+    #[clap(long)]
+    pub is_dev: Option<bool>,
 }

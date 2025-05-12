@@ -15,7 +15,7 @@ impl S3Client {
         let config = get_initialized_aws_conf(initialization_conf, region).await;
 
         Self {
-            client: aws_sdk_s3::Client::new(&config),
+            client: aws_sdk_s3::Client::new(&config.unwrap()),
             region: region.to_string(),
         }
     }
@@ -197,6 +197,7 @@ impl S3Client {
 /// To fix this, I added cleanup steps before and after each test to maintain a clean state and used the #[serial] attribute to enforce sequential execution, preventing concurrent access.
 pub mod tests {
     use super::*;
+    use aws_config::meta::region::RegionProviderChain;
     use dotenv::dotenv;
     use serial_test::serial;
     use std::env;
@@ -206,6 +207,18 @@ pub mod tests {
     pub fn setup_env_vars(region: &str) {
         dotenv().ok(); // Load from .env file in development
         env::set_var("AWS_REGION", region);
+    }
+
+    pub async fn credentials_available() -> bool {
+        let region_provider = RegionProviderChain::default_provider().or_else("us-east-1");
+        let config = aws_config::from_env().region(region_provider).load().await;
+        config.credentials_provider().is_some()
+            && config
+                .credentials_provider()
+                .unwrap()
+                .provide_credentials()
+                .await
+                .is_ok()
     }
 
     async fn cleanup_test_buckets(client: &S3Client) -> Result<(), String> {
@@ -255,14 +268,16 @@ pub mod tests {
     async fn get_test_s3_client() -> S3Client {
         let region = "us-east-2";
         setup_env_vars(region);
-        let config = AwsConfig::Env;
-        S3Client::new(config, region).await
+        S3Client::new(AwsConfig::Env, region).await
     }
 
     #[tokio::test]
     #[serial]
     async fn test_s3_actions() -> Result<(), Box<dyn std::error::Error>> {
-        sleep(Duration::from_secs(3)).await;
+        if !credentials_available().await {
+            println!("Skipping test_s3_actions: no AWS credentials.");
+            return Ok(());
+        }
 
         let s3_client = get_test_s3_client().await;
 
@@ -284,6 +299,11 @@ pub mod tests {
     #[tokio::test]
     #[serial]
     async fn test_additional_s3_actions() -> Result<(), Box<dyn std::error::Error>> {
+        if !credentials_available().await {
+            println!("Skipping test_additional_s3_actions: no AWS credentials.");
+            return Ok(());
+        }
+
         let s3_client = get_test_s3_client().await;
 
         cleanup_test_buckets(&s3_client).await?;
