@@ -146,7 +146,6 @@ jobs:
           curl https://sh.rustup.rs -sSf | sh -s -- -y
           source $HOME/.cargo/env
           rustup default stable
-          rustup target add x86_64-unknown-linux-gnu
           rustup toolchain install nightly-2025-04-15 --component rust-src
           
           # Create .cargo/config.toml
