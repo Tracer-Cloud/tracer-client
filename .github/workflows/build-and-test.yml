@@ -3,7 +3,7 @@ on:
   push:
     branches:
       - "main"
-      - "staging"
+      - "dev"
   pull_request:
     branches:
       - "**"
@@ -62,10 +62,7 @@ jobs:
           
           # Install necessary eBPF dependencies
           sudo apt-get update
-          sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm
-          # FIXES missing bin error
-          which bpf-linker || cargo install bpf-linker
-          
+          sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm          
 
       # Verify submodules are properly loaded
       - name: Verify submodule content
@@ -78,10 +75,7 @@ jobs:
           
           # If the file is still missing after submodule checkout, report where it should be
           if [ ! -f vendor/vmlinux.h/include/x86/vmlinux.h ]; then
-            echo "WARNING: Expected vmlinux.h file is missing at vendor/vmlinux.h/include/x86/vmlinux.h"
-            # Uncomment below if you want to create directory structure for further debugging
-            # mkdir -p vendor/vmlinux.h/include/x86
-          fi
+            echo "WARNING: Expected vmlinux.h file is missing at vendor/vmlinux.h/include/x86/vmlinux.h"          fi
 
       - name: Check Formatting
         run: cargo fmt -- --check
@@ -94,16 +88,16 @@ jobs:
 
       - name: Run tests
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: "us-east-2"
-          AWS_ENDPOINT: "https://s3.us-east-2.amazonaws.com"
-          RUST_LOG: "debug"
-          RUST_BACKTRACE: 1
-          TRACER_DATABASE_SECRETS_ARN: ${{ secrets.TRACER_DATABASE_LOCAL_SECRETS_ARN }}
-          TRACER_DATABASE_NAME: ${{ secrets.TRACER_DATABASE_NAME }}
-          TRACER_DATABASE_HOST: "localhost:5432"
-          DATABASE_URL: "postgresql://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/tracer_db" # localhost since VM
+          # AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          # AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          # AWS_REGION: "us-east-2"
+          # AWS_ENDPOINT: "https://s3.us-east-2.amazonaws.com"
+          # RUST_LOG: "debug"
+          # RUST_BACKTRACE: 1
+          # TRACER_DATABASE_SECRETS_ARN: ${{ secrets.TRACER_DATABASE_LOCAL_SECRETS_ARN }}
+          # TRACER_DATABASE_NAME: ${{ secrets.TRACER_DATABASE_NAME }}
+          # TRACER_DATABASE_HOST: "localhost:5432"
+          # DATABASE_URL: "postgresql://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/tracer_db" # localhost since VM
         run: cargo test
 
   run-integrations:
@@ -118,14 +112,14 @@ jobs:
         run: |
           rustup toolchain install stable --profile minimal
 
-      - name: Create .env file from GitHub Secrets
-        run: |
-          echo "AWS_REGION=us-east-2" >> .env
-          echo "AWS_ENDPOINT=https://s3.us-east-2.amazonaws.com" >> .env
-          echo "RUST_LOG=debug" >> .env
-          echo "DATABASE_URL=postgres://postgres:postgres@db:5432/tracer_db" >> .env
-          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
-          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
+      # - name: Create .env file from GitHub Secrets
+      #   run: |
+      #     echo "AWS_REGION=us-east-2" >> .env
+      #     echo "AWS_ENDPOINT=https://s3.us-east-2.amazonaws.com" >> .env
+      #     echo "RUST_LOG=debug" >> .env
+      #     echo "DATABASE_URL=postgres://postgres:postgres@db:5432/tracer_db" >> .env
+      #     echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
+      #     echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
 
 
       - name: Build Test Images
