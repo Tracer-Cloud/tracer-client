@@ -116,43 +116,75 @@ jobs:
           aws s3 cp release-files/tracer-${{ matrix.target }}.tar.gz s3://tracer-releases/tracer-${{ matrix.target }}.tar.gz
 
   build-and-release-amazon-linux:
-    permissions: write-all
-    runs-on: ubuntu-latest
-    container:
-      image: amazonlinux:2023
+  permissions: write-all
+  runs-on: ubuntu-latest
+  container:
+    image: amazonlinux:2023
 
-    steps:
-      - name: Install dependencies
-        run: |
-          yum update -y
-          yum groupinstall -y "Development Tools"
-          yum  install -y kernel-devel kernel-headers clang llvm libbpf-devel openssl-devel pkgconfig
+  steps:
+    - name: Install dependencies
+      run: |
+        yum update -y
+        yum groupinstall -y "Development Tools"
+        yum install -y \
+          kernel-devel \
+          kernel-headers \
+          clang \
+          llvm \
+          libbpf-devel \
+          openssl-devel \
+          pkgconfig \
+          libzstd-devel \
+          zlib-devel \
+          libffi-devel \
+          wget \
+          tar \
+          gzip
 
+    - name: Install Rust
+      run: |
+        curl https://sh.rustup.rs -sSf | sh -s -- -y
+        source $HOME/.cargo/env
+        rustup default stable
+        rustup target add x86_64-unknown-linux-gnu
+        rustup toolchain install nightly-2025-04-15 --component rust-src
+        
+        # Create .cargo/config.toml
+        mkdir -p $HOME/.cargo
+        cat > $HOME/.cargo/config.toml << EOL
+        [target.x86_64-unknown-linux-gnu]
+        linker = "clang"
+        rustflags = [
+            "-C", "link-arg=-fPIE",
+            "-C", "link-arg=-pie",
+            "-C", "target-feature=+crt-static"
+        ]
+        EOL
 
-      - name: Install Rust
-        run: |
-          curl https://sh.rustup.rs -sSf | sh -s -- -y
-          echo 'source $HOME/.cargo/env' >> ~/.bashrc
-          source $HOME/.cargo/env
-          rustup target add x86_64-unknown-linux-gnu
-          rustup toolchain install nightly-2025-04-15 --component rust-src
+    - name: Check out repository with submodules
+      uses: actions/checkout@v4.1.4
+      with:
+        submodules: recursive
 
-      - name: Check out repository with submodules
-        uses: actions/checkout@v4.1.4
-        with:
-          submodules: recursive  # This will fetch all submodules recursively
+    - name: Print Debug Information
+      run: |
+        source $HOME/.cargo/env
+        rustc -vV
+        cargo -vV
+        clang --version
+        ld --version
 
-      - name: Build the binary
-        run: |
-          source $HOME/.cargo/env
-          cargo build --release
+    - name: Build the binary
+      run: |
+        source $HOME/.cargo/env
+        RUSTFLAGS="-C target-feature=+crt-static -C link-arg=-fPIE -C link-arg=-pie" cargo build --release
 
-      - name: Prepare binary for release
-        run: |
-          mkdir -p release-files/amazon-linux
-          cp target/release/tracer_cli release-files/amazon-linux/tracer
-          chmod +x release-files/amazon-linux/tracer
-          tar -czf release-files/tracer-x86_64-amazon-linux-gnu.tar.gz -C release-files/amazon-linux tracer
+    - name: Prepare binary for release
+      run: |
+        mkdir -p release-files/amazon-linux
+        cp target/release/tracer_cli release-files/amazon-linux/tracer
+        chmod +x release-files/amazon-linux/tracer
+        tar -czf release-files/tracer-x86_64-amazon-linux-gnu.tar.gz -C release-files/amazon-linux tracer
 
       - name: Install AWS CLI
         run: |
