@@ -127,19 +127,24 @@ jobs:
           yum update -y
           yum groupinstall -y "Development Tools"
           yum install -y \
-            kernel-devel \
-            kernel-headers \
-            clang \
-            llvm \
-            libbpf-devel \
-            openssl-devel \
-            pkgconfig \
-            libzstd-devel \
-            zlib-devel \
-            libffi-devel \
-            wget \
-            tar \
-            gzip
+          glibc-devel \
+          glibc-static \
+          libgcc \
+          libstdc++-static \
+          kernel-devel \
+          kernel-headers \
+          clang \
+          llvm \
+          libbpf-devel \
+          openssl-devel \
+          pkgconfig \
+          libzstd-devel \
+          zlib-devel \
+          libffi-devel \
+          wget \
+          tar \
+          gzip
+
 
       - name: Install Rust
         run: |
