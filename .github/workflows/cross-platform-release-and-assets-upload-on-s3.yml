@@ -26,7 +26,6 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     steps:
-      steps:
       - name: Check out repository with submodules
         uses: actions/checkout@v4.1.4
         with:
@@ -128,12 +127,10 @@ jobs:
           rustup target add x86_64-unknown-linux-gnu
           rustup toolchain install nightly-2025-04-15 --component rust-src
 
-      steps:
       - name: Check out repository with submodules
         uses: actions/checkout@v4.1.4
         with:
           submodules: recursive  # This will fetch all submodules recursively
-
 
       - name: Build the binary
         run: |
