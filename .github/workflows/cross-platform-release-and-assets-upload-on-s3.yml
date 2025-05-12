@@ -164,7 +164,7 @@ jobs:
       - name: Build the binary
         run: |
           source $HOME/.cargo/env
-          cargo build --release
+          RUSTFLAGS="-C link-arg=-no-pie" cargo build --release
 
       - name: Prepare binary for release
         run: |
