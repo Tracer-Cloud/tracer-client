@@ -75,15 +75,24 @@ jobs:
       # Verify submodules are properly loaded
       - name: Verify submodule content
         run: |
-          # List files in the vendor directory to ensure vmlinux.h is present
-          find vendor -name "vmlinux.h" -type f || echo "vmlinux.h not found in vendor"
+          # Find all vmlinux.h files
+          vmlinux_files=$(find vendor -name "vmlinux.h")
           
-          # Debug output for troubleshooting
-          ls -la vendor/ || echo "No vendor directory found"
+          # Check if any vmlinux.h files exist
+          if [ -z "$vmlinux_files" ]; then
+            echo "ERROR: No vmlinux.h files found in vendor directory"
+            exit 1
+          fi
           
-          # If the file is still missing after submodule checkout, report where it should be
-          if [ ! -f vendor/vmlinux.h/include/x86/vmlinux.h ]; then
-            echo "WARNING: Expected vmlinux.h file is missing at vendor/vmlinux.h/include/x86/vmlinux.h"          fi    
+          # Print out the found vmlinux.h files for debugging
+          echo "Found vmlinux.h files:"
+          echo "$vmlinux_files"
+          
+          # Optional: Check for specific directories or files you expect
+          if [ ! -d "vendor/bpftool" ] || [ ! -d "vendor/libbpf" ]; then
+            echo "WARNING: Expected vendor subdirectories are missing"
+          fi
+  
 
       - name: Build the binary
         run: cargo build --release --target ${{ matrix.target }}
