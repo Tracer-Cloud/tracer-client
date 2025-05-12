@@ -76,3 +76,5 @@ script-second-script.sh
 
 #
 README.local.md
+
+../tracer.dev.toml

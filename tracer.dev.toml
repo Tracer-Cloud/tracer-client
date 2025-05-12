@@ -1,0 +1,8 @@
+api_key = "<YOUR_API_KEY>"
+process_polling_interval_ms = 20
+batch_submission_interval_ms = 5000
+aws_role_arn = "arn:aws:iam::395261708130:role/TestTracerClientServiceRole"
+database_secrets_arn = "arn:aws:secretsmanager:us-east-1:395261708130:secret:rds!cluster-51d6638e-5975-4a26-95d3-e271ac9b2a04-dOWVVO"
+database_host = "tracer-development-instance.cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432"
+database_name = "tracer_db"
+grafana_workspace_url = "https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com"
