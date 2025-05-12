@@ -147,18 +147,6 @@ jobs:
           source $HOME/.cargo/env
           rustup default stable
           rustup toolchain install nightly-2025-04-15 --component rust-src
-          
-          # Create .cargo/config.toml
-          mkdir -p $HOME/.cargo
-          cat > $HOME/.cargo/config.toml << EOL
-          [target.x86_64-unknown-linux-gnu]
-          linker = "clang"
-          rustflags = [
-              "-C", "link-arg=-fPIE",
-              "-C", "link-arg=-pie",
-              "-C", "target-feature=+crt-static"
-          ]
-          EOL
 
       - name: Check out repository with submodules
         uses: actions/checkout@v4.1.4
@@ -176,7 +164,7 @@ jobs:
       - name: Build the binary
         run: |
           source $HOME/.cargo/env
-          RUSTFLAGS="-C target-feature=+crt-static -C link-arg=-fPIE -C link-arg=-pie" cargo build --release
+          cargo build --release
 
       - name: Prepare binary for release
         run: |
