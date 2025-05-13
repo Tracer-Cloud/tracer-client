@@ -8,8 +8,7 @@ members = [
     "src/extracts",
     "src/common",
     "integration_tests",
-    "src/ebpf/common",
-    "src/ebpf-libbpf"
+    "src/ebpf"
 ]
 default-members = [
     "src/cli",
@@ -19,8 +18,7 @@ default-members = [
     "src/extracts",
     "src/common",
     "integration_tests",
-    "src/ebpf/common",
-    "src/ebpf-libbpf"
+    "src/ebpf"
 ]
 
 [workspace.package]
@@ -38,7 +36,6 @@ tracer_common = { path = "src/common" }
 tracer_extracts = { path = "src/extracts" }
 tracer_daemon = { path = "src/daemon" }
 tracer_cli = { path = "src/cli" }
-tracer_ebpf_common = { path = "src/ebpf/common" }
 
 
 anyhow = "1.0.98"

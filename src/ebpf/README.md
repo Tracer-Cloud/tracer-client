@@ -1,4 +1,4 @@
-# ebpf-libbpf
+# ebpf
 
 > A minimal BPF implementation based on [`libbpf/libbpf-bootstrap`](https://github.com/libbpf/libbpf-bootstrap) (examples/c/bootstrap).
 
@@ -34,7 +34,7 @@ sudo apt install clang libelf1 libelf-dev zlib1g-dev
 
 # Clone *and* pull submodules in one go
 git clone --recurse-submodules https://github.com/Tracer-Cloud/tracer-client
-cd src/ebpf-libbpf
+cd src/ebpf
 
 # (Or, if you already cloned)
 git submodule update --init --recursive
@@ -54,7 +54,7 @@ make
 This produces:
 
 - `./example`: standalone binary, which just logs captured events when executed (useful for debugging).
-- `./bootstrap.a`: linkable object used as input for Tracer binary compilation.
+- `./libbootstrap.a`: linkable object used as input for Tracer binary compilation.
 
 Run the example with:
 
@@ -65,10 +65,12 @@ sudo ./example
 The output should look something like:
 
 ```sh
-TIME     EVENT COMM      PID     PPID    FILENAME/EXIT CODE
-00:21:22 EXIT  python3.8 4032353 4032352 [0] (123ms)
-00:21:22 EXEC  mkdir     4032379 4032337 /usr/bin/mkdir
-00:21:22 EXIT  mkdir     4032379 4032337 [0] (1ms)
+{"event_type":"process_exec","timestamp":"1970-01-07 06:48:44.807862128","pid":1258136,"ppid":1244910,"comm":"git","argc":9,"argv":["/usr/bin/git","-c","core.quotepath=false","-c","color.ui=false","rev-parse","--verify","--end-of-options","1252231^{commit}"]}
+{"event_type":"process_exit","timestamp":"1970-01-07 06:48:44.809130125","pid":1258136,"ppid":1244910}
+{"event_type":"process_exec","timestamp":"1970-01-07 06:48:45.386948556","pid":1258137,"ppid":1206440,"comm":"sh","argc":3,"argv":["/bin/sh","-c","which ps"]}
+{"event_type":"process_exec","timestamp":"1970-01-07 06:48:45.387484766","pid":1258138,"ppid":1258137,"comm":"which","argc":3,"argv":["/bin/sh","/usr/bin/which","ps"]}
+{"event_type":"process_exit","timestamp":"1970-01-07 06:48:45.387959373","pid":1258138,"ppid":1258137}
+{"event_type":"process_exit","timestamp":"1970-01-07 06:48:45.388083524","pid":1258137,"ppid":1206440}
 ```
 
 **Updating vendored dependencies**:
@@ -89,7 +91,7 @@ git commit -m "Bump libbpf to v1.5.0"
 
 **The Rust-C interface**
 
-eBPF is implemented within a standalone C library (`c/` directory) that's linked to Rust via a FFI interface with shared memory. This fully decouples our Rust code from eBPF internals.
+eBPF is implemented within a standalone C library (`c/` directory) that's linked to Rust (`rs/` directory) via a FFI interface with shared memory. This fully decouples our Rust code from eBPF internals.
 
 Here, `binding.rs` allocates a buffer the C library can write to asynchronously. The library does so and notifies `binding.rs` of writes via a callback. The callback then sends the events onwards and allocates a new buffer, completing the cycle.
 
