@@ -1,0 +1,107 @@
+name: Rust CI
+on:
+  pull_request:
+    branches: 
+      - "**"
+
+env:
+  CARGO_TERM_COLOR: always # Ensures colored output in GitHub Actions logs
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: tracer_db
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Check out repository with submodules
+        uses: actions/checkout@v4.1.4
+        with:
+          submodules: recursive  # This will fetch all submodules recursively
+
+      - name: Setup Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup toolchain install nightly-2025-04-15 --component rust-src
+          rustup component add clippy
+          rustup component add rustfmt
+
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-${{ runner.os }}-${{ runner.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-${{ runner.os }}-${{ runner.arch }}-cargo-
+
+
+      - name: Install build dependencies
+        run: |
+          rustup toolchain install nightly-2025-04-15 --component rust-src
+          
+          # Install necessary eBPF dependencies
+          sudo apt-get update
+          sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm          
+
+      - name: Check Formatting
+        run: cargo fmt -- --check
+
+      - name: Cargo check
+        run: cargo check --locked --all-targets
+
+      - name: Lint with Clippy
+        run: cargo clippy -- -D warnings
+
+      - name: Run tests
+        run: cargo test
+
+  run-integrations:
+      name: Build and Test Integrations
+      runs-on: ubuntu-latest
+      needs: []
+
+      steps:
+      - uses: actions/checkout@v4.1.4
+
+      - name: Setup Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup toolchain install nightly-2025-04-15 --component rust-src
+
+      - name: Create .env file from GitHub Secrets
+        run: |
+          echo "AWS_REGION=us-east-2" >> .env
+          echo "AWS_ENDPOINT=https://s3.us-east-2.amazonaws.com" >> .env
+          echo "RUST_LOG=debug" >> .env
+          echo "DATABASE_URL=postgres://postgres:postgres@db:5432/tracer_db" >> .env
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
+
+
+      - name: Build Test Images
+        run: |
+          docker compose build integrations_tests parallel_tests
+
+      - name: Run Simple Queries tests
+        run: cargo test --test simple_queries -p integration_tests -- --nocapture
+
+      - name: Run Parallel tests
+        run: cargo test --test parallel -p integration_tests -- --nocapture

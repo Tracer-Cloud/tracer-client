@@ -1,0 +1,108 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Update version in Cargo.toml
+        run: |
+          if [[ "${{ github.ref_name }}" == *"-dev" ]] ; then
+            export TRACER_VERSION_DEVELOP="${{ github.ref_name }}"
+            sed -i.bak "s/^version = .*/version = \"${TRACER_VERSION_DEVELOP:0:$((${#TRACER_VERSION_DEVELOP} - 4))}\"/" Cargo.toml
+            sed -i.bak "s/^version = \"v/version = \"/" Cargo.toml
+            sed -i.bak "s/^TRACER_VERSION_DEVELOP=\".*/TRACER_VERSION_DEVELOP=\"${{ github.ref_name }}\"/" installation-script.sh
+          else
+            sed -i.bak "s/^version = .*/version = \"${{ github.ref_name }}\"/" Cargo.toml
+            sed -i.bak "s/^version = \"v/version = \"/" Cargo.toml
+            sed -i.bak "s/^TRACER_VERSION=\".*/TRACER_VERSION=\"${{ github.ref_name }}\"/" installation-script.sh
+          fi
+      - name: Setup Github user
+        run: |
+          git config --local user.name actions-user
+          git config --local user.email "actions@github.com"
+      - name: Add files to commit
+        run: git add Cargo.toml installation-script.sh
+      - name: Commit changes
+        run: git commit -m "Update version to ${{ github.ref_name }}"
+      - name: Push changes
+        run: git push origin HEAD:main
+      - uses: taiki-e/create-gh-release-action@v1.8.2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  upload-assets:
+    needs: create-release
+    permissions: write-all
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-22.04-arm
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4.1.4
+
+      - name: Install cross-compilation tools
+        uses: taiki-e/setup-cross-toolchain-action@v1
+        with:
+          target: ${{ matrix.target }}
+        if: startsWith(matrix.os, 'ubuntu')
+
+      - uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: tracer_cli
+          target: ${{ matrix.target }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+  upload-amazon-linux:
+    needs: create-release
+    permissions: write-all
+    runs-on: ubuntu-latest
+    container:
+      image: amazonlinux:2023
+
+    steps:
+      - name: Install dependencies
+        run: |
+          yum update -y
+          yum groupinstall -y "Development Tools"
+          yum install -y git gcc openssl-devel pkgconfig cmake tar gzip unzip
+
+      - name: Install Rust
+        run: |
+          curl https://sh.rustup.rs -sSf | sh -s -- -y
+          echo 'source $HOME/.cargo/env' >> ~/.bashrc
+          source $HOME/.cargo/env
+          rustup target add x86_64-unknown-linux-gnu
+
+      - uses: actions/checkout@v4
+
+      - name: Build the binary
+        run: |
+          source $HOME/.cargo/env
+          cargo build --release
+
+      - name: Prepare binary for release
+        run: |
+          mkdir -p release-files/amazon-linux
+          cp target/release/tracer_cli release-files/amazon-linux/tracer
+          chmod +x release-files/amazon-linux/tracer
+          tar -czf release-files/tracer-x86_64-amazon-linux-gnu.tar.gz -C release-files/amazon-linux tracer
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release-files/tracer-x86_64-amazon-linux-gnu.tar.gz
+          token: ${{ secrets.GITHUB_TOKEN }}

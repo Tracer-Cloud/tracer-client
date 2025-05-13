@@ -1,0 +1,9 @@
+[submodule "vendor/libbpf"]
+	path = vendor/libbpf
+	url = https://github.com/libbpf/libbpf.git
+[submodule "vendor/bpftool"]
+	path = vendor/bpftool
+	url = https://github.com/libbpf/bpftool.git
+[submodule "vendor/vmlinux.h"]
+	path = vendor/vmlinux.h
+	url = https://github.com/libbpf/vmlinux.h.git
