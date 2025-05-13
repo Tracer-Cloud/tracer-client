@@ -1,3 +1,4 @@
+use chrono::DateTime;
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 
 use crate::data_samples::DATA_SAMPLES_EXT;
@@ -608,8 +609,13 @@ impl ProcessWatcher {
 
             match system.process(process.pid.into()) {
                 Some(system_process) => {
-                    self.gather_process_data(system_process, display_name.clone(), true)
-                        .await
+                    self.gather_process_data(
+                        system_process,
+                        display_name.clone(),
+                        true,
+                        process.started_at,
+                    )
+                    .await
                 }
                 None => {
                     debug!("Process({}) wasn't found", process.pid);
@@ -677,8 +683,13 @@ impl ProcessWatcher {
             );
 
             // Don't process input files for update events
-            self.gather_process_data(system_process, display_name.clone(), false)
-                .await
+            self.gather_process_data(
+                system_process,
+                display_name.clone(),
+                false,
+                process.started_at,
+            )
+            .await
         };
 
         debug!("Process data completed. PID={}", process.pid);
@@ -700,11 +711,9 @@ impl ProcessWatcher {
         proc: &Process,
         display_name: String,
         process_input_files: bool,
+        process_start_time: DateTime<Utc>,
     ) -> ProcessProperties {
         debug!("Gathering process data for {}", display_name);
-
-        // Get current time (TODO: use process start time when available)
-        let start_time = Utc::now();
 
         let (container_id, job_id, trace_id) = Self::extract_process_env_vars(proc);
 
@@ -716,7 +725,7 @@ impl ProcessWatcher {
             None
         };
 
-        let process_run_time = (Utc::now() - start_time).num_milliseconds().max(0) as u64;
+        let process_run_time = (Utc::now() - process_start_time).num_milliseconds().max(0) as u64;
 
         ProcessProperties::Full(Box::new(FullProcessProperties {
             tool_name: display_name,
@@ -730,7 +739,7 @@ impl ProcessWatcher {
                 .unwrap_or("")
                 .to_string(),
             tool_cmd: proc.cmd().join(" "),
-            start_timestamp: start_time.to_rfc3339(),
+            start_timestamp: process_start_time.to_rfc3339(),
             process_cpu_utilization: proc.cpu_usage(),
             process_run_time, // time in milliseconds
             process_disk_usage_read_total: proc.disk_usage().total_read_bytes,
