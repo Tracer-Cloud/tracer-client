@@ -1,15 +1,12 @@
+use crate::types::{ProcessEnterType, ProcessRawTrigger};
 use anyhow::Result;
 use std::ffi::c_int;
 use std::ffi::c_void;
 use std::mem::size_of;
-use std::sync::{
-    atomic::{AtomicUsize, Ordering},
-    mpsc as std_mpsc, Arc,
-};
+use std::sync::{mpsc as std_mpsc, Arc};
 use std::time::Duration;
 use tokio::sync::mpsc::UnboundedSender;
 use tracer_common::types::trigger::Trigger;
-use tracer_ebpf_common::process_enter::{ProcessEnterType, ProcessRawTrigger};
 
 // Define a C-compatible event struct for validation
 #[repr(C)]
@@ -19,23 +16,9 @@ struct CEvent {
     event_type: c_int, // 0 for Start, 1 for Finish
     comm: [u8; 16],
     file_name: [u8; 32],
-    argv: [[u8; 128]; 5],
+    argv: [[u8; 128]; 8],
     len: usize,
     time: u64,
-}
-
-// Validate compatibility between C event struct and Rust ProcessRawTrigger
-fn validate_struct_compatibility() -> Result<(), String> {
-    // Check size match
-    if size_of::<CEvent>() != size_of::<ProcessRawTrigger>() {
-        return Err(format!(
-            "Size mismatch: CEvent is {} bytes, ProcessRawTrigger is {} bytes",
-            size_of::<CEvent>(),
-            size_of::<ProcessRawTrigger>()
-        ));
-    }
-
-    Ok(())
 }
 
 // Define the FFI interface to the C function
@@ -50,16 +33,13 @@ extern "C" {
     ) -> i32;
 }
 
-// Safety limits to prevent resource exhaustion
-const MAX_ITERATIONS: usize = 1000;
+// Constants
 const BUFFER_SIZE: usize = 4096;
-// const MAX_RUNTIME_SECONDS: u64 = 60; // Force exit after 1 minute if stuck
 
 // Define a struct to hold our context
 struct ProcessingContext {
     events_tx: std_mpsc::Sender<Vec<Trigger>>,
     initialize_tx: std_mpsc::Sender<()>,
-    callback_count: Arc<AtomicUsize>,
 }
 
 // Define a struct to hold our buffer and context
@@ -102,25 +82,16 @@ unsafe fn convert_to_process_raw_trigger(bytes: &[u8]) -> Result<ProcessRawTrigg
 }
 
 pub fn start_processing_events(tx: UnboundedSender<Trigger>) -> Result<()> {
-    // Validate struct compatibility
-    if let Err(e) = validate_struct_compatibility() {
-        eprintln!("WARNING: Struct compatibility check failed: {}", e);
-    }
-
     // Channel for sending events from the C callback to our Rust thread
     let (events_tx, events_rx) = std_mpsc::channel::<Vec<Trigger>>();
 
     // Channel for signaling when to call initialize again
     let (initialize_tx, initialize_rx) = std_mpsc::channel::<()>();
 
-    // Counter for callback invocations
-    let callback_count = Arc::new(AtomicUsize::new(0));
-
     // Create our shared context
     let shared_context = Arc::new(ProcessingContext {
         events_tx,
         initialize_tx,
-        callback_count,
     });
 
     // Callback to be invoked by the C code, notifying Rust of writes to the shared buffer
@@ -129,35 +100,10 @@ pub fn start_processing_events(tx: UnboundedSender<Trigger>) -> Result<()> {
             // Get our context
             let context = &mut *(context_ptr as *mut BufferContext);
 
-            // Track callback count for diagnostics
-            let count = context
-                .shared_context
-                .callback_count
-                .fetch_add(1, Ordering::SeqCst);
-
-            // Emergency exit if too many callbacks occur (likely a loop)
-            if count > MAX_ITERATIONS * 10 {
-                eprintln!("TOO MANY CALLBACKS ({}): Emergency exit!", count);
-                std::process::exit(1);
-            }
-
             // Parse events from the buffer
             let buffer_slice = &context.buffer[..filled_bytes];
 
-            // Sanity check on filled_bytes
-            if filled_bytes == 0 {
-                let _ = context.shared_context.initialize_tx.send(());
-                return;
-            }
-
             let event_size = std::mem::size_of::<ProcessRawTrigger>();
-
-            if filled_bytes % event_size != 0 {
-                eprintln!(
-                    "Warning: Filled bytes {} not a multiple of event size {}",
-                    filled_bytes, event_size
-                );
-            }
 
             let event_count = filled_bytes / event_size;
 
@@ -165,10 +111,6 @@ pub fn start_processing_events(tx: UnboundedSender<Trigger>) -> Result<()> {
 
             for i in 0..event_count {
                 let offset = i * event_size;
-                if offset + event_size > filled_bytes {
-                    eprintln!("Warning: Event extends beyond buffer, skipping");
-                    continue;
-                }
 
                 // Get event slice
                 let event_slice = &buffer_slice[offset..offset + event_size];
@@ -179,10 +121,7 @@ pub fn start_processing_events(tx: UnboundedSender<Trigger>) -> Result<()> {
                         // Convert from ProcessRawTrigger to Trigger
                         match (&raw_trigger).try_into() {
                             Ok(trigger) => events.push(trigger),
-                            Err(e) => {
-                                eprintln!("Error converting event: {:?}", e);
-                                continue;
-                            }
+                            _ => {}
                         }
                     }
                     Err(e) => {
@@ -212,30 +151,7 @@ pub fn start_processing_events(tx: UnboundedSender<Trigger>) -> Result<()> {
     // Spawn a thread to handle calling initialize
     let shared_context_clone = shared_context.clone();
     std::thread::spawn(move || {
-        // let start_time = Instant::now();
-        // let mut iteration_count = 0;
-
         loop {
-            // iteration_count += 1;
-
-            // Safety check - limit iterations to prevent infinite loops
-            // if iteration_count > MAX_ITERATIONS {
-            //     eprintln!(
-            //         "Reached maximum iterations ({}): Exiting for safety",
-            //         MAX_ITERATIONS
-            //     );
-            //     std::process::exit(2);
-            // }
-
-            // Safety check - time limit to prevent hanging
-            // if start_time.elapsed() > Duration::from_secs(MAX_RUNTIME_SECONDS) {
-            //     eprintln!(
-            //         "Maximum runtime ({} seconds) exceeded: Exiting for safety",
-            //         MAX_RUNTIME_SECONDS
-            //     );
-            //     std::process::exit(3);
-            // }
-
             // Allocate a buffer for the C function to write to
             let buffer = vec![0u8; BUFFER_SIZE];
 

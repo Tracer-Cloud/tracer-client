@@ -1,6 +1,5 @@
-// todo: check max size in kernels?
 pub const ARGS_MAX_LEN: usize = 128;
-pub const MAX_NUM_ARGS: usize = 5;
+pub const MAX_NUM_ARGS: usize = 8;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -16,17 +15,15 @@ pub struct ProcessRawTrigger {
     pub ppid: i32,
     pub event_type: ProcessEnterType,
 
-    pub comm: [u8; 16], // todo: use TASK_COMM_LEN
+    pub comm: [u8; 16],
 
     pub file_name: [u8; 32],
-    // pub argv: [u8; ARGS_MAX_LEN],
     pub argv: [[u8; ARGS_MAX_LEN]; MAX_NUM_ARGS],
     pub len: usize,
 
     pub time: u64,
 }
 
-#[cfg(feature = "user")]
 pub fn from_bpf_str(s: &[u8]) -> anyhow::Result<&str> {
     let zero_pos = s.iter().position(|&x| x == 0);
     let s = match zero_pos {
@@ -36,10 +33,8 @@ pub fn from_bpf_str(s: &[u8]) -> anyhow::Result<&str> {
     Ok(std::str::from_utf8(s)?)
 }
 
-#[cfg(feature = "user")]
 use tracer_common::types::trigger::*;
 
-#[cfg(feature = "user")]
 impl TryInto<tracer_common::types::trigger::Trigger> for &ProcessRawTrigger {
     type Error = anyhow::Error;
 
