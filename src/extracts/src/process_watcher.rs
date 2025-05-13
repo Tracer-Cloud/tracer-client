@@ -716,6 +716,8 @@ impl ProcessWatcher {
             None
         };
 
+        let process_run_time = (Utc::now() - start_time).num_milliseconds().max(0) as u64;
+
         ProcessProperties::Full(Box::new(FullProcessProperties {
             tool_name: display_name,
             tool_pid: proc.pid().as_u32().to_string(),
@@ -730,7 +732,7 @@ impl ProcessWatcher {
             tool_cmd: proc.cmd().join(" "),
             start_timestamp: start_time.to_rfc3339(),
             process_cpu_utilization: proc.cpu_usage(),
-            process_run_time: (proc.run_time() * 1000), // time in milliseconds
+            process_run_time, // time in milliseconds
             process_disk_usage_read_total: proc.disk_usage().total_read_bytes,
             process_disk_usage_write_total: proc.disk_usage().total_written_bytes,
             process_disk_usage_read_last_interval: proc.disk_usage().read_bytes,
