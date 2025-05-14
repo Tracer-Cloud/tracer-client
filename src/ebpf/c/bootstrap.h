@@ -1,27 +1,44 @@
-#ifndef __BOOTSTRAP_H
-#define __BOOTSTRAP_H
+#ifndef BOOTSTRAP_H
+#define BOOTSTRAP_H
 
 #define TASK_COMM_LEN 16
-#define MAX_FILENAME_LEN 32
-#define MAX_ARGS 8
-#define MAX_ARG_LEN 128
+#define MAX_ARR_LEN 16
+#define MAX_STR_LEN 128
 
-/*
- * IMPORTANT: This struct must match the memory layout of the Rust ProcessRawTrigger struct
- * in types.rs to ensure safe data transfer between C and Rust.
- *
- * Make sure any changes here are reflected in the Rust struct as well!
- */
-struct event
+typedef unsigned long long u64;
+typedef unsigned int u32;
+
+enum event_type
 {
-	int pid;
-	int ppid;
-	int event_type; // 0 for Start, 1 for Finish
-	char comm[TASK_COMM_LEN];
-	char file_name[MAX_FILENAME_LEN];
-	char argv[MAX_ARGS][MAX_ARG_LEN];
-	size_t len;
-	__u64 time;
+	EVENT__SCHED__SCHED_PROCESS_EXEC = 0,
+	EVENT__SCHED__SCHED_PROCESS_EXIT = 1,
 };
 
-#endif /* __BOOTSTRAP_H */
+struct sched__sched_process_exec__payload
+{
+	char comm[TASK_COMM_LEN];
+	u32 argc;
+	char argv[MAX_ARR_LEN][MAX_STR_LEN];
+};
+
+struct sched__sched_process_exit__payload
+{
+};
+
+struct event
+{
+	/* common fields */
+	enum event_type event_type;
+	u64 timestamp_ns;
+	u32 pid;
+	u32 ppid;
+
+	/* variant payload */
+	union
+	{
+		struct sched__sched_process_exec__payload sched__sched_process_exec__payload;
+		struct sched__sched_process_exit__payload sched__sched_process_exit__payload;
+	};
+} __attribute__((packed));
+
+#endif /* BOOTSTRAP_H */
