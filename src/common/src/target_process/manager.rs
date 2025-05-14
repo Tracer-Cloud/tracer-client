@@ -1,7 +1,4 @@
 use crate::types::trigger::ProcessTrigger;
-// use serde::{Deserialize, Serialize};
-// use target_matching::{is_considered_noise, matches_target, TargetMatch};
-// use targets_list::DEFAULT_DISPLAY_PROCESS_RULES;
 
 use super::{Target, TargetMatchable};
 

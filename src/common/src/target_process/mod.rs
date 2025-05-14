@@ -58,10 +58,19 @@ impl DisplayName {
 
         for label in DEFAULT_DISPLAY_PROCESS_RULES.iter() {
             if tokens.iter().any(|t| t == label) {
-                return format!("{} ({})", label, process_name);
+                return label.to_string();
             }
         }
 
+        // If process name contains a valid path, return just the file stem
+        if let Some(stem) = std::path::Path::new(process_name)
+            .file_stem()
+            .map(|s| s.to_string_lossy().to_string())
+        {
+            return stem;
+        }
+
+        // Fallback: return as-is
         process_name.to_string()
     }
 }
@@ -181,7 +190,7 @@ mod tests {
 
         let display_name = DisplayName::process_default_display_name(process_name, &commands);
 
-        assert_eq!(display_name, "fastqc (Thread-2)");
+        assert_eq!(display_name, "fastqc");
     }
 
     #[test]
@@ -195,7 +204,7 @@ mod tests {
 
         let display_name = DisplayName::process_default_display_name(process_name, &commands);
 
-        assert_eq!(display_name, "bbsplit (Thread-9)");
+        assert_eq!(display_name, "bbsplit");
     }
 
     #[test]
@@ -209,7 +218,7 @@ mod tests {
 
         let display_name = DisplayName::process_default_display_name(process_name, &commands);
 
-        assert_eq!(display_name, "fastqc (Thread-10)");
+        assert_eq!(display_name, "fastqc");
     }
 
     #[test]
@@ -241,6 +250,6 @@ mod tests {
 
         let display_name = DisplayName::process_default_display_name(process_name, &commands);
 
-        assert_eq!(display_name, "bgzip (/opt/conda/bin/bgzip)");
+        assert_eq!(display_name, "bgzip");
     }
 }
