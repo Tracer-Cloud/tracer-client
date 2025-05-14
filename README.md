@@ -5,9 +5,9 @@ Tracer Linux Agent: Observability for Scientific HPC Workloads
 ![Tracer Banner](docs/images/tracer-banner-image.jpeg)
 
 ## What Is Tracer and Why Use It? 
-- Tracer is a monitoring solution that optimizes HPC workloads for speed and cost efficiency. It features a one-line install Linux agent and instant dashboards for real-time insights into scientific computing environments.
+- Tracer is a system-level observability platform purpose-built for scientific computing and HPC that optimizes error detection, observability and debugging as well as HPC workloads for speed and cost efficiency. It features a one-line install Linux agent and instant dashboards for real-time insights into scientific computing environments.
 
-- Unlike industry agnostic monitoring agents, Tracer structures DevOps data for scientific pipelines, providing clear visibility into pipeline stages and execution runs. In environments like AWS Batch, users struggle to track which processes or containers belong to the same pipeline and frequently lose logs from failed containers, making debugging difficult.
+- Unlike industry agnostic monitoring agents, Tracer structures DevOps data for scientific pipelines, providing clear visibility into pipeline stages and execution runs. In environments like AWS Batch, where processes and containers are loosely connected, users struggle to understand which processes belong to which pipeline run frequently lose logs from failed containers, making debugging difficult.
 
 - Tracer solves this by intelligently organizing and labeling pipelines, execution runs, and steps. Because it runs directly on Linux, it requires no code changes and supports any programming language, unlike point solutions that work only with one framework. This makes integration effortless even across multi-workload IT environments, including AlphaFold, Slurm, Airflow, Nextflow and also local Bash scripts.
 
@@ -18,6 +18,8 @@ New metrics that help you speed up your pipelines and maximize your budget:
 - Time and cost per dataset processed
 - Execution duration and bottleneck identifcation for each pipeline step
 - Cost attribution across pipelines, teams, and environments (dev, CI/CD, prod)
+
+Overall, making sense of scientific toolchains with poor/no observability
 
 <br />
 
@@ -36,9 +38,15 @@ New metrics that help you speed up your pipelines and maximize your budget:
 ## Quickstart Installation On EC2
 Prerequisites: 
 - Linux EC2 (Ubuntu or Amazon Linux),  Intel x86, c6i.2xlarge, 8 vCPUs 8, 32+ GiB RAM
-- AWS credentials exported to environment with access to RDS Postgres Database
+- AWS credentials exported to environment with access to RDS Postgres Database [not needed if you visit our onboarding site: https://sandbox.tracer.cloud/]
 - Amazon Managed Grafana pointed to Database
 - Link to setting up [Nextflow sandbox](https://github.com/Tracer-Cloud/tracer-test-pipelines-bioinformatics/tree/main/frameworks/nextflow)
+
+## Now there are two possible ways to perform the quickstart installation:
+1. For an easy onboarding experience, please visit our sandbox environment on https://sandbox.tracer.cloud/ and click the ‘Get started’ - button.
+2. Staying on this Github-page and following the steps listed. However, you will be required to have AWS credentials and Amazon Managed Grafana pointed to Database:
+
+
 
 ### 1. Install Tracer With One Line of Code
 Run the following command to install Tracer on your Linux Ubuntu system (the following installation command points to the latest development binary build from the `main` branch): 
