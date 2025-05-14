@@ -48,6 +48,7 @@ pub static ref OPT_CONDA_BIN_EXCEPTIONS : Vec<TargetMatch> = vec![
     TargetMatch::BinPathLastComponent("yes".to_string()),
     TargetMatch::BinPathLastComponent("find".to_string()),
     TargetMatch::BinPathLastComponent("grep".to_string()),
+    TargetMatch::BinPathLastComponent("mkdir".to_string()),
 
     // other executables
     TargetMatch::BinPathLastComponent("2to3".to_string()),
@@ -800,6 +801,9 @@ pub static ref DEFAULT_EXCLUDED_PROCESS_RULES : Vec<Target>  = vec![
         process_name: Some("bash".into()),
         command_content: ".command.run".to_string(),
     })),
+    Target::new(TargetMatch::BinPathLastComponent("java".to_string()),),
+
+
 
 ].to_vec();
 
