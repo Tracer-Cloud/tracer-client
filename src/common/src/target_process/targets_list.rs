@@ -646,7 +646,7 @@ pub static ref OPT_CONDA_BIN_EXCEPTIONS : Vec<TargetMatch> = vec![
     }),
     TargetMatch::CommandContains(CommandContainsStruct {
         process_name: None,
-        command_content: "nextflow-config".to_string(),
+        command_content: "nextflow_work".to_string(),
     }),
     TargetMatch::CommandContains(CommandContainsStruct {
         process_name: Some("bash".into()),
@@ -792,6 +792,19 @@ pub static ref DEFAULT_EXCLUDED_PROCESS_RULES : Vec<Target>  = vec![
         process_name: None,
         command_content: ".command.sh".to_string(),
     })),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: ".command.run".to_string(),
+    })),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: Some("bash".into()),
+        command_content: ".command.sh".to_string(),
+    })),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: Some("bash".into()),
+        command_content: ".command.run".to_string(),
+    })),
+
 ].to_vec();
 
 
