@@ -48,7 +48,7 @@ curl -sSL https://install.tracer.cloud/installation-script-development.sh | bash
 ### 2. Initialize a Pipeline
 Set up your pipeline by specifying a name:
 ```bash
-tracer init --pipeline-name airflow_test --environment sandbox_test --user-operator vincent --pipeline-type rnaseq
+tracer init --pipeline-name demo_pipeline_github --environment sandbox_test --user-operator vincent --pipeline-type rnaseq --is-dev false 
  ```
 
 ### 3. Infrastructure Setup  
