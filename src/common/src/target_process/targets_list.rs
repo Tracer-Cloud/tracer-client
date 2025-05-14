@@ -649,15 +649,11 @@ pub static ref OPT_CONDA_BIN_EXCEPTIONS : Vec<TargetMatch> = vec![
         command_content: "nextflow_work".to_string(),
     }),
     TargetMatch::CommandContains(CommandContainsStruct {
-        process_name: Some("bash".into()),
-        command_content: "nextflow".to_string(),
-    }),
-    TargetMatch::CommandContains(CommandContainsStruct {
-        process_name: Some("bash".into()),
+        process_name: None,
         command_content: ".command.sh".to_string(),
     }),
     TargetMatch::CommandContains(CommandContainsStruct {
-        process_name: Some("bash".into()),
+        process_name: None,
         command_content: ".command.run".to_string(),
     }),
     ].to_vec();
