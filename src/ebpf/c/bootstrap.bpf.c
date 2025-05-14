@@ -6,6 +6,7 @@
 
 // .rodata: globals tunable from user space
 const volatile bool debug_enabled SEC(".rodata") = false;
+const volatile u64 system_boot_ns SEC(".rodata") = 0;
 
 // Ring buffer: interface for submitting events to userspace (bootstrap.c)
 struct
@@ -39,7 +40,7 @@ int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 	// Common fields shared by every event
 	task = (struct task_struct *)bpf_get_current_task();
 	e->event_type = EVENT__SCHED__SCHED_PROCESS_EXEC;
-	e->timestamp_ns = bpf_ktime_get_ns();
+	e->timestamp_ns = bpf_ktime_get_ns() + system_boot_ns;
 	e->pid = bpf_get_current_pid_tgid() >> 32;
 	e->ppid = BPF_CORE_READ(task, real_parent, tgid);
 
@@ -94,7 +95,7 @@ int handle_exit(struct trace_event_raw_sched_process_template *ctx)
 	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 
 	e->event_type = EVENT__SCHED__SCHED_PROCESS_EXIT;
-	e->timestamp_ns = bpf_ktime_get_ns();
+	e->timestamp_ns = bpf_ktime_get_ns() + system_boot_ns;
 	e->pid = pid;
 	e->ppid = BPF_CORE_READ(task, real_parent, tgid);
 

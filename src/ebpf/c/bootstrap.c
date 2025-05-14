@@ -1,9 +1,11 @@
+#define _POSIX_C_SOURCE 200809L
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/resource.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <bpf/libbpf.h>
 
@@ -18,6 +20,9 @@
 #define unlikely(x) __builtin_expect(!!(x), 0)
 #endif
 
+/* Time calibration constants */
+#define RECALIBRATION_INTERVAL_NS (60ULL * 1000000000) /* 60 seconds in ns */
+
 static struct env
 {
 	bool verbose;
@@ -26,6 +31,21 @@ static struct env
 		.verbose = false,
 		.debug_bpf = false,
 };
+
+/* Find when the host system booted */
+static u64 get_system_boot_ns(void)
+{
+	struct timespec realtime, monotonic;
+	u64 realtime_ns, monotonic_ns;
+
+	clock_gettime(CLOCK_REALTIME, &realtime);
+	clock_gettime(CLOCK_MONOTONIC, &monotonic);
+
+	realtime_ns = realtime.tv_sec * 1000000000ULL + realtime.tv_nsec;
+	monotonic_ns = monotonic.tv_sec * 1000000000ULL + monotonic.tv_nsec;
+
+	return realtime_ns - monotonic_ns;
+}
 
 static int libbpf_print_cb(enum libbpf_print_level lvl,
 													 const char *fmt,
@@ -114,6 +134,7 @@ int initialize(void *buffer, size_t byte_cnt,
 
 	// Propagate runtime knobs into .rodata
 	lc.skel->rodata->debug_enabled = env.debug_bpf;
+	lc.skel->rodata->system_boot_ns = get_system_boot_ns();
 
 	err = bootstrap_bpf__load(lc.skel);
 	if (err)
