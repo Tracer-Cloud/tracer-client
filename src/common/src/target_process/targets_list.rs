@@ -636,6 +636,30 @@ pub static ref OPT_CONDA_BIN_EXCEPTIONS : Vec<TargetMatch> = vec![
     TargetMatch::BinPathLastComponent("zstdgrep".to_string()),
     TargetMatch::BinPathLastComponent("zstdless".to_string()),
     TargetMatch::BinPathLastComponent("zstdmt".to_string()),
+    TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "nextflow".to_string(),
+    }),
+    TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "nextflow-config".to_string(),
+    }),
+    TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "nextflow-config".to_string(),
+    }),
+    TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: Some("bash".into()),
+        command_content: "nextflow".to_string(),
+    }),
+    TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: Some("bash".into()),
+        command_content: ".command.sh".to_string(),
+    }),
+    TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: Some("bash".into()),
+        command_content: ".command.run".to_string(),
+    }),
     ].to_vec();
 
 pub static ref TARGETS: Vec<Target> = [
