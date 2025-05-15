@@ -1,5 +1,6 @@
 OUTPUT := .output
 CLANG ?= clang
+CLANGXX ?= clang++
 LIBBPF_SRC := $(abspath ../../../vendor/libbpf/src)
 BPFTOOL_SRC := $(abspath ../../../vendor/bpftool/src)
 LIBBPF_OBJ := $(abspath $(OUTPUT)/libbpf.a)
@@ -15,6 +16,7 @@ ARCH ?= $(shell uname -m | sed 's/x86_64/x86/' \
 VMLINUX := ../../../vendor/vmlinux.h/include/$(ARCH)/vmlinux.h
 INCLUDES := -I$(OUTPUT) -I../../../vendor/libbpf/include/uapi -I$(dir $(VMLINUX))
 CFLAGS := -g -Wall
+CXXFLAGS := -g -Wall
 ALL_LDFLAGS := $(LDFLAGS) $(EXTRA_LDFLAGS)
 
 # Get Clang's default includes for BPF target
@@ -40,6 +42,7 @@ endef
 
 $(call allow-override,CC,$(CROSS_COMPILE)cc)
 $(call allow-override,LD,$(CROSS_COMPILE)ld)
+$(call allow-override,CXX,$(CROSS_COMPILE)c++)
 
 .PHONY: all clean
 all: libbootstrap.a example
@@ -89,14 +92,14 @@ libbootstrap.a: $(OUTPUT)/bootstrap_lib.o $(LIBBPF_OBJ) | $(OUTPUT)
 	$(call msg,STATICLIB,$@)
 	$(Q)$(AR) rcs $@ $^
 
-# Build example program
-$(OUTPUT)/example.o: example.c $(wildcard *.h) | $(OUTPUT)
-	$(call msg,CC,$@)
-	$(Q)$(CC) $(CFLAGS) $(INCLUDES) -c $(filter %.c,$^) -o $@
+# Build example program (C++ version)
+$(OUTPUT)/example.o: example.cpp $(wildcard *.h) | $(OUTPUT)
+	$(call msg,CXX,$@)
+	$(Q)$(CLANGXX) $(CXXFLAGS) $(INCLUDES) -c $(filter %.cpp,$^) -o $@
 
 example: $(OUTPUT)/example.o libbootstrap.a | $(OUTPUT)
 	$(call msg,BINARY,$@)
-	$(Q)$(CC) $(CFLAGS) $< libbootstrap.a $(LIBBPF_OBJ) $(ALL_LDFLAGS) -lelf -lz -o $@
+	$(Q)$(CLANGXX) $(CXXFLAGS) $< libbootstrap.a $(LIBBPF_OBJ) $(ALL_LDFLAGS) -lelf -lz -o $@
 
 # delete failed targets
 .DELETE_ON_ERROR:

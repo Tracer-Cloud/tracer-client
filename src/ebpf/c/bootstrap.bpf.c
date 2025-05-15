@@ -1,3 +1,5 @@
+// TODO: reduce code duplication. for example, with codegen
+
 #include "vmlinux.h"
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_helpers.h>
@@ -33,13 +35,14 @@ make_upid(u32 pid, u64 start_ns)
 }
 
 SEC("tracepoint/sched/sched_process_exec")
-int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
+int handle__sched__sched_process_exec(struct trace_event_raw_sched_process_exec *ctx)
 {
 	u64 id = bpf_get_current_pid_tgid();
 	u32 pid = id >> 32;
 	u32 tid = (u32)id;
 
 	// Ignore threads, report only the root process
+	// todo: handle multi-threaded processes
 	if (pid != tid)
 		return 0;
 
@@ -94,19 +97,20 @@ int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 		}
 	}
 
-	debug_printk("exec detected\n");
+	debug_printk("sched/sched_process_exec detected\n");
 	bpf_ringbuf_submit(e, 0);
 	return 0;
 }
 
 SEC("tracepoint/sched/sched_process_exit")
-int handle_exit(struct trace_event_raw_sched_process_template *ctx)
+int handle__sched__sched_process_exit(struct trace_event_raw_sched_process_template *ctx)
 {
 	u64 id = bpf_get_current_pid_tgid();
 	u32 pid = id >> 32;
 	u32 tid = (u32)id;
 
 	// Ignore threads, report only the root process
+	// todo: handle multi-threaded processes
 	if (pid != tid)
 		return 0;
 
@@ -130,10 +134,101 @@ int handle_exit(struct trace_event_raw_sched_process_template *ctx)
 	e->upid = make_upid(e->pid, start_ns);
 	e->uppid = make_upid(e->ppid, pstart_ns);
 
-	debug_printk("exit detected\n");
+	debug_printk("sched/sched_process_exit detected\n");
 	bpf_ringbuf_submit(e, 0);
 	return 0;
 }
+
+SEC("tracepoint/syscalls/sys_enter_openat")
+int handle__syscall__sys_enter_openat(struct trace_event_raw_sys_enter *ctx)
+{
+	u64 id = bpf_get_current_pid_tgid();
+	u32 pid = id >> 32;
+	u32 tid = (u32)id;
+
+	// Ignore threads, report only the root process
+	// todo: handle multi-threaded processes
+	if (pid != tid)
+		return 0;
+
+	// todo: BPF_RB_NO_WAKEUP (perf)
+	struct event *e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+	if (!e)
+		return 0;
+
+	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+	struct task_struct *parent = BPF_CORE_READ(task, parent);
+
+	/* === Common fields shared by every event === */
+	e->event_type = EVENT__SYSCALL__SYS_ENTER_OPENAT;
+	e->timestamp_ns = bpf_ktime_get_ns() + system_boot_ns;
+	e->pid = pid;
+	e->ppid = BPF_CORE_READ(parent, tgid);
+
+	// Unique Process IDs (handles pid reuse)
+	u64 start_ns = BPF_CORE_READ(task, start_time);
+	u64 pstart_ns = BPF_CORE_READ(parent, start_time);
+	e->upid = make_upid(e->pid, start_ns);
+	e->uppid = make_upid(e->ppid, pstart_ns);
+
+	// === Variant fields unique to syscalls/sys_enter_openat === //
+	e->syscall__sys_enter_openat__payload.dfd = BPF_CORE_READ(ctx, args[0]);
+	bpf_probe_read_user_str(e->syscall__sys_enter_openat__payload.filename, MAX_STR_LEN, (void *)BPF_CORE_READ(ctx, args[1]));
+	e->syscall__sys_enter_openat__payload.flags = BPF_CORE_READ(ctx, args[2]);
+	e->syscall__sys_enter_openat__payload.mode = BPF_CORE_READ(ctx, args[3]);
+
+	debug_printk("syscalls/sys_enter_openat detected\n");
+	bpf_ringbuf_submit(e, 0);
+	return 0;
+}
+
+SEC("tracepoint/syscalls/sys_exit_openat")
+int handle__syscall__sys_exit_openat(struct trace_event_raw_sys_exit *ctx)
+{
+	u64 id = bpf_get_current_pid_tgid();
+	u32 pid = id >> 32;
+	u32 tid = (u32)id;
+
+	// Ignore threads, report only the root process
+	// todo: handle multi-threaded processes
+	if (pid != tid)
+		return 0;
+
+	// todo: BPF_RB_NO_WAKEUP (perf)
+	struct event *e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+	if (!e)
+		return 0;
+
+	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+	struct task_struct *parent = BPF_CORE_READ(task, parent);
+
+	/* === Common fields shared by every event === */
+	e->event_type = EVENT__SYSCALL__SYS_EXIT_OPENAT;
+	e->timestamp_ns = bpf_ktime_get_ns() + system_boot_ns;
+	e->pid = pid;
+	e->ppid = BPF_CORE_READ(parent, tgid);
+
+	// Unique Process IDs (handles pid reuse)
+	u64 start_ns = BPF_CORE_READ(task, start_time);
+	u64 pstart_ns = BPF_CORE_READ(parent, start_time);
+	e->upid = make_upid(e->pid, start_ns);
+	e->uppid = make_upid(e->ppid, pstart_ns);
+
+	// === Variant fields unique to syscalls/sys_exit_openat === //
+	e->syscall__sys_exit_openat__payload.fd = ctx->ret;
+
+	debug_printk("syscalls/sys_exit_openat detected\n");
+	bpf_ringbuf_submit(e, 0);
+	return 0;
+}
+
+// SEC("tracepoint/oom/oom_kill")
+// SEC("tracepoint/oom/oom_kill_process")
+
+// SEC("tracepoint/mm_vmscan_kswapd_wake")
+// SEC("tracepoint/mm_vmscan_kswapd_sleep")
+// SEC("tracepoint/mm_vmscan_direct_reclaim_begin")
+// SEC("tracepoint/mm_vmscan_direct_reclaim_end")
 
 // Licence, required to invoke GPL-restricted BPF functions
 char LICENSE[] SEC("license") = "GPL";
