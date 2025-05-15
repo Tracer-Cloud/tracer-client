@@ -657,6 +657,7 @@ pub static ref OPT_CONDA_BIN_EXCEPTIONS : Vec<TargetMatch> = vec![
         process_name: None,
         command_content: ".command.run".to_string(),
     }),
+    TargetMatch::ProcessName("make".to_string()),
     ].to_vec();
 
 pub static ref TARGETS: Vec<Target> = [
@@ -766,7 +767,7 @@ pub static ref TARGETS: Vec<Target> = [
     Target::new(TargetMatch::ProcessName("libdeflate".to_string())),
     Target::new(TargetMatch::ProcessName("ncurses".to_string())),
     Target::new(TargetMatch::ProcessName("pthread".to_string())),
-    Target::new(TargetMatch::BinPathStartsWith("/opt/conda/bin".to_string()))
+    Target::new(TargetMatch::BinPathStartsWith("/opt/conda/bin/".to_string()))
         .set_filter_out(Some(OPT_CONDA_BIN_EXCEPTIONS.to_vec())),
 
 ]
