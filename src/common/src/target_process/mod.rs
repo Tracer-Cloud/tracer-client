@@ -47,7 +47,7 @@ impl DisplayName {
     fn process_default_display_name(process_name: &str, commands: &[String]) -> String {
         let tokens: Vec<String> = commands
             .iter()
-            .flat_map(|cmd| cmd.split([' ', ';', '.']))
+            .flat_map(|cmd| cmd.split([' ', ';']))
             .map(|token| {
                 std::path::Path::new(token)
                     .file_stem()
