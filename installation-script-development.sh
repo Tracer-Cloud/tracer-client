@@ -448,40 +448,40 @@ send_event() {
 #-------------------------------------------------------------------------------
 setup_tracer_configuration_file() {
     # Define the content of the tracer.toml file
-    TRACER_TOML_CONTENT=$(
-        cat <<EOL
-polling_interval_ms = 1500
-api_key = "$API_KEY"
-service_url = "https://app.tracer.bio/api"
-process_polling_interval_ms = 25
-batch_submission_interval_ms = 3000
-new_run_pause_ms = 600000
-file_size_not_changing_period_ms = 60000
-process_metrics_send_interval_ms = 10000
-aws_region = "us-east-2"
-aws_role_arn = "arn:aws:iam::395261708130:role/TestTracerClientServiceRole"
+#     TRACER_TOML_CONTENT=$(
+#         cat <<EOL
+# polling_interval_ms = 1500
+# api_key = "$API_KEY"
+# service_url = "https://app.tracer.bio/api"
+# process_polling_interval_ms = 25
+# batch_submission_interval_ms = 3000
+# new_run_pause_ms = 600000
+# file_size_not_changing_period_ms = 60000
+# process_metrics_send_interval_ms = 10000
+# aws_region = "us-east-2"
+# aws_role_arn = "arn:aws:iam::395261708130:role/TestTracerClientServiceRole"
 
-database_secrets_arn = "arn:aws:secretsmanager:us-east-1:395261708130:secret:rds!cluster-51d6638e-5975-4a26-95d3-e271ac9b2a04-dOWVVO"
-database_host = "tracer-development-cluster.cluster-cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432"
+# database_secrets_arn = "arn:aws:secretsmanager:us-east-1:395261708130:secret:rds!cluster-51d6638e-5975-4a26-95d3-e271ac9b2a04-dOWVVO"
+# database_host = "tracer-development-cluster.cluster-cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432"
 
-database_name = "tracer_db"
+# database_name = "tracer_db"
 
-grafana_workspace_url = "https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com"
-EOL
-    )
+# grafana_workspace_url = "https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com"
+# EOL
+#     )
 
-    # Create the destination directory if it doesn't exist
-    mkdir -p ~/.config/tracer
+#     # Create the destination directory if it doesn't exist
+#     mkdir -p ~/.config/tracer
 
-    # Create the tracer.toml file with the specified content directly in the target directory
-    echo "$TRACER_TOML_CONTENT" > ~/.config/tracer/tracer.toml
+#     # Create the tracer.toml file with the specified content directly in the target directory
+#     echo "$TRACER_TOML_CONTENT" > ~/.config/tracer/tracer.toml
 
-    # Confirm the file has been created with the correct content
-    if [ $? -eq 0 ]; then
-        echo "tracer.toml has been successfully created in ~/.config/tracer/tracer.toml"
-    else
-        echo "Failed to create tracer.toml"
-    fi
+#     # Confirm the file has been created with the correct content
+#     if [ $? -eq 0 ]; then
+#         echo "tracer.toml has been successfully created in ~/.config/tracer/tracer.toml"
+#     else
+#         echo "Failed to create tracer.toml"
+#     fi
 }
 
 #-------------------------------------------------------------------------------
@@ -499,8 +499,8 @@ main() {
 
     make_temp_dir
     download_tracer
-    setup_tracer_configuration_file
-    printsucc "Ended setup the tracer configuration file"
+    # setup_tracer_configuration_file
+    # printsucc "Ended setup the tracer configuration file"
 
     printsucc "Tracer CLI has been successfully installed."
 
