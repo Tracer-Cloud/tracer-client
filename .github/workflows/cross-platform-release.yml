@@ -53,6 +53,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4.1.4
+        with:
+          submodules: recursive  # This will fetch all submodules recursively
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -71,6 +73,27 @@ jobs:
           # Install necessary eBPF dependencies
           sudo apt-get update
           sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm
+
+      # Verify submodules are properly loaded
+      - name: Verify submodule content
+        run: |
+          # Find all vmlinux.h files
+          vmlinux_files=$(find vendor -name "vmlinux.h")
+          
+          # Check if any vmlinux.h files exist
+          if [ -z "$vmlinux_files" ]; then
+            echo "ERROR: No vmlinux.h files found in vendor directory"
+            exit 1
+          fi
+          
+          # Print out the found vmlinux.h files for debugging
+          echo "Found vmlinux.h files:"
+          echo "$vmlinux_files"
+          
+          # Optional: Check for specific directories or files you expect
+          if [ ! -d "vendor/bpftool" ] || [ ! -d "vendor/libbpf" ]; then
+            echo "WARNING: Expected vendor subdirectories are missing"
+          fi
 
       - name: Install cross-compilation tools
         uses: taiki-e/setup-cross-toolchain-action@v1
