@@ -21,9 +21,6 @@ TRACER_VERSION="v2025.5.15+1"
 TRACER_LINUX_URL_X86_64="https://tracer-releases.s3.us-east-1.amazonaws.com/tracer-x86_64-unknown-linux-gnu.tar.gz"
 TRACER_LINUX_URL_ARM="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer_cli-aarch64-unknown-linux-gnu.tar.gz"
 TRACER_AMAZON_LINUX_URL_X86_64="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-x86_64-amazon-linux-gnu.tar.gz"
-TRACER_MACOS_AARCH_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer_cli-aarch64-apple-darwin.tar.gz"
-TRACER_MACOS_X86_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer_cli-x86_64-apple-darwin.tar.gz"
-
 
 TRACER_HOME="$HOME/.tracerbio"
 LOGFILE_NAME="tracer-installer.log"
@@ -217,10 +214,10 @@ check_os() {
         # Differentiating between ARM and x86_64 architectures on macOS
         if [ "$ARCH" = "arm64" ]; then
             printinfo "Detected macOS ARM64 architecture"
-            TRACER_URL=$TRACER_MACOS_AARCH_URL
+            TRACER_URL=$TRACER_LINUX_URL_ARM
         else
             printinfo "Detected macOS x86 architecture"
-            TRACER_URL=$TRACER_MACOS_X86_URL
+            TRACER_URL=$TRACER_LINUX_URL_X86_64
         fi
         ;;
     *)
