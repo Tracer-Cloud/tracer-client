@@ -43,10 +43,10 @@ impl LogWriter for LogForward {
     ) -> Result<()> {
         let now = std::time::Instant::now();
 
-        println!(
-            "run_id: {:?}, run_name: {:?}, pipeline_name: {:?}",
-            run_id, run_name, pipeline_name
-        );
+        // println!(
+        //     "run_id: {:?}, run_name: {:?}, pipeline_name: {:?}",
+        //     run_id, run_name, pipeline_name
+        // );
 
         let events: Result<Vec<EventInsert>> = data
             .into_iter()
@@ -62,12 +62,12 @@ impl LogWriter for LogForward {
 
         let payload = EventPayload { events };
 
-        info!(
-            "Sending payload to endpoint {} with {} events",
-            self.endpoint,
-            payload.events.len()
-        );
-        debug!("Payload structure: {:?}", payload);
+        // info!(
+        //     "Sending payload to endpoint {} with {} events",
+        //     self.endpoint,
+        //     payload.events.len()
+        // );
+        // debug!("Payload structure: {:?}", payload);
 
         let res = match self.client.post(&self.endpoint).json(&payload).send().await {
             Ok(response) => response,
