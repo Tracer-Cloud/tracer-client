@@ -601,6 +601,11 @@ impl ProcessWatcher {
     ) -> Result<ProcessResult> {
         debug!("Processing pid={}", process.pid);
 
+        debug!(
+            "/n/n Handling process: {} | path: {} | argv: {:?} /n/n",
+            process.comm, process.file_name, process.argv
+        );
+
         let display_name = target
             .get_display_name_object()
             .get_display_name(&process.file_name, process.argv.as_slice());
