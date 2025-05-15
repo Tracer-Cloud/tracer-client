@@ -41,7 +41,7 @@ Click the ‘Get started’ button and follow the guided steps—no AWS credenti
 
 Install Tracer with this single command:
 ```bash
-curl -sSL https://install.tracer.cloud/installation-script-development.sh | bash && source ~/.bashrc
+curl -sSL https://install.tracer.cloud/ | bash && source ~/.bashrc
 ```
 Click the 'Open In Github Codespaces' button to use GitHub Codespaces.
 
