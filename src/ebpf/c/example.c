@@ -33,7 +33,9 @@ static void print_event_json(const struct event *e)
   printf("\"event_type\":\"%s\",", e->event_type == EVENT__SCHED__SCHED_PROCESS_EXEC ? "process_exec" : "process_exit");
   printf("\"timestamp\":\"%s.%09llu\",", timestamp, e->timestamp_ns % 1000000000);
   printf("\"pid\":%u,", e->pid);
-  printf("\"ppid\":%u", e->ppid);
+  printf("\"ppid\":%u,", e->ppid);
+  printf("\"upid\":%llu,", e->upid);
+  printf("\"uppid\":%llu", e->uppid);
 
   if (e->event_type == EVENT__SCHED__SCHED_PROCESS_EXEC)
   {

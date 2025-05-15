@@ -32,6 +32,8 @@ struct event
 	u64 timestamp_ns;
 	u32 pid;
 	u32 ppid;
+	u64 upid;
+	u64 uppid;
 
 	/* variant payload */
 	union

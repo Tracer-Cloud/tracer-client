@@ -23,28 +23,51 @@ debug_printk(const char *fmt)
 		bpf_printk("%s", fmt);
 }
 
+static __always_inline u64
+make_upid(u32 pid, u64 start_ns)
+{
+	/* combine low 24 bits from pid, with 40 bits from start_ns */
+	const u64 PID_MASK = 0x00FFFFFFULL;				/* 24 ones */
+	const u64 TIME_MASK = 0x000FFFFFFFFFFULL; /* 40 ones */
+	return ((u64)(pid & PID_MASK) << 40) | (start_ns & TIME_MASK);
+}
+
 SEC("tracepoint/sched/sched_process_exec")
 int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 {
-	struct event *e;
-	struct task_struct *task;
+	u64 id = bpf_get_current_pid_tgid();
+	u32 pid = id >> 32;
+	u32 tid = (u32)id;
+
+	// Ignore threads, report only the root process
+	if (pid != tid)
+		return 0;
+
+	// todo: BPF_RB_NO_WAKEUP (perf)
+	struct event *e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+	if (!e)
+		return 0;
+
+	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+	struct task_struct *parent = BPF_CORE_READ(task, parent);
+
+	// === Common fields shared by every event === //
+	e->event_type = EVENT__SCHED__SCHED_PROCESS_EXIT;
+	e->timestamp_ns = bpf_ktime_get_ns() + system_boot_ns;
+	e->pid = pid;
+	e->ppid = BPF_CORE_READ(parent, tgid);
+
+	// Unique Process IDs (handles pid reuse)
+	u64 start_ns = BPF_CORE_READ(task, start_time);
+	u64 pstart_ns = BPF_CORE_READ(parent, start_time);
+	e->upid = make_upid(e->pid, start_ns);
+	e->uppid = make_upid(e->ppid, pstart_ns);
+
+	// === Variant fields unique to sched_process_exec === //
 	struct mm_struct *mm;
 	unsigned long arg_start, arg_end, arg_ptr;
 	u32 i;
 
-	// todo: BPF_RB_NO_WAKEUP (perf);
-	e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
-	if (!e)
-		return 0;
-
-	// Common fields shared by every event
-	task = (struct task_struct *)bpf_get_current_task();
-	e->event_type = EVENT__SCHED__SCHED_PROCESS_EXEC;
-	e->timestamp_ns = bpf_ktime_get_ns() + system_boot_ns;
-	e->pid = bpf_get_current_pid_tgid() >> 32;
-	e->ppid = BPF_CORE_READ(task, real_parent, tgid);
-
-	// Variant fields unique to sched_process_exec
 	BPF_CORE_READ_STR_INTO(&e->sched__sched_process_exec__payload.comm, task, comm);
 
 	e->sched__sched_process_exec__payload.argc = 0;
@@ -83,7 +106,7 @@ int handle_exit(struct trace_event_raw_sched_process_template *ctx)
 	u32 pid = id >> 32;
 	u32 tid = (u32)id;
 
-	// Ignore threads, report only the final task exit
+	// Ignore threads, report only the root process
 	if (pid != tid)
 		return 0;
 
@@ -93,11 +116,19 @@ int handle_exit(struct trace_event_raw_sched_process_template *ctx)
 		return 0;
 
 	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+	struct task_struct *parent = BPF_CORE_READ(task, parent);
 
+	/* === Common fields shared by every event === */
 	e->event_type = EVENT__SCHED__SCHED_PROCESS_EXIT;
 	e->timestamp_ns = bpf_ktime_get_ns() + system_boot_ns;
 	e->pid = pid;
-	e->ppid = BPF_CORE_READ(task, real_parent, tgid);
+	e->ppid = BPF_CORE_READ(parent, tgid);
+
+	// Unique Process IDs (handles pid reuse)
+	u64 start_ns = BPF_CORE_READ(task, start_time);
+	u64 pstart_ns = BPF_CORE_READ(parent, start_time);
+	e->upid = make_upid(e->pid, start_ns);
+	e->uppid = make_upid(e->ppid, pstart_ns);
 
 	debug_printk("exit detected\n");
 	bpf_ringbuf_submit(e, 0);
