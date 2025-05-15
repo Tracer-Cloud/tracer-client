@@ -319,14 +319,14 @@ function download_tracer() {
     printpinfo "Extracting package..."
     tar -xzf "${DLTARGET}/${PACKAGE_NAME}" -C "$EXTRACTTARGET"
     printmsg " done."
-    chmod +x "${EXTRACTTARGET}/tracer_cli"
+    chmod +x "${EXTRACTTARGET}/tracer"
     if [ $? -ne 0 ]; then
         printerror "Failed to set executable permissions on extracted binary. Please check your permissions and mount flags."
         exit 1
     fi
 
     # move binary to bin dir
-    mv "${EXTRACTTARGET}/tracer_cli" "$BINDIR/tracer"
+    mv "${EXTRACTTARGET}/tracer" "$BINDIR/tracer"
     if [ $? -ne 0 ]; then
         printerror "Failed to move Tracer binary to ${Blu}$BINDIR${RCol}. Please check your permissions and try again."
         exit 1
