@@ -811,6 +811,14 @@ pub static ref DEFAULT_EXCLUDED_PROCESS_RULES : Vec<Target>  = vec![
         command_content: ".command.run".to_string(),
     })),
     Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: Some("/bin/bash".into()),
+        command_content: "nextflow_work".to_string(),
+    })),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: Some("bash".into()),
+        command_content: "nextflow_work".to_string(),
+    })),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
         process_name: Some("/opt/conda/bin/java".into()),
         command_content: "nextflow".to_string(),
     })),
