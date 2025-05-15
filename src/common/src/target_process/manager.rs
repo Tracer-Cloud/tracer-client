@@ -17,7 +17,7 @@ impl TargetManager {
     pub fn get_target_match(&self, process: &ProcessTrigger) -> Option<&Target> {
         // Skip blacklisted processes
         if self.blacklist.iter().any(|b| b.matches_process(process)) {
-            log::debug!(
+            tracing::error!(
                 "blocking process: {} | path: {} | argv: {:?}",
                 process.comm,
                 process.file_name,
