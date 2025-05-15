@@ -658,6 +658,8 @@ pub static ref OPT_CONDA_BIN_EXCEPTIONS : Vec<TargetMatch> = vec![
         command_content: ".command.run".to_string(),
     }),
     TargetMatch::ProcessName("make".to_string()),
+    TargetMatch::BinPathLastComponent("python".to_string()),
+    TargetMatch::BinPathLastComponent("python3".to_string()),
     ].to_vec();
 
 pub static ref TARGETS: Vec<Target> = [
@@ -840,6 +842,8 @@ pub static ref DEFAULT_EXCLUDED_PROCESS_RULES : Vec<Target>  = vec![
         command_content: "nextflow-config".to_string(),
     })),
     Target::new(TargetMatch::BinPathLastComponent("mkdir".to_string()),),
+    Target::new(TargetMatch::BinPathLastComponent("python".to_string())),
+    Target::new(TargetMatch::BinPathLastComponent("python3".to_string())),
 
 
 
