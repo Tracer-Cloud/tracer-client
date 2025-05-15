@@ -773,6 +773,7 @@ pub static ref TARGETS: Vec<Target> = [
 .to_vec();
 
 pub static ref DEFAULT_EXCLUDED_PROCESS_RULES : Vec<Target>  = vec![
+    Target::new(TargetMatch::ProcessName("java".to_string())),
     Target::new(TargetMatch::CommandContains(CommandContainsStruct {
         process_name: None,
         command_content: "spack".to_string(),
