@@ -1,13 +1,9 @@
-// simplified_example.cpp
-// Build: g++ -std=c++17 simplified_example.cpp bootstrap.c -lbpf -o tracer
-// Requires: nlohmann/json single‑header (e.g. /usr/include/nlohmann/json.hpp)
-
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
 #include <vector>
-#include <nlohmann/json.hpp>
+#include "../../../vendor/nlohmann/json.hpp"
 
 // C headers must stay in an extern "C" block to avoid name‑mangling
 extern "C"

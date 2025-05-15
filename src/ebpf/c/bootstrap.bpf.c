@@ -55,7 +55,7 @@ int handle__sched__sched_process_exec(struct trace_event_raw_sched_process_exec 
 	struct task_struct *parent = BPF_CORE_READ(task, parent);
 
 	// === Common fields shared by every event === //
-	e->event_type = EVENT__SCHED__SCHED_PROCESS_EXIT;
+	e->event_type = EVENT__SCHED__SCHED_PROCESS_EXEC;
 	e->timestamp_ns = bpf_ktime_get_ns() + system_boot_ns;
 	e->pid = pid;
 	e->ppid = BPF_CORE_READ(parent, tgid);
@@ -146,6 +146,8 @@ int handle__syscall__sys_enter_openat(struct trace_event_raw_sys_enter *ctx)
 	u32 pid = id >> 32;
 	u32 tid = (u32)id;
 
+	return 0; // Temporary, work-in-progress
+
 	// Ignore threads, report only the root process
 	// todo: handle multi-threaded processes
 	if (pid != tid)
@@ -189,6 +191,8 @@ int handle__syscall__sys_exit_openat(struct trace_event_raw_sys_exit *ctx)
 	u32 pid = id >> 32;
 	u32 tid = (u32)id;
 
+	return 0; // Temporary, work-in-progress
+
 	// Ignore threads, report only the root process
 	// todo: handle multi-threaded processes
 	if (pid != tid)
@@ -222,9 +226,116 @@ int handle__syscall__sys_exit_openat(struct trace_event_raw_sys_exit *ctx)
 	return 0;
 }
 
-// SEC("tracepoint/oom/oom_kill")
-// SEC("tracepoint/oom/oom_kill_process")
+// // libbpf rewrites at compile-time; more portable than it appears at a glance
+// struct trace_event_raw_oom_kill
+// {
+// 	__u16 common_type;
+// 	__u8 common_flags;
+// 	__u8 common_preempt_count;
+// 	__s32 common_pid;
 
+// 	__s32 pid;					 /* victim thread id   */
+// 	__s32 tgid;					 /* victim tgid        */
+// 	__s32 oom_score_adj; /* from /proc/...     */
+// } __attribute__((preserve_access_index));
+
+// struct trace_event_raw_oom_kill_process
+// {
+// 	__u16 common_type;
+// 	__u8 common_flags;
+// 	__u8 common_preempt_count;
+// 	__s32 common_pid;
+
+// 	__s32 pid;
+// 	__s32 tgid;
+// 	__s32 oom_score_adj;
+// } __attribute__((preserve_access_index));
+
+SEC("tracepoint/oom/oom_kill")
+int handle__oom__oom_kill(struct trace_event_raw_oom_kill *ctx)
+{
+	u64 id = bpf_get_current_pid_tgid();
+	u32 pid = id >> 32;
+	u32 tid = (u32)id;
+
+	return 0; // Temporary, work-in-progress
+
+	// Ignore threads, report only the root process
+	// todo: handle multi-threaded processes
+	if (pid != tid)
+		return 0;
+
+	// todo: BPF_RB_NO_WAKEUP (perf)
+	struct event *e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+	if (!e)
+		return 0;
+
+	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+	struct task_struct *parent = BPF_CORE_READ(task, parent);
+
+	/* === Common fields shared by every event === */
+	e->event_type = EVENT__OOM__OOM_KILL;
+	e->timestamp_ns = bpf_ktime_get_ns() + system_boot_ns;
+	e->pid = pid;
+	e->ppid = BPF_CORE_READ(parent, tgid);
+
+	// Unique Process IDs (handles pid reuse)
+	u64 start_ns = BPF_CORE_READ(task, start_time);
+	u64 pstart_ns = BPF_CORE_READ(parent, start_time);
+	e->upid = make_upid(e->pid, start_ns);
+	e->uppid = make_upid(e->ppid, pstart_ns);
+
+	// === Variant fields unique to oom/oom_kill === //
+	e->oom__oom_kill__payload.oom_score_adj = BPF_CORE_READ(ctx, oom_score_adj);
+
+	debug_printk("oom/oom_kill detected\n");
+	bpf_ringbuf_submit(e, 0);
+	return 0;
+}
+
+SEC("tracepoint/oom/oom_kill_process")
+int handle__oom__oom_kill_process(struct trace_event_raw_oom_kill_process *ctx)
+{
+	u64 id = bpf_get_current_pid_tgid();
+	u32 pid = id >> 32;
+	u32 tid = (u32)id;
+
+	// Ignore threads, report only the root process
+	// todo: handle multi-threaded processes
+	if (pid != tid)
+		return 0;
+
+	// todo: BPF_RB_NO_WAKEUP (perf)
+	struct event *e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+	if (!e)
+		return 0;
+
+	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+	struct task_struct *parent = BPF_CORE_READ(task, parent);
+
+	/* === Common fields shared by every event === */
+	e->event_type = EVENT__OOM__OOM_KILL_PROCESS;
+	e->timestamp_ns = bpf_ktime_get_ns() + system_boot_ns;
+	e->pid = pid;
+	e->ppid = BPF_CORE_READ(parent, tgid);
+
+	// Unique Process IDs (handles pid reuse)
+	u64 start_ns = BPF_CORE_READ(task, start_time);
+	u64 pstart_ns = BPF_CORE_READ(parent, start_time);
+	e->upid = make_upid(e->pid, start_ns);
+	e->uppid = make_upid(e->ppid, pstart_ns);
+
+	// === Variant fields unique to oom/oom_kill_process === //
+	e->oom__oom_kill_process__payload.victim_pid = BPF_CORE_READ(ctx, pid); // a.k.a victim_pid on old trees
+	e->oom__oom_kill_process__payload.victim_tgid = BPF_CORE_READ(ctx, tgid);
+	e->oom__oom_kill_process__payload.oom_score_adj = BPF_CORE_READ(ctx, oom_score_adj);
+
+	debug_printk("oom/oom_kill_process detected\n");
+	bpf_ringbuf_submit(e, 0);
+	return 0;
+}
+
+// TODO: tracepoints that indicate memory pressure
 // SEC("tracepoint/mm_vmscan_kswapd_wake")
 // SEC("tracepoint/mm_vmscan_kswapd_sleep")
 // SEC("tracepoint/mm_vmscan_direct_reclaim_begin")
