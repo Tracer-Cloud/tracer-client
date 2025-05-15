@@ -185,26 +185,36 @@ impl ProcessWatcher {
         }
     }
 
-    /// Processes a batch of triggers, separating start and finish events
+    /// Processes a batch of triggers from the eBPF stream.
+    ///
+    /// Separates start and finish events. For start triggers, it filters out
+    /// any processes that do not match any target before further processing.
+    /// This avoids unnecessary state updates or metric handling for irrelevant processes.
+    ///
+    /// Finish triggers are always processed, as they may correspond to
+    /// previously tracked processes.
     pub async fn process_triggers(
         self: &Arc<ProcessWatcher>,
         triggers: Vec<Trigger>,
     ) -> Result<()> {
-        let mut start_triggers: Vec<ProcessTrigger> = vec![];
+        let mut matched_triggers: Vec<ProcessTrigger> = vec![];
         let mut finish_triggers: Vec<FinishTrigger> = vec![];
 
-        // Add debug logging
         debug!("ProcessWatcher: processing {} triggers", triggers.len());
 
-        // Separate start and finish triggers
+        let state = self.state.read().await;
         for trigger in triggers.into_iter() {
             match trigger {
                 Trigger::Start(proc) => {
-                    debug!(
-                        "ProcessWatcher: received START trigger pid={}, cmd={}",
-                        proc.pid, proc.comm
-                    );
-                    start_triggers.push(proc);
+                    if let Some(matched_target) = state.target_manager.get_target_match(&proc) {
+                        debug!(
+                            "MATCHED START: pid={} cmd={} target={:?}",
+                            proc.pid, proc.comm, matched_target
+                        );
+                        matched_triggers.push(proc);
+                    } else {
+                        debug!("SKIPPED START: pid={} cmd={}", proc.pid, proc.comm);
+                    }
                 }
                 Trigger::Finish(proc) => {
                     debug!("ProcessWatcher: received FINISH trigger pid={}", proc.pid);
@@ -212,17 +222,19 @@ impl ProcessWatcher {
                 }
             }
         }
+        drop(state); // release the read lock
 
-        // Process finish triggers first
         if !finish_triggers.is_empty() {
             debug!("Processing {} finishing processes", finish_triggers.len());
             self.handle_process_terminations(finish_triggers).await?;
         }
 
-        // Then process start triggers
-        if !start_triggers.is_empty() {
-            debug!("Processing {} creating processes", start_triggers.len());
-            self.handle_process_starts(start_triggers).await?;
+        if !matched_triggers.is_empty() {
+            debug!(
+                "Processing {} matched start processes",
+                matched_triggers.len()
+            );
+            self.handle_process_starts(matched_triggers).await?;
         }
 
         Ok(())
@@ -600,6 +612,11 @@ impl ProcessWatcher {
         process: &ProcessTrigger,
     ) -> Result<ProcessResult> {
         debug!("Processing pid={}", process.pid);
+
+        debug!(
+            "/n/n Handling process: {} | path: {} | argv: {:?} target: {:?} /n/n",
+            process.comm, process.file_name, process.argv, target
+        );
 
         let display_name = target
             .get_display_name_object()

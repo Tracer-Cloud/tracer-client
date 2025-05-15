@@ -20,3 +20,4 @@ url = { workspace = true }
 tracer_aws = { workspace = true }
 uuid = { workspace = true }
 typed-builder = { workspace = true}
+tracing = { workspace = true}

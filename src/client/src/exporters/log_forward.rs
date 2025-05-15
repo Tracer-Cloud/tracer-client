@@ -67,7 +67,6 @@ impl LogWriter for LogForward {
             self.endpoint,
             payload.events.len()
         );
-        debug!("Payload structure: {:?}", payload);
 
         let res = match self.client.post(&self.endpoint).json(&payload).send().await {
             Ok(response) => response,

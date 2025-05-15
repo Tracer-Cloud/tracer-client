@@ -5183,6 +5183,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracer_aws",
+ "tracing",
  "typed-builder",
  "url",
  "uuid",
