@@ -77,21 +77,11 @@ pub fn print_install_readiness() -> Result<()> {
             "apt-get:build-essential",
         ),
         ("pkg-config", "dpkg -s pkg-config", "apt-get:pkg-config"),
+        ("libelf1", "dpkg -s libelf1", "apt-get:libelf1"),
         ("libelf-dev", "dpkg -s libelf-dev", "apt-get:libelf-dev"),
+        ("zlib1g-dev", "dpkg -s zlib1g-dev", "apt-get:zlib1g-dev"),
         ("llvm", "dpkg -s llvm", "apt-get:llvm"),
         ("clang", "dpkg -s clang", "apt-get:clang"),
-        (
-            "linux-headers",
-            "dpkg -l | grep '^ii' | grep 'linux-headers-'",
-            "apt-get:linux-headers-$(uname -r)",
-        ),
-        ("bpf-linker", "which bpf-linker", "cargo:bpf-linker"),
-        (
-            "bpftool",
-            "which bpftool",
-            "apt-get:linux-hwe-6.5-tools-common",
-        ),
-        ("libbpf-dev", "dpkg -s libbpf-dev", "apt-get:libbpf-dev"),
     ];
 
     for (package_name, check_cmd, install_advice) in &packages {
