@@ -1,29 +1,46 @@
-pub const ARGS_MAX_LEN: usize = 128;
-pub const MAX_NUM_ARGS: usize = 8;
+// CEvent must be kept in-sync with bootstrap.h types
+pub const TASK_COMM_LEN: usize = 16;
+pub const MAX_ARR_LEN: usize = 16;
+pub const MAX_STR_LEN: usize = 128;
 
-#[repr(C)]
-#[derive(Debug)]
-pub enum ProcessEnterType {
-    Start,
-    Finish,
+// Event type constants matching enum event_type
+pub const EVENT__SCHED__SCHED_PROCESS_EXEC: u32 = 0;
+pub const EVENT__SCHED__SCHED_PROCESS_EXIT: u32 = 1;
+pub const EVENT__SCHED__PSI_MEMSTALL_ENTER: u32 = 16;
+pub const EVENT__SYSCALL__SYS_ENTER_OPENAT: u32 = 1024;
+pub const EVENT__SYSCALL__SYS_EXIT_OPENAT: u32 = 1025;
+pub const EVENT__SYSCALL__SYS_ENTER_READ: u32 = 1026;
+pub const EVENT__SYSCALL__SYS_EXIT_READ: u32 = 1027;
+pub const EVENT__SYSCALL__SYS_ENTER_WRITE: u32 = 1028;
+pub const EVENT__SYSCALL__SYS_EXIT_WRITE: u32 = 1029;
+pub const EVENT__VMSCAN__MM_VMSCAN_DIRECT_RECLAIM_BEGIN: u32 = 2048;
+pub const EVENT__OOM__MARK_VICTIM: u32 = 3072;
+
+// Define payload structs for the events we care about
+#[repr(C, packed)]
+pub struct SchedProcessExecPayload {
+    pub comm: [u8; TASK_COMM_LEN],
+    pub argc: u32,
+    pub argv: [[u8; MAX_STR_LEN]; MAX_ARR_LEN],
 }
 
-#[repr(C)]
-#[derive(Debug)]
-pub struct ProcessRawTrigger {
-    pub pid: i32,
-    pub ppid: i32,
-    pub event_type: ProcessEnterType,
+// Define the CEvent struct to match the memory layout of the C struct
+#[repr(C, packed)]
+pub struct CEvent {
+    // Common fields
+    pub event_type: u32,
+    pub timestamp_ns: u64,
+    pub pid: u32,
+    pub ppid: u32,
+    pub upid: u64,
+    pub uppid: u64,
 
-    pub comm: [u8; 16],
-
-    pub file_name: [u8; 32],
-    pub argv: [[u8; ARGS_MAX_LEN]; MAX_NUM_ARGS],
-    pub len: usize,
-
-    pub time: u64,
+    // Payload - using a byte array large enough to hold any payload
+    // We'll access specific payloads by casting
+    pub payload: [u8; 2048], // Size should be sufficient for largest payload
 }
 
+// Keep the helper function from the original code
 pub fn from_bpf_str(s: &[u8]) -> anyhow::Result<&str> {
     let zero_pos = s.iter().position(|&x| x == 0);
     let s = match zero_pos {
@@ -33,35 +50,51 @@ pub fn from_bpf_str(s: &[u8]) -> anyhow::Result<&str> {
     Ok(std::str::from_utf8(s)?)
 }
 
-use tracer_common::types::trigger::*;
-
-impl TryInto<tracer_common::types::trigger::Trigger> for &ProcessRawTrigger {
+// Implement TryInto for CEvent to convert directly to Trigger
+impl TryInto<tracer_common::types::trigger::Trigger> for &CEvent {
     type Error = anyhow::Error;
 
     fn try_into(self) -> Result<tracer_common::types::trigger::Trigger, Self::Error> {
-        Ok(match self.event_type {
-            ProcessEnterType::Start => {
-                tracer_common::types::trigger::Trigger::Start(ProcessTrigger {
-                    pid: self.pid as usize,
-                    ppid: self.ppid as usize,
-                    file_name: from_bpf_str(self.file_name.as_slice())?.to_string(),
-                    comm: from_bpf_str(self.comm.as_slice())?.to_string(),
-                    argv: self
-                        .argv
-                        .iter()
-                        .take(self.len)
-                        .map(|x| from_bpf_str(x).map(|s| s.to_string()))
-                        .collect::<Result<_, Self::Error>>()?, // todo: improve
-                    // todo: use self.time
-                    started_at: chrono::Utc::now(),
-                })
+        match self.event_type {
+            EVENT__SCHED__SCHED_PROCESS_EXEC => {
+                // Access the exec payload by casting
+                let payload_ptr = self.payload.as_ptr() as *const SchedProcessExecPayload;
+                let payload = unsafe { &*payload_ptr };
+
+                // Get command name
+                let comm = from_bpf_str(&payload.comm)?;
+
+                // Collect arguments
+                let mut args = Vec::new();
+                for i in 0..payload.argc as usize {
+                    if i >= MAX_ARR_LEN {
+                        break;
+                    }
+                    args.push(from_bpf_str(&payload.argv[i])?.to_string());
+                }
+
+                Ok(tracer_common::types::trigger::Trigger::Start(
+                    tracer_common::types::trigger::ProcessTrigger {
+                        pid: self.pid as usize,
+                        ppid: self.ppid as usize,
+                        file_name: args.get(0).cloned().unwrap_or_default(),
+                        comm: comm.to_string(),
+                        argv: args,
+                        started_at: chrono::Utc::now(),
+                    },
+                ))
             }
-            ProcessEnterType::Finish => {
-                tracer_common::types::trigger::Trigger::Finish(FinishTrigger {
-                    pid: self.pid as usize,
-                    finished_at: chrono::Utc::now(),
-                })
+            EVENT__SCHED__SCHED_PROCESS_EXIT => {
+                // Exit event is simpler - no payload fields needed
+                Ok(tracer_common::types::trigger::Trigger::Finish(
+                    tracer_common::types::trigger::FinishTrigger {
+                        pid: self.pid as usize,
+                        finished_at: chrono::Utc::now(),
+                    },
+                ))
             }
-        })
+            // We can add cases for other event types as needed
+            _ => Err(anyhow::anyhow!("Unsupported event type")),
+        }
     }
 }

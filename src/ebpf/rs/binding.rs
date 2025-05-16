@@ -1,25 +1,10 @@
-use crate::types::{ProcessEnterType, ProcessRawTrigger};
+use crate::types::CEvent;
 use anyhow::Result;
-use std::ffi::c_int;
 use std::ffi::c_void;
-use std::mem::size_of;
 use std::sync::{mpsc as std_mpsc, Arc};
 use std::time::Duration;
 use tokio::sync::mpsc::UnboundedSender;
 use tracer_common::types::trigger::Trigger;
-
-// Define a C-compatible event struct for validation
-#[repr(C)]
-struct CEvent {
-    pid: c_int,
-    ppid: c_int,
-    event_type: c_int, // 0 for Start, 1 for Finish
-    comm: [u8; 16],
-    file_name: [u8; 32],
-    argv: [[u8; 128]; 8],
-    len: usize,
-    time: u64,
-}
 
 // Define the FFI interface to the C function
 #[link(name = "bootstrap", kind = "static")]
@@ -48,39 +33,6 @@ struct BufferContext {
     shared_context: Arc<ProcessingContext>,
 }
 
-// Convert C event to ProcessRawTrigger safely
-unsafe fn convert_to_process_raw_trigger(bytes: &[u8]) -> Result<ProcessRawTrigger, anyhow::Error> {
-    // Sanity check event size
-    if bytes.len() < size_of::<ProcessRawTrigger>() {
-        return Err(anyhow::anyhow!(
-            "Event too small: got {} bytes, expected at least {}",
-            bytes.len(),
-            size_of::<ProcessRawTrigger>()
-        ));
-    }
-
-    // Read the C event structure
-    let c_event = &*(bytes.as_ptr() as *const CEvent);
-
-    // Create a new ProcessRawTrigger with the event data
-    let trigger = ProcessRawTrigger {
-        pid: c_event.pid,
-        ppid: c_event.ppid,
-        event_type: if c_event.event_type == 0 {
-            ProcessEnterType::Start
-        } else {
-            ProcessEnterType::Finish
-        },
-        comm: c_event.comm,
-        file_name: c_event.file_name,
-        argv: c_event.argv,
-        len: c_event.len,
-        time: c_event.time,
-    };
-
-    Ok(trigger)
-}
-
 pub fn start_processing_events(tx: UnboundedSender<Trigger>) -> Result<()> {
     // Channel for sending events from the C callback to our Rust thread
     let (events_tx, events_rx) = std_mpsc::channel::<Vec<Trigger>>();
@@ -103,8 +55,7 @@ pub fn start_processing_events(tx: UnboundedSender<Trigger>) -> Result<()> {
             // Parse events from the buffer
             let buffer_slice = &context.buffer[..filled_bytes];
 
-            let event_size = std::mem::size_of::<ProcessRawTrigger>();
-
+            let event_size = std::mem::size_of::<CEvent>();
             let event_count = filled_bytes / event_size;
 
             let mut events = Vec::with_capacity(event_count);
@@ -112,20 +63,21 @@ pub fn start_processing_events(tx: UnboundedSender<Trigger>) -> Result<()> {
             for i in 0..event_count {
                 let offset = i * event_size;
 
-                // Get event slice
-                let event_slice = &buffer_slice[offset..offset + event_size];
+                // Check if we have enough bytes for a complete event
+                if offset + event_size > buffer_slice.len() {
+                    eprintln!("Buffer too small for event at offset {}", offset);
+                    continue;
+                }
 
-                // Convert to ProcessRawTrigger safely
-                match convert_to_process_raw_trigger(event_slice) {
-                    Ok(raw_trigger) => {
-                        // Convert from ProcessRawTrigger to Trigger
-                        match (&raw_trigger).try_into() {
-                            Ok(trigger) => events.push(trigger),
-                            _ => {}
-                        }
-                    }
+                // Get event slice and cast to CEvent
+                let event_slice = &buffer_slice[offset..offset + event_size];
+                let c_event = &*(event_slice.as_ptr() as *const CEvent);
+
+                // Convert directly from CEvent to Trigger
+                match c_event.try_into() {
+                    Ok(trigger) => events.push(trigger),
                     Err(e) => {
-                        eprintln!("Error converting C event to ProcessRawTrigger: {:?}", e);
+                        eprintln!("Error converting CEvent to Trigger: {:?}", e);
                         continue;
                     }
                 }
@@ -142,9 +94,6 @@ pub fn start_processing_events(tx: UnboundedSender<Trigger>) -> Result<()> {
             if let Err(e) = context.shared_context.initialize_tx.send(()) {
                 eprintln!("Failed to send initialize signal: {:?}", e);
             }
-
-            // Do NOT free the context here - the loop that calls initialize() will free it
-            // when initialize() returns
         }
     }
 
