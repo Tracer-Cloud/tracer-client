@@ -45,19 +45,30 @@ static __always_inline u64 make_upid(u32 pid, u64 start_ns)
 //   2. ctx struct type
 //   3. SEC() section string
 //   4. filler fn (collects fields specific to given tracepoint)
-#define EVENT_LIST(X)                                                  \
-  X(SCHED__SCHED_PROCESS_EXEC, trace_event_raw_sched_process_exec,     \
-    "tracepoint/sched/sched_process_exec", fill_sched_process_exec)    \
-  X(SCHED__SCHED_PROCESS_EXIT, trace_event_raw_sched_process_template, \
-    "tracepoint/sched/sched_process_exit", fill_sched_process_exit)    \
-  X(SYSCALL__SYS_ENTER_OPENAT, trace_event_raw_sys_enter,              \
-    "tracepoint/syscalls/sys_enter_openat", fill_sys_enter_openat)     \
-  X(SYSCALL__SYS_EXIT_OPENAT, trace_event_raw_sys_exit,                \
-    "tracepoint/syscalls/sys_exit_openat", fill_sys_exit_openat)       \
-  X(OOM__OOM_KILL, trace_event_raw_oom_kill,                           \
-    "tracepoint/oom/oom_kill", fill_oom_kill)                          \
-  X(OOM__OOM_KILL_PROCESS, trace_event_raw_oom_kill_process,           \
-    "tracepoint/oom/oom_kill_process", fill_oom_kill_process)
+#define EVENT_LIST(X)                                                                                          \
+  X(SCHED__SCHED_PROCESS_EXEC, trace_event_raw_sched_process_exec,                                             \
+    "tracepoint/sched/sched_process_exec", fill_sched_process_exec)                                            \
+  X(SCHED__SCHED_PROCESS_EXIT, trace_event_raw_sched_process_template,                                         \
+    "tracepoint/sched/sched_process_exit", fill_sched_process_exit)                                            \
+  /* TODO: cannot attach psi_memstall_enter */                                                                 \
+  /* X(SCHED__PSI_MEMSTALL_ENTER, trace_event_raw_psi_memstall,                */                              \
+  /*   "tracepoint/sched/psi_memstall_enter", fill_sched_psi_memstall_enter)   */                              \
+                                                                                                               \
+  /* TODO: collecting these events triggers them, causing indirect infinite loop. BPF_RB_NO_WAKEUP will fix */ \
+  /*  X(SYSCALL__SYS_ENTER_OPENAT, trace_event_raw_sys_enter,                  */                              \
+  /*    "tracepoint/syscalls/sys_enter_openat", fill_sys_enter_openat)         */                              \
+  /*  X(SYSCALL__SYS_EXIT_OPENAT, trace_event_raw_sys_exit,                    */                              \
+  /*    "tracepoint/syscalls/sys_exit_openat", fill_sys_exit_openat)           */                              \
+  /*  X(SYSCALL__SYS_ENTER_READ, trace_event_raw_sys_enter,                    */                              \
+  /*    "tracepoint/syscalls/sys_enter_read", fill_sys_enter_read)             */                              \
+  /*  X(SYSCALL__SYS_ENTER_WRITE, trace_event_raw_sys_enter,                   */                              \
+  /*    "tracepoint/syscalls/sys_enter_write", fill_sys_enter_write)           */                              \
+                                                                                                               \
+  X(VMSCAN__MM_VMSCAN_DIRECT_RECLAIM_BEGIN, trace_event_raw_vmscan_direct_reclaim_begin,                       \
+    "tracepoint/vmscan/mm_vmscan_direct_reclaim_begin", fill_vmscan_mm_vmscan_direct_reclaim_begin)            \
+                                                                                                               \
+  X(OOM__MARK_VICTIM, trace_event_raw_mark_victim,                                                             \
+    "tracepoint/oom/mark_victim", fill_oom_mark_victim)
 
 /* -------------------------------------------------------------------------- */
 /*                    2.  Variant‑specific payload helpers                    */
@@ -103,7 +114,7 @@ fill_sched_process_exit(struct event *e,
                         struct trace_event_raw_sched_process_template *ctx __attribute__((unused)))
 {
   /* Nothing extra to record for process‑exit right now */
-  (void)e; // silence unused‑param warning if -Wunused-parameter is on
+  (void)e;
 }
 
 // File open request started
@@ -124,6 +135,54 @@ fill_sys_exit_openat(struct event *e,
                      struct trace_event_raw_sys_exit *ctx)
 {
   e->syscall__sys_exit_openat__payload.fd = ctx->ret;
+}
+
+// File read
+static __always_inline void
+fill_sys_enter_read(struct event *e,
+                    struct trace_event_raw_sys_enter *ctx)
+{
+  e->syscall__sys_enter_read__payload.fd = BPF_CORE_READ(ctx, args[0]);
+  e->syscall__sys_enter_read__payload.count = BPF_CORE_READ(ctx, args[1]);
+}
+
+// File write
+static __always_inline void
+fill_sys_enter_write(struct event *e,
+                     struct trace_event_raw_sys_enter *ctx)
+{
+  // TODO: get contents
+  e->syscall__sys_enter_write__payload.fd = BPF_CORE_READ(ctx, args[0]);
+  e->syscall__sys_enter_write__payload.count = BPF_CORE_READ(ctx, args[1]);
+}
+
+// Memory reclaim event
+static __always_inline void
+fill_vmscan_mm_vmscan_direct_reclaim_begin(struct event *e,
+                                           struct trace_event_raw_vmscan_direct_reclaim_begin *ctx)
+{
+  // TODO: cannot read ctx->order, seems to be undefined on trace_event_raw_vmscan_direct_reclaim_begin
+  (void)e;
+  // e->vmscan__mm_vmscan_direct_reclaim_begin__payload.order = BPF_CORE_READ(ctx, order);
+}
+
+// Memory stall event
+static __always_inline void
+fill_sched_psi_memstall_enter(struct event *e,
+                              struct trace_event_raw_psi_memstall *ctx)
+{
+  // TODO: cannot read ctx->type, seems to be undefined on trace_event_raw_psi_memstall
+  (void)e;
+  // e->sched__psi_memstall_enter__payload.type = BPF_CORE_READ(ctx, type);
+}
+
+// OOM mark victim event
+static __always_inline void
+fill_oom_mark_victim(struct event *e,
+                     struct trace_event_raw_mark_victim *ctx __attribute__((unused)))
+{
+  // No additional fields to fill for OOM mark victim
+  (void)e;
 }
 
 /* -------------------------------------------------------------------------- */

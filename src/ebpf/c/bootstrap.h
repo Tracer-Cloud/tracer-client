@@ -12,14 +12,18 @@ enum event_type
 {
 	EVENT__SCHED__SCHED_PROCESS_EXEC = 0,
 	EVENT__SCHED__SCHED_PROCESS_EXIT = 1,
-	EVENT__SYSCALL__SYS_ENTER_OPENAT = 2,
-	EVENT__SYSCALL__SYS_EXIT_OPENAT = 3,
-	EVENT__OOM__OOM_KILL = 5,
-	EVENT__OOM__OOM_KILL_PROCESS = 6,
-	EVENT__MM_VMSCAN_KSWAPD_WAKE = 7,
-	EVENT__MM_VMSCAN_KSWAPD_SLEEP = 8,
-	EVENT__MM_VMSCAN_DIRECT_RECLAIM_BEGIN = 9,
-	EVENT__MM_VMSCAN_DIRECT_RECLAIM_END = 10,
+	EVENT__SCHED__PSI_MEMSTALL_ENTER = 16,
+
+	EVENT__SYSCALL__SYS_ENTER_OPENAT = 1024,
+	EVENT__SYSCALL__SYS_EXIT_OPENAT = 1025,
+	EVENT__SYSCALL__SYS_ENTER_READ = 1026,
+	EVENT__SYSCALL__SYS_EXIT_READ = 1027,
+	EVENT__SYSCALL__SYS_ENTER_WRITE = 1028,
+	EVENT__SYSCALL__SYS_EXIT_WRITE = 1029,
+
+	EVENT__VMSCAN__MM_VMSCAN_DIRECT_RECLAIM_BEGIN = 2048,
+
+	EVENT__OOM__MARK_VICTIM = 3072
 };
 
 struct sched__sched_process_exec__payload
@@ -46,41 +50,31 @@ struct syscall__sys_exit_openat__payload
 	int fd;
 };
 
-struct oom__oom_kill__payload
+struct syscall__sys_enter_read__payload
 {
-	u32 victim_pid;
-	u32 victim_tgid;
-	u32 oom_score_adj;
+	int fd;
+	size_t count;
 };
 
-struct oom__oom_kill_process__payload
+struct syscall__sys_enter_write__payload
 {
-	u32 victim_pid;
-	u32 victim_tgid;
-	u32 oom_score_adj;
+	int fd;
+	size_t count;
 };
 
-struct mm_vmscan_kswapd_wake__payload
+struct vmscan__mm_vmscan_direct_reclaim_begin__payload
 {
-	u32 node_id;
+	int order; // allocation order that triggered reclaim
 };
 
-struct mm_vmscan_kswapd_sleep__payload
+struct sched__psi_memstall_enter__payload
 {
-	u32 node_id;
+	int type; /* 0 = some, 1 = full, etc. */
 };
 
-struct mm_vmscan_direct_reclaim_begin__payload
+struct oom__mark_victim__payload
 {
-	u32 node_id;
-	u32 order;
-};
-
-struct mm_vmscan_direct_reclaim_end__payload
-{
-	u32 node_id;
-	u32 order;
-	u32 reclaimed;
+	// No additional fields required for this payload
 };
 
 struct event
@@ -100,12 +94,11 @@ struct event
 		struct sched__sched_process_exit__payload sched__sched_process_exit__payload;
 		struct syscall__sys_enter_openat__payload syscall__sys_enter_openat__payload;
 		struct syscall__sys_exit_openat__payload syscall__sys_exit_openat__payload;
-		struct oom__oom_kill__payload oom__oom_kill__payload;
-		struct oom__oom_kill_process__payload oom__oom_kill_process__payload;
-		struct mm_vmscan_kswapd_wake__payload mm_vmscan_kswapd_wake__payload;
-		struct mm_vmscan_kswapd_sleep__payload mm_vmscan_kswapd_sleep__payload;
-		struct mm_vmscan_direct_reclaim_begin__payload mm_vmscan_direct_reclaim_begin__payload;
-		struct mm_vmscan_direct_reclaim_end__payload mm_vmscan_direct_reclaim_end__payload;
+		struct syscall__sys_enter_read__payload syscall__sys_enter_read__payload;
+		struct syscall__sys_enter_write__payload syscall__sys_enter_write__payload;
+		struct vmscan__mm_vmscan_direct_reclaim_begin__payload vmscan__mm_vmscan_direct_reclaim_begin__payload;
+		struct sched__psi_memstall_enter__payload sched__psi_memstall_enter__payload;
+		struct oom__mark_victim__payload oom__mark_victim__payload;
 	};
 } __attribute__((packed));
 
