@@ -80,7 +80,11 @@ impl TryInto<tracer_common::types::trigger::Trigger> for &CEvent {
                         file_name: args.get(0).cloned().unwrap_or_default(),
                         comm: comm.to_string(),
                         argv: args,
-                        started_at: chrono::Utc::now(),
+                        started_at: chrono::DateTime::from_timestamp(
+                            (self.timestamp_ns / 1_000_000_000) as i64,
+                            (self.timestamp_ns % 1_000_000_000) as u32,
+                        )
+                        .unwrap(),
                     },
                 ))
             }
@@ -89,7 +93,11 @@ impl TryInto<tracer_common::types::trigger::Trigger> for &CEvent {
                 Ok(tracer_common::types::trigger::Trigger::Finish(
                     tracer_common::types::trigger::FinishTrigger {
                         pid: self.pid as usize,
-                        finished_at: chrono::Utc::now(),
+                        finished_at: chrono::DateTime::from_timestamp(
+                            (self.timestamp_ns / 1_000_000_000) as i64,
+                            (self.timestamp_ns % 1_000_000_000) as u32,
+                        )
+                        .unwrap(),
                     },
                 ))
             }
