@@ -214,7 +214,7 @@ impl ProcessWatcher {
                     debug!("ProcessWatcher: received FINISH trigger pid={}", proc.pid);
                     finish_triggers.push(proc);
                 }
-                Trigger::Omm(oom) => {
+                Trigger::Oom(oom) => {
                     debug!("OOM trigger pid={}", oom.pid);
                     oom_triggers.push(oom);
                 }
@@ -361,7 +361,7 @@ impl ProcessWatcher {
             tool_name: start_trigger.comm.clone(),
             tool_pid: start_trigger.pid.to_string(),
             duration_sec,
-            exit_reason: finish_trigger.exit_reason,
+            exit_reason: finish_trigger.exit_reason.clone(),
         };
 
         self.log_recorder

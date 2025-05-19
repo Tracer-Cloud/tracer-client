@@ -31,7 +31,7 @@ pub struct OomTrigger {
 pub enum Trigger {
     Start(ProcessTrigger),
     Finish(FinishTrigger),
-    Omm(OomTrigger),
+    Oom(OomTrigger),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
