@@ -310,9 +310,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-secretsmanager"
-version = "1.69.0"
+version = "1.72.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dff24b4eb5d06e80d028b74ccf1c7a1d34f05f9960c5a0e8223fbb82afd905c6"
+checksum = "6eea275b1f4bc5b5a6f278b760cf27a20c6a7db577310778790cdf4c666ded09"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -326,7 +326,6 @@ dependencies = [
  "bytes",
  "fastrand 2.3.0",
  "http 0.2.12",
- "once_cell",
  "regex-lite",
  "tracing",
 ]
@@ -2343,7 +2342,7 @@ dependencies = [
 
 [[package]]
 name = "integration_tests"
-version = "2025.5.1+1"
+version = "2025.5.15+1"
 dependencies = [
  "bollard",
  "futures-util",
@@ -5091,7 +5090,7 @@ checksum = "8df9b6e13f2d32c91b9bd719c00d1958837bc7dec474d94952798cc8e69eeec3"
 
 [[package]]
 name = "tracer_aws"
-version = "2025.5.1+1"
+version = "2025.5.15+1"
 dependencies = [
  "anyhow",
  "aws-config",
@@ -5114,7 +5113,7 @@ dependencies = [
 
 [[package]]
 name = "tracer_cli"
-version = "2025.5.1+1"
+version = "2025.5.15+1"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -5141,7 +5140,7 @@ dependencies = [
 
 [[package]]
 name = "tracer_client"
-version = "2025.5.1+1"
+version = "2025.5.15+1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -5171,7 +5170,7 @@ dependencies = [
 
 [[package]]
 name = "tracer_common"
-version = "2025.5.1+1"
+version = "2025.5.15+1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -5190,7 +5189,7 @@ dependencies = [
 
 [[package]]
 name = "tracer_daemon"
-version = "2025.5.1+1"
+version = "2025.5.15+1"
 dependencies = [
  "anyhow",
  "axum",
@@ -5210,7 +5209,7 @@ dependencies = [
 
 [[package]]
 name = "tracer_ebpf_common"
-version = "2025.5.1+1"
+version = "2025.5.15+1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -5219,7 +5218,7 @@ dependencies = [
 
 [[package]]
 name = "tracer_ebpf_libbpf"
-version = "2025.5.1+1"
+version = "2025.5.15+1"
 dependencies = [
  "anyhow",
  "bytes",
@@ -5235,7 +5234,7 @@ dependencies = [
 
 [[package]]
 name = "tracer_extracts"
-version = "2025.5.1+1"
+version = "2025.5.15+1"
 dependencies = [
  "anyhow",
  "chrono",
