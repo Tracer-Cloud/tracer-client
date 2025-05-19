@@ -87,7 +87,7 @@ percent-encoding = "2.3.1"
 walkdir = "2.5.0"
 colored = "3.0.0"
 axum = "0.8.3"
-tempfile = "3.19.1"
+tempfile = "3.20.0"
 config = { version = "0.15.11", default-features = false, features = ["toml", "convert-case"] }
 serial_test = "3.1.1"
 env_logger = "0.11"
