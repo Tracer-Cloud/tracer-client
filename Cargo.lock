@@ -252,9 +252,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-pricing"
-version = "1.68.0"
+version = "1.71.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "161f6b1539831e352fc341b345fff7c5afb08819a9430d890cf5ffd59e12e63e"
+checksum = "29a8d0a54d210c2af65c24435df608206daddc15aeaba202e6e0415c10fe70b4"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -268,7 +268,6 @@ dependencies = [
  "bytes",
  "fastrand 2.3.0",
  "http 0.2.12",
- "once_cell",
  "regex-lite",
  "tracing",
 ]
@@ -2343,7 +2342,7 @@ dependencies = [
 
 [[package]]
 name = "integration_tests"
-version = "2025.5.1+1"
+version = "2025.5.15+1"
 dependencies = [
  "bollard",
  "futures-util",
@@ -5091,7 +5090,7 @@ checksum = "8df9b6e13f2d32c91b9bd719c00d1958837bc7dec474d94952798cc8e69eeec3"
 
 [[package]]
 name = "tracer_aws"
-version = "2025.5.1+1"
+version = "2025.5.15+1"
 dependencies = [
  "anyhow",
  "aws-config",
@@ -5114,7 +5113,7 @@ dependencies = [
 
 [[package]]
 name = "tracer_cli"
-version = "2025.5.1+1"
+version = "2025.5.15+1"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -5141,7 +5140,7 @@ dependencies = [
 
 [[package]]
 name = "tracer_client"
-version = "2025.5.1+1"
+version = "2025.5.15+1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -5171,7 +5170,7 @@ dependencies = [
 
 [[package]]
 name = "tracer_common"
-version = "2025.5.1+1"
+version = "2025.5.15+1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -5190,7 +5189,7 @@ dependencies = [
 
 [[package]]
 name = "tracer_daemon"
-version = "2025.5.1+1"
+version = "2025.5.15+1"
 dependencies = [
  "anyhow",
  "axum",
@@ -5210,7 +5209,7 @@ dependencies = [
 
 [[package]]
 name = "tracer_ebpf_common"
-version = "2025.5.1+1"
+version = "2025.5.15+1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -5219,7 +5218,7 @@ dependencies = [
 
 [[package]]
 name = "tracer_ebpf_libbpf"
-version = "2025.5.1+1"
+version = "2025.5.15+1"
 dependencies = [
  "anyhow",
  "bytes",
@@ -5235,7 +5234,7 @@ dependencies = [
 
 [[package]]
 name = "tracer_extracts"
-version = "2025.5.1+1"
+version = "2025.5.15+1"
 dependencies = [
  "anyhow",
  "chrono",
