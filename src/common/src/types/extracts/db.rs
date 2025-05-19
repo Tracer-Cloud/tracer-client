@@ -72,7 +72,10 @@ impl TryFrom<Event> for EventInsert {
                     job_id = p.job_id.clone();
                     trace_id = p.trace_id.clone();
                 }
-                EventAttributes::Process(ProcessProperties::ShortLived(_)) => {}
+                EventAttributes::Process(ProcessProperties::ShortLived(_)) => {
+                    cpu_usage = Some(0.0);
+                    mem_used = Some(0.0);
+                }
                 EventAttributes::SystemMetric(m) => {
                     cpu_usage = Some(m.system_cpu_utilization);
                     mem_used = Some(m.system_memory_used as f64);
@@ -140,5 +143,60 @@ impl TryFrom<Event> for EventInsert {
             resource_attributes,
             tags: serde_json::to_value(tags).context("Failed to serialize tags")?,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::types::event::attributes::process::{ProcessProperties, ShortProcessProperties};
+    use crate::types::event::attributes::EventAttributes;
+    use crate::types::event::{Event, EventType, ProcessStatus, ProcessType};
+    use crate::types::extracts::db::EventInsert;
+    use chrono::Utc;
+    use std::convert::TryFrom;
+
+    #[test]
+    fn test_event_insert_short_lived_process() {
+        let now = Utc::now();
+        let short_lived_props = ShortProcessProperties {
+            tool_name: "test_process".to_string(),
+            tool_pid: "12345".to_string(),
+            tool_parent_pid: "1".to_string(),
+            tool_binary_path: "/usr/bin/test_process".to_string(),
+            start_timestamp: now.to_rfc3339(),
+        };
+
+        let event = Event {
+            timestamp: now,
+            body: "Test Event".to_string(),
+            severity_text: None,
+            severity_number: None,
+            span_id: None,
+            trace_id: Some("trace-id-123".to_string()),
+            run_id: Some("test-run-id".to_string()),
+            run_name: Some("test_run".to_string()),
+            pipeline_name: Some("test_pipeline".to_string()),
+            event_type: EventType::ProcessStatus,
+            process_type: ProcessType::Pipeline,
+            process_status: ProcessStatus::ToolExecution,
+            attributes: Some(EventAttributes::Process(ProcessProperties::ShortLived(
+                Box::new(short_lived_props),
+            ))),
+            tags: None,
+        };
+
+        // Convert the event to EventInsert
+        let event_insert = EventInsert::try_from(event).unwrap();
+
+        assert_eq!(
+            event_insert.cpu_usage,
+            Some(0.0),
+            "CPU usage should be 0.0 for ShortLived processes"
+        );
+        assert_eq!(
+            event_insert.mem_used,
+            Some(0.0),
+            "Memory used should be 0.0 for ShortLived processes"
+        );
     }
 }
