@@ -1,5 +1,6 @@
 use chrono::DateTime;
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
+use tracer_common::types::trigger::OomTrigger;
 
 use crate::data_samples::DATA_SAMPLES_EXT;
 use crate::file_watcher::FileWatcher;
@@ -58,6 +59,9 @@ struct ProcessState {
     target_manager: TargetManager,
     // Store task handle to ensure it stays alive
     ebpf_task: Option<tokio::task::JoinHandle<()>>,
+
+    // tracks relevant processes killed with oom
+    oom_victims: HashMap<usize, OomTrigger>, // Map of pid -> oom trigger
 }
 
 /// Watches system processes and records events related to them
@@ -82,6 +86,7 @@ impl ProcessWatcher {
             target_manager,
             datasamples_tracker: HashMap::new(),
             ebpf_task: None,
+            oom_victims: HashMap::new(),
         }));
 
         ProcessWatcher {
@@ -185,18 +190,17 @@ impl ProcessWatcher {
         }
     }
 
-    /// Processes a batch of triggers, separating start and finish events
+    /// Processes a batch of triggers, separating start, finish, and OOM events
     pub async fn process_triggers(
         self: &Arc<ProcessWatcher>,
         triggers: Vec<Trigger>,
     ) -> Result<()> {
         let mut start_triggers: Vec<ProcessTrigger> = vec![];
         let mut finish_triggers: Vec<FinishTrigger> = vec![];
+        let mut oom_triggers: Vec<OomTrigger> = vec![];
 
-        // Add debug logging
         debug!("ProcessWatcher: processing {} triggers", triggers.len());
 
-        // Separate start and finish triggers
         for trigger in triggers.into_iter() {
             match trigger {
                 Trigger::Start(proc) => {
@@ -210,12 +214,22 @@ impl ProcessWatcher {
                     debug!("ProcessWatcher: received FINISH trigger pid={}", proc.pid);
                     finish_triggers.push(proc);
                 }
+                Trigger::Omm(oom) => {
+                    debug!("OOM trigger pid={}", oom.pid);
+                    oom_triggers.push(oom);
+                }
             }
         }
 
-        // Process finish triggers first
+        // Process omm triggers first
+        if !oom_triggers.is_empty() {
+            debug!("Processing {} oom processes", oom_triggers.len());
+            self.handle_oom_signals(oom_triggers).await;
+        }
         if !finish_triggers.is_empty() {
             debug!("Processing {} finishing processes", finish_triggers.len());
+
+            self.handle_oom_terminations(&mut finish_triggers).await?;
             self.handle_process_terminations(finish_triggers).await?;
         }
 
@@ -300,6 +314,39 @@ impl ProcessWatcher {
         Ok(())
     }
 
+    /// Enriches finish triggers with OOM reason if they were OOM victims
+    async fn handle_oom_terminations(
+        self: &Arc<ProcessWatcher>,
+        finish_triggers: &mut [FinishTrigger],
+    ) -> Result<()> {
+        let mut state = self.state.write().await;
+
+        for finish in finish_triggers.iter_mut() {
+            if state.oom_victims.remove(&finish.pid).is_some() {
+                finish.exit_reason = Some(tracer_common::types::trigger::ExitReason::OomKilled);
+                debug!("Marked PID {} as OOM-killed", finish.pid);
+            }
+        }
+        Ok(())
+    }
+
+    /// Tracks OOM signals for relevant processes (monitored or their children)
+    async fn handle_oom_signals(self: &Arc<ProcessWatcher>, triggers: Vec<OomTrigger>) {
+        let mut state = self.state.write().await;
+
+        for oom in triggers {
+            let is_related = state.processes.contains_key(&oom.pid)
+                || state.processes.values().any(|p| p.ppid == oom.pid);
+
+            if is_related {
+                debug!("Tracking OOM for relevant pid {}", oom.pid);
+                state.oom_victims.insert(oom.pid, oom);
+            } else {
+                debug!("Ignoring unrelated OOM for pid {}", oom.pid);
+            }
+        }
+    }
+
     async fn log_process_completion(
         self: &Arc<Self>,
         start_trigger: &ProcessTrigger,
@@ -314,6 +361,7 @@ impl ProcessWatcher {
             tool_name: start_trigger.comm.clone(),
             tool_pid: start_trigger.pid.to_string(),
             duration_sec,
+            exit_reason: finish_trigger.exit_reason,
         };
 
         self.log_recorder
@@ -1024,6 +1072,7 @@ mod tests {
             monitoring: HashMap::new(),
             target_manager,
             datasamples_tracker: HashMap::new(),
+            oom_victims: HashMap::new(),
             ebpf_task: None,
         };
 

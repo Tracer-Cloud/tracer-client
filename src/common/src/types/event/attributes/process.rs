@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::types::trigger::ExitReason;
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct InputFile {
     pub file_name: String,
@@ -53,6 +55,7 @@ pub struct CompletedProcess {
     pub tool_name: String,
     pub tool_pid: String,
     pub duration_sec: u64,
+    pub exit_reason: Option<ExitReason>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
