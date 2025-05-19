@@ -28,8 +28,7 @@ const FILE_SIZE_NOT_CHANGING_PERIOD_MS: u64 = 1000 * 60;
 const LOG_FORWARD_ENDPOINT_DEV: &str = "https://sandbox.tracer.cloud/api/logs-forward/dev";
 const LOG_FORWARD_ENDPOINT_PROD: &str = "https://sandbox.tracer.cloud/api/logs-forward/prod";
 const SENTRY_DSN: &str = "https://35e0843e6748d2c93dfd56716f2eecfe@o4509281671380992.ingest.us.sentry.io/4509281680949248";
-const GRAFANA_WORKSPACE_URL: &str =
-    "https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com";
+const GRAFANA_WORKSPACE_URL: &str = "https://tracerbio.grafana.net/goto/mYJ52c-HR?orgId=1";
 const AWS_REGION: &str = "us-east-2";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
