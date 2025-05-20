@@ -5,6 +5,7 @@ use std::process::Command;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Tell cargo to rerun this build script if any of the C files change
     println!("cargo:rerun-if-changed=c/");
+    println!("cargo:rerun-if-changed=typegen/");
 
     // Get the output directory where we'll place the compiled library
     let out_dir = env::var("OUT_DIR")?;

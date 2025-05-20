@@ -117,6 +117,10 @@ Then do:
 export DATABASE_URL=tracer-cluster-production.cluster-ro-cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432/
 ```
 
+## eBPF
+
+See [./src/ebpf/README.md](./src/ebpf/README.md) for guidance when extending the eBPF module.
+
 ## Running A Local Environment Test
 ```bash
 

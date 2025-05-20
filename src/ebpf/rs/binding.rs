@@ -9,7 +9,7 @@ use tracer_common::types::trigger::Trigger;
 // Define the FFI interface to the C function
 #[link(name = "bootstrap", kind = "static")]
 extern "C" {
-    // Corresponds to the initialize function in bootstrap_api.h
+    // Corresponds to the initialize function in bootstrap-api.h
     fn initialize(
         buffer: *mut c_void,
         byte_count: usize,
