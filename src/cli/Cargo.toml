@@ -29,6 +29,7 @@ tracing-appender = { workspace = true }
 sentry = { workspace = true }
 
 
+
 [dev-dependencies]
 tracer_aws = { workspace = true }
 sqlx = { workspace = true }

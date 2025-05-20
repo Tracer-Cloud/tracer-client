@@ -10,7 +10,9 @@ use tracer_client::config_manager::Config;
 use tracer_client::exporters::db::AuroraClient;
 use tracer_client::exporters::log_forward::LogForward;
 use tracer_client::exporters::log_writer::{LogWriter, LogWriterEnum};
-use tracer_client::params::TracerCliInitArgs;
+use tracer_common::types::cli::interactive::InteractiveInitArgs;
+use tracer_common::types::cli::params::TracerCliInitArgs;
+
 use tracer_client::TracerClient;
 use tracer_daemon::server::DaemonServer;
 
@@ -52,7 +54,7 @@ impl TestServer {
                 .expect("Failed to create LogForward"),
         );
 
-        let args = TracerCliInitArgs::default();
+        let args = InteractiveInitArgs::from_partial(TracerCliInitArgs::default()).into_cli_args();
 
         TracerClient::new(config, path, log_forward_client, args).await
     }
