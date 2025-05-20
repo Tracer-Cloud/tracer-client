@@ -49,8 +49,9 @@ impl InteractiveInitArgs {
     }
 
     pub fn prompt_missing(mut self) -> Self {
+        let arrow = Emoji("👉 ", "> ").to_string();
         let theme = ColorfulTheme {
-            prompt_prefix: Style::new().green().apply_to("👉".to_string()),
+            prompt_prefix: Style::new().green().apply_to(arrow),
             prompt_suffix: Style::new().dim().apply_to(":".to_string()),
             success_prefix: Style::new().green().apply_to("✔".to_string()),
             success_suffix: Style::new().dim().apply_to("".to_string()),
@@ -58,12 +59,11 @@ impl InteractiveInitArgs {
             active_item_style: Style::new().cyan().bold(),
             ..ColorfulTheme::default()
         };
-        let arrow = Emoji("👉", ">");
 
         if self.pipeline_name.is_none() {
             self.pipeline_name = Some(
                 Input::with_theme(&theme)
-                    .with_prompt(format!("{} Enter pipeline name", arrow))
+                    .with_prompt("Enter pipeline name")
                     .default("demo_pipeline".into())
                     .interact_text()
                     .unwrap(),
@@ -73,7 +73,7 @@ impl InteractiveInitArgs {
         if self.tags.environment.is_none() {
             self.tags.environment = Some(
                 Input::with_theme(&theme)
-                    .with_prompt(format!("{} Environment", arrow))
+                    .with_prompt("Environment")
                     .default("local".into())
                     .interact_text()
                     .unwrap(),
@@ -83,7 +83,7 @@ impl InteractiveInitArgs {
         if self.tags.pipeline_type.is_none() {
             self.tags.pipeline_type = Some(
                 Input::with_theme(&theme)
-                    .with_prompt(format!("{} Pipeline Type", arrow))
+                    .with_prompt("Pipeline Type")
                     .default("generic".into())
                     .interact_text()
                     .unwrap(),
@@ -93,7 +93,7 @@ impl InteractiveInitArgs {
         if self.tags.user_operator.is_none() {
             self.tags.user_operator = Some(
                 Input::with_theme(&theme)
-                    .with_prompt(format!("{} User Operator", arrow))
+                    .with_prompt("User Operator")
                     .default(whoami::username())
                     .interact_text()
                     .unwrap(),
@@ -118,22 +118,4 @@ pub async fn run_init(cli_args: TracerCliInitArgs) -> FinalizedInitArgs {
     InteractiveInitArgs::from_partial(cli_args)
         .prompt_missing()
         .into_cli_args()
-
-    // println!("Starting tracer with:");
-    // println!(
-    //     "Pipeline: {}",
-    //     interactive_args.pipeline_name.clone().unwrap()
-    // );
-    // println!(
-    //     "Environment: {}",
-    //     interactive_args.tags.environment.clone().unwrap()
-    // );
-    // println!(
-    //     "Pipeline Type: {}",
-    //     interactive_args.tags.pipeline_type.clone().unwrap()
-    // );
-    // println!(
-    //     "User: {}",
-    //     interactive_args.tags.user_operator.clone().unwrap()
-    // );
 }
