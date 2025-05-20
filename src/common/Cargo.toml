@@ -23,3 +23,4 @@ typed-builder = { workspace = true}
 tracing = { workspace = true}
 whoami = { workspace = true}
 dialoguer = { workspace = true }
+console = { workspace = true }

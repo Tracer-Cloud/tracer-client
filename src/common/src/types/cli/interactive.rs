@@ -1,3 +1,6 @@
+use console::Emoji;
+use console::Style;
+use dialoguer::theme::ColorfulTheme;
 use dialoguer::Input;
 use whoami;
 
@@ -46,10 +49,21 @@ impl InteractiveInitArgs {
     }
 
     pub fn prompt_missing(mut self) -> Self {
+        let theme = ColorfulTheme {
+            prompt_prefix: Style::new().green().apply_to("👉".to_string()),
+            prompt_suffix: Style::new().dim().apply_to(":".to_string()),
+            success_prefix: Style::new().green().apply_to("✔".to_string()),
+            success_suffix: Style::new().dim().apply_to("".to_string()),
+            values_style: Style::new().yellow(),
+            active_item_style: Style::new().cyan().bold(),
+            ..ColorfulTheme::default()
+        };
+        let arrow = Emoji("👉", ">");
+
         if self.pipeline_name.is_none() {
             self.pipeline_name = Some(
-                Input::new()
-                    .with_prompt("Enter pipeline name")
+                Input::with_theme(&theme)
+                    .with_prompt(format!("{} Enter pipeline name", arrow))
                     .default("demo_pipeline".into())
                     .interact_text()
                     .unwrap(),
@@ -58,8 +72,8 @@ impl InteractiveInitArgs {
 
         if self.tags.environment.is_none() {
             self.tags.environment = Some(
-                Input::new()
-                    .with_prompt("Environment")
+                Input::with_theme(&theme)
+                    .with_prompt(format!("{} Environment", arrow))
                     .default("local".into())
                     .interact_text()
                     .unwrap(),
@@ -68,8 +82,8 @@ impl InteractiveInitArgs {
 
         if self.tags.pipeline_type.is_none() {
             self.tags.pipeline_type = Some(
-                Input::new()
-                    .with_prompt("Pipeline Type")
+                Input::with_theme(&theme)
+                    .with_prompt(format!("{} Pipeline Type", arrow))
                     .default("generic".into())
                     .interact_text()
                     .unwrap(),
@@ -78,8 +92,8 @@ impl InteractiveInitArgs {
 
         if self.tags.user_operator.is_none() {
             self.tags.user_operator = Some(
-                Input::new()
-                    .with_prompt("User Operator")
+                Input::with_theme(&theme)
+                    .with_prompt(format!("{} User Operator", arrow))
                     .default(whoami::username())
                     .interact_text()
                     .unwrap(),
