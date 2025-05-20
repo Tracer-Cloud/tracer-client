@@ -844,6 +844,8 @@ pub static ref DEFAULT_EXCLUDED_PROCESS_RULES : Vec<Target>  = vec![
     Target::new(TargetMatch::BinPathLastComponent("mkdir".to_string()),),
     Target::new(TargetMatch::BinPathLastComponent("python".to_string())),
     Target::new(TargetMatch::BinPathLastComponent("python3".to_string())),
+    Target::new(TargetMatch::BinPathLastComponent("rm".to_string())),
+    Target::new(TargetMatch::BinPathLastComponent("ln".to_string())),
 
 
 
