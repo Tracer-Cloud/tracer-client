@@ -44,40 +44,6 @@ impl InteractiveInitArgs {
             is_dev: cli_args.is_dev,
         }
     }
-    // pub fn from_partial(cli_args: TracerCliInitArgs) -> Self {
-    //     let default = InteractiveInitArgs::default();
-
-    //     Self {
-    //         pipeline_name: cli_args.pipeline_name.clone().or(default.pipeline_name),
-    //         run_id: cli_args.run_id.clone(),
-    //         tags: PipelineTags {
-    //             environment: cli_args
-    //                 .tags
-    //                 .environment
-    //                 .clone()
-    //                 .or(default.tags.environment),
-
-    //             pipeline_type: cli_args
-    //                 .tags
-    //                 .pipeline_type
-    //                 .clone()
-    //                 .or(default.tags.pipeline_type),
-
-    //             user_operator: cli_args
-    //                 .tags
-    //                 .user_operator
-    //                 .clone()
-    //                 .or(default.tags.user_operator),
-
-    //             department: cli_args.tags.department.clone(),
-    //             team: cli_args.tags.team.clone(),
-    //             organization_id: cli_args.tags.organization_id.clone(),
-    //             others: cli_args.tags.others.clone(),
-    //         },
-    //         no_daemonize: cli_args.no_daemonize,
-    //         is_dev: cli_args.is_dev,
-    //     }
-    // }
 
     pub fn prompt_missing(mut self) -> Self {
         if self.pipeline_name.is_none() {
@@ -111,7 +77,13 @@ impl InteractiveInitArgs {
         }
 
         if self.tags.user_operator.is_none() {
-            self.tags.user_operator = Some(whoami::username());
+            self.tags.user_operator = Some(
+                Input::new()
+                    .with_prompt("User Operator")
+                    .default(whoami::username())
+                    .interact_text()
+                    .unwrap(),
+            );
         }
 
         self
