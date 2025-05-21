@@ -77,7 +77,7 @@ impl TryInto<tracer_common::types::trigger::Trigger> for &CEvent {
                     tracer_common::types::trigger::ProcessTrigger {
                         pid: self.pid as usize,
                         ppid: self.ppid as usize,
-                        file_name: args.get(0).cloned().unwrap_or_default(),
+                        file_name: args.first().cloned().unwrap_or_default(),
                         comm: comm.to_string(),
                         argv: args,
                         started_at: chrono::DateTime::from_timestamp(
@@ -94,6 +94,24 @@ impl TryInto<tracer_common::types::trigger::Trigger> for &CEvent {
                     tracer_common::types::trigger::FinishTrigger {
                         pid: self.pid as usize,
                         finished_at: chrono::DateTime::from_timestamp(
+                            (self.timestamp_ns / 1_000_000_000) as i64,
+                            (self.timestamp_ns % 1_000_000_000) as u32,
+                        )
+                        .unwrap(),
+                        exit_reason: None,
+                    },
+                ))
+            }
+            EVENT__OOM__MARK_VICTIM => {
+                // Access the common process name (`comm`) by casting payload
+                let comm = from_bpf_str(&self.payload[..TASK_COMM_LEN])?;
+
+                Ok(tracer_common::types::trigger::Trigger::Oom(
+                    tracer_common::types::trigger::OomTrigger {
+                        pid: self.pid as usize,
+                        upid: self.upid,
+                        comm: comm.to_string(),
+                        timestamp: chrono::DateTime::from_timestamp(
                             (self.timestamp_ns / 1_000_000_000) as i64,
                             (self.timestamp_ns % 1_000_000_000) as u32,
                         )
