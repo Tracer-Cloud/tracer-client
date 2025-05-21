@@ -1,6 +1,8 @@
 use chrono::DateTime;
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
+use tracer_common::types::trigger::OomTrigger;
 
+use super::utils::{handle_oom_signals, handle_oom_terminations};
 use crate::data_samples::DATA_SAMPLES_EXT;
 use crate::file_watcher::FileWatcher;
 use anyhow::Result;
@@ -24,6 +26,8 @@ use tracer_common::types::trigger::{FinishTrigger, ProcessTrigger, Trigger};
 use tracer_ebpf::binding::start_processing_events;
 use tracing::{debug, error};
 
+use super::ProcessState;
+
 enum ProcessResult {
     NotFound,
     Found,
@@ -44,20 +48,6 @@ fn process_status_to_string(status: &ProcessStatus) -> String {
         ProcessStatus::LockBlocked => "Lock Blocked".to_string(),
         _ => "Unknown".to_string(),
     }
-}
-
-/// Internal state of the process watcher
-struct ProcessState {
-    // Maps PIDs to process triggers
-    processes: HashMap<usize, ProcessTrigger>,
-    // Maps targets to sets of processes being monitored
-    monitoring: HashMap<Target, HashSet<ProcessTrigger>>,
-    // Groups datasets by the nextflow session UUID
-    datasamples_tracker: HashMap<String, HashSet<String>>,
-    // List of targets to watch
-    target_manager: TargetManager,
-    // Store task handle to ensure it stays alive
-    ebpf_task: Option<tokio::task::JoinHandle<()>>,
 }
 
 /// Watches system processes and records events related to them
@@ -82,6 +72,7 @@ impl ProcessWatcher {
             target_manager,
             datasamples_tracker: HashMap::new(),
             ebpf_task: None,
+            oom_victims: HashMap::new(),
         }));
 
         ProcessWatcher {
@@ -185,18 +176,17 @@ impl ProcessWatcher {
         }
     }
 
-    /// Processes a batch of triggers, separating start and finish events
+    /// Processes a batch of triggers, separating start, finish, and OOM events
     pub async fn process_triggers(
         self: &Arc<ProcessWatcher>,
         triggers: Vec<Trigger>,
     ) -> Result<()> {
         let mut start_triggers: Vec<ProcessTrigger> = vec![];
         let mut finish_triggers: Vec<FinishTrigger> = vec![];
+        let mut oom_triggers: Vec<OomTrigger> = vec![];
 
-        // Add debug logging
         debug!("ProcessWatcher: processing {} triggers", triggers.len());
 
-        // Separate start and finish triggers
         for trigger in triggers.into_iter() {
             match trigger {
                 Trigger::Start(proc) => {
@@ -210,12 +200,22 @@ impl ProcessWatcher {
                     debug!("ProcessWatcher: received FINISH trigger pid={}", proc.pid);
                     finish_triggers.push(proc);
                 }
+                Trigger::Oom(oom) => {
+                    debug!("OOM trigger pid={}", oom.pid);
+                    oom_triggers.push(oom);
+                }
             }
         }
 
-        // Process finish triggers first
+        // Process omm triggers first
+        if !oom_triggers.is_empty() {
+            debug!("Processing {} oom processes", oom_triggers.len());
+            handle_oom_signals(&self.state, oom_triggers).await;
+        }
         if !finish_triggers.is_empty() {
             debug!("Processing {} finishing processes", finish_triggers.len());
+
+            handle_oom_terminations(&self.state, &mut finish_triggers).await;
             self.handle_process_terminations(finish_triggers).await?;
         }
 
@@ -314,6 +314,7 @@ impl ProcessWatcher {
             tool_name: start_trigger.comm.clone(),
             tool_pid: start_trigger.pid.to_string(),
             duration_sec,
+            exit_reason: finish_trigger.exit_reason.clone(),
         };
 
         self.log_recorder
@@ -1024,6 +1025,7 @@ mod tests {
             monitoring: HashMap::new(),
             target_manager,
             datasamples_tracker: HashMap::new(),
+            oom_victims: HashMap::new(),
             ebpf_task: None,
         };
 
