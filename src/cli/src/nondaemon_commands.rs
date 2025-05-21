@@ -182,17 +182,30 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
     let info = match api_client.send_info_request().await {
         Ok(info) => info,
         Err(e) => {
+            const NEXT: Emoji<'_, '_> = Emoji("⏭️", "->");
             writeln!(&mut output, "Daemon status: {}\n", "Stopped".red())?;
+
             writeln!(
                 &mut output,
-                "To start the daemon run {}\n",
-                "tracer init".cyan().bold()
+                "\n{} {}",
+                NEXT,
+                "Initialize the Tracer agent by running:".bold()
             )?;
             writeln!(
+            &mut output,
+            "{}\n",
+            "tracer init --pipeline-name demo_username --environment demo --pipeline-type rnaseq --user-operator user_email --is-dev false"
+                .cyan()
+                .bold()
+        )?;
+
+            writeln!(
                 &mut output,
-                "This error occured while trying to access the daemon info:\n\n{:?}",
-                e
+                "{} {}",
+                NEXT,
+                "View results in Grafana (see email or go to sandbox.tracer.app)".bold()
             )?;
+
             println!("{}", output);
             return Ok(());
         }

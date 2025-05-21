@@ -5153,6 +5153,7 @@ dependencies = [
  "assert_cmd",
  "clap",
  "colored",
+ "console",
  "daemonize",
  "octocrab",
  "predicates",
