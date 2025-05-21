@@ -77,7 +77,7 @@ impl TryInto<tracer_common::types::trigger::Trigger> for &CEvent {
                     tracer_common::types::trigger::ProcessTrigger {
                         pid: self.pid as usize,
                         ppid: self.ppid as usize,
-                        file_name: args.get(0).cloned().unwrap_or_default(),
+                        file_name: args.first().cloned().unwrap_or_default(),
                         comm: comm.to_string(),
                         argv: args,
                         started_at: chrono::DateTime::from_timestamp(
