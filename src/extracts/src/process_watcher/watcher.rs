@@ -2,6 +2,7 @@ use chrono::DateTime;
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 use tracer_common::types::trigger::OomTrigger;
 
+use super::utils::{handle_oom_signals, handle_oom_terminations};
 use crate::data_samples::DATA_SAMPLES_EXT;
 use crate::file_watcher::FileWatcher;
 use anyhow::Result;
@@ -25,6 +26,8 @@ use tracer_common::types::trigger::{FinishTrigger, ProcessTrigger, Trigger};
 use tracer_ebpf::binding::start_processing_events;
 use tracing::{debug, error};
 
+use super::ProcessState;
+
 enum ProcessResult {
     NotFound,
     Found,
@@ -45,23 +48,6 @@ fn process_status_to_string(status: &ProcessStatus) -> String {
         ProcessStatus::LockBlocked => "Lock Blocked".to_string(),
         _ => "Unknown".to_string(),
     }
-}
-
-/// Internal state of the process watcher
-struct ProcessState {
-    // Maps PIDs to process triggers
-    processes: HashMap<usize, ProcessTrigger>,
-    // Maps targets to sets of processes being monitored
-    monitoring: HashMap<Target, HashSet<ProcessTrigger>>,
-    // Groups datasets by the nextflow session UUID
-    datasamples_tracker: HashMap<String, HashSet<String>>,
-    // List of targets to watch
-    target_manager: TargetManager,
-    // Store task handle to ensure it stays alive
-    ebpf_task: Option<tokio::task::JoinHandle<()>>,
-
-    // tracks relevant processes killed with oom
-    oom_victims: HashMap<usize, OomTrigger>, // Map of pid -> oom trigger
 }
 
 /// Watches system processes and records events related to them
@@ -224,12 +210,12 @@ impl ProcessWatcher {
         // Process omm triggers first
         if !oom_triggers.is_empty() {
             debug!("Processing {} oom processes", oom_triggers.len());
-            self.handle_oom_signals(oom_triggers).await;
+            handle_oom_signals(&self.state, oom_triggers).await;
         }
         if !finish_triggers.is_empty() {
             debug!("Processing {} finishing processes", finish_triggers.len());
 
-            self.handle_oom_terminations(&mut finish_triggers).await?;
+            handle_oom_terminations(&self.state, &mut finish_triggers).await?;
             self.handle_process_terminations(finish_triggers).await?;
         }
 
@@ -312,39 +298,6 @@ impl ProcessWatcher {
         }
 
         Ok(())
-    }
-
-    /// Enriches finish triggers with OOM reason if they were OOM victims
-    async fn handle_oom_terminations(
-        self: &Arc<ProcessWatcher>,
-        finish_triggers: &mut [FinishTrigger],
-    ) -> Result<()> {
-        let mut state = self.state.write().await;
-
-        for finish in finish_triggers.iter_mut() {
-            if state.oom_victims.remove(&finish.pid).is_some() {
-                finish.exit_reason = Some(tracer_common::types::trigger::ExitReason::OomKilled);
-                debug!("Marked PID {} as OOM-killed", finish.pid);
-            }
-        }
-        Ok(())
-    }
-
-    /// Tracks OOM signals for relevant processes (monitored or their children)
-    async fn handle_oom_signals(self: &Arc<ProcessWatcher>, triggers: Vec<OomTrigger>) {
-        let mut state = self.state.write().await;
-
-        for oom in triggers {
-            let is_related = state.processes.contains_key(&oom.pid)
-                || state.processes.values().any(|p| p.ppid == oom.pid);
-
-            if is_related {
-                debug!("Tracking OOM for relevant pid {}", oom.pid);
-                state.oom_victims.insert(oom.pid, oom);
-            } else {
-                debug!("Ignoring unrelated OOM for pid {}", oom.pid);
-            }
-        }
     }
 
     async fn log_process_completion(
