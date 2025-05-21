@@ -2,7 +2,6 @@ use console::Emoji;
 use console::Style;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Input;
-use whoami;
 
 use crate::types::pipeline_tags::PipelineTags;
 
@@ -94,7 +93,7 @@ impl InteractiveInitArgs {
             self.tags.user_operator = Some(
                 Input::with_theme(&theme)
                     .with_prompt("User Operator")
-                    .default(whoami::username())
+                    .default(std::env::var("USER").unwrap_or_else(|_| "unknown".into()))
                     .interact_text()
                     .unwrap(),
             );

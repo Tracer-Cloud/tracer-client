@@ -5222,7 +5222,6 @@ dependencies = [
  "typed-builder",
  "url",
  "uuid",
- "whoami",
 ]
 
 [[package]]
@@ -5780,7 +5779,6 @@ checksum = "6994d13118ab492c3c80c1f81928718159254c53c472bf9ce36f8dae4add02a7"
 dependencies = [
  "redox_syscall",
  "wasite",
- "web-sys",
 ]
 
 [[package]]

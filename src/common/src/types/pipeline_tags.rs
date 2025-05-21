@@ -36,7 +36,7 @@ impl Default for PipelineTags {
         Self {
             environment: Some("local".into()),
             pipeline_type: Some("generic".into()),
-            user_operator: Some(whoami::username()),
+            user_operator: Some(std::env::var("USER").unwrap_or_else(|_| "unknown".into())),
             department: "dev".into(),
             team: "dev".into(),
             organization_id: None,
