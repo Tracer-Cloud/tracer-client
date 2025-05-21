@@ -54,8 +54,11 @@ impl TestServer {
                 .expect("Failed to create LogForward"),
         );
 
-        let args = InteractiveInitArgs::from_partial(TracerCliInitArgs::default()).into_cli_args();
-
+        let args = InteractiveInitArgs::from_partial(TracerCliInitArgs {
+            pipeline_name: Some("test-pipeline".into()),
+            ..Default::default()
+        })
+        .into_cli_args();
         TracerClient::new(config, path, log_forward_client, args).await
     }
 

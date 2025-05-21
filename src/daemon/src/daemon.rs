@@ -100,8 +100,11 @@ mod tests {
                 .expect("Failed to create LogForward"),
         );
 
-        let default_args =
-            InteractiveInitArgs::from_partial(TracerCliInitArgs::default()).into_cli_args();
+        let default_args = InteractiveInitArgs::from_partial(TracerCliInitArgs {
+            pipeline_name: Some("test-pipeline".into()),
+            ..Default::default()
+        })
+        .into_cli_args();
 
         let mut tracer_client = TracerClient::new(
             config,
