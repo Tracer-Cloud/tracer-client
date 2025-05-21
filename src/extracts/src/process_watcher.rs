@@ -206,15 +206,15 @@ impl ProcessWatcher {
         for trigger in triggers.into_iter() {
             match trigger {
                 Trigger::Start(proc) => {
-                    if let Some(matched_target) = state.target_manager.get_target_match(&proc) {
-                        debug!(
-                            "MATCHED START: pid={} cmd={} target={:?}",
-                            proc.pid, proc.comm, matched_target
-                        );
-                        matched_triggers.push(proc);
-                    } else {
-                        debug!("SKIPPED START: pid={} cmd={}", proc.pid, proc.comm);
-                    }
+                    // if let Some(matched_target) = state.target_manager.get_target_match(&proc) {
+                    //     debug!(
+                    //         "MATCHED START: pid={} cmd={} target={:?}",
+                    //         proc.pid, proc.comm, matched_target
+                    //     );
+                    matched_triggers.push(proc);
+                    // } else {
+                    //     debug!("SKIPPED START: pid={} cmd={}", proc.pid, proc.comm);
+                    // }
                 }
                 Trigger::Finish(proc) => {
                     debug!("ProcessWatcher: received FINISH trigger pid={}", proc.pid);

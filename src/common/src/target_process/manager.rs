@@ -1,6 +1,6 @@
 use crate::types::trigger::ProcessTrigger;
 
-use super::Target;
+use super::{Target, TargetMatchable};
 
 #[derive(Clone, Debug)]
 pub struct TargetManager {
@@ -13,9 +13,20 @@ impl TargetManager {
         Self { targets, blacklist }
     }
 
-    /// Returns None for all processes, effectively capturing everything
+    /// Returns the matching target if it's not blacklisted
     pub fn get_target_match(&self, process: &ProcessTrigger) -> Option<&Target> {
-        println!("get_target_match: {:?}", process);
-        None
+        // Skip blacklisted processes
+        if self.blacklist.iter().any(|b| b.matches_process(process)) {
+            tracing::error!(
+                "blocking process: {} | path: {} | argv: {:?}",
+                process.comm,
+                process.file_name,
+                process.argv
+            );
+            return None;
+        }
+
+        // Return first matching target
+        self.targets.iter().find(|t| t.matches_process(process))
     }
 }
