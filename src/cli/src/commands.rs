@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use tracer_client::params::TracerCliInitArgs;
+use tracer_common::types::cli::params::TracerCliInitArgs;
 
 #[derive(Parser)]
 #[clap(

@@ -113,14 +113,14 @@ impl TryFrom<Event> for EventInsert {
             trace_id: trace_id.or_else(|| event.run_id.clone()),
             span_id: event.span_id,
 
-            source_type: "tracer-daemon".into(),
-            instrumentation_version: option_env!("CARGO_PKG_VERSION").map(|s| s.to_string()),
-            instrumentation_type: Some("TRACER_DAEMON".into()),
-            environment: tags.clone().map(|t| t.environment),
-            pipeline_type: tags.clone().map(|t| t.pipeline_type),
-            user_operator: tags.clone().map(|t| t.user_operator),
-            organization_id: tags.clone().map(|t| t.organization_id).unwrap_or_default(),
-            department: tags.clone().map(|t| t.department),
+            source_type: "tracer-daemon".to_string(),
+            instrumentation_version: option_env!("CARGO_PKG_VERSION").map(str::to_string),
+            instrumentation_type: Some("TRACER_DAEMON".to_string()),
+            environment: tags.as_ref().and_then(|t| t.environment.clone()),
+            pipeline_type: tags.as_ref().and_then(|t| t.pipeline_type.clone()),
+            user_operator: tags.as_ref().and_then(|t| t.user_operator.clone()),
+            organization_id: tags.as_ref().and_then(|t| t.organization_id.clone()),
+            department: tags.as_ref().map(|t| t.department.clone()),
 
             event_type: event.event_type.to_string(),
             process_type: event.process_type.to_string(),
@@ -141,7 +141,7 @@ impl TryFrom<Event> for EventInsert {
 
             attributes,
             resource_attributes,
-            tags: serde_json::to_value(tags).context("Failed to serialize tags")?,
+            tags: serde_json::to_value(&tags).context("Failed to serialize tags")?,
         })
     }
 }

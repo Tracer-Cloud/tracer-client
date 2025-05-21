@@ -21,3 +21,5 @@ tracer_aws = { workspace = true }
 uuid = { workspace = true }
 typed-builder = { workspace = true}
 tracing = { workspace = true}
+dialoguer = { workspace = true }
+console = { workspace = true }

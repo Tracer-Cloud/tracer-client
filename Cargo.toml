@@ -102,3 +102,5 @@ rstest = "0.25.0"
 
 typed-builder = "0.18"
 futures-util = "0.3"
+dialoguer = "0.11.0"
+console = "0.15.11"
