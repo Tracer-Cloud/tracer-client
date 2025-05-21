@@ -1,4 +1,4 @@
-use super::{ProcessState, ProcessWatcher};
+use super::ProcessState;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;

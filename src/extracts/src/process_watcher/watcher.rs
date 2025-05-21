@@ -215,7 +215,7 @@ impl ProcessWatcher {
         if !finish_triggers.is_empty() {
             debug!("Processing {} finishing processes", finish_triggers.len());
 
-            handle_oom_terminations(&self.state, &mut finish_triggers).await?;
+            handle_oom_terminations(&self.state, &mut finish_triggers).await;
             self.handle_process_terminations(finish_triggers).await?;
         }
 
