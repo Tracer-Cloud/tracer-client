@@ -1,4 +1,5 @@
 use colored::Colorize;
+use console::Emoji;
 use std::fmt::Write;
 use std::process::Command;
 
