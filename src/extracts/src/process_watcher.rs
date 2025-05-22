@@ -544,7 +544,7 @@ impl ProcessWatcher {
         self: &Arc<ProcessWatcher>,
         triggers: Vec<ProcessTrigger>,
     ) -> Result<HashMap<Target, HashSet<ProcessTrigger>>> {
-        let state = self.state.read().await;
+        // let state = self.state.read().await;
         let mut matched_processes = HashMap::new();
 
         for trigger in triggers {
