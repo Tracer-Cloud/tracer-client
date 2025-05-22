@@ -185,36 +185,26 @@ impl ProcessWatcher {
         }
     }
 
-    /// Processes a batch of triggers from the eBPF stream.
-    ///
-    /// Separates start and finish events. For start triggers, it filters out
-    /// any processes that do not match any target before further processing.
-    /// This avoids unnecessary state updates or metric handling for irrelevant processes.
-    ///
-    /// Finish triggers are always processed, as they may correspond to
-    /// previously tracked processes.
+    /// Processes a batch of triggers, separating start and finish events
     pub async fn process_triggers(
         self: &Arc<ProcessWatcher>,
         triggers: Vec<Trigger>,
     ) -> Result<()> {
-        let mut matched_triggers: Vec<ProcessTrigger> = vec![];
+        let mut start_triggers: Vec<ProcessTrigger> = vec![];
         let mut finish_triggers: Vec<FinishTrigger> = vec![];
 
+        // Add debug logging
         debug!("ProcessWatcher: processing {} triggers", triggers.len());
 
-        let state = self.state.read().await;
+        // Separate start and finish triggers
         for trigger in triggers.into_iter() {
             match trigger {
                 Trigger::Start(proc) => {
-                    // if let Some(matched_target) = state.target_manager.get_target_match(&proc) {
-                    //     debug!(
-                    //         "MATCHED START: pid={} cmd={} target={:?}",
-                    //         proc.pid, proc.comm, matched_target
-                    //     );
-                    matched_triggers.push(proc);
-                    // } else {
-                    //     debug!("SKIPPED START: pid={} cmd={}", proc.pid, proc.comm);
-                    // }
+                    debug!(
+                        "ProcessWatcher: received START trigger pid={}, cmd={}",
+                        proc.pid, proc.comm
+                    );
+                    start_triggers.push(proc);
                 }
                 Trigger::Finish(proc) => {
                     debug!("ProcessWatcher: received FINISH trigger pid={}", proc.pid);
@@ -222,19 +212,17 @@ impl ProcessWatcher {
                 }
             }
         }
-        drop(state); // release the read lock
 
+        // Process finish triggers first
         if !finish_triggers.is_empty() {
             debug!("Processing {} finishing processes", finish_triggers.len());
             self.handle_process_terminations(finish_triggers).await?;
         }
 
-        if !matched_triggers.is_empty() {
-            debug!(
-                "Processing {} matched start processes",
-                matched_triggers.len()
-            );
-            self.handle_process_starts(matched_triggers).await?;
+        // Then process start triggers
+        if !start_triggers.is_empty() {
+            debug!("Processing {} creating processes", start_triggers.len());
+            self.handle_process_starts(start_triggers).await?;
         }
 
         Ok(())
@@ -560,13 +548,15 @@ impl ProcessWatcher {
         let mut matched_processes = HashMap::new();
 
         for trigger in triggers {
-            if let Some(matched_target) = Self::get_matched_target(&state, &trigger) {
-                let matched_target = matched_target.clone(); // todo: remove clone, or move targets to arcs?
-                matched_processes
-                    .entry(matched_target)
-                    .or_insert(HashSet::new())
-                    .insert(trigger);
-            }
+            let matched_target = Target::new(
+                tracer_common::target_process::target_matching::TargetMatch::BinPathContains(
+                    "test".to_string(),
+                ),
+            ); // todo: remove clone, or move targets to arcs?
+            matched_processes
+                .entry(matched_target)
+                .or_insert(HashSet::new())
+                .insert(trigger);
         }
 
         Ok(matched_processes)
