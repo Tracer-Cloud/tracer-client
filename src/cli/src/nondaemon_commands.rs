@@ -183,6 +183,7 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
     let info = match api_client.send_info_request().await {
         Ok(info) => info,
         Err(e) => {
+            tracing::error!("Error getting info response: {e}");
             const NEXT: Emoji<'_, '_> = Emoji("⏭️", "->");
             writeln!(&mut output, "Daemon status: {}\n", "Stopped".red())?;
 
