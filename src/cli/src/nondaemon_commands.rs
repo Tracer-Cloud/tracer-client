@@ -1,4 +1,5 @@
 use colored::Colorize;
+use console::Emoji;
 use std::fmt::Write;
 use std::process::Command;
 
@@ -182,17 +183,47 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
     let info = match api_client.send_info_request().await {
         Ok(info) => info,
         Err(e) => {
+            tracing::error!("Error getting info response: {e}");
+            const NEXT: Emoji<'_, '_> = Emoji("⏭️", "->");
+            const CHECK: Emoji<'_, '_> = Emoji("✅", " ");
+
             writeln!(&mut output, "Daemon status: {}\n", "Stopped".red())?;
+
+            //
+
             writeln!(
                 &mut output,
-                "To start the daemon run {}\n",
-                "tracer init".cyan().bold()
+                "\n{} {}",
+                CHECK,
+                "Tracer agent installed successfully:".bold()
             )?;
+
             writeln!(
                 &mut output,
-                "This error occured while trying to access the daemon info:\n\n{:?}",
-                e
+                "\n{} {}",
+                NEXT,
+                "Initialize the Tracer agent by running:".bold()
             )?;
+            writeln!(
+            &mut output,
+            "\n{}\n",
+            "tracer init --pipeline-name demo_username --environment demo --pipeline-type rnaseq --user-operator user_email --is-dev false"
+                .cyan()
+                .bold()
+        )?;
+
+            let raw_url = "https://sandbox.tracer.app";
+            let clickable_url = format!("\u{1b}]8;;{0}\u{1b}\\{0}\u{1b}]8;;\u{1b}\\", raw_url);
+            let colored_url = clickable_url.cyan().underline().to_string();
+
+            writeln!(
+                &mut output,
+                "{} {} (see email or visit: {})",
+                NEXT,
+                "View results in Grafana".bold(),
+                colored_url
+            )?;
+
             println!("{}", output);
             return Ok(());
         }
