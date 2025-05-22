@@ -185,7 +185,18 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
         Err(e) => {
             tracing::error!("Error getting info response: {e}");
             const NEXT: Emoji<'_, '_> = Emoji("⏭️", "->");
+            const CHECK: Emoji<'_, '_> = Emoji("✅", " ");
+
             writeln!(&mut output, "Daemon status: {}\n", "Stopped".red())?;
+
+            //
+
+            writeln!(
+                &mut output,
+                "\n{} {}",
+                CHECK,
+                "Tracer agent installed successfully:".bold()
+            )?;
 
             writeln!(
                 &mut output,
@@ -195,17 +206,22 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
             )?;
             writeln!(
             &mut output,
-            "{}\n",
+            "\n{}\n",
             "tracer init --pipeline-name demo_username --environment demo --pipeline-type rnaseq --user-operator user_email --is-dev false"
                 .cyan()
                 .bold()
         )?;
 
+            let raw_url = "https://sandbox.tracer.app";
+            let clickable_url = format!("\u{1b}]8;;{0}\u{1b}\\{0}\u{1b}]8;;\u{1b}\\", raw_url);
+            let colored_url = clickable_url.cyan().underline().to_string();
+
             writeln!(
                 &mut output,
-                "{} {}",
+                "{} {} (see email or visit: {})",
                 NEXT,
-                "View results in Grafana (see email or go to sandbox.tracer.app)".bold()
+                "View results in Grafana".bold(),
+                colored_url
             )?;
 
             println!("{}", output);
