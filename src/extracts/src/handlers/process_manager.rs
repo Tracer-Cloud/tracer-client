@@ -75,36 +75,18 @@ impl ProcessManager {
     ) -> Result<()> {
         debug!("Processing pid={}", process.pid);
 
+        // Get the display name for the process
         let display_name = target
             .get_display_name_object()
             .get_display_name(&process.file_name, process.argv.as_slice());
 
-        let properties = {
-            let system = self.system.read().await;
+        // Get the process properties
+        let properties = self
+            .get_process_properties(process, display_name.clone())
+            .await;
 
-            match system.process(process.pid.into()) {
-                Some(system_process) => {
-                    self.gather_process_data(
-                        system_process,
-                        display_name.clone(),
-                        process.started_at,
-                    )
-                    .await
-                }
-                None => {
-                    debug!("Process({}) wasn't found", process.pid);
-                    self.create_short_lived_process_properties(process, display_name.clone())
-                }
-            }
-        };
-
-        self.log_recorder
-            .log(
-                TracerProcessStatus::ToolExecution,
-                format!("[{}] Tool process: {}", Utc::now(), &display_name),
-                Some(EventAttributes::Process(properties)),
-                None,
-            )
+        // Log the new tool execution
+        self.log_new_tool_execution(&display_name, properties)
             .await?;
 
         // Add to monitoring
@@ -116,6 +98,42 @@ impl ProcessManager {
             .insert(process.clone());
 
         Ok(())
+    }
+
+    /// Logs a tool execution event with the given properties
+    async fn log_new_tool_execution(
+        &self,
+        display_name: &str,
+        properties: ProcessProperties,
+    ) -> Result<()> {
+        self.log_recorder
+            .log(
+                TracerProcessStatus::ToolExecution,
+                format!("[{}] Tool process: {}", Utc::now(), display_name),
+                Some(EventAttributes::Process(properties)),
+                None,
+            )
+            .await
+    }
+
+    /// Gets process properties for a process, handling both running and short-lived processes
+    async fn get_process_properties(
+        &self,
+        process: &ProcessStartTrigger,
+        display_name: String,
+    ) -> ProcessProperties {
+        let system = self.system.read().await;
+
+        match system.process(process.pid.into()) {
+            Some(system_process) => {
+                self.gather_process_data(system_process, display_name, process.started_at)
+                    .await
+            }
+            None => {
+                debug!("Process({}) wasn't found", process.pid);
+                self.create_short_lived_process_properties(process, display_name)
+            }
+        }
     }
 
     /// Handles process end events
