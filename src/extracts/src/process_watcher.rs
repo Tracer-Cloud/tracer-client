@@ -16,7 +16,7 @@ use tracer_common::types::event::attributes::process::{
     ShortProcessProperties,
 };
 use tracer_common::types::event::attributes::EventAttributes;
-use tracer_common::types::trigger::{FinishTrigger, ProcessTrigger, Trigger};
+use tracer_common::types::trigger::{ProcessEndTrigger, ProcessStartTrigger, Trigger};
 use tracer_ebpf_libbpf::start_processing_events;
 use tracing::{debug, error};
 
@@ -169,15 +169,15 @@ impl ProcessWatcher {
         self: &Arc<ProcessWatcher>,
         triggers: Vec<Trigger>,
     ) -> Result<()> {
-        let mut matched_triggers: Vec<(Target, ProcessTrigger)> = vec![];
-        let mut finish_triggers: Vec<FinishTrigger> = vec![];
+        let mut matched_triggers: Vec<(Target, ProcessStartTrigger)> = vec![];
+        let mut finish_triggers: Vec<ProcessEndTrigger> = vec![];
 
         println!("ProcessWatcher: processing {} triggers", triggers.len());
 
         let state = self.state.read().await;
         for trigger in triggers.into_iter() {
             match trigger {
-                Trigger::Start(proc) => {
+                Trigger::ProcessStart(proc) => {
                     if let Some(matched_target) = state.target_manager.get_target_match(&proc) {
                         println!(
                             "MATCHED START: pid={} cmd={} target={:?}",
@@ -188,7 +188,7 @@ impl ProcessWatcher {
                         println!("SKIPPED START: pid={} cmd={}", proc.pid, proc.comm);
                     }
                 }
-                Trigger::Finish(proc) => {
+                Trigger::ProcessEnd(proc) => {
                     println!("ProcessWatcher: received FINISH trigger pid={}", proc.pid);
                     finish_triggers.push(proc);
                 }

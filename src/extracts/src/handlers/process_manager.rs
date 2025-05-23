@@ -13,7 +13,7 @@ use tracer_common::types::event::attributes::process::{
 };
 use tracer_common::types::event::attributes::EventAttributes;
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
-use tracer_common::types::trigger::{FinishTrigger, ProcessTrigger};
+use tracer_common::types::trigger::{ProcessEndTrigger, ProcessStartTrigger};
 use tracing::debug;
 
 enum ProcessResult {
@@ -41,9 +41,9 @@ fn process_status_to_string(status: &ProcessStatus) -> String {
 /// Internal state of the process manager
 struct ProcessState {
     // Maps PIDs to process triggers
-    processes: HashMap<usize, ProcessTrigger>,
+    processes: HashMap<usize, ProcessStartTrigger>,
     // Maps targets to sets of processes being monitored
-    monitoring: HashMap<Target, HashSet<ProcessTrigger>>,
+    monitoring: HashMap<Target, HashSet<ProcessStartTrigger>>,
 }
 
 /// Manages process lifecycle and metrics
@@ -71,7 +71,7 @@ impl ProcessManager {
     pub async fn handle_process_start(
         self: &Arc<Self>,
         target: &Target,
-        process: &ProcessTrigger,
+        process: &ProcessStartTrigger,
     ) -> Result<()> {
         debug!("Processing pid={}", process.pid);
 
@@ -127,7 +127,7 @@ impl ProcessManager {
     /// Handles process end events
     pub async fn handle_process_end(
         self: &Arc<Self>,
-        finish_trigger: &FinishTrigger,
+        finish_trigger: &ProcessEndTrigger,
     ) -> Result<()> {
         let mut state = self.state.write().await;
 
@@ -191,7 +191,7 @@ impl ProcessManager {
     async fn update_running_process(
         self: &Arc<Self>,
         target: &Target,
-        process: &ProcessTrigger,
+        process: &ProcessStartTrigger,
     ) -> Result<()> {
         let display_name = target
             .get_display_name_object()
@@ -279,7 +279,7 @@ impl ProcessManager {
     /// Creates properties for a short-lived process
     fn create_short_lived_process_properties(
         &self,
-        process: &ProcessTrigger,
+        process: &ProcessStartTrigger,
         display_name: String,
     ) -> ProcessProperties {
         ProcessProperties::ShortLived(Box::new(ShortProcessProperties {

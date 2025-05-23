@@ -37,7 +37,7 @@ pub fn from_bpf_str(s: &[u8]) -> anyhow::Result<&str> {
 }
 
 #[cfg(feature = "user")]
-use tracer_common::types::trigger::*;
+use tracer_common::types::trigger::{ProcessEndTrigger, ProcessStartTrigger, Trigger};
 
 #[cfg(feature = "user")]
 impl TryInto<tracer_common::types::trigger::Trigger> for &ProcessRawTrigger {
@@ -46,7 +46,7 @@ impl TryInto<tracer_common::types::trigger::Trigger> for &ProcessRawTrigger {
     fn try_into(self) -> Result<tracer_common::types::trigger::Trigger, Self::Error> {
         Ok(match self.event_type {
             ProcessEnterType::Start => {
-                tracer_common::types::trigger::Trigger::Start(ProcessTrigger {
+                tracer_common::types::trigger::Trigger::ProcessStart(ProcessStartTrigger {
                     pid: self.pid as usize,
                     ppid: self.ppid as usize,
                     file_name: from_bpf_str(self.file_name.as_slice())?.to_string(),
@@ -62,7 +62,7 @@ impl TryInto<tracer_common::types::trigger::Trigger> for &ProcessRawTrigger {
                 })
             }
             ProcessEnterType::Finish => {
-                tracer_common::types::trigger::Trigger::Finish(FinishTrigger {
+                tracer_common::types::trigger::Trigger::ProcessEnd(ProcessEndTrigger {
                     pid: self.pid as usize,
                     finished_at: chrono::Utc::now(),
                 })
