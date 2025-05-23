@@ -16,11 +16,6 @@ use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 use tracer_common::types::trigger::{ProcessEndTrigger, ProcessStartTrigger};
 use tracing::debug;
 
-enum ProcessResult {
-    NotFound,
-    Found,
-}
-
 fn process_status_to_string(status: &ProcessStatus) -> String {
     match status {
         ProcessStatus::Run => "Run".to_string(),

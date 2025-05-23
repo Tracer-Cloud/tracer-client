@@ -80,6 +80,10 @@ impl DaemonServer {
             config.read().await.batch_submission_interval_ms,
         ));
 
+        let mut process_metrics_interval = tokio::time::interval(Duration::from_millis(
+            config.read().await.process_metrics_submission_interval_ms,
+        ));
+
         let exporter = Arc::clone(&tracer_client.lock().await.exporter);
 
         let mut submission = tokio::time::interval(Duration::from_millis(
@@ -111,7 +115,7 @@ impl DaemonServer {
                     guard.poll_files().await?;
 
                 }
-                _ = monitor_interval.tick() => {
+                _ = process_metrics_interval.tick() => {
                     debug!("DaemonServer monitor interval ticked");
                     monitor_processes_with_tracer_client(tracer_client.lock().await.borrow_mut())
                     .await?;

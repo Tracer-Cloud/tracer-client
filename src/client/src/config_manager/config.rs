@@ -22,6 +22,7 @@ const DEFAULT_API_KEY: &str = "EAjg7eHtsGnP3fTURcPz1";
 const DEFAULT_CONFIG_FILE_LOCATION_FROM_HOME: &str = ".config/tracer";
 const PROCESS_POLLING_INTERVAL_MS: u64 = 5;
 const BATCH_SUBMISSION_INTERVAL_MS: u64 = 5000;
+const PROCESS_METRICS_SUBMISSION_INTERVAL_MS: u64 = 500;
 const NEW_RUN_PAUSE_MS: u64 = 10 * 60 * 1000;
 const PROCESS_METRICS_SEND_INTERVAL_MS: u64 = 10000;
 const FILE_SIZE_NOT_CHANGING_PERIOD_MS: u64 = 1000 * 60;
@@ -36,6 +37,7 @@ pub struct Config {
     pub api_key: String,
     pub process_polling_interval_ms: u64,
     pub batch_submission_interval_ms: u64,
+    pub process_metrics_submission_interval_ms: u64,
     pub process_metrics_send_interval_ms: u64,
     pub file_size_not_changing_period_ms: u64,
     pub new_run_pause_ms: u64,
@@ -185,6 +187,10 @@ impl ConfigLoader {
             .set_default("api_key", DEFAULT_API_KEY)?
             .set_default("process_polling_interval_ms", PROCESS_POLLING_INTERVAL_MS)?
             .set_default("batch_submission_interval_ms", BATCH_SUBMISSION_INTERVAL_MS)?
+            .set_default(
+                "process_metrics_submission_interval_ms",
+                PROCESS_METRICS_SUBMISSION_INTERVAL_MS,
+            )?
             .set_default("new_run_pause_ms", NEW_RUN_PAUSE_MS)?
             .set_default(
                 "file_size_not_changing_period_ms",
