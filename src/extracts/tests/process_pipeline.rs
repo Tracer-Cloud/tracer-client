@@ -64,7 +64,7 @@ async fn test_process_triggers_process_lifecycle() -> anyhow::Result<()> {
 
     // 1. Test that process creation is handled correctly
     let start_triggers = vec![Trigger::Start(start_trigger.clone())];
-    watcher.process_triggers(start_triggers).await?;
+    watcher.handle_incoming_triggers(start_triggers).await?;
 
     let start_event = rx
         .recv()
@@ -94,7 +94,7 @@ async fn test_process_triggers_process_lifecycle() -> anyhow::Result<()> {
 
     // 2. Test that process termination is handled correctly
     let finish_triggers = vec![Trigger::Finish(finish_trigger)];
-    watcher.process_triggers(finish_triggers).await?;
+    watcher.handle_incoming_triggers(finish_triggers).await?;
 
     let finish_event = rx
         .recv()
@@ -167,7 +167,7 @@ async fn test_process_triggers_no_matching_targets() -> anyhow::Result<()> {
     };
 
     let start_triggers = vec![Trigger::Start(start_trigger.clone())];
-    watcher.process_triggers(start_triggers).await?;
+    watcher.handle_incoming_triggers(start_triggers).await?;
 
     assert!(
         rx.try_recv().is_err(),
@@ -175,7 +175,7 @@ async fn test_process_triggers_no_matching_targets() -> anyhow::Result<()> {
     );
 
     let finish_triggers = vec![Trigger::Finish(finish_trigger)];
-    watcher.process_triggers(finish_triggers).await?;
+    watcher.handle_incoming_triggers(finish_triggers).await?;
 
     assert!(
         rx.try_recv().is_err(),
@@ -244,7 +244,7 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
 
     // 1. Send start trigger and verify the process starts correctly
     let start_triggers = vec![Trigger::Start(start_trigger.clone())];
-    watcher.process_triggers(start_triggers).await?;
+    watcher.handle_incoming_triggers(start_triggers).await?;
 
     let mut execution_event = rx
         .recv()
@@ -366,7 +366,7 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
     };
 
     let finish_triggers = vec![Trigger::Finish(finish_trigger)];
-    watcher.process_triggers(finish_triggers).await?;
+    watcher.handle_incoming_triggers(finish_triggers).await?;
 
     let finish_event = rx
         .recv()

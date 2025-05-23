@@ -18,6 +18,6 @@ pub struct FinishTrigger {
 
 #[derive(Debug, Clone)]
 pub enum Trigger {
-    Start(ProcessTrigger),
-    Finish(FinishTrigger),
+    Start(ProcessTrigger), //TODO change to ProcessStart
+    Finish(FinishTrigger), //TODO change to ProcessEnd
 }
