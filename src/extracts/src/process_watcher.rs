@@ -90,18 +90,27 @@ impl ProcessWatcher {
     pub async fn start_ebpf(self: &Arc<Self>) -> Result<()> {
         // Check if eBPF is already initialized
         if self.ebpf.get().is_some() {
+            debug!("eBPF already initialized, skipping");
             return Ok(()); // Already initialized
         }
+
+        debug!("Starting eBPF event processing...");
 
         // Initialize eBPF components
         let (tx, mut rx) = mpsc::unbounded_channel::<Trigger>();
         
         // Start the eBPF event processing
-        start_processing_events(tx)?;
+        debug!("Calling start_processing_events...");
+        if let Err(e) = start_processing_events(tx) {
+            error!("Failed to start eBPF processing: {:?}", e);
+            return Err(e);
+        }
+        debug!("start_processing_events completed successfully");
 
         // Mark eBPF as initialized
         if let Err(_) = self.ebpf.set(()) {
             // Another thread already initialized it, that's fine
+            debug!("eBPF was already initialized by another thread");
             return Ok(());
         }
 
@@ -109,16 +118,19 @@ impl ProcessWatcher {
         let self_clone = Arc::clone(self);
 
         let ebpf_task = tokio::spawn(async move {
+            debug!("eBPF event processing loop started, waiting for triggers...");
             let mut buffer = Vec::new();
             loop {
                 match rx.recv().await {
                     Some(event) => {
+                        println!("Received eBPF trigger: {:?}", event);
                         buffer.push(event);
                         // Try to receive more events non-blockingly (up to 99 more)
                         let mut count = 1;
                         while let Ok(Some(event)) =
                             tokio::time::timeout(std::time::Duration::from_millis(10), rx.recv()).await
                         {
+                            println!("Received additional eBPF trigger: {:?}", event);
                             buffer.push(event);
                             count += 1;
                             if count >= 100 {
@@ -128,13 +140,13 @@ impl ProcessWatcher {
 
                         // Process all events
                         let triggers = std::mem::take(&mut buffer);
-                        debug!(
+                        println!(
                             "process_trigger_loop: Processing {} triggers",
                             triggers.len()
                         );
 
                         if let Err(e) = self_clone.handle_incoming_triggers(triggers).await {
-                            error!("Failed to process triggers: {}", e);
+                            println!("Failed to process triggers: {}", e);
                         }
                     }
                     None => {
@@ -149,6 +161,7 @@ impl ProcessWatcher {
         let mut state = self.state.write().await;
         state.ebpf_task = Some(ebpf_task);
 
+        println!("eBPF initialization completed successfully");
         Ok(())
     }
 
@@ -160,24 +173,24 @@ impl ProcessWatcher {
         let mut matched_triggers: Vec<(Target, ProcessTrigger)> = vec![];
         let mut finish_triggers: Vec<FinishTrigger> = vec![];
 
-        debug!("ProcessWatcher: processing {} triggers", triggers.len());
+        println!("ProcessWatcher: processing {} triggers", triggers.len());
 
         let state = self.state.read().await;
         for trigger in triggers.into_iter() {
             match trigger {
                 Trigger::Start(proc) => {
                     if let Some(matched_target) = state.target_manager.get_target_match(&proc) {
-                        debug!(
+                        println!(
                             "MATCHED START: pid={} cmd={} target={:?}",
                             proc.pid, proc.comm, matched_target
                         );
                         matched_triggers.push((matched_target.clone(), proc));
                     } else {
-                        debug!("SKIPPED START: pid={} cmd={}", proc.pid, proc.comm);
+                        println!("SKIPPED START: pid={} cmd={}", proc.pid, proc.comm);
                     }
                 }
                 Trigger::Finish(proc) => {
-                    debug!("ProcessWatcher: received FINISH trigger pid={}", proc.pid);
+                    println!("ProcessWatcher: received FINISH trigger pid={}", proc.pid);
                     finish_triggers.push(proc);
                 }
             }

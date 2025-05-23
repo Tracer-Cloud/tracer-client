@@ -144,12 +144,12 @@ int initialize(void *buffer, size_t byte_count, event_callback_t callback, void 
 			.rb = NULL};
 	int err;
 
-	// Safety: maximum number of events to process in one batch
-	const int max_events_per_poll = 100;
+	// Safety: maximum number of events to process in one batch  
+	const int max_events_per_poll = 10000;  // Increased from 100
 	// Safety: maximum time to run before returning (in seconds)
-	const int max_runtime_seconds = 30;
+	const int max_runtime_seconds = 300;     // Increased from 30 to 5 minutes  
 	// Safety: maximum number of polling iterations
-	const int max_poll_iterations = 5;
+	const int max_poll_iterations = 50000;   // Increased from 5
 
 	time_t start_time = time(NULL);
 	int poll_count = 0;
@@ -191,6 +191,9 @@ int initialize(void *buffer, size_t byte_count, event_callback_t callback, void 
 		goto cleanup;
 	}
 
+	printf("eBPF: Starting event processing loop (max_iterations=%d, max_runtime=%d, max_events=%d)\n", 
+	       max_poll_iterations, max_runtime_seconds, max_events_per_poll);
+
 	/* Process events */
 	while (!exiting)
 	{
@@ -199,6 +202,7 @@ int initialize(void *buffer, size_t byte_count, event_callback_t callback, void 
 		// Safety check for maximum iterations
 		if (poll_count > max_poll_iterations)
 		{
+			printf("eBPF: Reached max iterations (%d), exiting\n", max_poll_iterations);
 			break;
 		}
 
@@ -206,6 +210,7 @@ int initialize(void *buffer, size_t byte_count, event_callback_t callback, void 
 		time_t current_time = time(NULL);
 		if (difftime(current_time, start_time) > max_runtime_seconds)
 		{
+			printf("eBPF: Reached max runtime (%d seconds), exiting\n", max_runtime_seconds);
 			break;
 		}
 
@@ -216,10 +221,12 @@ int initialize(void *buffer, size_t byte_count, event_callback_t callback, void 
 		if (err > 0)
 		{
 			total_events += err;
+			printf("eBPF: Processed %d events (total: %d)\n", err, total_events);
 
 			// Safety check for maximum events
 			if (total_events > max_events_per_poll)
 			{
+				printf("eBPF: Reached max events (%d), exiting\n", max_events_per_poll);
 				break;
 			}
 		}
@@ -227,6 +234,7 @@ int initialize(void *buffer, size_t byte_count, event_callback_t callback, void 
 		/* Ctrl-C will cause -EINTR */
 		if (err == -EINTR)
 		{
+			printf("eBPF: Received interrupt signal, exiting\n");
 			err = 0;
 			break;
 		}
@@ -236,6 +244,9 @@ int initialize(void *buffer, size_t byte_count, event_callback_t callback, void 
 			break;
 		}
 	}
+
+	printf("eBPF: Event processing loop finished (poll_count=%d, total_events=%d)\n", 
+	       poll_count, total_events);
 
 cleanup:
 	/* Clean up */

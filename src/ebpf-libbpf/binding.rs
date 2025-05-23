@@ -215,6 +215,8 @@ pub fn start_processing_events(tx: UnboundedSender<Trigger>) -> Result<()> {
         // let start_time = Instant::now();
         // let mut iteration_count = 0;
 
+        eprintln!("eBPF: Starting initialize loop");
+        
         loop {
             // iteration_count += 1;
 
@@ -246,6 +248,8 @@ pub fn start_processing_events(tx: UnboundedSender<Trigger>) -> Result<()> {
             });
             let buffer_context_ptr = Box::into_raw(buffer_context);
 
+            eprintln!("eBPF: Calling C initialize() function...");
+            
             // Call the C function - this will block until an event occurs or error
             unsafe {
                 let result = initialize(
@@ -259,6 +263,8 @@ pub fn start_processing_events(tx: UnboundedSender<Trigger>) -> Result<()> {
                 // This avoids the use-after-free issue in the callback
                 let _ = Box::from_raw(buffer_context_ptr);
 
+                eprintln!("eBPF: C initialize() returned with code: {}", result);
+
                 if result != 0 {
                     // If initialization failed, break the loop
                     eprintln!("eBPF initialization failed with code: {}", result);
@@ -266,16 +272,24 @@ pub fn start_processing_events(tx: UnboundedSender<Trigger>) -> Result<()> {
                 }
             }
 
+            eprintln!("eBPF: Waiting for signal to reinitialize...");
+
             // Use a timeout on receive to avoid being stuck waiting forever
             match initialize_rx.recv_timeout(Duration::from_secs(5)) {
-                Ok(_) => {}
-                Err(std_mpsc::RecvTimeoutError::Timeout) => {}
+                Ok(_) => {
+                    eprintln!("eBPF: Received signal to reinitialize");
+                }
+                Err(std_mpsc::RecvTimeoutError::Timeout) => {
+                    eprintln!("eBPF: Timeout waiting for reinitialize signal, continuing anyway");
+                }
                 Err(std_mpsc::RecvTimeoutError::Disconnected) => {
                     eprintln!("Initialize channel closed, stopping eBPF processing");
                     break;
                 }
             }
         }
+        
+        eprintln!("eBPF: Initialize loop exited");
     });
 
     // Task to forward events from internal std channel to external Tokio channel
