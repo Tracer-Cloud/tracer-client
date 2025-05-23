@@ -1,9 +1,8 @@
 use sysinfo::Process;
 
-pub struct Extract{}
+pub struct Extract {}
 
 impl Extract {
-    
     /// Extracts environment variables related to containerization, jobs, and tracing
     pub fn extract_process_env_vars(
         proc: &Process,

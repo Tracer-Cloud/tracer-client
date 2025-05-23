@@ -1,10 +1,10 @@
-use chrono::DateTime;
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 
 use crate::data_samples::DATA_SAMPLES_EXT;
 use crate::file_watcher::FileWatcher;
+use crate::handlers::process_manager::ProcessManager;
+use crate::metrics::extract_variables::Extract;
 use anyhow::Result;
-use chrono::Utc;
 use std::sync::Arc;
 use sysinfo::{ProcessStatus, System};
 use tokio::sync::{mpsc, RwLock};
@@ -19,8 +19,6 @@ use tracer_common::types::event::attributes::EventAttributes;
 use tracer_common::types::trigger::{FinishTrigger, ProcessTrigger, Trigger};
 use tracer_ebpf_libbpf::start_processing_events;
 use tracing::{debug, error};
-use crate::metrics::extract_variables::Extract;
-use crate::handlers::process_manager::ProcessManager;
 
 enum ProcessResult {
     NotFound,
@@ -98,7 +96,7 @@ impl ProcessWatcher {
 
         // Initialize eBPF components
         let (tx, mut rx) = mpsc::unbounded_channel::<Trigger>();
-        
+
         // Start the eBPF event processing
         debug!("Calling start_processing_events...");
         if let Err(e) = start_processing_events(tx) {
@@ -108,7 +106,7 @@ impl ProcessWatcher {
         debug!("start_processing_events completed successfully");
 
         // Mark eBPF as initialized
-        if let Err(_) = self.ebpf.set(()) {
+        if self.ebpf.set(()).is_err() {
             // Another thread already initialized it, that's fine
             debug!("eBPF was already initialized by another thread");
             return Ok(());
@@ -128,7 +126,8 @@ impl ProcessWatcher {
                         // Try to receive more events non-blockingly (up to 99 more)
                         let mut count = 1;
                         while let Ok(Some(event)) =
-                            tokio::time::timeout(std::time::Duration::from_millis(10), rx.recv()).await
+                            tokio::time::timeout(std::time::Duration::from_millis(10), rx.recv())
+                                .await
                         {
                             println!("Received additional eBPF trigger: {:?}", event);
                             buffer.push(event);
@@ -199,14 +198,22 @@ impl ProcessWatcher {
 
         // Handle process starts
         for (target, process) in matched_triggers {
-            if let Err(e) = self.process_manager.handle_process_start(&target, &process).await {
+            if let Err(e) = self
+                .process_manager
+                .handle_process_start(&target, &process)
+                .await
+            {
                 error!("Failed to handle process start: {}", e);
             }
         }
 
         // Handle process ends
         for finish_trigger in finish_triggers {
-            if let Err(e) = self.process_manager.handle_process_end(&finish_trigger).await {
+            if let Err(e) = self
+                .process_manager
+                .handle_process_end(&finish_trigger)
+                .await
+            {
                 error!("Failed to handle process end: {}", e);
             }
         }

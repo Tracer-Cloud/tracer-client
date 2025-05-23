@@ -216,7 +216,7 @@ pub fn start_processing_events(tx: UnboundedSender<Trigger>) -> Result<()> {
         // let mut iteration_count = 0;
 
         eprintln!("eBPF: Starting initialize loop");
-        
+
         loop {
             // iteration_count += 1;
 
@@ -249,7 +249,7 @@ pub fn start_processing_events(tx: UnboundedSender<Trigger>) -> Result<()> {
             let buffer_context_ptr = Box::into_raw(buffer_context);
 
             eprintln!("eBPF: Calling C initialize() function...");
-            
+
             // Call the C function - this will block until an event occurs or error
             unsafe {
                 let result = initialize(
@@ -288,7 +288,7 @@ pub fn start_processing_events(tx: UnboundedSender<Trigger>) -> Result<()> {
                 }
             }
         }
-        
+
         eprintln!("eBPF: Initialize loop exited");
     });
 

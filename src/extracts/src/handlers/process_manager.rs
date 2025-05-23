@@ -1,3 +1,4 @@
+use crate::metrics::extract_variables::Extract;
 use anyhow::Result;
 use chrono::Utc;
 use std::collections::{HashMap, HashSet};
@@ -5,16 +6,15 @@ use std::path::Path;
 use std::sync::Arc;
 use sysinfo::{Process, ProcessStatus, System};
 use tokio::sync::RwLock;
-use tracing::{debug};
 use tracer_common::recorder::LogRecorder;
-use tracer_common::target_process::{Target, TargetMatchable};
+use tracer_common::target_process::Target;
 use tracer_common::types::event::attributes::process::{
     CompletedProcess, FullProcessProperties, InputFile, ProcessProperties, ShortProcessProperties,
 };
 use tracer_common::types::event::attributes::EventAttributes;
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 use tracer_common::types::trigger::{FinishTrigger, ProcessTrigger};
-use crate::metrics::extract_variables::Extract;
+use tracing::debug;
 
 enum ProcessResult {
     NotFound,
@@ -54,10 +54,7 @@ pub struct ProcessManager {
 }
 
 impl ProcessManager {
-    pub fn new(
-        log_recorder: LogRecorder,
-        system: Arc<RwLock<System>>,
-    ) -> Self {
+    pub fn new(log_recorder: LogRecorder, system: Arc<RwLock<System>>) -> Self {
         let state = Arc::new(RwLock::new(ProcessState {
             processes: HashMap::new(),
             monitoring: HashMap::new(),
@@ -133,7 +130,7 @@ impl ProcessManager {
         finish_trigger: &FinishTrigger,
     ) -> Result<()> {
         let mut state = self.state.write().await;
-        
+
         // Find the process in monitoring and remove it
         let mut process_to_remove = None;
         for (target, processes) in state.monitoring.iter_mut() {
@@ -141,7 +138,7 @@ impl ProcessManager {
             if let Some(process) = processes.iter().find(|p| p.pid == finish_trigger.pid) {
                 process_to_remove = Some((target.clone(), process.clone()));
             }
-            
+
             // Then remove the process (this is separate from the find operation)
             if process_to_remove.is_some() {
                 processes.retain(|p| p.pid != finish_trigger.pid);
