@@ -9,7 +9,7 @@ use tokio::sync::RwLock;
 use tracer_common::recorder::LogRecorder;
 use tracer_common::target_process::Target;
 use tracer_common::types::event::attributes::process::{
-    CompletedProcess, FullProcessProperties, InputFile, ProcessProperties, ShortProcessProperties,
+    CompletedProcess, FullProcessProperties, ProcessProperties, ShortProcessProperties,
 };
 use tracer_common::types::event::attributes::EventAttributes;
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
@@ -87,7 +87,6 @@ impl ProcessManager {
                     self.gather_process_data(
                         system_process,
                         display_name.clone(),
-                        true,
                         process.started_at,
                     )
                     .await
@@ -98,11 +97,6 @@ impl ProcessManager {
                 }
             }
         };
-
-        if let ProcessProperties::Full(ref full_properties) = properties {
-            self.log_datasets_in_process(&process.argv, full_properties)
-                .await?;
-        }
 
         self.log_recorder
             .log(
@@ -205,13 +199,8 @@ impl ProcessManager {
                 return Ok(()); // Process no longer exists, that's okay
             };
 
-            self.gather_process_data(
-                system_process,
-                display_name.clone(),
-                false,
-                process.started_at,
-            )
-            .await
+            self.gather_process_data(system_process, display_name.clone(), process.started_at)
+                .await
         };
 
         self.log_recorder
@@ -231,18 +220,11 @@ impl ProcessManager {
         &self,
         proc: &Process,
         display_name: String,
-        process_input_files: bool,
         process_start_time: chrono::DateTime<Utc>,
     ) -> ProcessProperties {
         let (container_id, job_id, trace_id) = Extract::extract_process_env_vars(proc);
 
         let working_directory = proc.cwd().map(|p| p.to_string_lossy().to_string());
-
-        let input_files = if process_input_files {
-            self.extract_input_files(proc).await
-        } else {
-            None
-        };
 
         let process_run_time = (Utc::now() - process_start_time).num_milliseconds().max(0) as u64;
 
@@ -268,7 +250,6 @@ impl ProcessManager {
             process_memory_usage: proc.memory(),
             process_memory_virtual: proc.virtual_memory(),
             process_status: process_status_to_string(&proc.status()),
-            input_files,
             container_id,
             job_id,
             working_directory,
@@ -289,22 +270,6 @@ impl ProcessManager {
             tool_binary_path: process.file_name.clone(),
             start_timestamp: Utc::now().to_rfc3339(),
         }))
-    }
-
-    /// Extracts input files from a process
-    async fn extract_input_files(&self, proc: &Process) -> Option<Vec<InputFile>> {
-        // TODO: Implement input file extraction
-        None
-    }
-
-    /// Logs datasets found in process
-    async fn log_datasets_in_process(
-        &self,
-        argv: &[String],
-        properties: &FullProcessProperties,
-    ) -> Result<()> {
-        // TODO: Implement dataset logging
-        Ok(())
     }
 
     /// Returns the number of processes being monitored
