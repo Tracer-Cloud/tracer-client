@@ -2,6 +2,7 @@ use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 
 use crate::data_samples::DATA_SAMPLES_EXT;
 use crate::file_watcher::FileWatcher;
+use crate::handlers::ebpf_manager::EbpfManager;
 use crate::handlers::process_manager::ProcessManager;
 use crate::metrics::extract_variables::Extract;
 use anyhow::Result;
@@ -52,7 +53,7 @@ struct ProcessState {
 
 /// Watches system processes and records events related to them
 pub struct ProcessWatcher {
-    ebpf: once_cell::sync::OnceCell<()>, // not tokio, because ebpf initialisation is sync
+    ebpf_manager: Arc<EbpfManager>,
     process_manager: Arc<ProcessManager>,
     state: Arc<RwLock<ProcessState>>,
 }
@@ -72,7 +73,7 @@ impl ProcessWatcher {
         let process_manager = Arc::new(ProcessManager::new(log_recorder, system));
 
         ProcessWatcher {
-            ebpf: once_cell::sync::OnceCell::new(),
+            ebpf_manager: Arc::new(EbpfManager::new()),
             process_manager,
             state,
         }
@@ -86,82 +87,7 @@ impl ProcessWatcher {
     }
 
     pub async fn start_ebpf(self: &Arc<Self>) -> Result<()> {
-        // Check if eBPF is already initialized
-        if self.ebpf.get().is_some() {
-            debug!("eBPF already initialized, skipping");
-            return Ok(()); // Already initialized
-        }
-
-        debug!("Starting eBPF event processing...");
-
-        // Initialize eBPF components
-        let (tx, mut rx) = mpsc::unbounded_channel::<Trigger>();
-
-        // Start the eBPF event processing
-        debug!("Calling start_processing_events...");
-        if let Err(e) = start_processing_events(tx) {
-            error!("Failed to start eBPF processing: {:?}", e);
-            return Err(e);
-        }
-        debug!("start_processing_events completed successfully");
-
-        // Mark eBPF as initialized
-        if self.ebpf.set(()).is_err() {
-            // Another thread already initialized it, that's fine
-            debug!("eBPF was already initialized by another thread");
-            return Ok(());
-        }
-
-        // Clone self for the task
-        let self_clone = Arc::clone(self);
-
-        let ebpf_task = tokio::spawn(async move {
-            debug!("eBPF event processing loop started, waiting for triggers...");
-            let mut buffer = Vec::new();
-            loop {
-                match rx.recv().await {
-                    Some(event) => {
-                        println!("Received eBPF trigger: {:?}", event);
-                        buffer.push(event);
-                        // Try to receive more events non-blockingly (up to 99 more)
-                        let mut count = 1;
-                        while let Ok(Some(event)) =
-                            tokio::time::timeout(std::time::Duration::from_millis(10), rx.recv())
-                                .await
-                        {
-                            println!("Received additional eBPF trigger: {:?}", event);
-                            buffer.push(event);
-                            count += 1;
-                            if count >= 100 {
-                                break;
-                            }
-                        }
-
-                        // Process all events
-                        let triggers = std::mem::take(&mut buffer);
-                        println!(
-                            "process_trigger_loop: Processing {} triggers",
-                            triggers.len()
-                        );
-
-                        if let Err(e) = self_clone.handle_incoming_triggers(triggers).await {
-                            println!("Failed to process triggers: {}", e);
-                        }
-                    }
-                    None => {
-                        error!("Event channel closed, exiting process loop");
-                        return;
-                    }
-                }
-            }
-        });
-
-        // Store the task handle using async write
-        let mut state = self.state.write().await;
-        state.ebpf_task = Some(ebpf_task);
-
-        println!("eBPF initialization completed successfully");
-        Ok(())
+        self.ebpf_manager.start_ebpf().await
     }
 
     /// Handles incoming process triggers
@@ -307,7 +233,7 @@ mod tests {
         let process_manager = Arc::new(ProcessManager::new(log_recorder, system));
 
         Arc::new(ProcessWatcher {
-            ebpf: once_cell::sync::OnceCell::new(),
+            ebpf_manager: Arc::new(EbpfManager::new()),
             process_manager,
             state,
         })
