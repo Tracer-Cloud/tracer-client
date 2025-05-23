@@ -73,7 +73,7 @@ impl ProcessManager {
         target: &Target,
         process: &ProcessStartTrigger,
     ) -> Result<()> {
-        debug!("Processing pid={}", process.pid);
+        println!("Processing pid={}", process.pid);
 
         // Get the display name for the process
         let display_name = target
