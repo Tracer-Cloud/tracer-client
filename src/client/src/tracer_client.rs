@@ -10,20 +10,18 @@ use tracer_common::types::cli::params::FinalizedInitArgs;
 use crate::events::{send_alert_event, send_log_event, send_start_run_event};
 use crate::exporters::log_writer::LogWriterEnum;
 use crate::exporters::manager::ExporterManager;
-use chrono::{DateTime, TimeDelta, Utc};
+use chrono::{DateTime, Utc};
 use serde_json::json;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use sysinfo::System;
-use tokio::fs;
 use tokio::sync::{mpsc, RwLock};
-use tracer_common::constants::{DEFAULT_SERVICE_URL, FILE_CACHE_DIR};
+use tracer_common::constants::{DEFAULT_SERVICE_URL};
 use tracer_common::recorder::LogRecorder;
 use tracer_common::types::current_run::{PipelineMetadata, Run};
 use tracer_common::types::event::attributes::EventAttributes;
 use tracer_common::types::event::{Event, ProcessStatus};
 use tracer_common::types::LinesBufferArc;
-use tracer_extracts::file_watcher::FileWatcher;
 use tracer_extracts::metrics::SystemMetricsCollector;
 use tracer_extracts::process_watcher::ProcessWatcher;
 use tracer_extracts::stdout::StdoutWatcher;
@@ -39,15 +37,12 @@ use tracing::info;
 pub struct TracerClient {
     system: Arc<RwLock<System>>, // todo: use arc swap
     interval: Duration,
-    last_file_size_change_time_delta: TimeDelta,
 
     pub process_watcher: Arc<ProcessWatcher>,
 
     syslog_watcher: SyslogWatcher,
     stdout_watcher: StdoutWatcher,
     metrics_collector: SystemMetricsCollector,
-    file_watcher: Arc<RwLock<FileWatcher>>,
-    workflow_directory: String,
 
     pipeline: Arc<RwLock<PipelineMetadata>>,
 
@@ -69,7 +64,6 @@ pub struct TracerClient {
 impl TracerClient {
     pub async fn new(
         config: Config,
-        workflow_directory: String,
         db_client: LogWriterEnum,
         cli_args: FinalizedInitArgs, // todo: why Config AND TracerCliInitArgs? remove CliInitArgs
     ) -> Result<TracerClient> {
@@ -78,14 +72,13 @@ impl TracerClient {
 
         // TODO: taking out pricing client for now
         let pricing_client = Self::init_pricing_client(&config).await;
-        let file_watcher = Self::init_file_watcher().await?;
         let pipeline = Self::init_pipeline(&cli_args);
 
         let (log_recorder, rx) = Self::init_log_recorder(&pipeline);
         let system = Arc::new(RwLock::new(System::new_all()));
 
         let process_watcher =
-            Self::init_process_watcher(&config, &log_recorder, &file_watcher, &system);
+            Self::init_process_watcher(&config, &log_recorder, &system);
 
         let exporter = Arc::new(ExporterManager::new(db_client, rx, pipeline.clone()));
 
@@ -95,9 +88,6 @@ impl TracerClient {
         Ok(TracerClient {
             // if putting a value to config, also update `TracerClient::reload_config_file`
             interval: Duration::from_millis(config.process_polling_interval_ms),
-            last_file_size_change_time_delta: TimeDelta::milliseconds(
-                config.file_size_not_changing_period_ms as i64,
-            ),
             system: system.clone(),
 
             pipeline,
@@ -106,8 +96,6 @@ impl TracerClient {
             stdout_watcher,
             metrics_collector,
             // Sub managers
-            file_watcher,
-            workflow_directory: workflow_directory.clone(),
             syslog_lines_buffer: Arc::new(RwLock::new(Vec::new())),
             stdout_lines_buffer: Arc::new(RwLock::new(Vec::new())),
             stderr_lines_buffer: Arc::new(RwLock::new(Vec::new())),
@@ -124,15 +112,6 @@ impl TracerClient {
 
     async fn init_pricing_client(_config: &Config) -> PricingSource {
         PricingSource::Static
-    }
-
-    async fn init_file_watcher() -> Result<Arc<RwLock<FileWatcher>>> {
-        fs::create_dir_all(FILE_CACHE_DIR)
-            .await
-            .context("Failed to create tmp directory")?;
-        let directory = tempfile::tempdir_in(FILE_CACHE_DIR)?;
-        let file_watcher = Arc::new(RwLock::new(FileWatcher::new(directory)));
-        Ok(file_watcher)
     }
 
     fn init_pipeline(cli_args: &FinalizedInitArgs) -> Arc<RwLock<PipelineMetadata>> {
@@ -154,7 +133,6 @@ impl TracerClient {
     fn init_process_watcher(
         config: &Config,
         log_recorder: &LogRecorder,
-        file_watcher: &Arc<RwLock<FileWatcher>>,
         system: &Arc<RwLock<System>>,
     ) -> Arc<ProcessWatcher> {
         let target_manager = TargetManager::new(
@@ -164,7 +142,6 @@ impl TracerClient {
         Arc::new(ProcessWatcher::new(
             target_manager,
             log_recorder.clone(),
-            file_watcher.clone(),
             system.clone(),
         ))
     }
@@ -277,21 +254,6 @@ impl TracerClient {
     #[tracing::instrument(skip(self))]
     pub async fn poll_process_metrics(&mut self) -> Result<()> {
         self.process_watcher.poll_process_metrics().await
-    }
-
-    #[tracing::instrument(skip(self))]
-    pub async fn poll_files(&self) -> Result<()> {
-        self.file_watcher
-            .write()
-            .await
-            .poll_files(
-                DEFAULT_SERVICE_URL,
-                &self.config.api_key,
-                &self.workflow_directory,
-                self.last_file_size_change_time_delta,
-            )
-            .await?;
-        Ok(())
     }
 
     #[tracing::instrument(skip(self))]

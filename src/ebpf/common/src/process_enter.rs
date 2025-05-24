@@ -37,7 +37,7 @@ pub fn from_bpf_str(s: &[u8]) -> anyhow::Result<&str> {
 }
 
 #[cfg(feature = "user")]
-use tracer_common::types::trigger::{ProcessEndTrigger, ProcessStartTrigger, Trigger};
+use tracer_common::types::trigger::{ProcessEndTrigger, ProcessStartTrigger};
 
 #[cfg(feature = "user")]
 impl TryInto<tracer_common::types::trigger::Trigger> for &ProcessRawTrigger {

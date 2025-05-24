@@ -75,11 +75,7 @@ impl DaemonServer {
         let mut metrics_interval = tokio::time::interval(Duration::from_millis(
             config.read().await.batch_submission_interval_ms,
         ));
-
-        let mut monitor_interval = tokio::time::interval(Duration::from_millis(
-            config.read().await.batch_submission_interval_ms,
-        ));
-
+        
         let mut process_metrics_interval = tokio::time::interval(Duration::from_millis(
             config.read().await.process_metrics_submission_interval_ms,
         ));
@@ -112,8 +108,6 @@ impl DaemonServer {
                     let guard = tracer_client.lock().await;
 
                     guard.poll_metrics_data().await?;
-                    guard.poll_files().await?;
-
                 }
                 _ = process_metrics_interval.tick() => {
                     debug!("DaemonServer monitor interval ticked");

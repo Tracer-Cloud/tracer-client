@@ -1,22 +1,13 @@
-use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
-
-use crate::data_samples::DATA_SAMPLES_EXT;
-use crate::file_watcher::FileWatcher;
 use crate::handlers::process_manager::ProcessManager;
 use anyhow::Result;
 use once_cell::sync::OnceCell;
 use std::sync::Arc;
-use sysinfo::{ProcessStatus, System};
+use sysinfo::System;
 use tokio::sync::{mpsc, RwLock};
 use tokio::task::JoinHandle;
 use tracer_common::recorder::LogRecorder;
 use tracer_common::target_process::manager::TargetManager;
-use tracer_common::target_process::{Target, TargetMatchable};
-use tracer_common::types::event::attributes::process::{
-    CompletedProcess, DataSetsProcessed, FullProcessProperties, InputFile, ProcessProperties,
-    ShortProcessProperties,
-};
-use tracer_common::types::event::attributes::EventAttributes;
+use tracer_common::target_process::Target;
 use tracer_common::types::trigger::{ProcessEndTrigger, ProcessStartTrigger, Trigger};
 use tracer_ebpf_libbpf::start_processing_events;
 use tracing::{debug, error};
@@ -40,7 +31,6 @@ impl ProcessWatcher {
     pub fn new(
         target_manager: TargetManager,
         log_recorder: LogRecorder,
-        file_watcher: Arc<RwLock<FileWatcher>>,
         system: Arc<RwLock<System>>,
     ) -> Self {
         let state = Arc::new(RwLock::new(ProcessState {
@@ -223,8 +213,9 @@ impl ProcessWatcher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::DateTime;
+    use chrono::{DateTime, Utc};
     use rstest::rstest;
+    use std::collections::HashMap;
     use std::sync::Arc;
     use tempfile::TempDir;
     use tokio::sync::mpsc;
@@ -240,8 +231,8 @@ mod tests {
         comm: &str,
         args: Vec<&str>,
         file_name: &str,
-    ) -> ProcessTrigger {
-        ProcessTrigger {
+    ) -> ProcessStartTrigger {
+        ProcessStartTrigger {
             pid,
             ppid,
             comm: comm.to_string(),
@@ -265,16 +256,10 @@ mod tests {
         LogRecorder::new(pipeline_arc, tx)
     }
 
-    // Helper function to create a mock FileWatcher
-    fn create_mock_file_watcher() -> Arc<RwLock<FileWatcher>> {
-        let temp_dir = TempDir::new().expect("Failed to create temporary directory");
-        Arc::new(RwLock::new(FileWatcher::new(temp_dir)))
-    }
-
     // Helper function to set up a process watcher with specified targets and processes
     fn setup_process_watcher(
         target_manager: TargetManager,
-        processes: HashMap<usize, ProcessTrigger>,
+        processes: HashMap<usize, ProcessStartTrigger>,
     ) -> Arc<ProcessWatcher> {
         let state = ProcessState {
             target_manager,
@@ -283,7 +268,6 @@ mod tests {
 
         let log_recorder = create_mock_log_recorder();
         let system = Arc::new(RwLock::new(System::new_all()));
-        let file_watcher = create_mock_file_watcher();
         let state = Arc::new(RwLock::new(state));
 
         let process_manager = Arc::new(ProcessManager::new(log_recorder, system));
@@ -313,7 +297,7 @@ mod tests {
 
         // Test the function
         let result = watcher
-            .handle_incoming_triggers(vec![process])
+            .handle_incoming_triggers(vec![Trigger::ProcessStart(process)])
             .await
             .unwrap();
 
@@ -537,7 +521,7 @@ mod tests {
     )
 )]
     #[tokio::test]
-    async fn test_nextflow_wrapped_scripts(#[case] process: ProcessTrigger) {
+    async fn test_nextflow_wrapped_scripts(#[case] process: ProcessStartTrigger) {
         let mgr = TargetManager::new(TARGETS.to_vec(), vec![]);
         let watcher = setup_process_watcher(mgr, HashMap::new());
         let result = watcher
@@ -547,8 +531,8 @@ mod tests {
 
         assert_eq!(result, Ok(()));
     }
-    fn dummy_process(name: &str, cmd: &str, path: &str) -> ProcessTrigger {
-        ProcessTrigger {
+    fn dummy_process(name: &str, cmd: &str, path: &str) -> ProcessStartTrigger {
+        ProcessStartTrigger {
             pid: 1,
             ppid: 0,
             comm: name.to_string(),

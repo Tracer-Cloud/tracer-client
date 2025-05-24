@@ -3,7 +3,6 @@ use std::process::Command;
 use std::sync::Arc;
 use std::time::Duration;
 use sysinfo::System;
-use tempfile::TempDir;
 use tokio::sync::{mpsc, RwLock};
 use tokio::time::sleep;
 use tracer_common::recorder::LogRecorder;
@@ -15,7 +14,6 @@ use tracer_common::types::event::attributes::{process::ProcessProperties, EventA
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 use tracer_common::types::pipeline_tags::PipelineTags;
 use tracer_common::types::trigger::{ProcessEndTrigger, ProcessStartTrigger, Trigger};
-use tracer_extracts::file_watcher::FileWatcher;
 use tracer_extracts::process_watcher::ProcessWatcher;
 
 #[tokio::test]
@@ -32,7 +30,6 @@ async fn test_process_triggers_process_lifecycle() -> anyhow::Result<()> {
     }));
 
     let log_recorder = LogRecorder::new(pipeline, tx);
-    let file_watcher = Arc::new(RwLock::new(FileWatcher::new(TempDir::new()?)));
     let system = Arc::new(RwLock::new(System::new_all()));
 
     let target = Target::new(TargetMatch::CommandContains(CommandContainsStruct {
@@ -42,7 +39,7 @@ async fn test_process_triggers_process_lifecycle() -> anyhow::Result<()> {
     .set_display_name(DisplayName::Name("Test Process".to_string()));
     let mgr = TargetManager::new(vec![target], vec![]);
 
-    let watcher = Arc::new(ProcessWatcher::new(mgr, log_recorder, file_watcher, system));
+    let watcher = Arc::new(ProcessWatcher::new(mgr, log_recorder, system));
 
     let start_trigger = ProcessStartTrigger {
         pid,
@@ -133,7 +130,6 @@ async fn test_process_triggers_no_matching_targets() -> anyhow::Result<()> {
     }));
 
     let log_recorder = LogRecorder::new(pipeline, tx);
-    let file_watcher = Arc::new(RwLock::new(FileWatcher::new(TempDir::new()?)));
     let system = Arc::new(RwLock::new(System::new_all()));
 
     let target = Target::new(TargetMatch::CommandContains(CommandContainsStruct {
@@ -201,7 +197,6 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
     }));
 
     let log_recorder = LogRecorder::new(pipeline, tx);
-    let file_watcher = Arc::new(RwLock::new(FileWatcher::new(TempDir::new()?)));
     let system = Arc::new(RwLock::new(System::new_all()));
 
     let sleep_duration = 10;

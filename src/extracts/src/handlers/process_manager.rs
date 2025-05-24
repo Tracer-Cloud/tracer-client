@@ -153,7 +153,7 @@ impl ProcessManager {
             }
         }
 
-        if let Some((target, process)) = process_to_remove {
+        if let Some((_target, process)) = process_to_remove {
             let duration_sec = (finish_trigger.finished_at - process.started_at)
                 .num_seconds()
                 .try_into()

@@ -9,7 +9,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use daemonize::{Daemonize, Outcome};
 use std::fs::File;
-use std::{env, fs::canonicalize};
+use std::{fs::canonicalize};
 use tracer_client::config_manager::{Config, ConfigLoader};
 use tracer_common::constants::{PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR};
 use tracer_common::debug_log::Logger;
@@ -66,7 +66,6 @@ pub fn process_cli() -> Result<()> {
         Commands::Init(args) => {
             println!("Starting daemon...");
             let args = init_command_interactive_mode(args);
-            let current_working_directory = env::current_dir()?;
 
             if !args.no_daemonize {
                 match start_daemon() {
@@ -94,7 +93,6 @@ pub fn process_cli() -> Result<()> {
             }
 
             run(
-                current_working_directory.to_str().unwrap().to_string(),
                 args,
                 config,
             )?;

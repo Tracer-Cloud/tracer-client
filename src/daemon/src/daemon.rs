@@ -11,7 +11,6 @@ use tracing::info;
 
 #[tokio::main]
 pub async fn run(
-    workflow_directory_path: String,
     cli_config_args: FinalizedInitArgs,
     config: Config,
 ) -> Result<()> {
@@ -44,7 +43,7 @@ pub async fn run(
 
     let addr: SocketAddr = config.server.parse()?;
 
-    let client = TracerClient::new(config, workflow_directory_path, db_client, cli_config_args)
+    let client = TracerClient::new(config, db_client, cli_config_args)
         .await
         .context("Failed to create TracerClient")?;
 
