@@ -16,7 +16,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use sysinfo::System;
 use tokio::sync::{mpsc, RwLock};
-use tracer_common::constants::{DEFAULT_SERVICE_URL};
+use tracer_common::constants::DEFAULT_SERVICE_URL;
 use tracer_common::recorder::LogRecorder;
 use tracer_common::types::current_run::{PipelineMetadata, Run};
 use tracer_common::types::event::attributes::EventAttributes;
@@ -77,8 +77,7 @@ impl TracerClient {
         let (log_recorder, rx) = Self::init_log_recorder(&pipeline);
         let system = Arc::new(RwLock::new(System::new_all()));
 
-        let process_watcher =
-            Self::init_process_watcher(&config, &log_recorder, &system);
+        let process_watcher = Self::init_process_watcher(&config, &log_recorder, &system);
 
         let exporter = Arc::new(ExporterManager::new(db_client, rx, pipeline.clone()));
 

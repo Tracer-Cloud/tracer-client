@@ -8,8 +8,8 @@ use crate::nondaemon_commands::{
 use anyhow::{Context, Result};
 use clap::Parser;
 use daemonize::{Daemonize, Outcome};
+use std::fs::canonicalize;
 use std::fs::File;
-use std::{fs::canonicalize};
 use tracer_client::config_manager::{Config, ConfigLoader};
 use tracer_common::constants::{PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR};
 use tracer_common::debug_log::Logger;
@@ -92,10 +92,7 @@ pub fn process_cli() -> Result<()> {
                 }
             }
 
-            run(
-                args,
-                config,
-            )?;
+            run(args, config)?;
             clean_up_after_daemon()
         }
         //TODO: figure out what test should do now

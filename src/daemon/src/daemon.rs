@@ -10,10 +10,7 @@ use tracer_common::types::cli::params::FinalizedInitArgs;
 use tracing::info;
 
 #[tokio::main]
-pub async fn run(
-    cli_config_args: FinalizedInitArgs,
-    config: Config,
-) -> Result<()> {
+pub async fn run(cli_config_args: FinalizedInitArgs, config: Config) -> Result<()> {
     // create the conn pool to aurora
     let db_client = if config.log_forward_endpoint_dev.is_none() {
         LogWriterEnum::Aurora(AuroraClient::try_new(&config, None).await?)
