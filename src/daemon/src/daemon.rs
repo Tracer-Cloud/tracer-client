@@ -83,7 +83,6 @@ mod tests {
     #[tokio::test]
     async fn test_monitor_processes_with_tracer_client() -> Result<(), anyhow::Error> {
         let config = load_test_config();
-        let pwd = std::env::current_dir()?;
         let region = "us-east-2";
 
         setup_env_vars(region);
@@ -102,14 +101,9 @@ mod tests {
         })
         .into_cli_args();
 
-        let mut tracer_client = TracerClient::new(
-            config,
-            pwd.to_str().unwrap().to_string(),
-            log_forward_client,
-            default_args,
-        )
-        .await
-        .unwrap();
+        let mut tracer_client = TracerClient::new(config, log_forward_client, default_args)
+            .await
+            .unwrap();
         let result = monitor_processes_with_tracer_client(&mut tracer_client).await;
         if result.is_ok() {
             Ok(result?)
