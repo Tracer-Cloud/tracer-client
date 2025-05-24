@@ -295,4 +295,15 @@ impl ProcessManager {
             .map(|processes| processes.len())
             .sum()
     }
+
+    pub async fn preview_targets(&self, n: usize) -> HashSet<String> {
+        self.state
+            .read()
+            .await
+            .monitoring
+            .iter()
+            .flat_map(|(_, processes)| processes.iter().map(|p| p.comm.clone()))
+            .take(n)
+            .collect()
+    }
 }

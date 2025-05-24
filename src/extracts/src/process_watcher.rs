@@ -210,9 +210,8 @@ impl ProcessWatcher {
     }
 
     /// Returns N process names of monitored processes
-    pub async fn preview_targets(&self, n: usize) -> std::collections::HashSet<String> {
-        // TODO: Implement this in ProcessManager
-        std::collections::HashSet::new()
+    pub async fn preview_targets(&self, _n: usize) -> std::collections::HashSet<String> {
+        self.process_manager.preview_targets(_n).await
     }
 
     /// Polls and updates metrics for all monitored processes

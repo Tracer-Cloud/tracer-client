@@ -63,7 +63,7 @@ async fn test_process_triggers_process_lifecycle() -> anyhow::Result<()> {
     };
 
     // 1. Test that process creation is handled correctly
-    let start_triggers = vec![Trigger::Start(start_trigger.clone())];
+    let start_triggers = vec![Trigger::ProcessStart(start_trigger.clone())];
     watcher.handle_incoming_triggers(start_triggers).await?;
 
     let start_event = rx
@@ -93,7 +93,7 @@ async fn test_process_triggers_process_lifecycle() -> anyhow::Result<()> {
     assert_eq!(props.tool_binary_path, "/usr/bin/test_process");
 
     // 2. Test that process termination is handled correctly
-    let finish_triggers = vec![Trigger::ProcessEndTrigger(finish_trigger)];
+    let finish_triggers = vec![Trigger::ProcessEnd(finish_trigger)];
     watcher.handle_incoming_triggers(finish_triggers).await?;
 
     let finish_event = rx
@@ -144,7 +144,7 @@ async fn test_process_triggers_no_matching_targets() -> anyhow::Result<()> {
 
     let mgr = TargetManager::new(vec![target], vec![]);
 
-    let watcher = Arc::new(ProcessWatcher::new(mgr, log_recorder, file_watcher, system));
+    let watcher = Arc::new(ProcessWatcher::new(mgr, log_recorder, system));
 
     let now = Utc::now();
     let pid = (1u32 << 30) - 1;
@@ -166,7 +166,7 @@ async fn test_process_triggers_no_matching_targets() -> anyhow::Result<()> {
         finished_at: now + chrono::Duration::seconds(10),
     };
 
-    let start_triggers = vec![Trigger::Start(start_trigger.clone())];
+    let start_triggers = vec![Trigger::ProcessStart(start_trigger.clone())];
     watcher.handle_incoming_triggers(start_triggers).await?;
 
     assert!(
@@ -174,7 +174,7 @@ async fn test_process_triggers_no_matching_targets() -> anyhow::Result<()> {
         "Should not receive events for non-matching processes"
     );
 
-    let finish_triggers = vec![Trigger::ProcessEndTrigger(finish_trigger)];
+    let finish_triggers = vec![Trigger::ProcessEnd(finish_trigger)];
     watcher.handle_incoming_triggers(finish_triggers).await?;
 
     assert!(
@@ -225,12 +225,7 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
 
     let mgr = TargetManager::new(vec![target.clone()], vec![]);
 
-    let watcher = Arc::new(ProcessWatcher::new(
-        mgr,
-        log_recorder,
-        file_watcher,
-        system.clone(),
-    ));
+    let watcher = Arc::new(ProcessWatcher::new(mgr, log_recorder, system.clone()));
 
     let now = Utc::now();
     let start_trigger = ProcessStartTrigger {
@@ -243,7 +238,7 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
     };
 
     // 1. Send start trigger and verify the process starts correctly
-    let start_triggers = vec![Trigger::Start(start_trigger.clone())];
+    let start_triggers = vec![Trigger::ProcessStart(start_trigger.clone())];
     watcher.handle_incoming_triggers(start_triggers).await?;
 
     let mut execution_event = rx
@@ -365,7 +360,7 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
         finished_at: now + chrono::Duration::seconds(5),
     };
 
-    let finish_triggers = vec![Trigger::ProcessEndTrigger(finish_trigger)];
+    let finish_triggers = vec![Trigger::ProcessEnd(finish_trigger)];
     watcher.handle_incoming_triggers(finish_triggers).await?;
 
     let finish_event = rx
