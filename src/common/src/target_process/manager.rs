@@ -1,4 +1,4 @@
-use crate::types::trigger::ProcessTrigger;
+use crate::types::trigger::ProcessStartTrigger;
 
 use super::{Target, TargetMatchable};
 
@@ -14,7 +14,7 @@ impl TargetManager {
     }
 
     /// Returns the matching target if it's not blacklisted
-    pub fn get_target_match(&self, process: &ProcessTrigger) -> Option<&Target> {
+    pub fn get_target_match(&self, process: &ProcessStartTrigger) -> Option<&Target> {
         // Skip blacklisted processes
         if self.blacklist.iter().any(|b| b.matches_process(process)) {
             tracing::error!(

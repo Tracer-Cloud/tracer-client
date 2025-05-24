@@ -1,3 +1,5 @@
+pub mod extract_variables;
+
 /// src/metrics/mod.rs
 use anyhow::Result;
 use chrono::Utc;

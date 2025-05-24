@@ -10,11 +10,7 @@ use tracer_common::types::cli::params::FinalizedInitArgs;
 use tracing::info;
 
 #[tokio::main]
-pub async fn run(
-    workflow_directory_path: String,
-    cli_config_args: FinalizedInitArgs,
-    config: Config,
-) -> Result<()> {
+pub async fn run(cli_config_args: FinalizedInitArgs, config: Config) -> Result<()> {
     // create the conn pool to aurora
     let db_client = if config.log_forward_endpoint_dev.is_none() {
         LogWriterEnum::Aurora(AuroraClient::try_new(&config, None).await?)
@@ -44,7 +40,7 @@ pub async fn run(
 
     let addr: SocketAddr = config.server.parse()?;
 
-    let client = TracerClient::new(config, workflow_directory_path, db_client, cli_config_args)
+    let client = TracerClient::new(config, db_client, cli_config_args)
         .await
         .context("Failed to create TracerClient")?;
 
@@ -87,7 +83,6 @@ mod tests {
     #[tokio::test]
     async fn test_monitor_processes_with_tracer_client() -> Result<(), anyhow::Error> {
         let config = load_test_config();
-        let pwd = std::env::current_dir()?;
         let region = "us-east-2";
 
         setup_env_vars(region);
@@ -106,14 +101,9 @@ mod tests {
         })
         .into_cli_args();
 
-        let mut tracer_client = TracerClient::new(
-            config,
-            pwd.to_str().unwrap().to_string(),
-            log_forward_client,
-            default_args,
-        )
-        .await
-        .unwrap();
+        let mut tracer_client = TracerClient::new(config, log_forward_client, default_args)
+            .await
+            .unwrap();
         let result = monitor_processes_with_tracer_client(&mut tracer_client).await;
         if result.is_ok() {
             Ok(result?)

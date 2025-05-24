@@ -23,11 +23,12 @@ pub struct TestServer {
 }
 
 impl TestServer {
-    async fn setup_client(server: String, path: String) -> Result<TracerClient, anyhow::Error> {
+    async fn setup_client(server: String) -> Result<TracerClient, anyhow::Error> {
         let config = Config {
             api_key: "EAjg7eHtsGnP3fTURcPz1".to_string(),
             process_polling_interval_ms: 100,
             batch_submission_interval_ms: 10000000, // todo: check data in batch
+            process_metrics_submission_interval_ms: 500,
             process_metrics_send_interval_ms: 10000000,
             file_size_not_changing_period_ms: 10000000,
             new_run_pause_ms: 10000000,
@@ -59,12 +60,12 @@ impl TestServer {
             ..Default::default()
         })
         .into_cli_args();
-        TracerClient::new(config, path, log_forward_client, args).await
+        TracerClient::new(config, log_forward_client, args).await
     }
 
     async fn get_tracer(path: String) -> Result<DaemonServer, anyhow::Error> {
         let server: SocketAddr = "127.0.0.1:0".parse()?; // 0: means port will be picked by the OS
-        let client = Self::setup_client(server.to_string(), path).await?;
+        let client = Self::setup_client(server.to_string()).await?;
 
         let server = DaemonServer::bind(client, server).await?;
         Ok(server)
