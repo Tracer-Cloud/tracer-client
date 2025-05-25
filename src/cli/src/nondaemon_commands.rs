@@ -375,7 +375,7 @@ pub async fn update_tracer() -> Result<()> {
     println!("Updating Tracer to version {}", release.tag_name);
 
     let mut command = Command::new("bash");
-    command.arg("-c").arg(format!("curl -sSL https://raw.githubusercontent.com/davincios/tracer-daemon/main/install-tracer.sh | bash -s -- {} && . ~/.bashrc && tracer", config.api_key));
+    command.arg("-c").arg(format!("curl -sSL https://install.tracer.cloud | bash -s -- {} && . ~/.bashrc && tracer", config.api_key));
 
     command
         .status()
