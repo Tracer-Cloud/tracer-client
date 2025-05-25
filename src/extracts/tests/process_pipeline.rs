@@ -57,6 +57,7 @@ async fn test_process_triggers_process_lifecycle() -> anyhow::Result<()> {
     let finish_trigger = ProcessEndTrigger {
         pid,
         finished_at: now + chrono::Duration::seconds(10),
+        exit_reason: None,
     };
 
     // 1. Test that process creation is handled correctly
@@ -160,6 +161,7 @@ async fn test_process_triggers_no_matching_targets() -> anyhow::Result<()> {
     let finish_trigger = ProcessEndTrigger {
         pid: pid as usize,
         finished_at: now + chrono::Duration::seconds(10),
+        exit_reason: None,
     };
 
     let start_triggers = vec![Trigger::ProcessStart(start_trigger.clone())];
@@ -353,6 +355,7 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
     let finish_trigger = ProcessEndTrigger {
         pid,
         finished_at: now + chrono::Duration::seconds(5),
+        exit_reason: None,
     };
 
     let finish_triggers = vec![Trigger::ProcessEnd(finish_trigger)];

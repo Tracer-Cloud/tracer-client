@@ -19,7 +19,7 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 linemux = { workspace = true }
 tokio-stream = { workspace = true }
-tracer_ebpf_libbpf = { path = "../ebpf-libbpf" }
+tracer_ebpf = { path = "../ebpf" }
 itertools = { workspace = true }
 
 once_cell = { workspace = true }

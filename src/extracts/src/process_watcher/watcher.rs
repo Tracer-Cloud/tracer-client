@@ -4,21 +4,15 @@ use once_cell::sync::OnceCell;
 use std::sync::Arc;
 use sysinfo::System;
 use tokio::sync::{mpsc, RwLock};
-use tokio::task::JoinHandle;
 use tracer_common::recorder::LogRecorder;
 use tracer_common::target_process::manager::TargetManager;
 use tracer_common::target_process::Target;
-use tracer_common::types::trigger::{ProcessEndTrigger, ProcessStartTrigger, Trigger};
-use tracer_ebpf_libbpf::start_processing_events;
+use tracer_common::types::trigger::{ProcessEndTrigger, ProcessStartTrigger, Trigger, OutOfMemoryTrigger};
+use tracer_ebpf::binding::start_processing_events;
 use tracing::{debug, error};
+use super::utils::{handle_oom_signals, handle_oom_terminations};
 
-/// Internal state of the process watcher
-struct ProcessState {
-    // List of targets to watch
-    target_manager: TargetManager,
-    // Store task handle to ensure it stays alive
-    ebpf_task: Option<JoinHandle<()>>,
-}
+use super::ProcessState;
 
 /// Watches system processes and records events related to them
 pub struct ProcessWatcher {
@@ -36,6 +30,7 @@ impl ProcessWatcher {
         let state = Arc::new(RwLock::new(ProcessState {
             target_manager,
             ebpf_task: None,
+            oom_victims: HashMap::new(),
         }));
 
         let process_manager = Arc::new(ProcessManager::new(log_recorder, system));
@@ -142,8 +137,9 @@ impl ProcessWatcher {
         self: &Arc<ProcessWatcher>,
         triggers: Vec<Trigger>,
     ) -> Result<()> {
-        let mut matched_triggers: Vec<(Target, ProcessStartTrigger)> = vec![];
-        let mut finish_triggers: Vec<ProcessEndTrigger> = vec![];
+        let mut start_triggers: Vec<ProcessTrigger> = vec![];
+        let mut finish_triggers: Vec<FinishTrigger> = vec![];
+        let mut oom_triggers: Vec<OomTrigger> = vec![];
 
         println!("ProcessWatcher: processing {} triggers", triggers.len());
 
@@ -156,7 +152,7 @@ impl ProcessWatcher {
                             "MATCHED START: pid={} cmd={} target={:?}",
                             proc.pid, proc.comm, matched_target
                         );
-                        matched_triggers.push((matched_target.clone(), proc));
+                        start_triggers.push((matched_target.clone(), proc));
                     } else {
                         println!("SKIPPED START: pid={} cmd={}", proc.pid, proc.comm);
                     }
@@ -165,12 +161,20 @@ impl ProcessWatcher {
                     println!("ProcessWatcher: received FINISH trigger pid={}", proc.pid);
                     finish_triggers.push(proc);
                 }
+                Trigger::OutOfMemory(out_of_memory) => {
+                    debug!("OutOfMemomry trigger pid={}", out_of_memory.pid);
+                    oom_triggers.push(out_of_memory);
+                }
             }
         }
-        drop(state); // release the read lock
-
+        //TODO Adapt to new
+        // Process omm triggers first
+        if !oom_triggers.is_empty() {
+            debug!("Processing {} oom processes", oom_triggers.len());
+            handle_oom_signals(&self.state, oom_triggers).await;
+        }
         // Handle process starts
-        for (target, process) in matched_triggers {
+        for (target, process) in start_triggers {
             if let Err(e) = self
                 .process_manager
                 .handle_process_start(&target, &process)
@@ -263,6 +267,7 @@ mod tests {
     ) -> Arc<ProcessWatcher> {
         let state = ProcessState {
             target_manager,
+            oom_victims: HashMap::new(),
             ebpf_task: None,
         };
 

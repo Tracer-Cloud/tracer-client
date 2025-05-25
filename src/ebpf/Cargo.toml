@@ -1,7 +1,5 @@
-# Adapted from ../ebpf/user/Cargo.toml
-
 [package]
-name = "tracer_ebpf_libbpf"
+name = "tracer_ebpf"
 version = { workspace = true }
 edition = { workspace = true }
 homepage = { workspace = true }
@@ -11,11 +9,9 @@ build = "build.rs"
 links = "bootstrap"
 
 [lib]
-path = "binding.rs"
+path = "rs/lib.rs"
 
 [dependencies]
-tracer_ebpf_common = { workspace = true, features = ["user"] }
-
 anyhow = { workspace = true, default-features = true }
 env_logger = { workspace = true }
 log = { workspace = true }
@@ -25,6 +21,7 @@ tokio-util = { workspace = true }
 bytes = { workspace = true }
 tracing = { workspace = true }
 tracer_common = { workspace = true }
+chrono.workspace = true
 
 [build-dependencies]
 anyhow = { workspace = true }
