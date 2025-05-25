@@ -1,3 +1,4 @@
+use super::utils::{handle_oom_signals, handle_oom_terminations};
 use crate::handlers::process_manager::ProcessManager;
 use anyhow::Result;
 use once_cell::sync::OnceCell;
@@ -7,10 +8,11 @@ use tokio::sync::{mpsc, RwLock};
 use tracer_common::recorder::LogRecorder;
 use tracer_common::target_process::manager::TargetManager;
 use tracer_common::target_process::Target;
-use tracer_common::types::trigger::{ProcessEndTrigger, ProcessStartTrigger, Trigger, OutOfMemoryTrigger};
+use tracer_common::types::trigger::{
+    OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger, Trigger,
+};
 use tracer_ebpf::binding::start_processing_events;
 use tracing::{debug, error};
-use super::utils::{handle_oom_signals, handle_oom_terminations};
 
 use super::ProcessState;
 

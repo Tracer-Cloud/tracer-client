@@ -5226,7 +5226,7 @@ dependencies = [
 
 [[package]]
 name = "tracer_ebpf"
-version = "2025.5.1+1"
+version = "2025.5.15+1"
 dependencies = [
  "anyhow",
  "bytes",
