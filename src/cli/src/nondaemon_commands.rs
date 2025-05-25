@@ -12,6 +12,7 @@ use tracer_common::constants::{
 };
 use tracer_daemon::client::DaemonClient;
 use tracing::debug;
+use semver;
 
 pub fn clean_up_after_daemon() -> Result<()> {
     std::fs::remove_file(PID_FILE).context("Failed to remove pid file")?;
@@ -365,14 +366,54 @@ pub async fn update_tracer() -> Result<()> {
         .get_latest()
         .await?;
 
-    if release.tag_name == env!("CARGO_PKG_VERSION") {
-        println!("You are already using the latest version of Tracer.");
+    let current_version = semver::Version::parse(env!("CARGO_PKG_VERSION"))?;
+    let latest_version = semver::Version::parse(release.tag_name.trim_start_matches('v'))?;
+
+    if latest_version <= current_version {
+        println!("\n{} You are already using the latest version of Tracer.", "✓".green());
+        println!("Current version: {}.{}.{}", 
+            current_version.major,
+            current_version.minor,
+            current_version.patch
+        );
+        return Ok(());
+    }
+
+    println!("\n{} A new version of Tracer is available!", "↑".yellow());
+    println!("Current version: {}.{}.{}", 
+        current_version.major,
+        current_version.minor,
+        current_version.patch
+    );
+    println!("Latest version:  {}.{}.{}", 
+        latest_version.major,
+        latest_version.minor,
+        latest_version.patch
+    );
+    println!("\n{} The Tracer daemon will be stopped during the update process.", "⚠️  Warning:".yellow());
+    println!("Would you like to proceed with the update? [y/N] ");
+    
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input)?;
+    
+    if !input.trim().eq_ignore_ascii_case("y") {
+        println!("Update cancelled.");
         return Ok(());
     }
 
     let config = ConfigLoader::load_config(None)?;
+    let api_client = DaemonClient::new(format!("http://{}", config.server));
 
-    println!("Updating Tracer to version {}", release.tag_name);
+    let _ = api_client.send_terminate_request().await;
+    
+    // Wait a moment for the daemon to terminate
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+
+    println!("Updating Tracer to version {}.{}.{}", 
+        latest_version.major,
+        latest_version.minor,
+        latest_version.patch
+    );
 
     let mut command = Command::new("bash");
     command.arg("-c").arg(format!("curl -sSL https://install.tracer.cloud | bash -s -- {} && . ~/.bashrc && tracer", config.api_key));
@@ -381,5 +422,8 @@ pub async fn update_tracer() -> Result<()> {
         .status()
         .context("Failed to update Tracer. Please try again.")?;
 
+    let _ = clean_up_after_daemon();
+
+    println!("Update completed successfully. You can now run 'tracer init' to start the daemon with the new version.");
     Ok(())
 }

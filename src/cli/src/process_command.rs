@@ -117,6 +117,10 @@ pub fn process_cli() -> Result<()> {
             result
         }
         Commands::ApplyBashrc => ConfigLoader::setup_aliases(),
+        Commands::Update => {
+            // Handle update command directly without going through daemon
+            tokio::runtime::Runtime::new()?.block_on(update_tracer())
+        }
         _ => {
             match tokio::runtime::Runtime::new()?.block_on(run_async_command(
                 cli.command,

@@ -5151,6 +5151,7 @@ version = "2025.5.15+1"
 dependencies = [
  "anyhow",
  "assert_cmd",
+ "chrono",
  "clap",
  "colored",
  "console",
@@ -5158,6 +5159,7 @@ dependencies = [
  "octocrab",
  "predicates",
  "rustls 0.23.27",
+ "semver 1.0.26",
  "sentry",
  "sqlx",
  "sysinfo",

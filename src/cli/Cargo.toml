@@ -9,11 +9,13 @@ authors = { workspace = true }
 
 [dependencies]
 anyhow = { workspace = true }
+chrono = { workspace = true }
 clap = { workspace = true }
 daemonize = { workspace = true }
 octocrab = { workspace = true }
 predicates = { workspace = true }
 rustls = { workspace = true }
+semver = { workspace = true }
 sysinfo = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
