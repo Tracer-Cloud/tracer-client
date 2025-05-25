@@ -2,7 +2,7 @@ mod patterns;
 
 use std::sync::Arc;
 
-use crate::metrics::SystemMetricsCollector;
+use crate::metrics::system_metrics::SystemMetricsCollector;
 use anyhow::Result;
 use linemux::MuxedLines;
 use predicates::Predicate;

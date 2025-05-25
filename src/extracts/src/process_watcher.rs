@@ -302,7 +302,7 @@ mod tests {
             .unwrap();
 
         // Assert the process was matched to the target
-        assert_eq!(result, Ok(()));
+        assert_eq!(result, ());
     }
 
     #[tokio::test]
@@ -323,12 +323,12 @@ mod tests {
 
         // Test the function
         let result = watcher
-            .handle_incoming_triggers(vec![process])
+            .handle_incoming_triggers(vec![Trigger::ProcessStart(process)])
             .await
             .unwrap();
 
         // Assert no processes were matched
-        assert_eq!(result, Ok(()));
+        assert_eq!(result, ());
     }
 
     #[tokio::test]
@@ -365,13 +365,13 @@ mod tests {
 
         // Test with the child process
         let result = watcher
-            .handle_incoming_triggers(vec![child_process.clone()])
+            .handle_incoming_triggers(vec![Trigger::ProcessStart(child_process.clone())])
             .await
             .unwrap();
 
         // Assert the child process was matched to the target because its parent matches
         // and force_ancestor_to_match is false
-        assert_eq!(result, Ok(()));
+        assert_eq!(result, ());
     }
 
     #[tokio::test]
@@ -408,12 +408,12 @@ mod tests {
 
         // Test with the child process
         let result = watcher
-            .handle_incoming_triggers(vec![child_process])
+            .handle_incoming_triggers(vec![Trigger::ProcessStart(child_process)])
             .await
             .unwrap();
 
         // Assert the child process was NOT matched to the target because force_ancestor_to_match is true
-        assert_eq!(result, Ok(()));
+        assert_eq!(result, ());
     }
 
     #[rstest]
@@ -482,7 +482,7 @@ mod tests {
 )]
     #[tokio::test]
     async fn test_match_cases(
-        #[case] process: ProcessTrigger,
+        #[case] process: ProcessStartTrigger,
         #[case] expected_count: usize,
         #[case] msg: &str,
     ) {
@@ -490,11 +490,11 @@ mod tests {
         let watcher = setup_process_watcher(mgr, HashMap::new());
 
         let result = watcher
-            .handle_incoming_triggers(vec![process])
+            .handle_incoming_triggers(vec![Trigger::ProcessStart(process)])
             .await
             .unwrap();
 
-        assert_eq!(result, Ok(()));
+        assert_eq!(result, ());
     }
 
     #[rstest]
@@ -525,11 +525,11 @@ mod tests {
         let mgr = TargetManager::new(TARGETS.to_vec(), vec![]);
         let watcher = setup_process_watcher(mgr, HashMap::new());
         let result = watcher
-            .handle_incoming_triggers(vec![process])
+            .handle_incoming_triggers(vec![Trigger::ProcessStart(process)])
             .await
             .unwrap();
 
-        assert_eq!(result, Ok(()));
+        assert_eq!(result, ());
     }
     fn dummy_process(name: &str, cmd: &str, path: &str) -> ProcessStartTrigger {
         ProcessStartTrigger {

@@ -22,7 +22,7 @@ use tracer_common::types::current_run::{PipelineMetadata, Run};
 use tracer_common::types::event::attributes::EventAttributes;
 use tracer_common::types::event::{Event, ProcessStatus};
 use tracer_common::types::LinesBufferArc;
-use tracer_extracts::metrics::SystemMetricsCollector;
+use tracer_extracts::metrics::system_metrics::SystemMetricsCollector;
 use tracer_extracts::process_watcher::ProcessWatcher;
 use tracer_extracts::stdout::StdoutWatcher;
 use tracer_extracts::syslog::SyslogWatcher;
