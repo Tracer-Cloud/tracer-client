@@ -73,8 +73,8 @@ impl TryInto<tracer_common::types::trigger::Trigger> for &CEvent {
                     args.push(from_bpf_str(&payload.argv[i])?.to_string());
                 }
 
-                Ok(tracer_common::types::trigger::Trigger::Start(
-                    tracer_common::types::trigger::ProcessTrigger {
+                Ok(tracer_common::types::trigger::Trigger::ProcessStart(
+                    tracer_common::types::trigger::ProcessStartTrigger {
                         pid: self.pid as usize,
                         ppid: self.ppid as usize,
                         file_name: args.first().cloned().unwrap_or_default(),
@@ -90,8 +90,8 @@ impl TryInto<tracer_common::types::trigger::Trigger> for &CEvent {
             }
             EVENT__SCHED__SCHED_PROCESS_EXIT => {
                 // Exit event is simpler - no payload fields needed
-                Ok(tracer_common::types::trigger::Trigger::Finish(
-                    tracer_common::types::trigger::FinishTrigger {
+                Ok(tracer_common::types::trigger::Trigger::ProcessEnd(
+                    tracer_common::types::trigger::ProcessEndTrigger {
                         pid: self.pid as usize,
                         finished_at: chrono::DateTime::from_timestamp(
                             (self.timestamp_ns / 1_000_000_000) as i64,
@@ -106,8 +106,8 @@ impl TryInto<tracer_common::types::trigger::Trigger> for &CEvent {
                 // Access the common process name (`comm`) by casting payload
                 let comm = from_bpf_str(&self.payload[..TASK_COMM_LEN])?;
 
-                Ok(tracer_common::types::trigger::Trigger::Oom(
-                    tracer_common::types::trigger::OomTrigger {
+                Ok(tracer_common::types::trigger::Trigger::OutOfMemory(
+                    tracer_common::types::trigger::OutOfMemoryTrigger {
                         pid: self.pid as usize,
                         upid: self.upid,
                         comm: comm.to_string(),
