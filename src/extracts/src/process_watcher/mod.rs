@@ -1,5 +1,6 @@
+mod extract_process_data;
 mod process_manager;
-mod utils;
+mod process_utils;
 mod watcher;
 
 use std::collections::{HashMap, HashSet};

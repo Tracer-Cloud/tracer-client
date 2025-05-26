@@ -24,3 +24,5 @@ impl TargetManager {
         self.targets.iter().find(|t| t.matches_process(process))
     }
 }
+
+//TODO add tests related to targets

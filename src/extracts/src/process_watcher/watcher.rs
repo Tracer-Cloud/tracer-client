@@ -1,22 +1,13 @@
-use chrono::DateTime;
-use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
-
-use super::ProcessState;
-use crate::data_samples::DATA_SAMPLES_EXT;
 use crate::file_watcher::FileWatcher;
 use crate::process_watcher::process_manager::ProcessManager;
 use anyhow::Result;
-use chrono::Utc;
-use itertools::Itertools;
-use std::collections::HashMap;
 use std::collections::HashSet;
-use std::path::Path;
 use std::sync::Arc;
 use sysinfo::{Pid, Process, ProcessRefreshKind, ProcessStatus, System};
 use tokio::sync::{mpsc, RwLock};
 use tracer_common::recorder::LogRecorder;
 use tracer_common::target_process::manager::TargetManager;
-use tracer_common::target_process::{Target, TargetMatchable};
+use tracer_common::target_process::Target;
 use tracer_common::types::ebpf_trigger::{
     OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger, Trigger,
 };
@@ -230,13 +221,17 @@ impl ProcessWatcher {
     }
 
     pub async fn poll_process_metrics(&self) -> Result<()> {
-        self.process_manager.write().await.poll_process_metrics().await
+        self.process_manager
+            .write()
+            .await
+            .poll_process_metrics()
+            .await
     }
 
     pub async fn preview_targets(&self, n: usize) -> HashSet<String> {
         self.process_manager.write().await.preview_targets(n).await
     }
-    
+
     pub async fn targets_len(&self) -> usize {
         self.process_manager.write().await.targets_len().await
     }
