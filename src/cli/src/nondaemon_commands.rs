@@ -12,7 +12,6 @@ use tracer_common::constants::{
 };
 use tracer_daemon::client::DaemonClient;
 use tracing::debug;
-use semver;
 
 pub fn clean_up_after_daemon() -> Result<()> {
     std::fs::remove_file(PID_FILE).context("Failed to remove pid file")?;
@@ -357,39 +356,50 @@ pub async fn setup_config(
     Ok(())
 }
 
+fn parse_version(s: &str) -> Option<(u32, u32, u32)> {
+    let s = s.trim_start_matches('v');
+    let main_version = s.split('+').next()?;
+    let parts: Vec<&str> = main_version.split('.').collect();
+    
+    if parts.len() != 3 {
+        return None;
+    }
+    
+    let major = parts[0].parse::<u32>().ok()?;
+    let minor = parts[1].parse::<u32>().ok()?;
+    let patch = parts[2].parse::<u32>().ok()?;
+    
+    Some((major, minor, patch))
+}
+
+fn format_version(ver: (u32, u32, u32)) -> String {
+    format!("{}.{}.{}", ver.0, ver.1, ver.2)
+}
+
 pub async fn update_tracer() -> Result<()> {
     let octocrab = octocrab::instance();
-
     let release = octocrab
         .repos(REPO_OWNER, REPO_NAME)
         .releases()
         .get_latest()
         .await?;
 
-    let current_version = semver::Version::parse(env!("CARGO_PKG_VERSION"))?;
-    let latest_version = semver::Version::parse(release.tag_name.trim_start_matches('v'))?;
+    let current = env!("CARGO_PKG_VERSION");
+    let latest = &release.tag_name;
 
-    if latest_version <= current_version {
-        println!("\n{} You are already using the latest version of Tracer.", "✓".green());
-        println!("Current version: {}.{}.{}", 
-            current_version.major,
-            current_version.minor,
-            current_version.patch
-        );
+    let current_ver = parse_version(current)
+        .ok_or_else(|| anyhow::anyhow!("Invalid current version format: {}", current))?;
+    let latest_ver = parse_version(latest)
+        .ok_or_else(|| anyhow::anyhow!("Invalid latest version format: {}", latest))?;
+
+    if latest_ver <= current_ver {
+        println!("\n{} You are already using the latest version of Tracer: {}.", "✓".green(), format_version(current_ver));
         return Ok(());
     }
 
     println!("\n{} A new version of Tracer is available!", "↑".yellow());
-    println!("Current version: {}.{}.{}", 
-        current_version.major,
-        current_version.minor,
-        current_version.patch
-    );
-    println!("Latest version:  {}.{}.{}", 
-        latest_version.major,
-        latest_version.minor,
-        latest_version.patch
-    );
+    println!("Current version: {}", format_version(current_ver));
+    println!("Latest version:  {}", format_version(latest_ver));
     println!("\n{} The Tracer daemon will be stopped during the update process.", "⚠️  Warning:".yellow());
     println!("Would you like to proceed with the update? [y/N] ");
     
@@ -405,15 +415,9 @@ pub async fn update_tracer() -> Result<()> {
     let api_client = DaemonClient::new(format!("http://{}", config.server));
 
     let _ = api_client.send_terminate_request().await;
-    
-    // Wait a moment for the daemon to terminate
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
-    println!("Updating Tracer to version {}.{}.{}", 
-        latest_version.major,
-        latest_version.minor,
-        latest_version.patch
-    );
+    println!("Updating Tracer to version {}", latest);
 
     let mut command = Command::new("bash");
     command.arg("-c").arg(format!("curl -sSL https://install.tracer.cloud | bash -s -- {} && . ~/.bashrc && tracer", config.api_key));
