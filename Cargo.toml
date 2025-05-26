@@ -63,7 +63,7 @@ tracing-appender = "0.2"
 url = "2.5.2"
 linemux = "0.3.0"
 tokio-stream = "0.1.15"
-sqlx = { version = "0.8.3", features = ["runtime-tokio-rustls", "postgres", "chrono"] }
+sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "postgres", "chrono"] }
 
 ec2_instance_metadata = "0.3.0"
 rand = "0.9.1"
