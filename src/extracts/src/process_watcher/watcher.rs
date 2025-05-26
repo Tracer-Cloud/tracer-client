@@ -16,6 +16,7 @@ use tracing::{debug, error};
 pub struct ProcessWatcher {
     ebpf: once_cell::sync::OnceCell<()>, // not tokio, because ebpf initialisation is sync
     process_manager: Arc<RwLock<ProcessManager>>,
+    // here will go the file manager for dataset recognition operations
 }
 
 impl ProcessWatcher {
