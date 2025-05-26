@@ -1,5 +1,6 @@
 mod utils;
 mod watcher;
+mod process_manager;
 
 use std::collections::{HashMap, HashSet};
 
@@ -15,13 +16,10 @@ struct ProcessState {
     processes: HashMap<usize, ProcessStartTrigger>,
     // Maps targets to sets of processes being monitored
     monitoring: HashMap<Target, HashSet<ProcessStartTrigger>>,
-    // Groups datasets by the nextflow session UUID
-    datasamples_tracker: HashMap<String, HashSet<String>>,
     // List of targets to watch
     target_manager: TargetManager,
     // Store task handle to ensure it stays alive
     ebpf_task: Option<tokio::task::JoinHandle<()>>,
-
     // tracks relevant processes killed with oom
     oom_victims: HashMap<usize, OutOfMemoryTrigger>, // Map of pid -> oom trigger
 }

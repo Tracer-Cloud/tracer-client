@@ -6,7 +6,7 @@ use tracer_common::types::ebpf_trigger::{ExitReason, OutOfMemoryTrigger, Process
 use tracing::debug;
 
 /// Enriches finish triggers with OOM reason if they were OOM victims
-pub async fn handle_oom_terminations(
+pub async fn handle_out_of_memory_terminations(
     state: &Arc<RwLock<ProcessState>>,
     finish_triggers: &mut [ProcessEndTrigger],
 ) {
@@ -20,7 +20,7 @@ pub async fn handle_oom_terminations(
     }
 }
 
-pub async fn handle_oom_signals(
+pub async fn handle_out_of_memory_signals(
     state: &Arc<RwLock<ProcessState>>,
     triggers: Vec<OutOfMemoryTrigger>,
 ) -> HashMap<usize, OutOfMemoryTrigger> {

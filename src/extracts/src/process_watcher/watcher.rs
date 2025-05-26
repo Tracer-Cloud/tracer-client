@@ -1,7 +1,7 @@
 use chrono::DateTime;
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 
-use super::utils::{handle_oom_signals, handle_oom_terminations};
+use super::utils::{handle_out_of_memory_signals, handle_out_of_memory_terminations};
 use crate::data_samples::DATA_SAMPLES_EXT;
 use crate::file_watcher::FileWatcher;
 use anyhow::Result;
@@ -69,7 +69,6 @@ impl ProcessWatcher {
             processes: HashMap::new(),
             monitoring: HashMap::new(),
             target_manager,
-            datasamples_tracker: HashMap::new(),
             ebpf_task: None,
             oom_victims: HashMap::new(),
         }));
@@ -209,12 +208,12 @@ impl ProcessWatcher {
         // Process omm triggers first
         if !out_of_memory_triggers.is_empty() {
             debug!("Processing {} oom processes", out_of_memory_triggers.len());
-            handle_oom_signals(&self.state, out_of_memory_triggers).await;
+            handle_out_of_memory_signals(&self.state, out_of_memory_triggers).await;
         }
         if !process_end_triggers.is_empty() {
             debug!("Processing {} finishing processes", process_end_triggers.len());
 
-            handle_oom_terminations(&self.state, &mut process_end_triggers).await;
+            handle_out_of_memory_terminations(&self.state, &mut process_end_triggers).await;
             self.handle_process_terminations(process_end_triggers).await?;
         }
 
@@ -625,11 +624,6 @@ impl ProcessWatcher {
             }
         };
 
-        if let ProcessProperties::Full(ref full_properties) = properties {
-            self.log_datasets_in_process(&process.argv, full_properties)
-                .await?;
-        }
-
         self.log_recorder
             .log(
                 TracerProcessStatus::ToolExecution,
@@ -825,70 +819,7 @@ impl ProcessWatcher {
 
         (container_id, job_id, trace_id)
     }
-
-    /// Builds dataset properties by tracking dataset files used in the process
-    ///
-    /// Returns dataset properties with information about tracked datasets for the given trace ID
-    async fn build_dataset_properties(
-        self: &Arc<Self>,
-        cmd: &[String],
-        trace_id: Option<String>,
-    ) -> DataSetsProcessed {
-        let trace_key = trace_id.clone().unwrap_or_default();
-        let mut state = self.state.write().await;
-
-        // Find and track datasets in command arguments
-        for arg in cmd.iter() {
-            if DATA_SAMPLES_EXT.iter().any(|ext| arg.ends_with(ext)) {
-                state
-                    .datasamples_tracker
-                    .entry(trace_key.clone())
-                    .or_default()
-                    .insert(arg.clone());
-            }
-        }
-
-        // Get the datasets for the current trace
-        let datasets = state
-            .datasamples_tracker
-            .get(&trace_key)
-            .map(|set| set.iter().cloned().collect::<Vec<_>>().join(", "))
-            .unwrap_or_default();
-
-        // Get total datasets count
-        let total = state
-            .datasamples_tracker
-            .get(&trace_key)
-            .map_or(0, |set| set.len() as u64);
-
-        // Create and return the dataset properties
-        DataSetsProcessed {
-            datasets,
-            total,
-            trace_id,
-        }
-    }
-
-    /// Logs dataset information for a process
-    async fn log_datasets_in_process(
-        self: &Arc<Self>,
-        cmd: &[String],
-        properties: &FullProcessProperties,
-    ) -> Result<()> {
-        let dataset_properties = self
-            .build_dataset_properties(cmd, properties.trace_id.clone())
-            .await;
-
-        self.log_recorder
-            .log(
-                TracerProcessStatus::DataSamplesEvent,
-                format!("[{}] Samples Processed So Far", Utc::now()),
-                Some(EventAttributes::ProcessDatasetStats(dataset_properties)),
-                None,
-            )
-            .await
-    }
-
+    
     /// Polls and updates metrics for all monitored processes
     pub async fn poll_process_metrics(self: &Arc<Self>) -> Result<()> {
         debug!("Polling process metrics");
@@ -1023,7 +954,6 @@ mod tests {
             processes,
             monitoring: HashMap::new(),
             target_manager,
-            datasamples_tracker: HashMap::new(),
             oom_victims: HashMap::new(),
             ebpf_task: None,
         };
