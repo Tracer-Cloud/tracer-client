@@ -1,6 +1,6 @@
 use crate::process_watcher::extract_process_data::ExtractProcessData;
-use crate::process_watcher::{ProcessState};
-use chrono::{Utc};
+use crate::process_watcher::ProcessState;
+use chrono::Utc;
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;

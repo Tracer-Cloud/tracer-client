@@ -19,10 +19,7 @@ pub struct ProcessWatcher {
 }
 
 impl ProcessWatcher {
-    pub fn new(
-        target_manager: TargetManager,
-        log_recorder: LogRecorder,
-    ) -> Self {
+    pub fn new(target_manager: TargetManager, log_recorder: LogRecorder) -> Self {
         // instantiate the process manager
         let process_manager = Arc::new(RwLock::new(ProcessManager::new(
             target_manager.clone(),
@@ -234,7 +231,7 @@ impl ProcessWatcher {
 //     use tracer_common::target_process::targets_list::TARGETS;
 //     use tracer_common::types::current_run::{PipelineMetadata, Run};
 //     use tracer_common::types::pipeline_tags::PipelineTags;
-// 
+//
 //     // Helper function to create a process trigger with specified properties
 //     fn create_process_trigger(
 //         pid: usize,
@@ -254,7 +251,7 @@ impl ProcessWatcher {
 //                 .into(),
 //         }
 //     }
-// 
+//
 //     // Helper function to create a mock LogRecorder
 //     fn create_mock_log_recorder() -> LogRecorder {
 //         let pipeline = PipelineMetadata {
@@ -266,13 +263,13 @@ impl ProcessWatcher {
 //         let (tx, _rx) = mpsc::channel(10);
 //         LogRecorder::new(pipeline_arc, tx)
 //     }
-// 
+//
 //     // Helper function to create a mock FileWatcher
 //     fn create_mock_file_watcher() -> Arc<RwLock<FileWatcher>> {
 //         let temp_dir = TempDir::new().expect("Failed to create temporary directory");
 //         Arc::new(RwLock::new(FileWatcher::new(temp_dir)))
 //     }
-// 
+//
 //     // Helper function to set up a process watcher with specified targets and processes
 //     fn setup_process_watcher(
 //         target_manager: TargetManager,
@@ -285,11 +282,11 @@ impl ProcessWatcher {
 //             oom_victims: HashMap::new(),
 //             ebpf_task: None,
 //         };
-// 
+//
 //         let log_recorder = create_mock_log_recorder();
 //         let file_watcher = create_mock_file_watcher();
 //         let state = Arc::new(RwLock::new(state));
-// 
+//
 //         Arc::new(ProcessWatcher {
 //             ebpf: once_cell::sync::OnceCell::new(),
 //             log_recorder,
@@ -299,14 +296,14 @@ impl ProcessWatcher {
 //             process_manager: None,
 //         })
 //     }
-// 
+//
 //     #[tokio::test]
 //     async fn test_find_matching_processes_direct_match() {
 //         // Create a target and set up the watcher
 //         let target = Target::new(TargetMatch::ProcessName("test_process".to_string()));
 //         let mgr = TargetManager::new(vec![target.clone()], vec![]);
 //         let watcher = setup_process_watcher(mgr, HashMap::new());
-// 
+//
 //         // Create a process that directly matches the target
 //         let process = create_process_trigger(
 //             100,
@@ -315,25 +312,25 @@ impl ProcessWatcher {
 //             vec!["test_process", "--arg1", "value1"],
 //             "/usr/bin/test_process",
 //         );
-// 
+//
 //         // Test the function
 //         let result = watcher
 //             .find_matching_processes(vec![process])
 //             .await
 //             .unwrap();
-// 
+//
 //         // Assert the process was matched to the target
 //         assert_eq!(result.len(), 1);
 //         assert!(result.contains_key(&target));
 //     }
-// 
+//
 //     #[tokio::test]
 //     async fn test_find_matching_processes_no_match() {
 //         // Create a target and set up the watcher
 //         let target = Target::new(TargetMatch::ProcessName("test_process".to_string()));
 //         let mgr = TargetManager::new(vec![target.clone()], vec![]);
 //         let watcher = setup_process_watcher(mgr, HashMap::new());
-// 
+//
 //         // Create a process that doesn't match any target
 //         let process = create_process_trigger(
 //             100,
@@ -342,23 +339,23 @@ impl ProcessWatcher {
 //             vec!["non_matching_process", "--arg1", "value1"],
 //             "/usr/bin/non_matching_process",
 //         );
-// 
+//
 //         // Test the function
 //         let result = watcher
 //             .find_matching_processes(vec![process])
 //             .await
 //             .unwrap();
-// 
+//
 //         // Assert no processes were matched
 //         assert_eq!(result.len(), 0);
 //     }
-// 
+//
 //     #[tokio::test]
 //     async fn test_find_matching_processes_parent_match_with_force_ancestor_false() {
 //         // Create a target that matches parent process and has force_ancestor_to_match=false
 //         let target = Target::new(TargetMatch::ProcessName("parent_process".to_string()))
 //             .set_force_ancestor_to_match(false);
-// 
+//
 //         // Create a parent process
 //         let parent_process = create_process_trigger(
 //             50,
@@ -367,7 +364,7 @@ impl ProcessWatcher {
 //             vec!["parent_process"],
 //             "/usr/bin/parent_process",
 //         );
-// 
+//
 //         // Create a child process that doesn't match any target
 //         let child_process = create_process_trigger(
 //             100,
@@ -376,38 +373,38 @@ impl ProcessWatcher {
 //             vec!["child_process"],
 //             "/usr/bin/child_process",
 //         );
-// 
+//
 //         // Create the initial state with the parent process already in it
 //         let mut processes = HashMap::new();
 //         processes.insert(parent_process.pid, parent_process);
-// 
+//
 //         // Set up the watcher with these processes and target
 //         let mgr = TargetManager::new(vec![target.clone()], vec![]);
 //         let watcher = setup_process_watcher(mgr, processes);
-// 
+//
 //         // Test with the child process
 //         let result = watcher
 //             .find_matching_processes(vec![child_process.clone()])
 //             .await
 //             .unwrap();
-// 
+//
 //         // Assert the child process was matched to the target because its parent matches
 //         // and force_ancestor_to_match is false
 //         assert_eq!(result.len(), 1);
 //         assert!(result.contains_key(&target));
-// 
+//
 //         // Also verify the child process is the one that was matched
 //         let matched_processes = result.get(&target).unwrap();
 //         assert_eq!(matched_processes.len(), 1);
 //         assert!(matched_processes.contains(&child_process));
 //     }
-// 
+//
 //     #[tokio::test]
 //     async fn test_find_matching_processes_parent_match_with_force_ancestor_true() {
 //         // Create a target that matches parent process but has force_ancestor_to_match=true
 //         let target = Target::new(TargetMatch::ProcessName("parent_process".to_string()));
 //         // force_ancestor_to_match is true by default
-// 
+//
 //         // Create a parent process
 //         let parent_process = create_process_trigger(
 //             50,
@@ -416,7 +413,7 @@ impl ProcessWatcher {
 //             vec!["parent_process"],
 //             "/usr/bin/parent_process",
 //         );
-// 
+//
 //         // Create a child process that doesn't match any target
 //         let child_process = create_process_trigger(
 //             100,
@@ -425,25 +422,25 @@ impl ProcessWatcher {
 //             vec!["child_process"],
 //             "/usr/bin/child_process",
 //         );
-// 
+//
 //         // Create the initial state with the parent process already in it
 //         let mut processes = HashMap::new();
 //         processes.insert(parent_process.pid, parent_process);
-// 
+//
 //         // Set up the watcher with these processes and target
 //         let mgr = TargetManager::new(vec![target], vec![]);
 //         let watcher = setup_process_watcher(mgr, processes);
-// 
+//
 //         // Test with the child process
 //         let result = watcher
 //             .find_matching_processes(vec![child_process])
 //             .await
 //             .unwrap();
-// 
+//
 //         // Assert the child process was NOT matched to the target because force_ancestor_to_match is true
 //         assert_eq!(result.len(), 0);
 //     }
-// 
+//
 //     #[rstest]
 //     #[case::excluded_bash(
 //     create_process_trigger(
@@ -516,15 +513,15 @@ impl ProcessWatcher {
 //     ) {
 //         let mgr = TargetManager::new(TARGETS.to_vec(), vec![]);
 //         let watcher = setup_process_watcher(mgr, HashMap::new());
-// 
+//
 //         let result = watcher
 //             .find_matching_processes(vec![process])
 //             .await
 //             .unwrap();
-// 
+//
 //         assert_eq!(result.len(), expected_count, "{}", msg);
 //     }
-// 
+//
 //     #[rstest]
 //     #[case::command_script(
 //     create_process_trigger(
@@ -556,7 +553,7 @@ impl ProcessWatcher {
 //             .find_matching_processes(vec![process])
 //             .await
 //             .unwrap();
-// 
+//
 //         assert_eq!(
 //             result.len(),
 //             0,
@@ -573,7 +570,7 @@ impl ProcessWatcher {
 //             started_at: chrono::Utc::now(),
 //         }
 //     }
-// 
+//
 //     #[test]
 //     fn test_blacklist_excludes_match() {
 //         let blacklist = vec![Target::new(TargetMatch::CommandContains(
@@ -583,13 +580,13 @@ impl ProcessWatcher {
 //             },
 //         ))];
 //         let targets = vec![Target::new(TargetMatch::ProcessName("fastqc".to_string()))];
-// 
+//
 //         let mgr = TargetManager::new(targets, blacklist);
 //         let proc = dummy_process("fastqc", "spack activate && fastqc", "/usr/bin/fastqc");
-// 
+//
 //         assert!(mgr.get_target_match(&proc).is_none());
 //     }
-// 
+//
 //     #[test]
 //     fn test_target_match_without_blacklist() {
 //         let mgr = TargetManager::new(

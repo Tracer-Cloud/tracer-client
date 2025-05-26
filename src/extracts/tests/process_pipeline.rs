@@ -217,10 +217,7 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
 
     let mgr = TargetManager::new(vec![target.clone()], vec![]);
 
-    let watcher = Arc::new(ProcessWatcher::new(
-        mgr,
-        log_recorder,
-    ));
+    let watcher = Arc::new(ProcessWatcher::new(mgr, log_recorder));
 
     let now = Utc::now();
     let start_trigger = ProcessStartTrigger {

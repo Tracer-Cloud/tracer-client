@@ -84,8 +84,7 @@ impl TracerClient {
         let (log_recorder, rx) = Self::init_log_recorder(&pipeline);
         let system = Arc::new(RwLock::new(System::new_all()));
 
-        let process_watcher =
-            Self::init_process_watcher(&config, &log_recorder);
+        let process_watcher = Self::init_process_watcher(&config, &log_recorder);
 
         let exporter = Arc::new(ExporterManager::new(db_client, rx, pipeline.clone()));
 
@@ -151,18 +150,12 @@ impl TracerClient {
         (log_recorder, rx)
     }
 
-    fn init_process_watcher(
-        config: &Config,
-        log_recorder: &LogRecorder,
-    ) -> Arc<ProcessWatcher> {
+    fn init_process_watcher(config: &Config, log_recorder: &LogRecorder) -> Arc<ProcessWatcher> {
         let target_manager = TargetManager::new(
             config.targets.clone(),
             DEFAULT_EXCLUDED_PROCESS_RULES.to_vec(),
         );
-        Arc::new(ProcessWatcher::new(
-            target_manager,
-            log_recorder.clone(),
-        ))
+        Arc::new(ProcessWatcher::new(target_manager, log_recorder.clone()))
     }
 
     fn init_watchers(

@@ -1,7 +1,7 @@
 use crate::process_watcher::process_utils::process_status_to_string;
 use chrono::{DateTime, Utc};
 use std::path::Path;
-use sysinfo::{Process};
+use sysinfo::Process;
 use tracer_common::types::event::attributes::process::{FullProcessProperties, ProcessProperties};
 use tracing::debug;
 
