@@ -1,9 +1,10 @@
 use chrono::DateTime;
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 
-use super::utils::{handle_out_of_memory_signals, handle_out_of_memory_terminations};
+use super::ProcessState;
 use crate::data_samples::DATA_SAMPLES_EXT;
 use crate::file_watcher::FileWatcher;
+use crate::process_watcher::process_manager::ProcessManager;
 use anyhow::Result;
 use chrono::Utc;
 use itertools::Itertools;
@@ -26,8 +27,6 @@ use tracer_common::types::event::attributes::process::{
 use tracer_common::types::event::attributes::EventAttributes;
 use tracer_ebpf::binding::start_processing_events;
 use tracing::{debug, error};
-
-use super::ProcessState;
 
 enum ProcessResult {
     NotFound,
@@ -57,7 +56,7 @@ pub struct ProcessWatcher {
     log_recorder: LogRecorder,
     file_watcher: Arc<RwLock<FileWatcher>>,
     system: Arc<RwLock<System>>,
-    state: Arc<RwLock<ProcessState>>,
+    process_manager: Arc<RwLock<ProcessManager>>,
 }
 
 impl ProcessWatcher {
@@ -67,27 +66,27 @@ impl ProcessWatcher {
         file_watcher: Arc<RwLock<FileWatcher>>,
         system: Arc<RwLock<System>>,
     ) -> Self {
-        let state = Arc::new(RwLock::new(ProcessState {
-            processes: HashMap::new(),
-            monitoring: HashMap::new(),
-            target_manager,
-            ebpf_task: None,
-            oom_victims: HashMap::new(),
-        }));
+        // instantiate the process manager
+        let process_manager = Arc::new(RwLock::new(ProcessManager::new(
+            target_manager.clone(),
+            log_recorder.clone(),
+        )));
 
         ProcessWatcher {
             ebpf: once_cell::sync::OnceCell::new(),
             log_recorder,
             file_watcher,
             system,
-            state,
+            process_manager,
         }
     }
 
-    /// Updates the list of targets being watched
-    pub async fn update_targets(self: &Arc<Self>, targets: Vec<Target>) -> Result<()> {
-        let mut state = self.state.write().await;
-        state.target_manager.targets = targets;
+    pub async fn update_targets(self: &Arc<Self>, targets: Vec<Target>) -> anyhow::Result<()> {
+        self.process_manager
+            .write()
+            .await
+            .update_targets(targets)
+            .await?;
         Ok(())
     }
 
@@ -117,7 +116,8 @@ impl ProcessWatcher {
         match tokio::runtime::Handle::try_current() {
             Ok(_) => {
                 tokio::spawn(async move {
-                    let mut state = self.state.write().await;
+                    let mut process_manager = self.process_manager.write().await;
+                    let mut state = process_manager.get_state_mut().await;
                     state.ebpf_task = Some(task);
                 });
             }
@@ -177,10 +177,7 @@ impl ProcessWatcher {
     }
 
     /// Processes a batch of triggers, separating start, finish, and OOM events
-    pub async fn process_triggers(
-        self: &Arc<ProcessWatcher>,
-        triggers: Vec<Trigger>,
-    ) -> Result<()> {
+    pub async fn process_triggers(self: &Arc<Self>, triggers: Vec<Trigger>) -> Result<()> {
         let mut process_start_triggers: Vec<ProcessStartTrigger> = vec![];
         let mut process_end_triggers: Vec<ProcessEndTrigger> = vec![];
         let mut out_of_memory_triggers: Vec<OutOfMemoryTrigger> = vec![];
@@ -213,7 +210,11 @@ impl ProcessWatcher {
         // Process omm triggers first
         if !out_of_memory_triggers.is_empty() {
             debug!("Processing {} oom processes", out_of_memory_triggers.len());
-            handle_out_of_memory_signals(&self.state, out_of_memory_triggers).await;
+            self.process_manager
+                .write()
+                .await
+                .handle_out_of_memory_signals(out_of_memory_triggers)
+                .await;
         }
         if !process_end_triggers.is_empty() {
             debug!(
@@ -221,7 +222,11 @@ impl ProcessWatcher {
                 process_end_triggers.len()
             );
 
-            handle_out_of_memory_terminations(&self.state, &mut process_end_triggers).await;
+            self.process_manager
+                .write()
+                .await
+                .handle_out_of_memory_terminations(&mut process_end_triggers)
+                .await;
             self.handle_process_terminations(process_end_triggers)
                 .await?;
         }
@@ -234,107 +239,6 @@ impl ProcessWatcher {
             );
             self.handle_process_starts(process_start_triggers).await?;
         }
-
-        Ok(())
-    }
-
-    async fn remove_processes_from_state(
-        self: &Arc<Self>,
-        triggers: &[ProcessEndTrigger],
-    ) -> Result<()> {
-        let mut state = self.state.write().await;
-        for trigger in triggers.iter() {
-            state.processes.remove(&trigger.pid);
-        }
-        Ok(())
-    }
-
-    async fn handle_process_terminations(
-        self: &Arc<Self>,
-        triggers: Vec<ProcessEndTrigger>,
-    ) -> Result<()> {
-        debug!("Processing {} process terminations", triggers.len());
-
-        // Remove terminated processes from the state
-        self.remove_processes_from_state(&triggers).await?;
-
-        // Map PIDs to finish triggers for easy lookup
-        let mut pid_to_finish: HashMap<_, _> =
-            triggers.into_iter().map(|proc| (proc.pid, proc)).collect();
-
-        // Find all processes that we were monitoring that have terminated
-        let terminated_processes: HashSet<_> = {
-            let mut state = self.state.write().await;
-
-            state
-                .monitoring
-                .iter_mut()
-                .flat_map(|(_, procs)| {
-                    // Partition processes into terminated and still running
-                    let (terminated, still_running): (Vec<_>, Vec<_>) = procs
-                        .drain()
-                        .partition(|proc| pid_to_finish.contains_key(&proc.pid));
-
-                    // Update monitoring with still running processes
-                    *procs = still_running.into_iter().collect();
-
-                    // Return terminated processes
-                    terminated
-                })
-                .collect()
-        };
-
-        debug!(
-            "Removed {} processes. terminated={:?}, pid_to_finish={:?}",
-            terminated_processes.len(),
-            terminated_processes,
-            pid_to_finish
-        );
-
-        // Log completion events for each terminated process
-        for start_trigger in terminated_processes {
-            let Some(finish_trigger) = pid_to_finish.remove(&start_trigger.pid) else {
-                error!("Process doesn't exist: start_trigger={:?}", start_trigger);
-                continue;
-            };
-            // should be safe since
-            // - we've checked the key is present
-            // - we have an exclusive lock on the state
-            // - if trigger is duplicated in monitoring (can happen if it matches several targets),
-            //   it'll be deduplicated via hashset
-
-            self.log_process_completion(&start_trigger, &finish_trigger)
-                .await?;
-        }
-
-        Ok(())
-    }
-
-    async fn log_process_completion(
-        self: &Arc<Self>,
-        start_trigger: &ProcessStartTrigger,
-        finish_trigger: &ProcessEndTrigger,
-    ) -> Result<()> {
-        let duration_sec = (finish_trigger.finished_at - start_trigger.started_at)
-            .num_seconds()
-            .try_into()
-            .unwrap_or(0);
-
-        let properties = CompletedProcess {
-            tool_name: start_trigger.comm.clone(),
-            tool_pid: start_trigger.pid.to_string(),
-            duration_sec,
-            exit_reason: finish_trigger.exit_reason.clone(),
-        };
-
-        self.log_recorder
-            .log(
-                TracerProcessStatus::FinishedToolExecution,
-                format!("[{}] {} exited", Utc::now(), &start_trigger.comm),
-                Some(EventAttributes::CompletedProcess(properties)),
-                None,
-            )
-            .await?;
 
         Ok(())
     }
