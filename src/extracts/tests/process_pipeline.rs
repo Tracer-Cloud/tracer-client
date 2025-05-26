@@ -14,7 +14,7 @@ use tracer_common::types::current_run::{PipelineMetadata, Run};
 use tracer_common::types::event::attributes::{process::ProcessProperties, EventAttributes};
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 use tracer_common::types::pipeline_tags::PipelineTags;
-use tracer_common::types::trigger::{FinishTrigger, ProcessTrigger, Trigger};
+use tracer_common::types::ebpf_trigger::{ProcessEndTrigger, ProcessStartTrigger, Trigger};
 use tracer_extracts::file_watcher::FileWatcher;
 use tracer_extracts::process_watcher::ProcessWatcher;
 
@@ -44,7 +44,7 @@ async fn test_process_triggers_process_lifecycle() -> anyhow::Result<()> {
 
     let watcher = Arc::new(ProcessWatcher::new(mgr, log_recorder, file_watcher, system));
 
-    let start_trigger = ProcessTrigger {
+    let start_trigger = ProcessStartTrigger {
         pid,
         ppid: 1,
         comm: "test_process".to_string(),
@@ -57,14 +57,14 @@ async fn test_process_triggers_process_lifecycle() -> anyhow::Result<()> {
         started_at: now,
     };
 
-    let finish_trigger = FinishTrigger {
+    let finish_trigger = ProcessEndTrigger {
         pid,
         finished_at: now + chrono::Duration::seconds(10),
         exit_reason: None,
     };
 
     // 1. Test that process creation is handled correctly
-    let start_triggers = vec![Trigger::Start(start_trigger.clone())];
+    let start_triggers = vec![Trigger::ProcessStart(start_trigger.clone())];
     watcher.process_triggers(start_triggers).await?;
 
     let start_event = rx
@@ -94,7 +94,7 @@ async fn test_process_triggers_process_lifecycle() -> anyhow::Result<()> {
     assert_eq!(props.tool_binary_path, "/usr/bin/test_process");
 
     // 2. Test that process termination is handled correctly
-    let finish_triggers = vec![Trigger::Finish(finish_trigger)];
+    let finish_triggers = vec![Trigger::ProcessEnd(finish_trigger)];
     watcher.process_triggers(finish_triggers).await?;
 
     let finish_event = rx
@@ -149,7 +149,7 @@ async fn test_process_triggers_no_matching_targets() -> anyhow::Result<()> {
 
     let now = Utc::now();
     let pid = (1u32 << 30) - 1;
-    let start_trigger = ProcessTrigger {
+    let start_trigger = ProcessStartTrigger {
         pid: pid as usize,
         ppid: 1,
         comm: "test_process".to_string(),
@@ -162,13 +162,13 @@ async fn test_process_triggers_no_matching_targets() -> anyhow::Result<()> {
         started_at: now,
     };
 
-    let finish_trigger = FinishTrigger {
+    let finish_trigger = ProcessEndTrigger {
         pid: pid as usize,
         finished_at: now + chrono::Duration::seconds(10),
         exit_reason: None,
     };
 
-    let start_triggers = vec![Trigger::Start(start_trigger.clone())];
+    let start_triggers = vec![Trigger::ProcessStart(start_trigger.clone())];
     watcher.process_triggers(start_triggers).await?;
 
     assert!(
@@ -176,7 +176,7 @@ async fn test_process_triggers_no_matching_targets() -> anyhow::Result<()> {
         "Should not receive events for non-matching processes"
     );
 
-    let finish_triggers = vec![Trigger::Finish(finish_trigger)];
+    let finish_triggers = vec![Trigger::ProcessEnd(finish_trigger)];
     watcher.process_triggers(finish_triggers).await?;
 
     assert!(
@@ -235,7 +235,7 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
     ));
 
     let now = Utc::now();
-    let start_trigger = ProcessTrigger {
+    let start_trigger = ProcessStartTrigger {
         pid,
         ppid: 1,
         comm: "sleep".to_string(),
@@ -245,7 +245,7 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
     };
 
     // 1. Send start trigger and verify the process starts correctly
-    let start_triggers = vec![Trigger::Start(start_trigger.clone())];
+    let start_triggers = vec![Trigger::ProcessStart(start_trigger.clone())];
     watcher.process_triggers(start_triggers).await?;
 
     let mut execution_event = rx
@@ -362,13 +362,13 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
         "Timestamp should be in ISO time"
     );
 
-    let finish_trigger = FinishTrigger {
+    let finish_trigger = ProcessEndTrigger {
         pid,
         finished_at: now + chrono::Duration::seconds(5),
         exit_reason: None,
     };
 
-    let finish_triggers = vec![Trigger::Finish(finish_trigger)];
+    let finish_triggers = vec![Trigger::ProcessEnd(finish_trigger)];
     watcher.process_triggers(finish_triggers).await?;
 
     let finish_event = rx

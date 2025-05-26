@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::types::trigger::ExitReason;
+use crate::types::ebpf_trigger::ExitReason;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct InputFile {

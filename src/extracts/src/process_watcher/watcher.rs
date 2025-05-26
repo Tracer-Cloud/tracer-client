@@ -1,6 +1,5 @@
 use chrono::DateTime;
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
-use tracer_common::types::trigger::OomTrigger;
 
 use super::utils::{handle_oom_signals, handle_oom_terminations};
 use crate::data_samples::DATA_SAMPLES_EXT;
@@ -22,7 +21,7 @@ use tracer_common::types::event::attributes::process::{
     ShortProcessProperties,
 };
 use tracer_common::types::event::attributes::EventAttributes;
-use tracer_common::types::trigger::{FinishTrigger, ProcessTrigger, Trigger};
+use tracer_common::types::ebpf_trigger::{OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger, Trigger};
 use tracer_ebpf::binding::start_processing_events;
 use tracing::{debug, error};
 
@@ -181,48 +180,48 @@ impl ProcessWatcher {
         self: &Arc<ProcessWatcher>,
         triggers: Vec<Trigger>,
     ) -> Result<()> {
-        let mut start_triggers: Vec<ProcessTrigger> = vec![];
-        let mut finish_triggers: Vec<FinishTrigger> = vec![];
-        let mut oom_triggers: Vec<OomTrigger> = vec![];
+        let mut process_start_triggers: Vec<ProcessStartTrigger> = vec![];
+        let mut process_end_triggers: Vec<ProcessEndTrigger> = vec![];
+        let mut out_of_memory_triggers: Vec<OutOfMemoryTrigger> = vec![];
 
         debug!("ProcessWatcher: processing {} triggers", triggers.len());
 
         for trigger in triggers.into_iter() {
             match trigger {
-                Trigger::Start(proc) => {
+                Trigger::ProcessStart(process_started) => {
                     debug!(
                         "ProcessWatcher: received START trigger pid={}, cmd={}",
-                        proc.pid, proc.comm
+                        process_started.pid, process_started.comm
                     );
-                    start_triggers.push(proc);
+                    process_start_triggers.push(process_started);
                 }
-                Trigger::Finish(proc) => {
-                    debug!("ProcessWatcher: received FINISH trigger pid={}", proc.pid);
-                    finish_triggers.push(proc);
+                Trigger::ProcessEnd(process_end) => {
+                    debug!("ProcessWatcher: received FINISH trigger pid={}", process_end.pid);
+                    process_end_triggers.push(process_end);
                 }
-                Trigger::Oom(oom) => {
-                    debug!("OOM trigger pid={}", oom.pid);
-                    oom_triggers.push(oom);
+                Trigger::OutOfMemory(out_of_memory) => {
+                    debug!("OOM trigger pid={}", out_of_memory.pid);
+                    out_of_memory_triggers.push(out_of_memory);
                 }
             }
         }
 
         // Process omm triggers first
-        if !oom_triggers.is_empty() {
-            debug!("Processing {} oom processes", oom_triggers.len());
-            handle_oom_signals(&self.state, oom_triggers).await;
+        if !out_of_memory_triggers.is_empty() {
+            debug!("Processing {} oom processes", out_of_memory_triggers.len());
+            handle_oom_signals(&self.state, out_of_memory_triggers).await;
         }
-        if !finish_triggers.is_empty() {
-            debug!("Processing {} finishing processes", finish_triggers.len());
+        if !process_end_triggers.is_empty() {
+            debug!("Processing {} finishing processes", process_end_triggers.len());
 
-            handle_oom_terminations(&self.state, &mut finish_triggers).await;
-            self.handle_process_terminations(finish_triggers).await?;
+            handle_oom_terminations(&self.state, &mut process_end_triggers).await;
+            self.handle_process_terminations(process_end_triggers).await?;
         }
 
         // Then process start triggers
-        if !start_triggers.is_empty() {
-            debug!("Processing {} creating processes", start_triggers.len());
-            self.handle_process_starts(start_triggers).await?;
+        if !process_start_triggers.is_empty() {
+            debug!("Processing {} creating processes", process_start_triggers.len());
+            self.handle_process_starts(process_start_triggers).await?;
         }
 
         Ok(())
@@ -230,7 +229,7 @@ impl ProcessWatcher {
 
     async fn remove_processes_from_state(
         self: &Arc<Self>,
-        triggers: &[FinishTrigger],
+        triggers: &[ProcessEndTrigger],
     ) -> Result<()> {
         let mut state = self.state.write().await;
         for trigger in triggers.iter() {
@@ -241,7 +240,7 @@ impl ProcessWatcher {
 
     async fn handle_process_terminations(
         self: &Arc<Self>,
-        triggers: Vec<FinishTrigger>,
+        triggers: Vec<ProcessEndTrigger>,
     ) -> Result<()> {
         debug!("Processing {} process terminations", triggers.len());
 
@@ -302,8 +301,8 @@ impl ProcessWatcher {
 
     async fn log_process_completion(
         self: &Arc<Self>,
-        start_trigger: &ProcessTrigger,
-        finish_trigger: &FinishTrigger,
+        start_trigger: &ProcessStartTrigger,
+        finish_trigger: &ProcessEndTrigger,
     ) -> Result<()> {
         let duration_sec = (finish_trigger.finished_at - start_trigger.started_at)
             .num_seconds()
@@ -331,7 +330,7 @@ impl ProcessWatcher {
 
     async fn handle_process_starts(
         self: &Arc<ProcessWatcher>,
-        triggers: Vec<ProcessTrigger>,
+        triggers: Vec<ProcessStartTrigger>,
     ) -> Result<()> {
         debug!("Processing {} process starts", triggers.len());
 
@@ -378,8 +377,8 @@ impl ProcessWatcher {
 
     async fn filter_processes_of_interest(
         self: &Arc<ProcessWatcher>,
-        triggers: Vec<ProcessTrigger>,
-    ) -> Result<HashMap<Target, HashSet<ProcessTrigger>>> {
+        triggers: Vec<ProcessStartTrigger>,
+    ) -> Result<HashMap<Target, HashSet<ProcessStartTrigger>>> {
         // Store all triggers in the state
         {
             let mut state = self.state.write().await;
@@ -454,8 +453,8 @@ impl ProcessWatcher {
     /// Will panic if a cycle is detected in the process hierarchy.
     fn get_process_hierarchy(
         state: &ProcessState,
-        process: ProcessTrigger,
-    ) -> HashSet<ProcessTrigger> {
+        process: ProcessStartTrigger,
+    ) -> HashSet<ProcessStartTrigger> {
         let mut current_pid = process.ppid;
         let mut hierarchy = HashSet::new();
         // Keep track of visited PIDs to detect cycles
@@ -500,8 +499,8 @@ impl ProcessWatcher {
     /// Will panic if a cycle is detected in the process hierarchy.
     fn get_process_parents<'a>(
         state: &'a ProcessState,
-        process: &'a ProcessTrigger,
-    ) -> HashSet<&'a ProcessTrigger> {
+        process: &'a ProcessStartTrigger,
+    ) -> HashSet<&'a ProcessStartTrigger> {
         let mut current_pid = process.ppid;
         let mut hierarchy = HashSet::new();
         // Keep track of visited PIDs to detect cycles
@@ -543,8 +542,8 @@ impl ProcessWatcher {
 
     pub async fn find_matching_processes(
         self: &Arc<ProcessWatcher>,
-        triggers: Vec<ProcessTrigger>,
-    ) -> Result<HashMap<Target, HashSet<ProcessTrigger>>> {
+        triggers: Vec<ProcessStartTrigger>,
+    ) -> Result<HashMap<Target, HashSet<ProcessStartTrigger>>> {
         let state = self.state.read().await;
         let mut matched_processes = HashMap::new();
 
@@ -563,7 +562,7 @@ impl ProcessWatcher {
 
     fn get_matched_target<'a>(
         state: &'a ProcessState,
-        process: &ProcessTrigger,
+        process: &ProcessStartTrigger,
     ) -> Option<&'a Target> {
         if let Some(target) = state.target_manager.get_target_match(process) {
             return Some(target);
@@ -598,7 +597,7 @@ impl ProcessWatcher {
     async fn handle_new_process(
         self: &Arc<ProcessWatcher>,
         target: &Target,
-        process: &ProcessTrigger,
+        process: &ProcessStartTrigger,
     ) -> Result<ProcessResult> {
         debug!("Processing pid={}", process.pid);
 
@@ -646,7 +645,7 @@ impl ProcessWatcher {
     /// Creates properties for a short-lived process that wasn't found in the system
     fn create_short_lived_process_properties(
         &self,
-        process: &ProcessTrigger,
+        process: &ProcessStartTrigger,
         display_name: String,
     ) -> ProcessProperties {
         ProcessProperties::ShortLived(Box::new(ShortProcessProperties {
@@ -662,7 +661,7 @@ impl ProcessWatcher {
     async fn update_running_process(
         self: &Arc<ProcessWatcher>,
         target: &Target,
-        process: &ProcessTrigger,
+        process: &ProcessStartTrigger,
     ) -> Result<ProcessResult> {
         let display_name = target
             .get_display_name_object()
@@ -984,8 +983,8 @@ mod tests {
         comm: &str,
         args: Vec<&str>,
         file_name: &str,
-    ) -> ProcessTrigger {
-        ProcessTrigger {
+    ) -> ProcessStartTrigger {
+        ProcessStartTrigger {
             pid,
             ppid,
             comm: comm.to_string(),
@@ -1018,7 +1017,7 @@ mod tests {
     // Helper function to set up a process watcher with specified targets and processes
     fn setup_process_watcher(
         target_manager: TargetManager,
-        processes: HashMap<usize, ProcessTrigger>,
+        processes: HashMap<usize, ProcessStartTrigger>,
     ) -> Arc<ProcessWatcher> {
         let state = ProcessState {
             processes,
@@ -1253,7 +1252,7 @@ mod tests {
 )]
     #[tokio::test]
     async fn test_match_cases(
-        #[case] process: ProcessTrigger,
+        #[case] process: ProcessStartTrigger,
         #[case] expected_count: usize,
         #[case] msg: &str,
     ) {
@@ -1292,7 +1291,7 @@ mod tests {
     )
 )]
     #[tokio::test]
-    async fn test_nextflow_wrapped_scripts(#[case] process: ProcessTrigger) {
+    async fn test_nextflow_wrapped_scripts(#[case] process: ProcessStartTrigger) {
         let mgr = TargetManager::new(TARGETS.to_vec(), vec![]);
         let watcher = setup_process_watcher(mgr, HashMap::new());
         let result = watcher
@@ -1306,8 +1305,8 @@ mod tests {
             "Expected no matches for wrapped nextflow script"
         );
     }
-    fn dummy_process(name: &str, cmd: &str, path: &str) -> ProcessTrigger {
-        ProcessTrigger {
+    fn dummy_process(name: &str, cmd: &str, path: &str) -> ProcessStartTrigger {
+        ProcessStartTrigger {
             pid: 1,
             ppid: 0,
             comm: name.to_string(),
