@@ -1,23 +1,50 @@
-use crate::process_watcher::ProcessState;
-use chrono::Utc;
+use crate::process_watcher::{ProcessState, ProcessWatcher};
+use chrono::{DateTime, Utc};
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 use std::sync::Arc;
+use itertools::Itertools;
+use sysinfo::{Pid, Process, ProcessRefreshKind, ProcessStatus, System};
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tracer_common::recorder::LogRecorder;
 use tracer_common::target_process::manager::TargetManager;
-use tracer_common::target_process::Target;
+use tracer_common::target_process::{Target, TargetMatchable};
 use tracer_common::types::ebpf_trigger::{
     ExitReason, OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger,
 };
-use tracer_common::types::event::attributes::process::CompletedProcess;
+use tracer_common::types::event::attributes::process::{CompletedProcess, FullProcessProperties, ProcessProperties, ShortProcessProperties};
 use tracer_common::types::event::attributes::EventAttributes;
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 use tracing::{debug, error};
 
+enum ProcessResult {
+    NotFound,
+    Found,
+}
+
 pub struct ProcessManager {
     state: Arc<RwLock<ProcessState>>,
     log_recorder: LogRecorder,
+    system: Arc<RwLock<System>>,
 }
+
+fn process_status_to_string(status: &ProcessStatus) -> String {
+    match status {
+        ProcessStatus::Run => "Run".to_string(),
+        ProcessStatus::Sleep => "Sleep".to_string(),
+        ProcessStatus::Idle => "Idle".to_string(),
+        ProcessStatus::Zombie => "Zombie".to_string(),
+        ProcessStatus::Stop => "Stop".to_string(),
+        ProcessStatus::Parked => "Parked".to_string(),
+        ProcessStatus::Tracing => "Tracing".to_string(),
+        ProcessStatus::Dead => "Dead".to_string(),
+        ProcessStatus::UninterruptibleDiskSleep => "Uninterruptible Disk Sleep".to_string(),
+        ProcessStatus::Waking => "Waking".to_string(),
+        ProcessStatus::LockBlocked => "Lock Blocked".to_string(),
+        _ => "Unknown".to_string(),
+    }
+}
+
 
 impl ProcessManager {
     pub fn new(target_manager: TargetManager, log_recorder: LogRecorder) -> Self {
@@ -28,10 +55,13 @@ impl ProcessManager {
             ebpf_task: None,
             oom_victims: HashMap::new(),
         }));
+        
+        let system = Arc::new(RwLock::new(System::new_all()));
 
         ProcessManager {
             state,
             log_recorder,
+            system
         }
     }
 
@@ -107,7 +137,7 @@ impl ProcessManager {
         Ok(())
     }
 
-    async fn handle_process_terminations(
+    pub async fn handle_process_terminations(
         &self,
         triggers: Vec<ProcessEndTrigger>,
     ) -> anyhow::Result<()> {
@@ -196,4 +226,517 @@ impl ProcessManager {
 
         Ok(())
     }
+
+    pub async fn handle_process_starts(
+        &self,
+        triggers: Vec<ProcessStartTrigger>,
+    ) -> anyhow::Result<()> {
+        debug!("Processing {} process starts", triggers.len());
+
+        // Find processes we're interested in based on targets
+        let interested_in = self.filter_processes_of_interest(triggers).await?;
+
+        debug!(
+            "After filtering, interested in {} processes",
+            interested_in.len()
+        );
+
+        if interested_in.is_empty() {
+            return Ok(());
+        }
+
+        // Get the set of PIDs to refresh system data for
+        let pids_to_refresh = interested_in
+            .values()
+            .flat_map(|procs| procs.iter().map(|p| p.pid))
+            .collect();
+
+        // Refresh system data for these processes
+        self.refresh_system(&pids_to_refresh).await?;
+
+        // Process each new process
+        for (target, triggers) in interested_in.iter() {
+            for process in triggers.iter() {
+                self.handle_new_process(target, process).await?;
+            }
+        }
+
+        // Update monitoring state with new processes
+        let mut state = self.state.write().await;
+        for (target, processes) in interested_in.into_iter() {
+            state
+                .monitoring
+                .entry(target)
+                .or_default()
+                .extend(processes);
+        }
+
+        Ok(())
+    }
+
+    async fn filter_processes_of_interest(
+        &self,
+        triggers: Vec<ProcessStartTrigger>,
+    ) -> anyhow::Result<HashMap<Target, HashSet<ProcessStartTrigger>>> {
+        // Store all triggers in the state
+        {
+            let mut state = self.state.write().await;
+            for trigger in triggers.iter() {
+                state.processes.insert(trigger.pid, trigger.clone());
+            }
+        }
+
+        // Get PIDs of processes already being monitored
+        let state = self.state.read().await;
+        let already_monitored_pids: HashSet<usize> = state
+            .monitoring
+            .values()
+            .flat_map(|processes| processes.iter().map(|p| p.pid))
+            .collect();
+
+        // Find processes that match our targets
+        let matched_processes = self.find_matching_processes(triggers).await?;
+
+        // Filter out already monitored processes and include parent processes
+        let interested_in: HashMap<_, _> = matched_processes
+            .into_iter()
+            .map(|(target, processes)| {
+                let processes = processes
+                    .into_iter()
+                    .flat_map(|proc| {
+                        // Get the process and its parents
+                        let mut parents = self.get_process_hierarchy(&state, proc);
+                        // Filter out already monitored processes
+                        parents.retain(|p| !already_monitored_pids.contains(&p.pid));
+                        parents
+                    })
+                    .collect::<HashSet<_>>();
+
+                (target, processes)
+            })
+            .collect();
+
+        Ok(interested_in)
+    }
+
+    /// Refreshes system information for the specified PIDs
+    ///
+    /// Uses tokio's spawn_blocking to execute the potentially blocking refresh operation
+    /// without affecting the async runtime.
+    #[tracing::instrument(skip(self))]
+    async fn refresh_system(&self, pids: &HashSet<usize>) -> anyhow::Result<()> {
+        // Convert PIDs to the format expected by sysinfo
+        let pids_vec = pids.iter().map(|pid| Pid::from(*pid)).collect::<Vec<_>>();
+
+        // Clone the PIDs vector since we need to move it into the spawn_blocking closure
+        let pids_for_closure = pids_vec.clone();
+
+        // Get a mutable reference to the system
+        let system = Arc::clone(&self.system);
+
+        // Execute the blocking operation in a separate thread
+        tokio::task::spawn_blocking(move || {
+            let mut sys = system.blocking_write();
+            sys.refresh_pids_specifics(
+                pids_for_closure.as_slice(),
+                ProcessRefreshKind::everything(), // TODO(ENG-336): minimize data collected for performance
+            );
+        })
+            .await?;
+
+        Ok(())
+    }
+
+    /// Gets a process and all its parent processes from the state
+    ///
+    /// Will panic if a cycle is detected in the process hierarchy.
+    pub fn get_process_hierarchy(
+        &self,
+        state: &ProcessState,
+        process: ProcessStartTrigger,
+    ) -> HashSet<ProcessStartTrigger> {
+        let mut current_pid = process.ppid;
+        let mut hierarchy = HashSet::new();
+        // Keep track of visited PIDs to detect cycles
+        let mut visited_pids = HashSet::new();
+
+        // Store the process PID before moving the process
+        let process_pid = process.pid;
+
+        // Insert the process into the hierarchy (this moves the process)
+        hierarchy.insert(process);
+
+        // Add the starting process PID to visited
+        visited_pids.insert(process_pid);
+
+        // Traverse up the process tree to include all parent processes
+        while let Some(parent) = state.processes.get(&current_pid) {
+            // Check if we've seen this PID before - that would indicate a cycle
+            if visited_pids.contains(&parent.pid) {
+                // We have a cycle in the process hierarchy - this shouldn't happen
+                // in normal scenarios, but we'll panic to prevent infinite loops
+                panic!(
+                    "Cycle detected in process hierarchy! PID {} appears twice in parent chain",
+                    parent.pid
+                );
+            }
+
+            // Track that we've visited this PID
+            visited_pids.insert(parent.pid);
+
+            // Add parent to the hierarchy
+            hierarchy.insert(parent.clone());
+
+            // Move to the next parent
+            current_pid = parent.ppid;
+        }
+
+        hierarchy
+    }
+
+    /// Gets a process and all its parent processes from the state
+    ///
+    /// Will panic if a cycle is detected in the process hierarchy.
+    fn get_process_parents<'a>(
+        state: &'a ProcessState,
+        process: &'a ProcessStartTrigger,
+    ) -> HashSet<&'a ProcessStartTrigger> {
+        let mut current_pid = process.ppid;
+        let mut hierarchy = HashSet::new();
+        // Keep track of visited PIDs to detect cycles
+        let mut visited_pids = HashSet::new();
+
+        // Store the process PID before moving the process
+        let process_pid = process.pid;
+
+        // Insert the process into the hierarchy (this moves the process)
+        hierarchy.insert(process);
+
+        // Add the starting process PID to visited
+        visited_pids.insert(process_pid);
+
+        // Traverse up the process tree to include all parent processes
+        while let Some(parent) = state.processes.get(&current_pid) {
+            // Check if we've seen this PID before - that would indicate a cycle
+            if visited_pids.contains(&parent.pid) {
+                // We have a cycle in the process hierarchy - this shouldn't happen
+                // in normal scenarios, but we'll panic to prevent infinite loops
+                panic!(
+                    "Cycle detected in process hierarchy! PID {} appears twice in parent chain",
+                    parent.pid
+                );
+            }
+
+            // Track that we've visited this PID
+            visited_pids.insert(parent.pid);
+
+            // Add parent to the hierarchy
+            hierarchy.insert(parent);
+
+            // Move to the next parent
+            current_pid = parent.ppid;
+        }
+
+        hierarchy
+    }
+
+    pub async fn find_matching_processes(
+        &self,
+        triggers: Vec<ProcessStartTrigger>,
+    ) -> anyhow::Result<HashMap<Target, HashSet<ProcessStartTrigger>>> {
+        let state = self.state.read().await;
+        let mut matched_processes = HashMap::new();
+
+        for trigger in triggers {
+            if let Some(matched_target) = Self::get_matched_target(&state, &trigger) {
+                let matched_target = matched_target.clone(); // todo: remove clone, or move targets to arcs?
+                matched_processes
+                    .entry(matched_target)
+                    .or_insert(HashSet::new())
+                    .insert(trigger);
+            }
+        }
+
+        Ok(matched_processes)
+    }
+
+    fn get_matched_target<'a>(
+        state: &'a ProcessState,
+        process: &ProcessStartTrigger,
+    ) -> Option<&'a Target> {
+        if let Some(target) = state.target_manager.get_target_match(process) {
+            return Some(target);
+        }
+
+        let eligible_targets_for_parents = state
+            .target_manager
+            .targets
+            .iter()
+            .filter(|target| !target.should_force_ancestor_to_match())
+            .collect_vec();
+
+        if eligible_targets_for_parents.is_empty() {
+            return None;
+        }
+
+        // here it's tempting to check if the parent is just in the monitoring list. However, we can't do that because
+        // parent may be matching but not yet set to be monitoring (e.g. because it just arrived or even is in the same batch)
+
+        let parents = Self::get_process_parents(state, process);
+        for parent in parents {
+            for target in eligible_targets_for_parents.iter() {
+                if target.matches_process(parent) {
+                    return Some(target);
+                }
+            }
+        }
+
+        None
+    }
+
+    async fn handle_new_process(
+        &self,
+        target: &Target,
+        process: &ProcessStartTrigger,
+    ) -> anyhow::Result<ProcessResult> {
+        debug!("Processing pid={}", process.pid);
+
+        let display_name = target
+            .get_display_name_object()
+            .get_display_name(&process.file_name, process.argv.as_slice());
+
+        let properties = {
+            let system = self.system.read().await;
+
+            match system.process(process.pid.into()) {
+                Some(system_process) => {
+                    self.gather_process_data(
+                        system_process,
+                        display_name.clone(),
+                        process.started_at,
+                    )
+                        .await
+                }
+                None => {
+                    debug!("Process({}) wasn't found", process.pid);
+                    self.create_short_lived_process_properties(process, display_name.clone())
+                }
+            }
+        };
+
+        self.log_recorder
+            .log(
+                TracerProcessStatus::ToolExecution,
+                format!("[{}] Tool process: {}", Utc::now(), &display_name),
+                Some(EventAttributes::Process(properties)),
+                None,
+            )
+            .await?;
+
+        Ok(ProcessResult::Found)
+    }
+
+    /// Creates properties for a short-lived process that wasn't found in the system
+    fn create_short_lived_process_properties(
+        &self,
+        process: &ProcessStartTrigger,
+        display_name: String,
+    ) -> ProcessProperties {
+        ProcessProperties::ShortLived(Box::new(ShortProcessProperties {
+            tool_name: display_name,
+            tool_pid: process.pid.to_string(),
+            tool_parent_pid: process.ppid.to_string(),
+            tool_binary_path: process.file_name.clone(),
+            start_timestamp: Utc::now().to_rfc3339(),
+        }))
+    }
+
+    /// Processes an already running process for metrics updates
+    async fn update_running_process(
+        &self,
+        target: &Target,
+        process: &ProcessStartTrigger,
+    ) -> anyhow::Result<ProcessResult> {
+        let display_name = target
+            .get_display_name_object()
+            .get_display_name(&process.file_name, process.argv.as_slice());
+
+        let properties = {
+            let system = self.system.read().await;
+
+            let Some(system_process) = system.process(process.pid.into()) else {
+                // Process no longer exists
+                return Ok(ProcessResult::NotFound);
+            };
+
+            debug!(
+                "Loaded process. PID: ebpf={}, system={:?}; Start Time: ebpf={}, system={:?};",
+                process.pid,
+                system_process.pid(),
+                process.started_at.timestamp(),
+                system_process.start_time()
+            );
+
+            // Don't process input files for update events
+            self.gather_process_data(
+                system_process,
+                display_name.clone(),
+                process.started_at,
+            )
+                .await
+        };
+
+        debug!("Process data completed. PID={}", process.pid);
+
+        self.log_recorder
+            .log(
+                TracerProcessStatus::ToolMetricEvent,
+                format!("[{}] Tool metric event: {}", Utc::now(), &display_name),
+                Some(EventAttributes::Process(properties)),
+                None,
+            )
+            .await?;
+
+        Ok(ProcessResult::Found)
+    }
+
+    pub async fn gather_process_data(
+        &self,
+        proc: &Process,
+        display_name: String,
+        process_start_time: DateTime<Utc>,
+    ) -> ProcessProperties {
+        debug!("Gathering process data for {}", display_name);
+
+        let (container_id, job_id, trace_id) = Self::extract_process_environment_variables(proc);
+
+        let working_directory = proc.cwd().map(|p| p.to_string_lossy().to_string());
+
+        let process_run_time = (Utc::now() - process_start_time).num_milliseconds().max(0) as u64;
+
+        ProcessProperties::Full(Box::new(FullProcessProperties {
+            tool_name: display_name,
+            tool_pid: proc.pid().as_u32().to_string(),
+            tool_parent_pid: proc.parent().unwrap_or(0.into()).to_string(),
+            tool_binary_path: proc
+                .exe()
+                .unwrap_or_else(|| Path::new(""))
+                .as_os_str()
+                .to_str()
+                .unwrap_or("")
+                .to_string(),
+            tool_cmd: proc.cmd().join(" "),
+            start_timestamp: process_start_time.to_rfc3339(),
+            process_cpu_utilization: proc.cpu_usage(),
+            process_run_time, // time in milliseconds
+            process_disk_usage_read_total: proc.disk_usage().total_read_bytes,
+            process_disk_usage_write_total: proc.disk_usage().total_written_bytes,
+            process_disk_usage_read_last_interval: proc.disk_usage().read_bytes,
+            process_disk_usage_write_last_interval: proc.disk_usage().written_bytes,
+            process_memory_usage: proc.memory(),
+            process_memory_virtual: proc.virtual_memory(),
+            process_status: process_status_to_string(&proc.status()),
+            container_id,
+            job_id,
+            working_directory,
+            trace_id,
+        }))
+    }
+
+    /// Extracts environment variables related to containerization, jobs, and tracing
+    fn extract_process_environment_variables(
+        proc: &Process,
+    ) -> (Option<String>, Option<String>, Option<String>) {
+        let mut container_id = None;
+        let mut job_id = None;
+        let mut trace_id = None;
+
+        // Try to read environment variables
+        for env_var in proc.environ() {
+            if let Some((key, value)) = env_var.split_once('=') {
+                match key {
+                    "AWS_BATCH_JOB_ID" => job_id = Some(value.to_string()),
+                    "HOSTNAME" => container_id = Some(value.to_string()),
+                    "TRACER_TRACE_ID" => trace_id = Some(value.to_string()),
+                    _ => continue,
+                }
+            }
+        }
+
+        (container_id, job_id, trace_id)
+    }
+
+    /// Polls and updates metrics for all monitored processes
+    pub async fn poll_process_metrics(&self) -> anyhow::Result<()> {
+        debug!("Polling process metrics");
+
+        // Get PIDs of all monitored processes
+        let pids = {
+            let state = self.state.read().await;
+            debug!("Refreshing data for {} processes", state.monitoring.len());
+
+            if state.monitoring.is_empty() {
+                debug!("No processes to monitor, skipping poll");
+                return Ok(());
+            }
+
+            state
+                .monitoring
+                .iter()
+                .flat_map(|(_, processes)| processes.iter().map(|p| p.pid))
+                .collect::<HashSet<_>>()
+        };
+
+        // Refresh system data and process updates
+        self.refresh_system(&pids).await?;
+        self.update_all_processes().await?;
+
+        debug!("Refreshing data completed");
+
+        Ok(())
+    }
+
+    /// Returns N process names of monitored processes
+    pub async fn preview_targets(&self, n: usize) -> HashSet<String> {
+        self.state
+            .read()
+            .await
+            .monitoring
+            .iter()
+            .flat_map(|(_, processes)| processes.iter().map(|p| p.comm.clone()))
+            .take(n)
+            .collect()
+    }
+
+    /// Returns the total number of processes being monitored
+    pub async fn targets_len(&self) -> usize {
+        self.state
+            .read()
+            .await
+            .monitoring
+            .values()
+            .map(|processes| processes.len())
+            .sum()
+    }
+
+    /// Updates all monitored processes with fresh data
+    #[tracing::instrument(skip(self))]
+    async fn update_all_processes(&self) -> anyhow::Result<()> {
+        for (target, procs) in self.state.read().await.monitoring.iter() {
+            for proc in procs.iter() {
+                let result = self.update_running_process(target, proc).await?;
+
+                match result {
+                    ProcessResult::NotFound => {
+                        // TODO: Mark process as completed
+                        debug!("Process {} was not found during update", proc.pid);
+                    }
+                    ProcessResult::Found => {}
+                }
+            }
+        }
+
+        Ok(())
+    }
+
 }
