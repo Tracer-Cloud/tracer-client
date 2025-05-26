@@ -9,7 +9,7 @@ pub struct ExtractProcessData {}
 
 impl ExtractProcessData {
     /// Extracts environment variables related to containerization, jobs, and tracing
-    pub fn extract_process_environment_variables(
+    pub fn get_process_environment_variables(
         proc: &Process,
     ) -> (Option<String>, Option<String>, Option<String>) {
         let mut container_id = None;
@@ -17,8 +17,8 @@ impl ExtractProcessData {
         let mut trace_id = None;
 
         // Try to read environment variables
-        for env_var in proc.environ() {
-            if let Some((key, value)) = env_var.split_once('=') {
+        for process_environment_variable in proc.environ() {
+            if let Some((key, value)) = process_environment_variable.split_once('=') {
                 match key {
                     "AWS_BATCH_JOB_ID" => job_id = Some(value.to_string()),
                     "HOSTNAME" => container_id = Some(value.to_string()),
@@ -38,11 +38,14 @@ impl ExtractProcessData {
     ) -> ProcessProperties {
         debug!("Gathering process data for {}", display_name);
 
+        // get the process environment variables
         let (container_id, job_id, trace_id) =
-            ExtractProcessData::extract_process_environment_variables(proc);
+            ExtractProcessData::get_process_environment_variables(proc);
 
+        // get the process working directory
         let working_directory = proc.cwd().map(|p| p.to_string_lossy().to_string());
 
+        // calculate process run time in milliseconds
         let process_run_time = (Utc::now() - process_start_time).num_milliseconds().max(0) as u64;
 
         ProcessProperties::Full(Box::new(FullProcessProperties {
@@ -75,6 +78,5 @@ impl ExtractProcessData {
     }
 }
 
-mod tests {
-    // add there tests for these functions
-}
+#[cfg(test)]
+mod tests {}

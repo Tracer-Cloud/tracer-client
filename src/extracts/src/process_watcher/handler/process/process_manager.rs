@@ -1,11 +1,11 @@
 use crate::process_watcher::handler::process::extract_process_data::ExtractProcessData;
-use crate::process_watcher::ProcessState;
 use chrono::Utc;
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use sysinfo::{Pid, ProcessRefreshKind, System};
 use tokio::sync::{RwLock, RwLockWriteGuard};
+use tokio::task::JoinHandle;
 use tracer_common::recorder::LogRecorder;
 use tracer_common::target_process::manager::TargetManager;
 use tracer_common::target_process::{Target, TargetMatchable};
@@ -18,6 +18,20 @@ use tracer_common::types::event::attributes::process::{
 use tracer_common::types::event::attributes::EventAttributes;
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 use tracing::{debug, error};
+
+/// Internal state of the process manager
+pub struct ProcessState {
+    // Maps PIDs to process triggers
+    processes: HashMap<usize, ProcessStartTrigger>,
+    // Maps targets to sets of processes being monitored
+    monitoring: HashMap<Target, HashSet<ProcessStartTrigger>>,
+    // List of targets to watch
+    target_manager: TargetManager,
+    // Store task handle to ensure it stays alive
+    ebpf_task: Option<tokio::task::JoinHandle<()>>,
+    // tracks relevant processes killed with oom
+    oom_victims: HashMap<usize, OutOfMemoryTrigger>, // Map of pid -> oom trigger
+}
 
 enum ProcessResult {
     NotFound,
@@ -53,6 +67,12 @@ impl ProcessManager {
     pub async fn get_state_mut(&self) -> RwLockWriteGuard<ProcessState> {
         self.state.write().await
     }
+
+    pub async fn set_ebpf_task(&mut self, task: JoinHandle<()>) {
+        let mut state = self.get_state_mut().await;
+        state.ebpf_task = Some(task);
+    }
+
 
     /// Updates the list of targets being watched
     pub async fn update_targets(&self, targets: Vec<Target>) -> anyhow::Result<()> {
@@ -452,8 +472,8 @@ impl ProcessManager {
             return None;
         }
 
-        // here it's tempting to check if the parent is just in the monitoring list. However, we can't do that because
-        // parent may be matching but not yet set to be monitoring (e.g. because it just arrived or even is in the same batch)
+        // Here it's tempting to check if the parent is just in the monitoring list. However, we can't do that because
+        // parent may be matching but not yet set to be monitoring (e.g., because it just arrived or even is in the same batch)
 
         let parents = Self::get_process_parents(state, process);
         for parent in parents {

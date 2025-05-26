@@ -1,5 +1,6 @@
 use crate::process_watcher::handler::process::process_manager::ProcessManager;
-use anyhow::Result;
+use crate::process_watcher::handler::trigger::trigger_processor::TriggerProcessor;
+use anyhow::{Error, Result};
 use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
@@ -13,13 +14,14 @@ use tracer_ebpf::binding::start_processing_events;
 use tracing::{debug, error};
 
 /// Watches system processes and records events related to them
-pub struct ProcessWatcher {
+pub struct EbpfWatcher {
     ebpf: once_cell::sync::OnceCell<()>, // not tokio, because ebpf initialisation is sync
     process_manager: Arc<RwLock<ProcessManager>>,
+    trigger_processor: TriggerProcessor,
     // here will go the file manager for dataset recognition operations
 }
 
-impl ProcessWatcher {
+impl EbpfWatcher {
     pub fn new(target_manager: TargetManager, log_recorder: LogRecorder) -> Self {
         // instantiate the process manager
         let process_manager = Arc::new(RwLock::new(ProcessManager::new(
@@ -27,13 +29,14 @@ impl ProcessWatcher {
             log_recorder.clone(),
         )));
 
-        ProcessWatcher {
+        EbpfWatcher {
             ebpf: once_cell::sync::OnceCell::new(),
+            trigger_processor: TriggerProcessor::new(Arc::clone(&process_manager)),
             process_manager,
         }
     }
 
-    pub async fn update_targets(self: &Arc<Self>, targets: Vec<Target>) -> anyhow::Result<()> {
+    pub async fn update_targets(self: &Arc<Self>, targets: Vec<Target>) -> Result<()> {
         self.process_manager
             .write()
             .await
@@ -49,7 +52,7 @@ impl ProcessWatcher {
         Ok(())
     }
 
-    fn initialize_ebpf(self: Arc<Self>) -> Result<(), anyhow::Error> {
+    fn initialize_ebpf(self: Arc<Self>) -> Result<(), Error> {
         // Use unbounded channel for cross-runtime compatibility
         let (tx, rx) = mpsc::unbounded_channel::<Trigger>();
 
@@ -68,9 +71,8 @@ impl ProcessWatcher {
         match tokio::runtime::Handle::try_current() {
             Ok(_) => {
                 tokio::spawn(async move {
-                    let process_manager = self.process_manager.write().await;
-                    let mut state = process_manager.get_state_mut().await;
-                    state.ebpf_task = Some(task);
+                    let mut process_manager = self.process_manager.write().await;
+                    process_manager.set_ebpf_task(task).await;
                 });
             }
             Err(_) => {
@@ -159,46 +161,20 @@ impl ProcessWatcher {
             }
         }
 
-        // Process omm triggers first
-        if !out_of_memory_triggers.is_empty() {
-            debug!("Processing {} oom processes", out_of_memory_triggers.len());
-            self.process_manager
-                .write()
-                .await
-                .handle_out_of_memory_signals(out_of_memory_triggers)
-                .await;
-        }
-        if !process_end_triggers.is_empty() {
-            debug!(
-                "Processing {} finishing processes",
-                process_end_triggers.len()
-            );
+        // Process out of memory triggers
+        self.trigger_processor
+            .process_out_of_memory_triggers(out_of_memory_triggers)
+            .await;
 
-            self.process_manager
-                .write()
-                .await
-                .handle_out_of_memory_terminations(&mut process_end_triggers)
-                .await;
+        // Process end triggers
+        self.trigger_processor
+            .process_process_end_triggers(process_end_triggers)
+            .await?;
 
-            self.process_manager
-                .write()
-                .await
-                .handle_process_terminations(process_end_triggers)
-                .await?;
-        }
-
-        // Then process start triggers
-        if !process_start_triggers.is_empty() {
-            debug!(
-                "Processing {} creating processes",
-                process_start_triggers.len()
-            );
-            self.process_manager
-                .write()
-                .await
-                .handle_process_starts(process_start_triggers)
-                .await?;
-        }
+        // Process start triggers
+        self.trigger_processor
+            .process_process_start_triggers(process_start_triggers)
+            .await?;
 
         Ok(())
     }

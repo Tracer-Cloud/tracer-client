@@ -13,7 +13,7 @@ use tracer_common::types::ebpf_trigger::{ProcessEndTrigger, ProcessStartTrigger,
 use tracer_common::types::event::attributes::{process::ProcessProperties, EventAttributes};
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 use tracer_common::types::pipeline_tags::PipelineTags;
-use tracer_extracts::process_watcher::ProcessWatcher;
+use tracer_extracts::process_watcher::ebpf_watcher::EbpfWatcher;
 
 #[tokio::test]
 async fn test_process_triggers_process_lifecycle() -> anyhow::Result<()> {
@@ -36,7 +36,7 @@ async fn test_process_triggers_process_lifecycle() -> anyhow::Result<()> {
     .set_display_name(DisplayName::Name("Test Process".to_string()));
     let mgr = TargetManager::new(vec![target], vec![]);
 
-    let watcher = Arc::new(ProcessWatcher::new(mgr, log_recorder));
+    let watcher = Arc::new(EbpfWatcher::new(mgr, log_recorder));
 
     let start_trigger = ProcessStartTrigger {
         pid,
@@ -137,7 +137,7 @@ async fn test_process_triggers_no_matching_targets() -> anyhow::Result<()> {
 
     let mgr = TargetManager::new(vec![target], vec![]);
 
-    let watcher = Arc::new(ProcessWatcher::new(mgr, log_recorder));
+    let watcher = Arc::new(EbpfWatcher::new(mgr, log_recorder));
 
     let now = Utc::now();
     let pid = (1u32 << 30) - 1;
@@ -217,7 +217,7 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
 
     let mgr = TargetManager::new(vec![target.clone()], vec![]);
 
-    let watcher = Arc::new(ProcessWatcher::new(mgr, log_recorder));
+    let watcher = Arc::new(EbpfWatcher::new(mgr, log_recorder));
 
     let now = Utc::now();
     let start_trigger = ProcessStartTrigger {

@@ -161,8 +161,8 @@ async fn info(State(state): State<AppState>) -> axum::response::Result<impl Into
 
     let response_inner = InnerInfoResponse::try_from(pipeline).ok();
 
-    let preview = guard.process_watcher.preview_targets(10).await;
-    let preview_len = guard.process_watcher.targets_len().await;
+    let preview = guard.ebpf_watcher.preview_targets(10).await;
+    let preview_len = guard.ebpf_watcher.targets_len().await;
 
     let output = InfoResponse::new(preview, preview_len, response_inner);
 

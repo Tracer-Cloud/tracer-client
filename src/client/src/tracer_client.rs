@@ -25,11 +25,10 @@ use tracer_common::types::event::{Event, ProcessStatus};
 use tracer_common::types::LinesBufferArc;
 use tracer_extracts::file_watcher::FileWatcher;
 use tracer_extracts::metrics::SystemMetricsCollector;
-use tracer_extracts::process_watcher::ProcessWatcher;
 use tracer_extracts::stdout::StdoutWatcher;
 use tracer_extracts::syslog::SyslogWatcher;
 use tracing::info;
-
+use tracer_extracts::process_watcher::ebpf_watcher::EbpfWatcher;
 // NOTE: we might have to find a better alternative than passing the pipeline name to tracer client
 // directly. Currently with this approach, we do not need to generate a new pipeline name for every
 // new run.
@@ -41,7 +40,7 @@ pub struct TracerClient {
     interval: Duration,
     last_file_size_change_time_delta: TimeDelta,
 
-    pub process_watcher: Arc<ProcessWatcher>,
+    pub ebpf_watcher: Arc<EbpfWatcher>,
 
     syslog_watcher: SyslogWatcher,
     stdout_watcher: StdoutWatcher,
@@ -84,7 +83,7 @@ impl TracerClient {
         let (log_recorder, rx) = Self::init_log_recorder(&pipeline);
         let system = Arc::new(RwLock::new(System::new_all()));
 
-        let process_watcher = Self::init_process_watcher(&config, &log_recorder);
+        let ebpf_watcher = Self::init_ebpf_watcher(&config, &log_recorder);
 
         let exporter = Arc::new(ExporterManager::new(db_client, rx, pipeline.clone()));
 
@@ -110,7 +109,7 @@ impl TracerClient {
             syslog_lines_buffer: Arc::new(RwLock::new(Vec::new())),
             stdout_lines_buffer: Arc::new(RwLock::new(Vec::new())),
             stderr_lines_buffer: Arc::new(RwLock::new(Vec::new())),
-            process_watcher,
+            ebpf_watcher,
             exporter,
             pricing_client,
             config,
@@ -150,12 +149,12 @@ impl TracerClient {
         (log_recorder, rx)
     }
 
-    fn init_process_watcher(config: &Config, log_recorder: &LogRecorder) -> Arc<ProcessWatcher> {
+    fn init_ebpf_watcher(config: &Config, log_recorder: &LogRecorder) -> Arc<EbpfWatcher> {
         let target_manager = TargetManager::new(
             config.targets.clone(),
             DEFAULT_EXCLUDED_PROCESS_RULES.to_vec(),
         );
-        Arc::new(ProcessWatcher::new(target_manager, log_recorder.clone()))
+        Arc::new(EbpfWatcher::new(target_manager, log_recorder.clone()))
     }
 
     fn init_watchers(
@@ -171,7 +170,7 @@ impl TracerClient {
 
     pub async fn reload_config_file(&mut self, config: Config) -> Result<()> {
         self.interval = Duration::from_millis(config.process_polling_interval_ms);
-        self.process_watcher
+        self.ebpf_watcher
             .update_targets(config.targets.clone())
             .await?;
         self.config = config;
@@ -180,7 +179,7 @@ impl TracerClient {
     }
 
     pub async fn start_monitoring(&self) -> Result<()> {
-        self.process_watcher.start_ebpf().await
+        self.ebpf_watcher.start_ebpf().await
     }
 
     pub fn get_syslog_lines_buffer(&self) -> LinesBufferArc {
@@ -265,7 +264,7 @@ impl TracerClient {
 
     #[tracing::instrument(skip(self))]
     pub async fn poll_process_metrics(&mut self) -> Result<()> {
-        self.process_watcher.poll_process_metrics().await
+        self.ebpf_watcher.poll_process_metrics().await
     }
 
     #[tracing::instrument(skip(self))]
