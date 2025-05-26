@@ -2,8 +2,6 @@ use chrono::Utc;
 use std::process::Command;
 use std::sync::Arc;
 use std::time::Duration;
-use sysinfo::System;
-use tempfile::TempDir;
 use tokio::sync::{mpsc, RwLock};
 use tokio::time::sleep;
 use tracer_common::recorder::LogRecorder;
@@ -15,7 +13,6 @@ use tracer_common::types::ebpf_trigger::{ProcessEndTrigger, ProcessStartTrigger,
 use tracer_common::types::event::attributes::{process::ProcessProperties, EventAttributes};
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 use tracer_common::types::pipeline_tags::PipelineTags;
-use tracer_extracts::file_watcher::FileWatcher;
 use tracer_extracts::process_watcher::ProcessWatcher;
 
 #[tokio::test]
@@ -32,9 +29,6 @@ async fn test_process_triggers_process_lifecycle() -> anyhow::Result<()> {
     }));
 
     let log_recorder = LogRecorder::new(pipeline, tx);
-    let file_watcher = Arc::new(RwLock::new(FileWatcher::new(TempDir::new()?)));
-    let system = Arc::new(RwLock::new(System::new_all()));
-
     let target = Target::new(TargetMatch::CommandContains(CommandContainsStruct {
         process_name: None,
         command_content: "test_command".to_string(),
@@ -42,7 +36,7 @@ async fn test_process_triggers_process_lifecycle() -> anyhow::Result<()> {
     .set_display_name(DisplayName::Name("Test Process".to_string()));
     let mgr = TargetManager::new(vec![target], vec![]);
 
-    let watcher = Arc::new(ProcessWatcher::new(mgr, log_recorder, file_watcher, system));
+    let watcher = Arc::new(ProcessWatcher::new(mgr, log_recorder));
 
     let start_trigger = ProcessStartTrigger {
         pid,
@@ -134,8 +128,6 @@ async fn test_process_triggers_no_matching_targets() -> anyhow::Result<()> {
     }));
 
     let log_recorder = LogRecorder::new(pipeline, tx);
-    let file_watcher = Arc::new(RwLock::new(FileWatcher::new(TempDir::new()?)));
-    let system = Arc::new(RwLock::new(System::new_all()));
 
     let target = Target::new(TargetMatch::CommandContains(CommandContainsStruct {
         process_name: None,
@@ -145,7 +137,7 @@ async fn test_process_triggers_no_matching_targets() -> anyhow::Result<()> {
 
     let mgr = TargetManager::new(vec![target], vec![]);
 
-    let watcher = Arc::new(ProcessWatcher::new(mgr, log_recorder, file_watcher, system));
+    let watcher = Arc::new(ProcessWatcher::new(mgr, log_recorder));
 
     let now = Utc::now();
     let pid = (1u32 << 30) - 1;
@@ -203,8 +195,6 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
     }));
 
     let log_recorder = LogRecorder::new(pipeline, tx);
-    let file_watcher = Arc::new(RwLock::new(FileWatcher::new(TempDir::new()?)));
-    let system = Arc::new(RwLock::new(System::new_all()));
 
     let sleep_duration = 10;
     let unique_identifier = format!("TRACER_TEST_{}", Utc::now().timestamp());
@@ -230,8 +220,6 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
     let watcher = Arc::new(ProcessWatcher::new(
         mgr,
         log_recorder,
-        file_watcher,
-        system.clone(),
     ));
 
     let now = Utc::now();

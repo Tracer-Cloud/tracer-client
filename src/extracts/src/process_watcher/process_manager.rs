@@ -1,11 +1,10 @@
 use crate::process_watcher::extract_process_data::ExtractProcessData;
-use crate::process_watcher::{ProcessState, ProcessWatcher};
-use chrono::{DateTime, Utc};
+use crate::process_watcher::{ProcessState};
+use chrono::{Utc};
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
-use std::path::Path;
 use std::sync::Arc;
-use sysinfo::{Pid, Process, ProcessRefreshKind, ProcessStatus, System};
+use sysinfo::{Pid, ProcessRefreshKind, System};
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tracer_common::recorder::LogRecorder;
 use tracer_common::target_process::manager::TargetManager;
@@ -14,7 +13,7 @@ use tracer_common::types::ebpf_trigger::{
     ExitReason, OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger,
 };
 use tracer_common::types::event::attributes::process::{
-    CompletedProcess, FullProcessProperties, ProcessProperties, ShortProcessProperties,
+    CompletedProcess, ProcessProperties, ShortProcessProperties,
 };
 use tracer_common::types::event::attributes::EventAttributes;
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
