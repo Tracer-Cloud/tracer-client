@@ -1,4 +1,4 @@
-use crate::process_watcher::process_manager::ProcessManager;
+use crate::process_watcher::handler::process::process_manager::ProcessManager;
 use anyhow::Result;
 use std::collections::HashSet;
 use std::sync::Arc;

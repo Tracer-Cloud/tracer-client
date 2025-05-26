@@ -1,4 +1,4 @@
-use crate::process_watcher::process_utils::process_status_to_string;
+use crate::process_watcher::handler::process::process_utils::process_status_to_string;
 use chrono::{DateTime, Utc};
 use std::path::Path;
 use sysinfo::Process;

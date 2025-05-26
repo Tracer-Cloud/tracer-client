@@ -1,11 +1,11 @@
-use crate::process_watcher::extract_process_data::ExtractProcessData;
+use crate::process_watcher::handler::process::extract_process_data::ExtractProcessData;
 use crate::process_watcher::ProcessState;
 use chrono::Utc;
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use sysinfo::{Pid, ProcessRefreshKind, System};
-use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use tokio::sync::{RwLock, RwLockWriteGuard};
 use tracer_common::recorder::LogRecorder;
 use tracer_common::target_process::manager::TargetManager;
 use tracer_common::target_process::{Target, TargetMatchable};
@@ -49,20 +49,9 @@ impl ProcessManager {
         }
     }
 
-    /// Gets a read lock on the process state
-    pub async fn get_state(&self) -> RwLockReadGuard<ProcessState> {
-        self.state.read().await
-    }
-
     /// Gets a write lock on the process state
     pub async fn get_state_mut(&self) -> RwLockWriteGuard<ProcessState> {
         self.state.write().await
-    }
-
-    /// Sets a new process state
-    pub async fn set_state(&self, new_state: ProcessState) {
-        let mut state = self.state.write().await;
-        *state = new_state;
     }
 
     /// Updates the list of targets being watched
