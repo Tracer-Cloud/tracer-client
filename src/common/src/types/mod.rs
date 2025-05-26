@@ -1,8 +1,8 @@
 pub mod current_run;
+pub mod ebpf_trigger;
 pub mod event;
 pub mod extracts;
 pub mod pipeline_tags;
-pub mod ebpf_trigger;
 
 use std::sync::Arc;
 use tokio::sync::RwLock;

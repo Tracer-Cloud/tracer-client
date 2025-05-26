@@ -1,12 +1,10 @@
+mod process_manager;
 mod utils;
 mod watcher;
-mod process_manager;
 
 use std::collections::{HashMap, HashSet};
 
-use tracer_common::{
-    target_process::{manager::TargetManager, Target},
-};
+use tracer_common::target_process::{manager::TargetManager, Target};
 use tracer_common::types::ebpf_trigger::{OutOfMemoryTrigger, ProcessStartTrigger};
 pub use watcher::ProcessWatcher;
 

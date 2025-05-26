@@ -1,6 +1,3 @@
-struct ProcessManager {
-}
+struct ProcessManager {}
 
-impl ProcessManager {
-    
-}
+impl ProcessManager {}

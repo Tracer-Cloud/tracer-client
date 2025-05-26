@@ -16,12 +16,14 @@ use tokio::sync::{mpsc, RwLock};
 use tracer_common::recorder::LogRecorder;
 use tracer_common::target_process::manager::TargetManager;
 use tracer_common::target_process::{Target, TargetMatchable};
+use tracer_common::types::ebpf_trigger::{
+    OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger, Trigger,
+};
 use tracer_common::types::event::attributes::process::{
     CompletedProcess, DataSetsProcessed, FullProcessProperties, InputFile, ProcessProperties,
     ShortProcessProperties,
 };
 use tracer_common::types::event::attributes::EventAttributes;
-use tracer_common::types::ebpf_trigger::{OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger, Trigger};
 use tracer_ebpf::binding::start_processing_events;
 use tracing::{debug, error};
 
@@ -195,7 +197,10 @@ impl ProcessWatcher {
                     process_start_triggers.push(process_started);
                 }
                 Trigger::ProcessEnd(process_end) => {
-                    debug!("ProcessWatcher: received FINISH trigger pid={}", process_end.pid);
+                    debug!(
+                        "ProcessWatcher: received FINISH trigger pid={}",
+                        process_end.pid
+                    );
                     process_end_triggers.push(process_end);
                 }
                 Trigger::OutOfMemory(out_of_memory) => {
@@ -211,15 +216,22 @@ impl ProcessWatcher {
             handle_out_of_memory_signals(&self.state, out_of_memory_triggers).await;
         }
         if !process_end_triggers.is_empty() {
-            debug!("Processing {} finishing processes", process_end_triggers.len());
+            debug!(
+                "Processing {} finishing processes",
+                process_end_triggers.len()
+            );
 
             handle_out_of_memory_terminations(&self.state, &mut process_end_triggers).await;
-            self.handle_process_terminations(process_end_triggers).await?;
+            self.handle_process_terminations(process_end_triggers)
+                .await?;
         }
 
         // Then process start triggers
         if !process_start_triggers.is_empty() {
-            debug!("Processing {} creating processes", process_start_triggers.len());
+            debug!(
+                "Processing {} creating processes",
+                process_start_triggers.len()
+            );
             self.handle_process_starts(process_start_triggers).await?;
         }
 
@@ -819,7 +831,7 @@ impl ProcessWatcher {
 
         (container_id, job_id, trace_id)
     }
-    
+
     /// Polls and updates metrics for all monitored processes
     pub async fn poll_process_metrics(self: &Arc<Self>) -> Result<()> {
         debug!("Polling process metrics");

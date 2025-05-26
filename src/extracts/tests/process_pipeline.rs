@@ -11,10 +11,10 @@ use tracer_common::target_process::manager::TargetManager;
 use tracer_common::target_process::target_matching::{CommandContainsStruct, TargetMatch};
 use tracer_common::target_process::{DisplayName, Target};
 use tracer_common::types::current_run::{PipelineMetadata, Run};
+use tracer_common::types::ebpf_trigger::{ProcessEndTrigger, ProcessStartTrigger, Trigger};
 use tracer_common::types::event::attributes::{process::ProcessProperties, EventAttributes};
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 use tracer_common::types::pipeline_tags::PipelineTags;
-use tracer_common::types::ebpf_trigger::{ProcessEndTrigger, ProcessStartTrigger, Trigger};
 use tracer_extracts::file_watcher::FileWatcher;
 use tracer_extracts::process_watcher::ProcessWatcher;
 
