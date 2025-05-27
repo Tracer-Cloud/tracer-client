@@ -1,0 +1,27 @@
+[package]
+name = "tracer_ebpf"
+version = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+authors = { workspace = true }
+build = "build.rs"
+links = "bootstrap"
+
+[lib]
+path = "rs/lib.rs"
+
+[dependencies]
+anyhow = { workspace = true, default-features = true }
+env_logger = { workspace = true }
+log = { workspace = true }
+tokio = { workspace = true }
+tokio-stream = { workspace = true }
+tokio-util = { workspace = true }
+bytes = { workspace = true }
+tracing = { workspace = true }
+tracer_common = { workspace = true }
+chrono.workspace = true
+
+[build-dependencies]
+anyhow = { workspace = true }
