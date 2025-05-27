@@ -25,10 +25,10 @@ use tracer_common::types::event::{Event, ProcessStatus};
 use tracer_common::types::LinesBufferArc;
 use tracer_extracts::file_watcher::FileWatcher;
 use tracer_extracts::metrics::SystemMetricsCollector;
+use tracer_extracts::process_watcher::ebpf_watcher::EbpfWatcher;
 use tracer_extracts::stdout::StdoutWatcher;
 use tracer_extracts::syslog::SyslogWatcher;
 use tracing::info;
-use tracer_extracts::process_watcher::ebpf_watcher::EbpfWatcher;
 // NOTE: we might have to find a better alternative than passing the pipeline name to tracer client
 // directly. Currently with this approach, we do not need to generate a new pipeline name for every
 // new run.

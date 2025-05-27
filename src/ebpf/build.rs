@@ -3,6 +3,7 @@ use std::path::Path;
 use std::process::Command;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    return Ok(());
     // Tell cargo to rerun this build script if any of the C files change
     println!("cargo:rerun-if-changed=c/");
     println!("cargo:rerun-if-changed=typegen/");

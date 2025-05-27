@@ -1,4 +1,4 @@
-use crate::process_watcher::handler::process::extract_process_data::ExtractProcessData;
+use crate::process_watcher::handler::process::process_properties::ExtractProcessData;
 use chrono::Utc;
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
@@ -72,7 +72,6 @@ impl ProcessManager {
         let mut state = self.get_state_mut().await;
         state.ebpf_task = Some(task);
     }
-
 
     /// Updates the list of targets being watched
     pub async fn update_targets(&self, targets: Vec<Target>) -> anyhow::Result<()> {

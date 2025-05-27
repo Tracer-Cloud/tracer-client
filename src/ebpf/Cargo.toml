@@ -13,7 +13,7 @@ path = "rs/lib.rs"
 
 [[bin]]
 name = "build-typegen"
-path = "build-typegen.rs"
+path = "typegen/typegen.rs"
 
 [dependencies]
 anyhow = { workspace = true, default-features = true }
