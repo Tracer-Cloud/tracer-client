@@ -553,7 +553,7 @@ main() {
     printmsg "    => Check your email for the unique dashboard link"
     printmsg "    => Or visit: ${Blu}https://sandbox.tracer.app${RCol}"
     printmsg ""
-    printmsg "${Yel}HELP:${RCol} Visit ${Blu}https://github.com/Tracer-Cloud/tracer${RCol} or contact support@tracer.app"
+    printmsg "${Yel}HELP:${RCol} Visit ${Blu}https://github.com/Tracer-Cloud/tracer${RCol} or contact ${Blu}support@tracer.app${RCol}"
 
 }
 
