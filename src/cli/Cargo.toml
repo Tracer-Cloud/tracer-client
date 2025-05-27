@@ -27,6 +27,8 @@ tracing-subscriber = { workspace = true }
 tracing-log = { workspace = true }
 tracing-appender = { workspace = true }
 sentry = { workspace = true }
+console = { workspace = true }
+
 
 
 [dev-dependencies]

@@ -5,14 +5,14 @@ use tracer_client::config_manager::Config;
 use tracer_client::exporters::db::AuroraClient;
 use tracer_client::exporters::log_forward::LogForward;
 use tracer_client::exporters::log_writer::LogWriterEnum;
-use tracer_client::params::TracerCliInitArgs;
 use tracer_client::TracerClient;
+use tracer_common::types::cli::params::FinalizedInitArgs;
 use tracing::info;
 
 #[tokio::main]
 pub async fn run(
     workflow_directory_path: String,
-    cli_config_args: TracerCliInitArgs,
+    cli_config_args: FinalizedInitArgs,
     config: Config,
 ) -> Result<()> {
     // create the conn pool to aurora
@@ -70,8 +70,9 @@ mod tests {
     use tracer_client::exporters::db::AuroraClient;
     use tracer_client::exporters::log_forward::LogForward;
     use tracer_client::exporters::log_writer::{LogWriter, LogWriterEnum};
-    use tracer_client::params::TracerCliInitArgs;
     use tracer_client::TracerClient;
+    use tracer_common::types::cli::interactive::InteractiveInitArgs;
+    use tracer_common::types::cli::params::TracerCliInitArgs;
 
     fn load_test_config() -> Config {
         let path = Path::new("../../");
@@ -99,11 +100,17 @@ mod tests {
                 .expect("Failed to create LogForward"),
         );
 
+        let default_args = InteractiveInitArgs::from_partial(TracerCliInitArgs {
+            pipeline_name: Some("test-pipeline".into()),
+            ..Default::default()
+        })
+        .into_cli_args();
+
         let mut tracer_client = TracerClient::new(
             config,
             pwd.to_str().unwrap().to_string(),
             log_forward_client,
-            TracerCliInitArgs::default(),
+            default_args,
         )
         .await
         .unwrap();

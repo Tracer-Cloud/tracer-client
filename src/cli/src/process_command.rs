@@ -1,7 +1,9 @@
 use crate::commands::{Cli, Commands};
+use crate::init_command_interactive_mode;
 use crate::logging::setup_logging;
 use crate::nondaemon_commands::{
-    clean_up_after_daemon, print_config_info, setup_config, update_tracer, wait,
+    clean_up_after_daemon, print_config_info, print_install_readiness, setup_config, update_tracer,
+    wait,
 };
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -63,12 +65,14 @@ pub fn process_cli() -> Result<()> {
     match cli.command {
         Commands::Init(args) => {
             println!("Starting daemon...");
+            let args = init_command_interactive_mode(args);
             let current_working_directory = env::current_dir()?;
 
             if !args.no_daemonize {
                 match start_daemon() {
                     Outcome::Parent(Ok(_)) => {
                         tokio::runtime::Runtime::new()?.block_on(async {
+                            let _ = print_install_readiness();
                             wait(&api_client).await?;
                             print_config_info(&api_client, &config).await
                         })?;

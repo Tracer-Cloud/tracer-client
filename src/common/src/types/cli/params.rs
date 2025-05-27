@@ -1,12 +1,12 @@
+use crate::types::pipeline_tags::PipelineTags;
 use clap::Args;
-use tracer_common::types::pipeline_tags::PipelineTags;
 
 #[derive(Default, Args, Debug, Clone)]
 pub struct TracerCliInitArgs {
     // todo: move to tracer_cli!
     /// pipeline name to init the daemon with
     #[clap(long, short)]
-    pub pipeline_name: String,
+    pub pipeline_name: Option<String>,
 
     /// Run Identifier: this is used group same pipeline runs on different computers.
     /// Context: types batch can run same pipeline on multiple machines for speed
@@ -21,5 +21,15 @@ pub struct TracerCliInitArgs {
     pub no_daemonize: bool,
 
     #[clap(long)]
+    pub is_dev: Option<bool>,
+}
+
+/// Ensures the pipeline name remains required
+#[derive(Debug, Clone)]
+pub struct FinalizedInitArgs {
+    pub pipeline_name: String,
+    pub run_id: Option<String>,
+    pub tags: PipelineTags,
+    pub no_daemonize: bool,
     pub is_dev: Option<bool>,
 }
