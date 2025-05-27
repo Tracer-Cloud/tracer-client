@@ -543,7 +543,7 @@ impl ProcessManager {
         }))
     }
 
-    /// Processes an already running process for metrics updates
+    /// Processes an already running process for system_metrics updates
     async fn update_running_process(
         &self,
         target: &Target,
@@ -592,9 +592,9 @@ impl ProcessManager {
         Ok(ProcessResult::Found)
     }
 
-    /// Polls and updates metrics for all monitored processes
+    /// Polls and updates system_metrics for all monitored processes
     pub async fn poll_process_metrics(&self) -> anyhow::Result<()> {
-        debug!("Polling process metrics");
+        debug!("Polling process system_metrics");
 
         // Get PIDs of all monitored processes
         let pids = {

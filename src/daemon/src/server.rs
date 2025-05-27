@@ -12,9 +12,7 @@ use std::borrow::BorrowMut;
 use tokio_util::sync::CancellationToken;
 use tracer_client::config_manager;
 use tracer_client::TracerClient;
-use tracer_common::constants::SYSLOG_FILE;
 use tracer_extracts::stdout::run_stdout_lines_read_thread;
-use tracer_extracts::syslog::run_syslog_lines_read_thread;
 use tracing::debug;
 
 pub struct DaemonServer {
@@ -53,11 +51,6 @@ impl DaemonServer {
         );
 
         let server = tokio::spawn(axum::serve(self.listener, app).into_future());
-
-        let syslog_lines_task = tokio::spawn(run_syslog_lines_read_thread(
-            SYSLOG_FILE,
-            tracer_client.lock().await.get_syslog_lines_buffer(),
-        ));
 
         let stdout_lines_task = tokio::spawn(run_stdout_lines_read_thread(
             INTERCEPTOR_STDOUT_FILE,
@@ -104,7 +97,7 @@ impl DaemonServer {
                     break;
                 }
                 _ = metrics_interval.tick() => {
-                    debug!("DaemonServer metrics interval ticked");
+                    debug!("DaemonServer system_metrics interval ticked");
                     let guard = tracer_client.lock().await;
                     guard.poll_metrics_data().await?;
                 }
@@ -116,7 +109,6 @@ impl DaemonServer {
             }
         }
 
-        syslog_lines_task.abort();
         stdout_lines_task.abort();
         server.abort();
 

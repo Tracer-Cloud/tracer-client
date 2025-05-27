@@ -292,10 +292,13 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
         "The process name should be in the targets list"
     );
 
-    // 2. Poll process metrics and verify we get metrics events
+    // 2. Poll process system_metrics and verify we get system_metrics events
     watcher.poll_process_metrics().await?;
 
-    let metrics_event = rx.recv().await.expect("Failed to receive metrics event");
+    let metrics_event = rx
+        .recv()
+        .await
+        .expect("Failed to receive system_metrics event");
 
     assert_eq!(
         metrics_event.process_status,
@@ -307,7 +310,7 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
     let Some(EventAttributes::Process(ProcessProperties::Full(props))) = &metrics_event.attributes
     else {
         panic!(
-            "Expected Full process properties in the metrics event, got: {:?}",
+            "Expected Full process properties in the system_metrics event, got: {:?}",
             metrics_event.attributes
         );
     };
@@ -334,7 +337,7 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
         "Binary path should contain 'sleep'"
     );
 
-    // Verify disk usage metrics exist and can be read
+    // Verify disk usage system_metrics exist and can be read
     let _ = props.process_disk_usage_read_total;
     let _ = props.process_disk_usage_write_total;
 

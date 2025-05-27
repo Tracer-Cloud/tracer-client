@@ -9,7 +9,7 @@ use tracer_aws::pricing::PricingSource;
 use tracer_aws::types::pricing::EC2FilterBuilder;
 use tracer_common::debug_log::Logger;
 use tracer_common::types::event::attributes::system_metrics::SystemProperties;
-use tracer_extracts::metrics::SystemMetricsCollector;
+use tracer_extracts::system_metrics::SystemMetricsCollector;
 use tracing::info;
 
 // FIXME: How should this be handled with the new architecture?

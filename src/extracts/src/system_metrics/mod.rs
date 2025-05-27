@@ -1,4 +1,4 @@
-/// src/metrics/mod.rs
+/// src/system_metrics/mod.rs
 use anyhow::Result;
 use chrono::Utc;
 use std::collections::HashMap;
