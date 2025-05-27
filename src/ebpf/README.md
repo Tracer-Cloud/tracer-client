@@ -87,6 +87,20 @@ git add vendor/libbpf
 git commit -m "Bump libbpf to v1.5.0"
 ```
 
+**Debugging**:
+
+Use `bpf_printk()` for logging from `.bpf.c` files:
+
+```c
+bpf_printk("Test %s", my_value);
+```
+
+We haven't added log-forwarding yet, so to see these logs go to another terminal and run:
+
+```sh
+sudo cat /sys/kernel/debug/tracing/trace_pipe
+```
+
 ## Software design
 
 **The Rust-C interface**
@@ -94,6 +108,33 @@ git commit -m "Bump libbpf to v1.5.0"
 eBPF is implemented within a standalone C library (`c/` directory) that's linked to Rust (`rs/` directory) via a FFI interface with shared memory. This fully decouples our Rust code from eBPF internals.
 
 Here, `binding.rs` allocates a buffer the C library can write to asynchronously. The library does so and notifies `binding.rs` of writes via a callback. The callback then sends the events onwards and allocates a new buffer, completing the cycle.
+
+**The kernel-userspace interface**
+
+TODO
+
+```txt
+/*
+ * eBPF Tracer with Hybrid Buffering System
+ *
+ * This implementation uses a two-level buffering system:
+ * 1. Per-CPU array maps store the actual data in 4KB page-sized entries
+ * 2. Ringbuf contains only metadata (indices/offsets to the data in the per-CPU arrays)
+ *
+ * Key components:
+ * - data_buffer: Per-CPU array that stores actual event data in 4KB pages
+ * - buffer_states: Per-CPU state tracking (current page, offset, etc.)
+ * - rb: Ringbuf for metadata only (event type, timestamp, process info, buffer location)
+ *
+ * Usage flow:
+ * 1. buf_reserve(): Allocate buffer space for data chunks
+ * 2. Write data directly to the reserved buffer space
+ * 3. submit_event(): Submit metadata to ringbuf with references to the data
+ *
+ * This approach efficiently handles variable-length data like stdout capture
+ * without the size limitations of using ringbuf directly.
+ */
+```
 
 ## Future development
 
@@ -113,3 +154,10 @@ To explore in the future:
     - **Separate buffers by event type**: Vectors of tagged unions don't align with the performance potential of modern hardware. Routing events into separate buffers should happen early, probably in `bootstrap.c`.
     - **Batch processing**: Processing in batches of 16/64/256/etc events would enable much faster transforms. These batches should have an SoA layout (ie, column-oriented), in alignment with the internal format of dataframe libraries like Polars.
 3. **Testing across multiple environments**: In theory, we _should_ have very good support across Linux versions with CO-RE. It would be great to validate that in practice. Testing on multiple OS / kernel versions would confirm correctness and help identify compatiability issues if any exist.
+
+
+## Programming Guide
+
+No vectors, strings.
+
+No true functions, loops, pointers, error handling or libraries (including standard libraries).
