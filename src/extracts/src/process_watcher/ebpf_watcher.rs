@@ -12,6 +12,7 @@ use tracer_common::types::ebpf_trigger::{
 };
 use tracer_ebpf::binding::start_processing_events;
 use tracing::{debug, error};
+use crate::process_watcher::handler::process::process_utils;
 
 /// Watches system processes and records events related to them
 pub struct EbpfWatcher {
@@ -192,7 +193,7 @@ impl EbpfWatcher {
     }
 
     pub async fn targets_len(&self) -> usize {
-        self.process_manager.write().await.targets_len().await
+        process_utils::get_targets_len(self.process_manager.read().await.get_state().await).await
     }
 }
 

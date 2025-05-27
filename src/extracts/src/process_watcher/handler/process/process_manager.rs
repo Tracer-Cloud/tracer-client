@@ -1,10 +1,11 @@
 use crate::process_watcher::handler::process::process_properties::ExtractProcessData;
+use crate::process_watcher::handler::process::process_utils::create_short_lived_process_properties;
 use chrono::Utc;
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use sysinfo::{Pid, ProcessRefreshKind, System};
-use tokio::sync::{RwLock, RwLockWriteGuard};
+use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tokio::task::JoinHandle;
 use tracer_common::recorder::LogRecorder;
 use tracer_common::target_process::manager::TargetManager;
@@ -18,6 +19,7 @@ use tracer_common::types::event::attributes::process::{
 use tracer_common::types::event::attributes::EventAttributes;
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 use tracing::{debug, error};
+use crate::process_watcher::handler::process::process_entity::ProcessResult;
 
 /// Internal state of the process manager
 pub struct ProcessState {
@@ -33,9 +35,10 @@ pub struct ProcessState {
     oom_victims: HashMap<usize, OutOfMemoryTrigger>, // Map of pid -> oom trigger
 }
 
-enum ProcessResult {
-    NotFound,
-    Found,
+impl ProcessState {
+    pub fn get_monitoring(&self) -> &HashMap<Target, HashSet<ProcessStartTrigger>> {
+        &self.monitoring
+    }
 }
 
 pub struct ProcessManager {
@@ -66,6 +69,10 @@ impl ProcessManager {
     /// Gets a write lock on the process state
     pub async fn get_state_mut(&self) -> RwLockWriteGuard<ProcessState> {
         self.state.write().await
+    }
+
+    pub async fn get_state(&self) -> RwLockReadGuard<ProcessState> {
+        self.state.read().await
     }
 
     pub async fn set_ebpf_task(&mut self, task: JoinHandle<()>) {
@@ -511,7 +518,7 @@ impl ProcessManager {
                 }
                 None => {
                     debug!("Process({}) wasn't found", process.pid);
-                    self.create_short_lived_process_properties(process, display_name.clone())
+                    create_short_lived_process_properties(process, display_name.clone())
                 }
             }
         };
@@ -526,21 +533,6 @@ impl ProcessManager {
             .await?;
 
         Ok(ProcessResult::Found)
-    }
-
-    /// Creates properties for a short-lived process that wasn't found in the system
-    fn create_short_lived_process_properties(
-        &self,
-        process: &ProcessStartTrigger,
-        display_name: String,
-    ) -> ProcessProperties {
-        ProcessProperties::ShortLived(Box::new(ShortProcessProperties {
-            tool_name: display_name,
-            tool_pid: process.pid.to_string(),
-            tool_parent_pid: process.ppid.to_string(),
-            tool_binary_path: process.file_name.clone(),
-            start_timestamp: Utc::now().to_rfc3339(),
-        }))
     }
 
     /// Processes an already running process for system_metrics updates
@@ -633,18 +625,7 @@ impl ProcessManager {
             .take(n)
             .collect()
     }
-
-    /// Returns the total number of processes being monitored
-    pub async fn targets_len(&self) -> usize {
-        self.state
-            .read()
-            .await
-            .monitoring
-            .values()
-            .map(|processes| processes.len())
-            .sum()
-    }
-
+    
     /// Updates all monitored processes with fresh data
     #[tracing::instrument(skip(self))]
     async fn update_all_processes(&self) -> anyhow::Result<()> {

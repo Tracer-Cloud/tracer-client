@@ -54,7 +54,7 @@ impl TestServer {
 
         let args = TracerCliInitArgs::default();
 
-        TracerClient::new(config, path, log_forward_client, args).await
+        TracerClient::new(config, log_forward_client, args).await
     }
 
     async fn get_tracer(path: String) -> Result<DaemonServer, anyhow::Error> {
