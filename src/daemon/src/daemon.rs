@@ -52,18 +52,17 @@ pub async fn run(
     DaemonServer::bind(client, addr).await?.run().await
 }
 
-pub async fn monitor_processes_with_tracer_client(tracer_client: &mut TracerClient) -> Result<()> {
+pub async fn monitor_processes(tracer_client: &mut TracerClient) -> Result<()> {
     tracer_client.poll_process_metrics().await?;
     tracer_client.poll_syslog().await?;
     tracer_client.poll_stdout_stderr().await?;
     tracer_client.refresh_sysinfo().await?;
-    // tracer_client.reset_just_started_process_flag().await;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::daemon::monitor_processes_with_tracer_client;
+    use crate::daemon::monitor_processes;
     use dotenv::dotenv;
     use std::path::Path;
     use tracer_client::config_manager::{Config, ConfigLoader};
@@ -107,7 +106,7 @@ mod tests {
         )
         .await
         .unwrap();
-        let result = monitor_processes_with_tracer_client(&mut tracer_client).await;
+        let result = monitor_processes(&mut tracer_client).await;
         if result.is_ok() {
             Ok(result?)
         } else {

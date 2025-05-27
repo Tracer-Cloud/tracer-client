@@ -7,7 +7,7 @@ use tokio::net::TcpListener;
 use tokio::sync::{Mutex, RwLock};
 
 use crate::app::get_app;
-use crate::daemon::monitor_processes_with_tracer_client;
+use crate::daemon::monitor_processes;
 use std::borrow::BorrowMut;
 use tokio_util::sync::CancellationToken;
 use tracer_client::config_manager;
@@ -76,8 +76,8 @@ impl DaemonServer {
             config.read().await.batch_submission_interval_ms,
         ));
 
-        let mut monitor_interval = tokio::time::interval(Duration::from_millis(
-            config.read().await.batch_submission_interval_ms,
+        let mut process_monitor_interval = tokio::time::interval(Duration::from_millis(
+            config.read().await.process_metrics_send_interval_ms,
         ));
 
         let exporter = Arc::clone(&tracer_client.lock().await.exporter);
@@ -106,17 +106,13 @@ impl DaemonServer {
                 _ = metrics_interval.tick() => {
                     debug!("DaemonServer metrics interval ticked");
                     let guard = tracer_client.lock().await;
-
                     guard.poll_metrics_data().await?;
-                    guard.poll_files().await?;
-
                 }
-                _ = monitor_interval.tick() => {
+                _ = process_monitor_interval.tick() => {
                     debug!("DaemonServer monitor interval ticked");
-                    monitor_processes_with_tracer_client(tracer_client.lock().await.borrow_mut())
+                    monitor_processes(tracer_client.lock().await.borrow_mut())
                     .await?;
                 }
-
             }
         }
 
