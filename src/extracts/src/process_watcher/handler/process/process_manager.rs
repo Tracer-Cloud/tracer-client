@@ -1,3 +1,4 @@
+use crate::process_watcher::handler::process::process_entity::ProcessResult;
 use crate::process_watcher::handler::process::process_properties::ExtractProcessData;
 use crate::process_watcher::handler::process::process_utils::create_short_lived_process_properties;
 use chrono::Utc;
@@ -13,13 +14,10 @@ use tracer_common::target_process::{Target, TargetMatchable};
 use tracer_common::types::ebpf_trigger::{
     ExitReason, OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger,
 };
-use tracer_common::types::event::attributes::process::{
-    CompletedProcess, ProcessProperties, ShortProcessProperties,
-};
+use tracer_common::types::event::attributes::process::CompletedProcess;
 use tracer_common::types::event::attributes::EventAttributes;
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 use tracing::{debug, error};
-use crate::process_watcher::handler::process::process_entity::ProcessResult;
 
 /// Internal state of the process manager
 pub struct ProcessState {
@@ -30,7 +28,7 @@ pub struct ProcessState {
     // List of targets to watch
     target_manager: TargetManager,
     // Store task handle to ensure it stays alive
-    ebpf_task: Option<tokio::task::JoinHandle<()>>,
+    ebpf_task: Option<JoinHandle<()>>,
     // tracks relevant processes killed with oom
     oom_victims: HashMap<usize, OutOfMemoryTrigger>, // Map of pid -> oom trigger
 }
@@ -625,7 +623,7 @@ impl ProcessManager {
             .take(n)
             .collect()
     }
-    
+
     /// Updates all monitored processes with fresh data
     #[tracing::instrument(skip(self))]
     async fn update_all_processes(&self) -> anyhow::Result<()> {

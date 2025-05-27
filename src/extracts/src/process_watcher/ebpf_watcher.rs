@@ -1,4 +1,5 @@
 use crate::process_watcher::handler::process::process_manager::ProcessManager;
+use crate::process_watcher::handler::process::process_utils;
 use crate::process_watcher::handler::trigger::trigger_processor::TriggerProcessor;
 use anyhow::{Error, Result};
 use std::collections::HashSet;
@@ -12,7 +13,6 @@ use tracer_common::types::ebpf_trigger::{
 };
 use tracer_ebpf::binding::start_processing_events;
 use tracing::{debug, error};
-use crate::process_watcher::handler::process::process_utils;
 
 /// Watches system processes and records events related to them
 pub struct EbpfWatcher {

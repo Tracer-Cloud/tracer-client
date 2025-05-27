@@ -1,9 +1,9 @@
+use crate::process_watcher::handler::process::process_manager::ProcessState;
 use chrono::Utc;
 use sysinfo::ProcessStatus;
-use tokio::sync::{ RwLockReadGuard};
+use tokio::sync::RwLockReadGuard;
 use tracer_common::types::ebpf_trigger::ProcessStartTrigger;
 use tracer_common::types::event::attributes::process::{ProcessProperties, ShortProcessProperties};
-use crate::process_watcher::handler::process::process_manager::ProcessState;
 
 pub fn process_status_to_string(status: &ProcessStatus) -> String {
     match status {
@@ -37,7 +37,7 @@ pub fn create_short_lived_process_properties(
 }
 
 pub async fn get_targets_len(process_state: RwLockReadGuard<'_, ProcessState>) -> usize {
-        process_state
+    process_state
         .get_monitoring()
         .values()
         .map(|processes| processes.len())
