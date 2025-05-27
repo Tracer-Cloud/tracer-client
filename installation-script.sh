@@ -530,11 +530,11 @@ main() {
 
     printsucc "Tracer CLI has been successfully installed."
     printmsg ""
-    printmsg "[INFO] ${Gre}Next steps to get started:${RCol}"
+    printmsg "  ${Gre}Next steps to get started:${RCol}"
     printmsg ""
     printmsg "Step 1 — Initialize the tracer daemon:"
     printmsg ""
-    printmsg "  Option A: Use interactive setup (recommended)"
+    printmsg "  Option A: Use interactive setup ${Yel}(guided mode)${RCol}"
     printmsg ""
     printmsg "      ${Blu}tracer init${RCol}"
     printmsg ""
