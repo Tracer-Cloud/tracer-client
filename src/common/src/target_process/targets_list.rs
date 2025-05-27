@@ -772,6 +772,9 @@ pub static ref TARGETS: Vec<Target> = [
     Target::new(TargetMatch::BinPathStartsWith("/opt/conda/bin/".to_string()))
         .set_filter_out(Some(OPT_CONDA_BIN_EXCEPTIONS.to_vec())),
 
+    // tracer internal oom_example
+    Target::new(TargetMatch::ProcessName("oom_example_c".to_string())),
+
 ]
 .to_vec();
 
