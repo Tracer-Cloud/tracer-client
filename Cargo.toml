@@ -94,7 +94,7 @@ assert_cmd = "2.0"
 which = { version = "6.0.0", default-features = false }
 bytes = "1.10.1"
 libc = { version = "0.2.172", default-features = false }
-sentry = { version = "0.37.0", features = ["anyhow"] }
+sentry = { version = "0.37.0", default-features = false, features = ["anyhow"] }
 rstest = "0.25.0"
 
 typed-builder = "0.18"
