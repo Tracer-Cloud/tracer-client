@@ -551,9 +551,9 @@ main() {
     printmsg "Step 2 — View your pipeline data in Grafana:"
     printmsg ""
     printmsg "    => Check your email for the unique dashboard link"
-    printmsg "    => Or visit: ${Blu}https://sandbox.tracer.app${RCol}"
+    printmsg "    => Or visit: ${Blu}https://sandbox.tracer.cloud${RCol}"
     printmsg ""
-    printmsg "${Yel}HELP:${RCol} Visit ${Blu}https://github.com/Tracer-Cloud/tracer${RCol} or contact ${Blu}support@tracer.app${RCol}"
+    printmsg "${Yel}HELP:${RCol} Visit ${Blu}https://github.com/Tracer-Cloud/tracer${RCol} or contact ${Blu}support@tracer.cloud${RCol}"
 
 }
 

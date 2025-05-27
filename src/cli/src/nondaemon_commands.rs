@@ -185,43 +185,68 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
         Err(e) => {
             tracing::error!("Error getting info response: {e}");
             const NEXT: Emoji<'_, '_> = Emoji("⏭️", "->");
-            const CHECK: Emoji<'_, '_> = Emoji("✅", " ");
+            const CHECK: Emoji<'_, '_> = Emoji("✅", "[OK]");
 
             writeln!(&mut output, "Daemon status: {}\n", "Stopped".red())?;
 
-            //
-
             writeln!(
                 &mut output,
-                "\n{} {}",
+                "\n{} {}\n",
                 CHECK,
-                "Tracer agent installed successfully:".bold()
+                "Tracer CLI has been successfully installed.".bold()
             )?;
 
             writeln!(
                 &mut output,
-                "\n{} {}",
+                "{} {}",
                 NEXT,
-                "Initialize the Tracer agent by running:".bold()
+                "Next steps to get started:".bold()
             )?;
-            writeln!(
-            &mut output,
-            "\n{}\n",
-            "tracer init --pipeline-name demo_username --environment demo --pipeline-type rnaseq --user-operator user_email --is-dev false"
-                .cyan()
-                .bold()
-        )?;
 
-            let raw_url = "https://sandbox.tracer.app";
-            let clickable_url = format!("\u{1b}]8;;{0}\u{1b}\\{0}\u{1b}]8;;\u{1b}\\", raw_url);
-            let colored_url = clickable_url.cyan().underline().to_string();
+            writeln!(&mut output, "\nStep 1 — Initialize the tracer daemon:")?;
 
             writeln!(
                 &mut output,
-                "{} {} (see email or visit: {})",
-                NEXT,
-                "View results in Grafana".bold(),
-                colored_url
+                "\n  Option A: Use interactive setup (guided mode)\n"
+            )?;
+            writeln!(&mut output, "      {}\n", "tracer init".cyan().bold())?;
+            writeln!(
+                &mut output,
+                "      This will guide you through configuring your pipeline step-by-step."
+            )?;
+
+            writeln!(&mut output, "\n  Option B: Use manual flags\n")?;
+            writeln!(
+                &mut output,
+                "      {}\n",
+                "tracer init --pipeline-name demo_username \\
+                 --environment demo \\
+                 --pipeline-type rnaseq \\
+                 --user-operator user@email.com \\
+                 --is-dev false"
+                    .cyan()
+                    .bold()
+            )?;
+
+            writeln!(
+                &mut output,
+                "\nStep 2 — View your pipeline data in Grafana:"
+            )?;
+            writeln!(
+                &mut output,
+                "    => Check your email for the unique dashboard link"
+            )?;
+            writeln!(
+                &mut output,
+                "    => Or visit: {}",
+                "https://sandbox.tracer.app".cyan().underline()
+            )?;
+
+            writeln!(
+                &mut output,
+                "\n[HELP] Visit {} or contact {}",
+                "https://github.com/Tracer-Cloud/tracer".cyan().underline(),
+                "support@tracer.cloud".cyan()
             )?;
 
             println!("{}", output);
