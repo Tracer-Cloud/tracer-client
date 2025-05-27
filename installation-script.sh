@@ -529,6 +529,21 @@ main() {
     # printsucc "Ended setup the tracer configuration file"
 
     printsucc "Tracer CLI has been successfully installed."
+    printmsg ""
+    printmsg "[INFO] ${Gre}Next steps to get started:${RCol}"
+    printmsg ""
+    printmsg "Step 1 — Initialize the tracer daemon:"
+    printmsg "    ${Blu}tracer init --pipeline-name demo_username \\"
+    printmsg "               --environment demo \\"
+    printmsg "               --pipeline-type rnaseq \\"
+    printmsg "               --user-operator user@email.com \\"
+    printmsg "               --is-dev false${RCol}"
+    printmsg ""
+    printmsg "Step 2 — View your pipeline data in Grafana:"
+    printmsg "    => Check your email for the unique dashboard link"
+    printmsg "    => Or visit: ${Blu}https://sandbox.tracer.app${RCol}"
+    printmsg ""
+    printmsg "[HELP] Visit ${Blu}https://github.com/Tracer-Cloud/tracer${RCol} or contact support@tracer.app"
 
 }
 
