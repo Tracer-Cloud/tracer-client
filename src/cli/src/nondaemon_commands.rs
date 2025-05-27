@@ -184,8 +184,8 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
         Ok(info) => info,
         Err(e) => {
             tracing::error!("Error getting info response: {e}");
-            const NEXT: Emoji<'_, '_> = Emoji("⏭️", "->");
-            const CHECK: Emoji<'_, '_> = Emoji("✅", "[OK]");
+            const NEXT: Emoji<'_, '_> = Emoji("⏭️ ", "-> ");
+            const CHECK: Emoji<'_, '_> = Emoji("✅ ", "[OK] ");
 
             writeln!(&mut output, "Daemon status: {}\n", "Stopped".red())?;
 
