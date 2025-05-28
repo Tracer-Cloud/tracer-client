@@ -412,7 +412,6 @@ cleanup() {
     else
         printsucc "Temporary directory ${Blu}$TRACER_TEMP_DIR${RCol} removed."
     fi
-    # Final concise summary
     print_install_summary
 
     $ExitTrap
@@ -514,6 +513,10 @@ EOL
     fi
 }
 
+#-------------------------------------------------------------------------------
+#   NAME:  print_install_summary
+#   DESCRIPTION:  The print_install_summary function
+#-------------------------------------------------------------------------------
 print_install_summary() {
     echo ""
     echo "${Gry}=============[ Installation Complete ]=============${RCol}"

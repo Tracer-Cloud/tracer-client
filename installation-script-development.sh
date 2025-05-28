@@ -48,6 +48,7 @@ if tput setaf 1 >/dev/null 2>&1; then
     Yel=$(tput setaf 3)
     Blu=$(tput setaf 4)
     Bla=$(tput setaf 0)
+    Gry=$(tput setaf 7)  # Light gray / white
     RCol=$(tput sgr0)
     ExitTrap="" # placeholder for resetting advanced functionality
 else
@@ -56,6 +57,7 @@ else
     Yel=""
     Bla=""
     Blu=""
+    Gry=""
     RCol=""
     ExitTrap=""
 fi
@@ -406,10 +408,11 @@ cleanup() {
     rm -rf "$TRACER_TEMP_DIR"
     if [ $? -ne 0 ]; then
         printerror "Failed to remove temporary directory ${Blu}$TRACER_TEMP_DIR${RCol}."
+    else
+        printsucc "Temporary directory ${Blu}$TRACER_TEMP_DIR${RCol} removed."
     fi
-    printmsg ""
-    printmsg ""
-    printsucc "Temporary directory ${Blu}$TRACER_TEMP_DIR${RCol} removed."
+    print_install_summary
+
     $ExitTrap
 }
 
@@ -485,6 +488,29 @@ EOL
 }
 
 #-------------------------------------------------------------------------------
+#   NAME:  print_install_summary
+#   DESCRIPTION:  The print_install_summary function
+#-------------------------------------------------------------------------------
+print_install_summary() {
+    echo ""
+    echo "${Gry}=============[ Installation Complete ]=============${RCol}"
+    echo ""
+    echo " Daemon Status: ${Red}Not started yet${RCol}"
+    echo ""
+    echo "${Gry}-------------[ Next Steps ]-------------${RCol}"
+    echo ""
+    echo " To initialize the Tracer daemon, run:"
+    echo ""
+    echo "  ${Blu}tracer init${RCol}            ${Gry}# interactive setup${RCol}"
+    echo "  ${Blu}tracer init --help${RCol}     ${Gry}# view flags${RCol}"
+    echo ""
+    echo ""
+    echo " View dashboards at: ${Blu}https://sandbox.tracer.cloud${RCol}"
+    echo " ${Yel}Need help?${RCol}  Visit ${Blu}https://github.com/Tracer-Cloud/tracer${RCol} or email ${Blu}support@tracer.cloud${RCol}"
+    echo ""
+}
+
+#-------------------------------------------------------------------------------
 #          NAME:  main
 #   DESCRIPTION:  The main function
 #-------------------------------------------------------------------------------
@@ -501,33 +527,6 @@ main() {
     download_tracer
     # setup_tracer_configuration_file
     # printsucc "Ended setup the tracer configuration file"
-
-    printsucc "Tracer CLI has been successfully installed."
-    printmsg ""
-    printmsg "  ${Gre}Next steps to get started:${RCol}"
-    printmsg ""
-    printmsg "Step 1 — Initialize the tracer daemon:"
-    printmsg ""
-    printmsg "  Option A: Use interactive setup ${Yel}(guided mode)${RCol}"
-    printmsg ""
-    printmsg "      ${Blu}tracer init${RCol}"
-    printmsg ""
-    printmsg "      This will guide you through configuring your pipeline step-by-step."
-    printmsg ""
-    printmsg "  Option B: Use manual flags"
-    printmsg ""
-    printmsg "      ${Blu}tracer init --pipeline-name demo_username \\"
-    printmsg "                 --environment demo \\"
-    printmsg "                 --pipeline-type rnaseq \\"
-    printmsg "                 --user-operator user@email.com \\"
-    printmsg "                 --is-dev false${RCol}"
-    printmsg ""
-    printmsg "Step 2 — View your pipeline data in Grafana:"
-    printmsg ""
-    printmsg "    => Check your email for the unique dashboard link"
-    printmsg "    => Or visit: ${Blu}https://sandbox.tracer.cloud${RCol}"
-    printmsg ""
-    printmsg "${Yel}HELP:${RCol} Visit ${Blu}https://github.com/Tracer-Cloud/tracer${RCol} or contact ${Blu}support@tracer.cloud${RCol}"
 
 }
 
