@@ -79,12 +79,12 @@ impl ProcessState {
         &self.target_manager
     }
 
-    pub fn update_monitoring(&mut self, interested_in: HashMap<Target, HashSet<ProcessStartTrigger>>) {
+    pub fn update_monitoring(
+        &mut self,
+        interested_in: HashMap<Target, HashSet<ProcessStartTrigger>>,
+    ) {
         for (target, processes) in interested_in.into_iter() {
-            self.monitoring
-                .entry(target)
-                .or_default()
-                .extend(processes);
+            self.monitoring.entry(target).or_default().extend(processes);
         }
     }
 
