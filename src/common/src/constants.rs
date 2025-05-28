@@ -10,7 +10,3 @@ pub const SYSLOG_FILE: &str = "/var/log/syslog";
 
 pub const REPO_OWNER: &str = "davincios";
 pub const REPO_NAME: &str = "tracer-daemon";
-
-// TODO: remove dependency from Service url completely
-pub const DEFAULT_SERVICE_URL: &str = "https://app.tracer.bio/api";
-// todo: move to config^?

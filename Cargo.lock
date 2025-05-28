@@ -252,9 +252,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-pricing"
-version = "1.73.0"
+version = "1.74.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3024a4dfe0963d0d3c17975e9b319913f9692036faf109c6afa569bc2629bcf0"
+checksum = "f0be5f10a4bcd83505546211ac16a5689515c0feff6c76d5ec6f35f09799ccec"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -274,9 +274,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-s3"
-version = "1.88.0"
+version = "1.89.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ffc2a1c6dfd4585ad423350c04da3c8be831c9f418e58e8c837656054ec45f8"
+checksum = "f676a4b4d6ff85d9906339a8da6d407f787ab64b00c9742272a12a6f31f33313"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -308,9 +308,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-secretsmanager"
-version = "1.74.0"
+version = "1.75.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca681408228085cf3936cd78405996b1295e006221b7f7bf78735f5c70a78fa1"
+checksum = "f9c0b663c9e8f67af8b264a94f81c0f7dfd1edad1484cdfca30944d1fb4429b6"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",

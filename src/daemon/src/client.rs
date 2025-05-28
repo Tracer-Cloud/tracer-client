@@ -1,7 +1,7 @@
 // src/cli.rs
 use anyhow::Result;
 
-use super::structs::{InfoResponse, LogData, Message, RunData, TagData, UploadData};
+use super::structs::{InfoResponse, LogData, Message, RunData, TagData};
 
 pub struct DaemonClient {
     base_uri: String,
@@ -104,16 +104,6 @@ impl DaemonClient {
     pub async fn send_log_short_lived_process_request(&self, payload: LogData) -> Result<()> {
         self.client
             .put(self.get_url("/log-short-lived-process"))
-            .json(&payload)
-            .send()
-            .await?
-            .error_for_status()?;
-        Ok(())
-    }
-
-    pub async fn send_upload_file_request(&self, payload: UploadData) -> Result<()> {
-        self.client
-            .put(self.get_url("/upload"))
             .json(&payload)
             .send()
             .await?

@@ -10,11 +10,7 @@ use tracer_common::types::cli::params::FinalizedInitArgs;
 use tracing::info;
 
 #[tokio::main]
-pub async fn run(
-    workflow_directory_path: String,
-    cli_config_args: FinalizedInitArgs,
-    config: Config,
-) -> Result<()> {
+pub async fn run(cli_config_args: FinalizedInitArgs, config: Config) -> Result<()> {
     // create the conn pool to aurora
     let db_client = if config.log_forward_endpoint_dev.is_none() {
         LogWriterEnum::Aurora(AuroraClient::try_new(&config, None).await?)
@@ -44,7 +40,7 @@ pub async fn run(
 
     let addr: SocketAddr = config.server.parse()?;
 
-    let client = TracerClient::new(config, workflow_directory_path, db_client, cli_config_args)
+    let client = TracerClient::new(config, db_client, cli_config_args)
         .await
         .context("Failed to create TracerClient")?;
 
@@ -52,18 +48,15 @@ pub async fn run(
     DaemonServer::bind(client, addr).await?.run().await
 }
 
-pub async fn monitor_processes_with_tracer_client(tracer_client: &mut TracerClient) -> Result<()> {
+pub async fn monitor_processes(tracer_client: &mut TracerClient) -> Result<()> {
     tracer_client.poll_process_metrics().await?;
-    tracer_client.poll_syslog().await?;
-    tracer_client.poll_stdout_stderr().await?;
     tracer_client.refresh_sysinfo().await?;
-    // tracer_client.reset_just_started_process_flag().await;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::daemon::monitor_processes_with_tracer_client;
+    use crate::daemon::monitor_processes;
     use dotenv::dotenv;
     use std::path::Path;
     use tracer_client::config_manager::{Config, ConfigLoader};
@@ -85,7 +78,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_monitor_processes_with_tracer_client() -> Result<(), anyhow::Error> {
+    async fn test_monitor_processes() -> Result<(), anyhow::Error> {
         let config = load_test_config();
         let pwd = std::env::current_dir()?;
         let region = "us-east-2";
@@ -106,15 +99,10 @@ mod tests {
         })
         .into_cli_args();
 
-        let mut tracer_client = TracerClient::new(
-            config,
-            pwd.to_str().unwrap().to_string(),
-            log_forward_client,
-            default_args,
-        )
-        .await
-        .unwrap();
-        let result = monitor_processes_with_tracer_client(&mut tracer_client).await;
+        let mut tracer_client = TracerClient::new(config, log_forward_client, default_args)
+            .await
+            .unwrap();
+        let result = monitor_processes(&mut tracer_client).await;
         if result.is_ok() {
             Ok(result?)
         } else {
