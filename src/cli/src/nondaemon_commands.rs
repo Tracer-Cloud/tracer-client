@@ -400,13 +400,11 @@ pub async fn update_tracer() -> Result<()> {
         return Ok(());
     }
 
-    println!("\nA new version of Tracer is available.");
-    println!("Current version: {}", format_version(current_ver));
-    println!("Latest version:  {}", format_version(latest_ver));
-    println!(
-        "\nWarning: The Tracer daemon will be stopped and restarted during the update process.",
-    );
-    println!("Would you like to proceed with the update? [y/N] ");
+    println!("\nA new version of Tracer is available!");
+    println!("\nVersion Information:");
+    println!("  Current Version: {}", format_version(current_ver));
+    println!("  Latest Version:  {}", format_version(latest_ver));
+    println!("\nWould you like to proceed with the update? [y/N] ");
 
     let mut input = String::new();
     std::io::stdin().read_line(&mut input)?;
@@ -417,12 +415,11 @@ pub async fn update_tracer() -> Result<()> {
     }
 
     let config = ConfigLoader::load_config(None)?;
-    let api_client = DaemonClient::new(format!("http://{}", config.server));
 
-    let _ = api_client.send_terminate_request().await;
-    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-
-    println!("Updating Tracer to version {}", latest);
+    println!(
+        "\nUpdating Tracer to version {}...",
+        format_version(latest_ver)
+    );
 
     let mut command = Command::new("bash");
     command.arg("-c").arg(format!(
@@ -434,8 +431,10 @@ pub async fn update_tracer() -> Result<()> {
         .status()
         .context("Failed to update Tracer. Please try again.")?;
 
-    let _ = clean_up_after_daemon();
-
-    println!("Update completed successfully. You can now run 'tracer init' to start the daemon with the new version.");
+    println!(
+        "\n{} Tracer has been successfully updated to version {}!",
+        "Success:".green(),
+        format_version(latest_ver)
+    );
     Ok(())
 }
