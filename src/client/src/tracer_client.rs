@@ -16,12 +16,11 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use sysinfo::System;
 use tokio::sync::{mpsc, RwLock};
-use tracer_common::constants::DEFAULT_SERVICE_URL;
 use tracer_common::recorder::LogRecorder;
 use tracer_common::types::current_run::{PipelineMetadata, Run};
 use tracer_common::types::event::attributes::EventAttributes;
 use tracer_common::types::event::{Event, ProcessStatus};
-use tracer_extracts::metrics::SystemMetricsCollector;
+use tracer_extracts::metrics::system_metrics_collector::SystemMetricsCollector;
 use tracer_extracts::process_watcher::ebpf_watcher::EbpfWatcher;
 use tracing::info;
 // NOTE: we might have to find a better alternative than passing the pipeline name to tracer client
@@ -220,10 +219,6 @@ impl TracerClient {
         self.system.write().await.refresh_all();
 
         Ok(())
-    }
-
-    pub fn get_service_url(&self) -> &str {
-        DEFAULT_SERVICE_URL
     }
 
     pub fn get_pipeline_name(&self) -> &str {
