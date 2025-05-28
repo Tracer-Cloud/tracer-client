@@ -510,6 +510,35 @@ EOL
     fi
 }
 
+print_install_summary() {
+    echo ""
+    echo "# ---------[ ✅ Step 1: System Check ]---------"
+    echo "🧪 Linux OS detected."
+    echo "🧪 All required dependencies found."
+    echo ""
+    echo "# ---------[ 📦 Step 2: Installing Tracer CLI ]---------"
+    echo "🟢 Package downloaded."
+    echo "🟢 Extracted successfully."
+    echo "🟢 Installed at: $BINDIR"
+    echo ""
+    echo "# ---------[ 🎉 Step 3: Installation Complete ]---------"
+    echo "✅ Tracer CLI installed successfully."
+    echo "🔴 Daemon Status: Not started yet"
+    echo ""
+    echo "# ---------[ 🧭 Step 4: Next Steps ]---------"
+    echo "To initialize the Tracer daemon, run:"
+    echo ""
+    echo "  tracer init            # interactive setup"
+    echo "  tracer init --help     # view flags"
+    echo ""
+    echo "To start the daemon:"
+    echo "  tracer info"
+    echo ""
+    echo "View dashboards at: https://sandbox.tracer.cloud"
+    echo "Need help? Visit https://github.com/Tracer-Cloud/tracer or email support@tracer.cloud"
+    echo ""
+}
+
 #-------------------------------------------------------------------------------
 #          NAME:  main
 #   DESCRIPTION:  The main function
@@ -528,32 +557,7 @@ main() {
     # setup_tracer_configuration_file
     # printsucc "Ended setup the tracer configuration file"
 
-    printsucc "Tracer CLI has been successfully installed."
-    printmsg ""
-    printmsg "  ${Gre}Next steps to get started:${RCol}"
-    printmsg ""
-    printmsg "Step 1 — Initialize the tracer daemon:"
-    printmsg ""
-    printmsg "  Option A: Use interactive setup ${Yel}(guided mode)${RCol}"
-    printmsg ""
-    printmsg "      ${Blu}tracer init${RCol}"
-    printmsg ""
-    printmsg "      This will guide you through configuring your pipeline step-by-step."
-    printmsg ""
-    printmsg "  Option B: Use manual flags"
-    printmsg ""
-    printmsg "      ${Blu}tracer init --pipeline-name demo_username \\"
-    printmsg "                 --environment demo \\"
-    printmsg "                 --pipeline-type rnaseq \\"
-    printmsg "                 --user-operator user@email.com \\"
-    printmsg "                 --is-dev false${RCol}"
-    printmsg ""
-    printmsg "Step 2 — View your pipeline data in Grafana:"
-    printmsg ""
-    printmsg "    => Check your email for the unique dashboard link"
-    printmsg "    => Or visit: ${Blu}https://sandbox.tracer.cloud${RCol}"
-    printmsg ""
-    printmsg "${Yel}HELP:${RCol} Visit ${Blu}https://github.com/Tracer-Cloud/tracer${RCol} or contact ${Blu}support@tracer.cloud${RCol}"
+    print_install_summary
 
 }
 
