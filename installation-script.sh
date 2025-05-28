@@ -45,6 +45,7 @@ if tput setaf 1 >/dev/null 2>&1; then
     Yel=$(tput setaf 3)
     Blu=$(tput setaf 4)
     Bla=$(tput setaf 0)
+    Gry=$(tput setaf 7)  # Light gray / white
     RCol=$(tput sgr0)
     ExitTrap="" # placeholder for resetting advanced functionality
 else
@@ -53,6 +54,7 @@ else
     Yel=""
     Bla=""
     Blu=""
+    Gry=""
     RCol=""
     ExitTrap=""
 fi
@@ -407,10 +409,12 @@ cleanup() {
     rm -rf "$TRACER_TEMP_DIR"
     if [ $? -ne 0 ]; then
         printerror "Failed to remove temporary directory ${Blu}$TRACER_TEMP_DIR${RCol}."
+    else
+        printsucc "Temporary directory ${Blu}$TRACER_TEMP_DIR${RCol} removed."
     fi
-    printmsg ""
-    printmsg ""
-    printsucc "Temporary directory ${Blu}$TRACER_TEMP_DIR${RCol} removed."
+    # Final concise summary
+    print_install_summary
+
     $ExitTrap
 }
 
@@ -512,30 +516,20 @@ EOL
 
 print_install_summary() {
     echo ""
-    echo "# ---------[ ✅ Step 1: System Check ]---------"
-    echo "🧪 Linux OS detected."
-    echo "🧪 All required dependencies found."
+    echo "${Gry}=============[ Installation Complete ]=============${RCol}"
     echo ""
-    echo "# ---------[ 📦 Step 2: Installing Tracer CLI ]---------"
-    echo "🟢 Package downloaded."
-    echo "🟢 Extracted successfully."
-    echo "🟢 Installed at: $BINDIR"
+    echo " Daemon Status: ${Red}Not started yet${RCol}"
     echo ""
-    echo "# ---------[ 🎉 Step 3: Installation Complete ]---------"
-    echo "✅ Tracer CLI installed successfully."
-    echo "🔴 Daemon Status: Not started yet"
+    echo "${Gry}-------------[ Next Steps ]-------------${RCol}"
     echo ""
-    echo "# ---------[ 🧭 Step 4: Next Steps ]---------"
-    echo "To initialize the Tracer daemon, run:"
+    echo " To initialize the Tracer daemon, run:"
     echo ""
-    echo "  tracer init            # interactive setup"
-    echo "  tracer init --help     # view flags"
+    echo "  ${Blu}tracer init${RCol}            ${Gry}# interactive setup${RCol}"
+    echo "  ${Blu}tracer init --help${RCol}     ${Gry}# view flags${RCol}"
     echo ""
-    echo "To start the daemon:"
-    echo "  tracer info"
     echo ""
-    echo "View dashboards at: https://sandbox.tracer.cloud"
-    echo "Need help? Visit https://github.com/Tracer-Cloud/tracer or email support@tracer.cloud"
+    echo " View dashboards at: ${Blu}https://sandbox.tracer.cloud${RCol}"
+    echo " ${Yel}Need help?${RCol}  Visit ${Blu}https://github.com/Tracer-Cloud/tracer${RCol} or email ${Blu}support@tracer.cloud${RCol}"
     echo ""
 }
 
@@ -556,8 +550,6 @@ main() {
     download_tracer
     # setup_tracer_configuration_file
     # printsucc "Ended setup the tracer configuration file"
-
-    print_install_summary
 
 }
 
