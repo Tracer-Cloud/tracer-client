@@ -23,6 +23,7 @@ tracer.tar.gz
 
 responses/*
 responses
+src/ebpf-libbpf/
 
 error_outgoing_http_calls.txt
 
@@ -32,7 +33,6 @@ debug.log
 
 .env
 .vscode/settings.json
-
 
 # Terraform state files
 terraform.tfstate
