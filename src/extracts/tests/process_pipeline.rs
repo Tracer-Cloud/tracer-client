@@ -176,7 +176,7 @@ async fn test_process_triggers_no_matching_targets() -> anyhow::Result<()> {
         "Should not receive events for non-matching processes"
     );
     assert_eq!(
-        watcher.targets_len().await,
+        watcher.get_number_of_monitored_processes().await,
         0,
         "No processes should be monitored"
     );
@@ -280,13 +280,13 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
     );
 
     // Verify that we're tracking one process
-    let targets_count = watcher.targets_len().await;
+    let targets_count = watcher.get_number_of_monitored_processes().await;
     assert_eq!(
         targets_count, 1,
         "One process should be monitored after start"
     );
 
-    let previewed_targets = watcher.preview_targets(5).await;
+    let previewed_targets = watcher.get_n_monitored_processes(5).await;
     assert!(
         previewed_targets.contains(&"sleep".to_string()),
         "The process name should be in the targets list"
@@ -380,7 +380,7 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
     assert!(props.duration_sec <= sleep_duration as u64);
 
     assert_eq!(
-        watcher.targets_len().await,
+        watcher.get_number_of_monitored_processes().await,
         0,
         "No processes should be monitored after finish"
     );

@@ -1,4 +1,7 @@
+use chrono::Utc;
 use sysinfo::ProcessStatus;
+use tracer_common::types::ebpf_trigger::ProcessStartTrigger;
+use tracer_common::types::event::attributes::process::{ProcessProperties, ShortProcessProperties};
 
 pub fn process_status_to_string(status: &ProcessStatus) -> String {
     match status {
@@ -15,4 +18,18 @@ pub fn process_status_to_string(status: &ProcessStatus) -> String {
         ProcessStatus::LockBlocked => "Lock Blocked".to_string(),
         _ => "Unknown".to_string(),
     }
+}
+
+/// Creates properties for a short-lived process that wasn't found in the system
+pub fn create_short_lived_process_properties(
+    process: &ProcessStartTrigger,
+    display_name: String,
+) -> ProcessProperties {
+    ProcessProperties::ShortLived(Box::new(ShortProcessProperties {
+        tool_name: display_name,
+        tool_pid: process.pid.to_string(),
+        tool_parent_pid: process.ppid.to_string(),
+        tool_binary_path: process.file_name.clone(),
+        start_timestamp: Utc::now().to_rfc3339(),
+    }))
 }

@@ -187,12 +187,20 @@ impl EbpfWatcher {
             .await
     }
 
-    pub async fn preview_targets(&self, n: usize) -> HashSet<String> {
-        self.process_manager.write().await.preview_targets(n).await
+    pub async fn get_n_monitored_processes(&self, n: usize) -> HashSet<String> {
+        self.process_manager
+            .write()
+            .await
+            .get_n_monitored_processes(n)
+            .await
     }
 
-    pub async fn targets_len(&self) -> usize {
-        self.process_manager.write().await.targets_len().await
+    pub async fn get_number_of_monitored_processes(&self) -> usize {
+        self.process_manager
+            .write()
+            .await
+            .get_number_of_monitored_processes()
+            .await
     }
 }
 

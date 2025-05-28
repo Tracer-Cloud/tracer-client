@@ -1,4 +1,6 @@
 use crate::process_watcher::handler::process::extract_process_data::ExtractProcessData;
+use crate::process_watcher::handler::process::process_utils::create_short_lived_process_properties;
+use crate::process_watcher::handler::process::types::{ProcessResult, ProcessState};
 use chrono::Utc;
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
@@ -12,31 +14,10 @@ use tracer_common::target_process::{Target, TargetMatchable};
 use tracer_common::types::ebpf_trigger::{
     ExitReason, OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger,
 };
-use tracer_common::types::event::attributes::process::{
-    CompletedProcess, ProcessProperties, ShortProcessProperties,
-};
+use tracer_common::types::event::attributes::process::CompletedProcess;
 use tracer_common::types::event::attributes::EventAttributes;
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 use tracing::{debug, error};
-
-/// Internal state of the process manager
-pub struct ProcessState {
-    // Maps PIDs to process triggers
-    processes: HashMap<usize, ProcessStartTrigger>,
-    // Maps targets to sets of processes being monitored
-    monitoring: HashMap<Target, HashSet<ProcessStartTrigger>>,
-    // List of targets to watch
-    target_manager: TargetManager,
-    // Store task handle to ensure it stays alive
-    ebpf_task: Option<tokio::task::JoinHandle<()>>,
-    // tracks relevant processes killed with oom
-    oom_victims: HashMap<usize, OutOfMemoryTrigger>, // Map of pid -> oom trigger
-}
-
-enum ProcessResult {
-    NotFound,
-    Found,
-}
 
 pub struct ProcessManager {
     state: Arc<RwLock<ProcessState>>,
@@ -46,13 +27,7 @@ pub struct ProcessManager {
 
 impl ProcessManager {
     pub fn new(target_manager: TargetManager, log_recorder: LogRecorder) -> Self {
-        let state = Arc::new(RwLock::new(ProcessState {
-            processes: HashMap::new(),
-            monitoring: HashMap::new(),
-            target_manager,
-            ebpf_task: None,
-            oom_victims: HashMap::new(),
-        }));
+        let state = Arc::new(RwLock::new(ProcessState::new(target_manager)));
 
         let system = Arc::new(RwLock::new(System::new_all()));
 
@@ -70,13 +45,13 @@ impl ProcessManager {
 
     pub async fn set_ebpf_task(&mut self, task: JoinHandle<()>) {
         let mut state = self.get_state_mut().await;
-        state.ebpf_task = Some(task);
+        state.set_ebpf_task(task);
     }
 
     /// Updates the list of targets being watched
     pub async fn update_targets(&self, targets: Vec<Target>) -> anyhow::Result<()> {
         let mut state = self.state.write().await;
-        state.target_manager.targets = targets;
+        state.update_targets(targets);
         Ok(())
     }
 
@@ -88,7 +63,7 @@ impl ProcessManager {
         let mut state = self.state.write().await;
 
         for finish in finish_triggers.iter_mut() {
-            if state.oom_victims.remove(&finish.pid).is_some() {
+            if state.remove_out_of_memory_victim(&finish.pid).is_some() {
                 finish.exit_reason = Some(ExitReason::OutOfMemoryKilled);
                 debug!("Marked PID {} as OOM-killed", finish.pid);
             }
@@ -103,13 +78,14 @@ impl ProcessManager {
         let mut state = self.state.write().await;
 
         for oom in triggers {
-            let is_related = state.processes.contains_key(&oom.pid)
-                || state.processes.values().any(|p| p.ppid == oom.pid);
+            let processes = state.get_processes();
+            let is_related =
+                processes.contains_key(&oom.pid) || processes.values().any(|p| p.ppid == oom.pid);
 
             if is_related {
                 debug!("Tracking OOM for relevant pid {}", oom.pid);
                 victims.insert(oom.pid, oom.clone());
-                state.oom_victims.insert(oom.pid, oom);
+                state.insert_out_of_memory_victim(oom.pid, oom);
             } else {
                 debug!("Ignoring unrelated OOM for pid {}", oom.pid);
             }
@@ -124,7 +100,7 @@ impl ProcessManager {
     ) -> anyhow::Result<()> {
         let mut state = self.state.write().await;
         for trigger in triggers.iter() {
-            state.processes.remove(&trigger.pid);
+            state.remove_process(&trigger.pid);
         }
         Ok(())
     }
@@ -144,10 +120,10 @@ impl ProcessManager {
 
         // Find all processes that we were monitoring that have terminated
         let terminated_processes: HashSet<_> = {
-            let mut state = self.state.write().await;
+            let state = self.state.write().await;
 
             state
-                .monitoring
+                .get_monitoring()
                 .iter_mut()
                 .flat_map(|(_, procs)| {
                     // Partition processes into terminated and still running
@@ -254,10 +230,10 @@ impl ProcessManager {
         }
 
         // Update monitoring state with new processes
-        let mut state = self.state.write().await;
+        let state = self.state.write().await;
         for (target, processes) in interested_in.into_iter() {
             state
-                .monitoring
+                .get_monitoring()
                 .entry(target)
                 .or_default()
                 .extend(processes);
@@ -274,14 +250,14 @@ impl ProcessManager {
         {
             let mut state = self.state.write().await;
             for trigger in triggers.iter() {
-                state.processes.insert(trigger.pid, trigger.clone());
+                state.insert_process(trigger.pid, trigger.clone());
             }
         }
 
         // Get PIDs of processes already being monitored
         let state = self.state.read().await;
         let already_monitored_pids: HashSet<usize> = state
-            .monitoring
+            .get_monitoring()
             .values()
             .flat_map(|processes| processes.iter().map(|p| p.pid))
             .collect();
@@ -362,7 +338,7 @@ impl ProcessManager {
         visited_pids.insert(process_pid);
 
         // Traverse up the process tree to include all parent processes
-        while let Some(parent) = state.processes.get(&current_pid) {
+        while let Some(parent) = state.get_processes().get(&current_pid) {
             // Check if we've seen this PID before - that would indicate a cycle
             if visited_pids.contains(&parent.pid) {
                 // We have a cycle in the process hierarchy - this shouldn't happen
@@ -408,7 +384,7 @@ impl ProcessManager {
         visited_pids.insert(process_pid);
 
         // Traverse up the process tree to include all parent processes
-        while let Some(parent) = state.processes.get(&current_pid) {
+        while let Some(parent) = state.get_processes().get(&current_pid) {
             // Check if we've seen this PID before - that would indicate a cycle
             if visited_pids.contains(&parent.pid) {
                 // We have a cycle in the process hierarchy - this shouldn't happen
@@ -456,12 +432,12 @@ impl ProcessManager {
         state: &'a ProcessState,
         process: &ProcessStartTrigger,
     ) -> Option<&'a Target> {
-        if let Some(target) = state.target_manager.get_target_match(process) {
+        if let Some(target) = state.get_target_manager().get_target_match(process) {
             return Some(target);
         }
 
         let eligible_targets_for_parents = state
-            .target_manager
+            .get_target_manager()
             .targets
             .iter()
             .filter(|target| !target.should_force_ancestor_to_match())
@@ -511,7 +487,7 @@ impl ProcessManager {
                 }
                 None => {
                     debug!("Process({}) wasn't found", process.pid);
-                    self.create_short_lived_process_properties(process, display_name.clone())
+                    create_short_lived_process_properties(process, display_name.clone())
                 }
             }
         };
@@ -526,21 +502,6 @@ impl ProcessManager {
             .await?;
 
         Ok(ProcessResult::Found)
-    }
-
-    /// Creates properties for a short-lived process that wasn't found in the system
-    fn create_short_lived_process_properties(
-        &self,
-        process: &ProcessStartTrigger,
-        display_name: String,
-    ) -> ProcessProperties {
-        ProcessProperties::ShortLived(Box::new(ShortProcessProperties {
-            tool_name: display_name,
-            tool_pid: process.pid.to_string(),
-            tool_parent_pid: process.ppid.to_string(),
-            tool_binary_path: process.file_name.clone(),
-            start_timestamp: Utc::now().to_rfc3339(),
-        }))
     }
 
     /// Processes an already running process for metrics updates
@@ -599,15 +560,18 @@ impl ProcessManager {
         // Get PIDs of all monitored processes
         let pids = {
             let state = self.state.read().await;
-            debug!("Refreshing data for {} processes", state.monitoring.len());
+            debug!(
+                "Refreshing data for {} processes",
+                state.get_monitoring().len()
+            );
 
-            if state.monitoring.is_empty() {
+            if state.get_monitoring().is_empty() {
                 debug!("No processes to monitor, skipping poll");
                 return Ok(());
             }
 
             state
-                .monitoring
+                .get_monitoring()
                 .iter()
                 .flat_map(|(_, processes)| processes.iter().map(|p| p.pid))
                 .collect::<HashSet<_>>()
@@ -623,11 +587,11 @@ impl ProcessManager {
     }
 
     /// Returns N process names of monitored processes
-    pub async fn preview_targets(&self, n: usize) -> HashSet<String> {
+    pub async fn get_n_monitored_processes(&self, n: usize) -> HashSet<String> {
         self.state
             .read()
             .await
-            .monitoring
+            .get_monitoring()
             .iter()
             .flat_map(|(_, processes)| processes.iter().map(|p| p.comm.clone()))
             .take(n)
@@ -635,11 +599,11 @@ impl ProcessManager {
     }
 
     /// Returns the total number of processes being monitored
-    pub async fn targets_len(&self) -> usize {
+    pub async fn get_number_of_monitored_processes(&self) -> usize {
         self.state
             .read()
             .await
-            .monitoring
+            .get_monitoring()
             .values()
             .map(|processes| processes.len())
             .sum()
@@ -648,7 +612,7 @@ impl ProcessManager {
     /// Updates all monitored processes with fresh data
     #[tracing::instrument(skip(self))]
     async fn update_all_processes(&self) -> anyhow::Result<()> {
-        for (target, procs) in self.state.read().await.monitoring.iter() {
+        for (target, procs) in self.state.read().await.get_monitoring().iter() {
             for proc in procs.iter() {
                 let result = self.update_running_process(target, proc).await?;
 
