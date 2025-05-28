@@ -360,15 +360,15 @@ fn parse_version(s: &str) -> Option<(u32, u32, u32)> {
     let s = s.trim_start_matches('v');
     let main_version = s.split('+').next()?;
     let parts: Vec<&str> = main_version.split('.').collect();
-    
+
     if parts.len() != 3 {
         return None;
     }
-    
+
     let major = parts[0].parse::<u32>().ok()?;
     let minor = parts[1].parse::<u32>().ok()?;
     let patch = parts[2].parse::<u32>().ok()?;
-    
+
     Some((major, minor, patch))
 }
 
@@ -393,19 +393,24 @@ pub async fn update_tracer() -> Result<()> {
         .ok_or_else(|| anyhow::anyhow!("Invalid latest version format: {}", latest))?;
 
     if latest_ver <= current_ver {
-        println!("\n{} You are already using the latest version of Tracer: {}.", "✓".green(), format_version(current_ver));
+        println!(
+            "\nTracer is already at the latest version: {}.",
+            format_version(current_ver)
+        );
         return Ok(());
     }
 
-    println!("\n{} A new version of Tracer is available!", "↑".yellow());
+    println!("\nA new version of Tracer is available.");
     println!("Current version: {}", format_version(current_ver));
     println!("Latest version:  {}", format_version(latest_ver));
-    println!("\n{} The Tracer daemon will be stopped during the update process.", "⚠️  Warning:".yellow());
+    println!(
+        "\nWarning: The Tracer daemon will be stopped and restarted during the update process.",
+    );
     println!("Would you like to proceed with the update? [y/N] ");
-    
+
     let mut input = String::new();
     std::io::stdin().read_line(&mut input)?;
-    
+
     if !input.trim().eq_ignore_ascii_case("y") {
         println!("Update cancelled.");
         return Ok(());
@@ -420,7 +425,10 @@ pub async fn update_tracer() -> Result<()> {
     println!("Updating Tracer to version {}", latest);
 
     let mut command = Command::new("bash");
-    command.arg("-c").arg(format!("curl -sSL https://install.tracer.cloud | bash -s -- {} && . ~/.bashrc && tracer", config.api_key));
+    command.arg("-c").arg(format!(
+        "curl -sSL https://install.tracer.cloud | bash -s -- {} && . ~/.bashrc && tracer",
+        config.api_key
+    ));
 
     command
         .status()

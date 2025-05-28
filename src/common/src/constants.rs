@@ -11,7 +11,6 @@ pub const SYSLOG_FILE: &str = "/var/log/syslog";
 pub const REPO_OWNER: &str = "tracer-cloud";
 pub const REPO_NAME: &str = "tracer-client";
 
-
 // TODO: remove dependency from Service url completely
 pub const DEFAULT_SERVICE_URL: &str = "https://app.tracer.bio/api";
 // todo: move to config^?
