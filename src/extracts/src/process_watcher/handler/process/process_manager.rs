@@ -73,7 +73,6 @@ impl ProcessManager {
         state.ebpf_task = Some(task);
     }
 
-
     /// Updates the list of targets being watched
     pub async fn update_targets(&self, targets: Vec<Target>) -> anyhow::Result<()> {
         let mut state = self.state.write().await;
