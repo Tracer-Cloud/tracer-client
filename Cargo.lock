@@ -5135,6 +5135,8 @@ dependencies = [
  "predicates",
  "rustls 0.23.27",
  "sentry",
+ "serde",
+ "serde_json",
  "sqlx",
  "sysinfo",
  "tempfile",

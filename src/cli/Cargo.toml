@@ -29,8 +29,8 @@ tracing-log = { workspace = true }
 tracing-appender = { workspace = true }
 sentry = { workspace = true }
 console = { workspace = true }
-
-
+serde = { workspace = true }
+serde_json = { workspace = true }
 
 [dev-dependencies]
 tracer_aws = { workspace = true }
