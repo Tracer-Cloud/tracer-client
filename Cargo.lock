@@ -2851,32 +2851,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4895175b425cb1f87721b59f0f286c2092bd4af812243672510e1ac53e2e0ad"
 
 [[package]]
-name = "openssl"
-version = "0.10.72"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fedfea7d58a1f73118430a55da6a286e7b044961736ce96a16a17068ea25e5da"
-dependencies = [
- "bitflags 2.9.1",
- "cfg-if",
- "foreign-types",
- "libc",
- "once_cell",
- "openssl-macros",
- "openssl-sys",
-]
-
-[[package]]
-name = "openssl-macros"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a948666b637a0f465e8564c73e89d4dde00d72d4d473cc972f390fc3dcee7d9c"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.101",
-]
-
-[[package]]
 name = "openssl-probe"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2887,17 +2861,6 @@ name = "option-ext"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
-
-[[package]]
-name = "os_info"
-version = "3.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41fc863e2ca13dc2d5c34fb22ea4a588248ac14db929616ba65c45f21744b1e9"
-dependencies = [
- "log",
- "serde",
- "windows-sys 0.52.0",
-]
 
 [[package]]
 name = "outref"
@@ -3447,7 +3410,6 @@ dependencies = [
  "http-body-util",
  "hyper 1.6.0",
  "hyper-rustls 0.27.6",
- "hyper-tls",
  "hyper-util",
  "ipnet",
  "js-sys",
@@ -3892,7 +3854,7 @@ checksum = "a505499b38861edd82b5a688fa06ba4ba5875bb832adeeeba22b7b23fc4bc39a"
 dependencies = [
  "httpdate",
  "reqwest",
- "rustls 0.23.26",
+ "rustls 0.23.27",
  "sentry-anyhow",
  "sentry-backtrace",
  "sentry-core",
@@ -3900,7 +3862,7 @@ dependencies = [
  "sentry-tracing",
  "tokio",
  "ureq 2.12.1",
- "webpki-roots 0.26.10",
+ "webpki-roots 0.26.11",
 ]
 
 [[package]]
@@ -5339,10 +5301,10 @@ dependencies = [
  "base64 0.22.1",
  "log",
  "once_cell",
- "rustls 0.23.26",
+ "rustls 0.23.27",
  "rustls-pki-types",
  "url",
- "webpki-roots 0.26.10",
+ "webpki-roots 0.26.11",
 ]
 
 [[package]]
