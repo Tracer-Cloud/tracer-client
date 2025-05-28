@@ -4,11 +4,6 @@ use tracer_common::target_process::manager::TargetManager;
 use tracer_common::target_process::Target;
 use tracer_common::types::ebpf_trigger::{OutOfMemoryTrigger, ProcessStartTrigger};
 
-pub enum ProcessResult {
-    Found,
-    NotFound,
-}
-
 /// Internal state of the process manager
 pub struct ProcessState {
     processes: HashMap<usize, ProcessStartTrigger>,

@@ -1,6 +1,7 @@
 use crate::process_watcher::handler::process::extract_process_data::ExtractProcessData;
 use crate::process_watcher::handler::process::process_utils::create_short_lived_process_properties;
-use crate::process_watcher::handler::process::types::{ProcessResult, ProcessState};
+use crate::process_watcher::handler::process::types::process_result::ProcessResult;
+use crate::process_watcher::handler::process::types::process_state::ProcessState;
 use chrono::Utc;
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
