@@ -230,14 +230,8 @@ impl ProcessManager {
         }
 
         // Update monitoring state with new processes
-        let state = self.state.write().await;
-        for (target, processes) in interested_in.into_iter() {
-            state
-                .get_monitoring()
-                .entry(target)
-                .or_default()
-                .extend(processes);
-        }
+        let mut state = self.state.write().await;
+        state.update_monitoring(interested_in);
 
         Ok(())
     }
@@ -256,11 +250,7 @@ impl ProcessManager {
 
         // Get PIDs of processes already being monitored
         let state = self.state.read().await;
-        let already_monitored_pids: HashSet<usize> = state
-            .get_monitoring()
-            .values()
-            .flat_map(|processes| processes.iter().map(|p| p.pid))
-            .collect();
+        let already_monitored_pids = state.get_monitored_processes_pids();
 
         // Find processes that match our targets
         let matched_processes = self.find_matching_processes(triggers).await?;
@@ -273,7 +263,7 @@ impl ProcessManager {
                     .into_iter()
                     .flat_map(|proc| {
                         // Get the process and its parents
-                        let mut parents = self.get_process_hierarchy(&state, proc);
+                        let mut parents = state.get_process_hierarchy(proc);
                         // Filter out already monitored processes
                         parents.retain(|p| !already_monitored_pids.contains(&p.pid));
                         parents
@@ -313,99 +303,6 @@ impl ProcessManager {
         .await?;
 
         Ok(())
-    }
-
-    /// Gets a process and all its parent processes from the state
-    ///
-    /// Will panic if a cycle is detected in the process hierarchy.
-    pub fn get_process_hierarchy(
-        &self,
-        state: &ProcessState,
-        process: ProcessStartTrigger,
-    ) -> HashSet<ProcessStartTrigger> {
-        let mut current_pid = process.ppid;
-        let mut hierarchy = HashSet::new();
-        // Keep track of visited PIDs to detect cycles
-        let mut visited_pids = HashSet::new();
-
-        // Store the process PID before moving the process
-        let process_pid = process.pid;
-
-        // Insert the process into the hierarchy (this moves the process)
-        hierarchy.insert(process);
-
-        // Add the starting process PID to visited
-        visited_pids.insert(process_pid);
-
-        // Traverse up the process tree to include all parent processes
-        while let Some(parent) = state.get_processes().get(&current_pid) {
-            // Check if we've seen this PID before - that would indicate a cycle
-            if visited_pids.contains(&parent.pid) {
-                // We have a cycle in the process hierarchy - this shouldn't happen
-                // in normal scenarios, but we'll panic to prevent infinite loops
-                panic!(
-                    "Cycle detected in process hierarchy! PID {} appears twice in parent chain",
-                    parent.pid
-                );
-            }
-
-            // Track that we've visited this PID
-            visited_pids.insert(parent.pid);
-
-            // Add parent to the hierarchy
-            hierarchy.insert(parent.clone());
-
-            // Move to the next parent
-            current_pid = parent.ppid;
-        }
-
-        hierarchy
-    }
-
-    /// Gets a process and all its parent processes from the state
-    ///
-    /// Will panic if a cycle is detected in the process hierarchy.
-    fn get_process_parents<'a>(
-        state: &'a ProcessState,
-        process: &'a ProcessStartTrigger,
-    ) -> HashSet<&'a ProcessStartTrigger> {
-        let mut current_pid = process.ppid;
-        let mut hierarchy = HashSet::new();
-        // Keep track of visited PIDs to detect cycles
-        let mut visited_pids = HashSet::new();
-
-        // Store the process PID before moving the process
-        let process_pid = process.pid;
-
-        // Insert the process into the hierarchy (this moves the process)
-        hierarchy.insert(process);
-
-        // Add the starting process PID to visited
-        visited_pids.insert(process_pid);
-
-        // Traverse up the process tree to include all parent processes
-        while let Some(parent) = state.get_processes().get(&current_pid) {
-            // Check if we've seen this PID before - that would indicate a cycle
-            if visited_pids.contains(&parent.pid) {
-                // We have a cycle in the process hierarchy - this shouldn't happen
-                // in normal scenarios, but we'll panic to prevent infinite loops
-                panic!(
-                    "Cycle detected in process hierarchy! PID {} appears twice in parent chain",
-                    parent.pid
-                );
-            }
-
-            // Track that we've visited this PID
-            visited_pids.insert(parent.pid);
-
-            // Add parent to the hierarchy
-            hierarchy.insert(parent);
-
-            // Move to the next parent
-            current_pid = parent.ppid;
-        }
-
-        hierarchy
     }
 
     pub async fn find_matching_processes(
@@ -450,7 +347,7 @@ impl ProcessManager {
         // Here it's tempting to check if the parent is just in the monitoring list. However, we can't do that because
         // parent may be matching but not yet set to be monitoring (e.g., because it just arrived or even is in the same batch)
 
-        let parents = Self::get_process_parents(state, process);
+        let parents = state.get_process_parents(process);
         for parent in parents {
             for target in eligible_targets_for_parents.iter() {
                 if target.matches_process(parent) {
