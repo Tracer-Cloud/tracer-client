@@ -53,6 +53,47 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4.1.4
+        with:
+          submodules: recursive  # This will fetch all submodules recursively
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Install target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Install build dependencies
+        run: |
+          rustup toolchain install nightly-2025-04-15 --component rust-src
+          
+          # Install necessary eBPF dependencies
+          sudo apt-get update
+          sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm
+
+      # Verify submodules are properly loaded
+      - name: Verify submodule content
+        run: |
+          # Find all vmlinux.h files
+          vmlinux_files=$(find vendor -name "vmlinux.h")
+          
+          # Check if any vmlinux.h files exist
+          if [ -z "$vmlinux_files" ]; then
+            echo "ERROR: No vmlinux.h files found in vendor directory"
+            exit 1
+          fi
+          
+          # Print out the found vmlinux.h files for debugging
+          echo "Found vmlinux.h files:"
+          echo "$vmlinux_files"
+          
+          # Optional: Check for specific directories or files you expect
+          if [ ! -d "vendor/bpftool" ] || [ ! -d "vendor/libbpf" ]; then
+            echo "WARNING: Expected vendor subdirectories are missing"
+          fi
 
       - name: Install cross-compilation tools
         uses: taiki-e/setup-cross-toolchain-action@v1
@@ -64,45 +105,4 @@ jobs:
         with:
           bin: tracer_cli
           target: ${{ matrix.target }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-          
-  upload-amazon-linux:
-    needs: create-release
-    permissions: write-all
-    runs-on: ubuntu-latest
-    container:
-      image: amazonlinux:2023
-
-    steps:
-      - name: Install dependencies
-        run: |
-          yum update -y
-          yum groupinstall -y "Development Tools"
-          yum install -y git gcc openssl-devel pkgconfig cmake tar gzip unzip
-
-      - name: Install Rust
-        run: |
-          curl https://sh.rustup.rs -sSf | sh -s -- -y
-          echo 'source $HOME/.cargo/env' >> ~/.bashrc
-          source $HOME/.cargo/env
-          rustup target add x86_64-unknown-linux-gnu
-
-      - uses: actions/checkout@v4
-
-      - name: Build the binary
-        run: |
-          source $HOME/.cargo/env
-          cargo build --release
-
-      - name: Prepare binary for release
-        run: |
-          mkdir -p release-files/amazon-linux
-          cp target/release/tracer_cli release-files/amazon-linux/tracer
-          chmod +x release-files/amazon-linux/tracer
-          tar -czf release-files/tracer-x86_64-amazon-linux-gnu.tar.gz -C release-files/amazon-linux tracer
-
-      - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: release-files/tracer-x86_64-amazon-linux-gnu.tar.gz
           token: ${{ secrets.GITHUB_TOKEN }}

@@ -5,11 +5,11 @@ use anyhow::{Context, Result};
 use tracer_aws::pricing::PricingSource;
 use tracer_common::target_process::manager::TargetManager;
 use tracer_common::target_process::targets_list::DEFAULT_EXCLUDED_PROCESS_RULES;
+use tracer_common::types::cli::params::FinalizedInitArgs;
 
 use crate::events::{send_alert_event, send_log_event, send_start_run_event};
 use crate::exporters::log_writer::LogWriterEnum;
 use crate::exporters::manager::ExporterManager;
-use crate::params::TracerCliInitArgs;
 use chrono::{DateTime, TimeDelta, Utc};
 use serde_json::json;
 use std::sync::Arc;
@@ -70,7 +70,7 @@ impl TracerClient {
         config: Config,
         workflow_directory: String,
         db_client: LogWriterEnum,
-        cli_args: TracerCliInitArgs, // todo: why Config AND TracerCliInitArgs? remove CliInitArgs
+        cli_args: FinalizedInitArgs, // todo: why Config AND TracerCliInitArgs? remove CliInitArgs
     ) -> Result<TracerClient> {
         // todo: do we need both config with db connection AND db_client?
         info!("Initializing TracerClient with API Key: {}", config.api_key);
@@ -133,7 +133,7 @@ impl TracerClient {
         Ok(file_watcher)
     }
 
-    fn init_pipeline(cli_args: &TracerCliInitArgs) -> Arc<RwLock<PipelineMetadata>> {
+    fn init_pipeline(cli_args: &FinalizedInitArgs) -> Arc<RwLock<PipelineMetadata>> {
         Arc::new(RwLock::new(PipelineMetadata {
             pipeline_name: cli_args.pipeline_name.clone(),
             run: None,
@@ -380,7 +380,7 @@ mod tests {
     use super::*;
     use crate::config_manager::ConfigLoader;
     use crate::exporters::db::AuroraClient;
-    use crate::params::TracerCliInitArgs;
+
     use anyhow::Result;
     use serde_json::Value;
     use sqlx::types::Json;

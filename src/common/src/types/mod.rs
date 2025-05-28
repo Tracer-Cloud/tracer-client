@@ -1,3 +1,4 @@
+pub mod cli;
 pub mod current_run;
 pub mod ebpf_trigger;
 pub mod event;

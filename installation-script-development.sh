@@ -499,8 +499,8 @@ main() {
 
     make_temp_dir
     download_tracer
-    setup_tracer_configuration_file
-    printsucc "Ended setup the tracer configuration file"
+    # setup_tracer_configuration_file
+    # printsucc "Ended setup the tracer configuration file"
 
     printsucc "Tracer CLI has been successfully installed."
 

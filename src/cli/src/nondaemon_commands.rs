@@ -1,4 +1,5 @@
 use colored::Colorize;
+use console::Emoji;
 use std::fmt::Write;
 use std::process::Command;
 
@@ -65,23 +66,164 @@ pub async fn wait(api_client: &DaemonClient) -> Result<()> {
     bail!("Daemon not started yet")
 }
 
+pub fn print_install_readiness() -> Result<()> {
+    let mut diagnostics: Vec<String> = vec![];
+    let mut missing_packages: Vec<String> = vec![];
+    let mut missing_package_advice: Vec<String> = vec![];
+
+    let packages = [
+        (
+            "build-essential",
+            "dpkg -s build-essential",
+            "apt-get:build-essential",
+        ),
+        ("pkg-config", "dpkg -s pkg-config", "apt-get:pkg-config"),
+        ("libelf1", "dpkg -s libelf1", "apt-get:libelf1"),
+        ("libelf-dev", "dpkg -s libelf-dev", "apt-get:libelf-dev"),
+        ("zlib1g-dev", "dpkg -s zlib1g-dev", "apt-get:zlib1g-dev"),
+        ("llvm", "dpkg -s llvm", "apt-get:llvm"),
+        ("clang", "dpkg -s clang", "apt-get:clang"),
+    ];
+
+    for (package_name, check_cmd, install_advice) in &packages {
+        let is_installed = Command::new("sh")
+            .arg("-c")
+            .arg(check_cmd)
+            .output()
+            .map(|output| output.status.success())
+            .unwrap_or(false);
+
+        if !is_installed {
+            missing_packages.push(package_name.to_string());
+            missing_package_advice.push(install_advice.to_string());
+        }
+    }
+
+    if !missing_packages.is_empty() {
+        let mut message = format!(
+            "Found missing packages: {}\n\nTo install them run:\n",
+            missing_packages.join(", ")
+        );
+
+        let mut apt_get_packages = vec![];
+        let mut cargo_packages = vec![];
+
+        for (package_name, _, install_advice) in &packages {
+            if missing_packages.contains(&package_name.to_string()) {
+                if install_advice.starts_with("apt-get:") {
+                    apt_get_packages.push(install_advice.replace("apt-get:", ""));
+                } else if install_advice.starts_with("cargo:") {
+                    cargo_packages.push(install_advice.replace("cargo:", ""));
+                }
+            }
+        }
+
+        if !apt_get_packages.is_empty() {
+            message.push_str(&format!(
+                "sudo apt-get install -y {}\n",
+                apt_get_packages.join(" ")
+            ));
+        }
+
+        if !cargo_packages.is_empty() {
+            message.push_str(&format!("cargo install {}\n", cargo_packages.join(" ")));
+        }
+
+        diagnostics.push(message);
+    }
+
+    // Check kernel version (should be v5.15)
+    let kernel_version = Command::new("uname")
+        .arg("-r")
+        .output()
+        .ok()
+        .and_then(|output| {
+            String::from_utf8(output.stdout).ok().and_then(|version| {
+                let parts: Vec<&str> = version.trim().split('.').collect();
+                if parts.len() >= 2 {
+                    let major = parts[0].parse::<u32>().ok()?;
+                    let minor = parts[1].parse::<u32>().ok()?;
+                    Some((major, minor))
+                } else {
+                    None
+                }
+            })
+        });
+
+    match kernel_version {
+        Some((5, 15)) => {
+            // Kernel version matches
+        }
+        Some((major, minor)) => {
+            diagnostics.push(format!(
+                "Tracer has been tested and confirmed to work on Linux kernel v5.15, detected v{}.{}. Contact support if issues arise.",
+                major, minor
+            ));
+        }
+        None => {
+            diagnostics.push("Linux kernel version unknown. Recommended: v5.15.".to_string());
+        }
+    }
+
+    // Print all collected diagnostics
+    for warning in &diagnostics {
+        println!();
+        println!("{}", warning);
+    }
+    if !&diagnostics.is_empty() {
+        println!();
+    }
+
+    Ok(())
+}
+
 pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Result<()> {
     let mut output = String::new();
 
     let info = match api_client.send_info_request().await {
         Ok(info) => info,
         Err(e) => {
+            tracing::error!("Error getting info response: {e}");
+            const NEXT: Emoji<'_, '_> = Emoji("⏭️", "->");
+            const CHECK: Emoji<'_, '_> = Emoji("✅", " ");
+
             writeln!(&mut output, "Daemon status: {}\n", "Stopped".red())?;
+
+            //
+
             writeln!(
                 &mut output,
-                "To start the daemon run {}\n",
-                "tracer init".cyan().bold()
+                "\n{} {}",
+                CHECK,
+                "Tracer agent installed successfully:".bold()
             )?;
+
             writeln!(
                 &mut output,
-                "This error occured while trying to access the daemon info:\n\n{:?}",
-                e
+                "\n{} {}",
+                NEXT,
+                "Initialize the Tracer agent by running:".bold()
             )?;
+            writeln!(
+            &mut output,
+            "\n{}\n",
+            "tracer init --pipeline-name demo_username --environment demo --pipeline-type rnaseq --user-operator user_email --is-dev false"
+                .cyan()
+                .bold()
+        )?;
+
+            let raw_url = "https://sandbox.tracer.app";
+            let clickable_url = format!("\u{1b}]8;;{0}\u{1b}\\{0}\u{1b}]8;;\u{1b}\\", raw_url);
+            let colored_url = clickable_url.cyan().underline().to_string();
+
+            writeln!(
+                &mut output,
+                "{} {} (see email or visit: {})",
+                NEXT,
+                "View results in Grafana".bold(),
+                colored_url
+            )?;
+
             println!("{}", output);
             return Ok(());
         }
