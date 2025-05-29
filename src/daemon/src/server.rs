@@ -1,4 +1,3 @@
-use config_manager::{INTERCEPTOR_STDERR_FILE, INTERCEPTOR_STDOUT_FILE};
 use std::future::IntoFuture;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -7,14 +6,11 @@ use tokio::net::TcpListener;
 use tokio::sync::{Mutex, RwLock};
 
 use crate::app::get_app;
-use crate::daemon::monitor_processes_with_tracer_client;
+use crate::daemon::monitor_processes;
 use std::borrow::BorrowMut;
 use tokio_util::sync::CancellationToken;
 use tracer_client::config_manager;
 use tracer_client::TracerClient;
-use tracer_common::constants::SYSLOG_FILE;
-use tracer_extracts::stdout::run_stdout_lines_read_thread;
-use tracer_extracts::syslog::run_syslog_lines_read_thread;
 use tracing::debug;
 
 pub struct DaemonServer {
@@ -54,17 +50,6 @@ impl DaemonServer {
 
         let server = tokio::spawn(axum::serve(self.listener, app).into_future());
 
-        let syslog_lines_task = tokio::spawn(run_syslog_lines_read_thread(
-            SYSLOG_FILE,
-            tracer_client.lock().await.get_syslog_lines_buffer(),
-        ));
-
-        let stdout_lines_task = tokio::spawn(run_stdout_lines_read_thread(
-            INTERCEPTOR_STDOUT_FILE,
-            INTERCEPTOR_STDERR_FILE,
-            tracer_client.lock().await.get_stdout_stderr_lines_buffer(),
-        ));
-
         tracer_client
             .lock()
             .await
@@ -72,12 +57,12 @@ impl DaemonServer {
             .start_new_run(None)
             .await?;
 
-        let mut metrics_interval = tokio::time::interval(Duration::from_millis(
+        let mut system_metrics_interval = tokio::time::interval(Duration::from_millis(
             config.read().await.batch_submission_interval_ms,
         ));
 
-        let mut monitor_interval = tokio::time::interval(Duration::from_millis(
-            config.read().await.batch_submission_interval_ms,
+        let mut process_metrics_interval = tokio::time::interval(Duration::from_millis(
+            config.read().await.process_metrics_send_interval_ms,
         ));
 
         let exporter = Arc::clone(&tracer_client.lock().await.exporter);
@@ -103,25 +88,21 @@ impl DaemonServer {
                     debug!("DaemonServer cancelled");
                     break;
                 }
-                _ = metrics_interval.tick() => {
+                _ = system_metrics_interval.tick() => {
                     debug!("DaemonServer metrics interval ticked");
                     let guard = tracer_client.lock().await;
 
                     guard.poll_metrics_data().await?;
-                    guard.poll_files().await?;
-
                 }
-                _ = monitor_interval.tick() => {
+                _ = process_metrics_interval.tick() => {
                     debug!("DaemonServer monitor interval ticked");
-                    monitor_processes_with_tracer_client(tracer_client.lock().await.borrow_mut())
+                    monitor_processes(tracer_client.lock().await.borrow_mut())
                     .await?;
                 }
 
             }
         }
 
-        syslog_lines_task.abort();
-        stdout_lines_task.abort();
         server.abort();
 
         {

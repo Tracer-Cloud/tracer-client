@@ -4,7 +4,7 @@ use std::ffi::c_void;
 use std::sync::{mpsc as std_mpsc, Arc};
 use std::time::Duration;
 use tokio::sync::mpsc::UnboundedSender;
-use tracer_common::types::trigger::Trigger;
+use tracer_common::types::ebpf_trigger::Trigger;
 
 // Define the FFI interface to the C function - only on Linux
 #[cfg(target_os = "linux")]
