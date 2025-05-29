@@ -11,11 +11,9 @@
 # - [x] check which shell is running (bash/zsh/older) and configure accordingly
 #
 
-# Define the version of the tracer you want to download
 #---  PARAMETERS  --------------------------------------------------------------
 #   DESCRIPTION:  Parameters used in the rest of this script
 #-------------------------------------------------------------------------------
-# https://github.com/Tracer-Cloud/tracer-client/releases/download/v0.0.8/tracer-universal-apple-darwin.tar.gz
 SCRIPT_VERSION="v0.0.1"
 TRACER_VERSION="development"
 TRACER_LINUX_URL_X86_64="https://tracer-releases.s3.us-east-1.amazonaws.com/tracer-x86_64-unknown-linux-gnu.tar.gz"
@@ -23,7 +21,6 @@ TRACER_LINUX_URL_ARM="https://tracer-releases.s3.us-east-1.amazonaws.com/tracer-
 TRACER_AMAZON_LINUX_URL_X86_64="https://tracer-releases.s3.us-east-1.amazonaws.com/tracer-x86_64-amazon-linux-gnu.tar.gz"
 TRACER_MACOS_AARCH_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-aarch64-apple-darwin.tar.gz"
 TRACER_MACOS_X86_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-x86_64-apple-darwin.tar.gz"
-
 
 TRACER_HOME="$HOME/.tracerbio"
 LOGFILE_NAME="tracer-installer.log"
@@ -34,14 +31,12 @@ CONFIGFILE="$TRACER_HOME/$CONFIGFILE_NAME"
 PACKAGE_NAME="" # set later
 BINDIRS=("$HOME/bin" "$HOME/.local/bin" "$TRACER_HOME/bin")
 BINDIR="" # set later
-
 API_KEY="" # set later
 
 #---  VARIABLES  ---------------------------------------------------------------
 #          NAME:  Red|Gre|Yel|Bla|RCol
 #   DESCRIPTION:  Utility variables for pretty printing etc
 #-------------------------------------------------------------------------------
-# if tput is available use colours.
 if tput setaf 1 >/dev/null 2>&1; then
     Red=$(tput setaf 1)
     Gre=$(tput setaf 2)
@@ -76,8 +71,6 @@ if ! [[ "$TERM" =~ ^xterm.* || "$TERM" == "screen" ]]; then
   EMOJI_CANCEL="[X]"
 fi
 
-
-
 # init var
 tsnow=""
 
@@ -105,45 +98,7 @@ printindmsg() {
     printlog "         $*"
 }
 
-# with newlines
-printsucc() {
-    printf '%s\n' "${Gre}Success:${RCol} $*"
-    printlog "SUCCESS: $*"
-}
-printinfo() {
-    printf '%s\n' "${Blu}Info:   ${RCol} $*"
-    printlog "INFO:    $*"
-}
-printwarn() {
-    printf '%s\n' "${Yel}Warning:${RCol} $*"
-    printlog "WARNING: $*"
-}
-printerror() {
-    printf "%s\n" "${Red}Error:  ${RCol} $*"
-    printlog "ERROR:   $*"
-}
-
-# partials
-printpmsg() {
-    printf '%s' "$*"
-    printlog "$*"
-}
-printpsucc() {
-    printf '%s' "${Gre}Success:${RCol} $*"
-    printlog "SUCCESS: $*"
-}
-printpinfo() {
-    printf '%s' "${Blu}Info:   ${RCol} $*"
-    printlog "INFO:    $*"
-}
-printpwarn() {
-    printf '%s' "${Yel}Warning:${RCol} $*"
-    printlog "WARNING: $*"
-}
-printperror() {
-    printf "%s" "${Red}Error:  ${RCol} $*"
-    printlog "ERROR:   $*"
-}
+#---  SYSTEM CHECKS  -----------------------------------------------------------
 
 function check_prereqs() {
     # Curl is not optional due to event sending function below
@@ -158,7 +113,7 @@ function check_prereqs() {
         }
     done
     if [[ $thingsNotFound -ne 0 ]]; then
-        printerror "This installation script requires the following commands to be available on your system: "
+        echo "- ${EMOJI_CANCEL} Missing required dependencies:"
         for thing in "${notFoundList[@]}"; do
             printindmsg " - ${Yel}${thing}${RCol}"
         done
@@ -167,32 +122,8 @@ function check_prereqs() {
     fi
     echo "- ${EMOJI_CHECK} All required dependencies found."
 }
-function print_header() {
-  printnolog " "
-  printnolog "⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀│ "
-  printnolog "⠀⢷⣦⣦⣄⣄⣔⣿⣿⣆⣄⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀│ Tracer.bio CLI Installer"
-  printnolog "⠀⠀⠻⣿⣿⣿⣿⣿⣿⣿⣿⠛⣿⣷⣦⡄⡀⠀⠀⠀⠀⠀⠀⠀⠀│ "
-  printnolog "⠀⠀⠀⠈⠻⣻⣿⣿⣿⣿⣿⣷⣷⣿⣿⣿⣷⣧⡄⡀⠀⠀⠀⠀⠀│ Script version: ${Blu}${SCRIPT_VERSION}${RCol}"
-  printnolog "⠀⠀⠀⠀⠀⠀⠘⠉⠃⠑⠁⠃⠋⠋⠛⠟⢿⢿⣿⣷⣦⡀⠀⠀⠀│ Tracer version: ${Blu}${TRACER_VERSION}${RCol}"
-  printnolog "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠑⠙⠻⠿⣧⠄⠀│ "
-  printnolog "⠀          ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠀⠀│ "
-  printnolog " "
-}
 
-
-function print_help() {
-    printindmsg ""
-    printindmsg "Example Usage: "
-    printindmsg "  ${Gre}$0 <your_api_key>${RCol}"
-    printindmsg ""
-    printindmsg "To obtain your API key, log in to your console at ${Blu}https://app.tracer.bio${RCol}"
-}
-
-#-------------------------------------------------------------------------------
-#          NAME:  check_os
-#   DESCRIPTION:  Check the OS and set the appropriate download URL
-#-------------------------------------------------------------------------------
-check_os() {
+function check_os() {
     OS=$(uname -s)
     ARCH=$(uname -m)
 
@@ -201,7 +132,6 @@ check_os() {
         # Check for Amazon Linux
         if [ -f /etc/system-release ] && grep -q "Amazon Linux" /etc/system-release; then
             echo "- ${EMOJI_CHECK} Amazon Linux OS detected."
-            # Amazon Linux uses the same architecture detection as other Linux distributions
             case "$ARCH" in
             x86_64)
                 TRACER_URL=$TRACER_AMAZON_LINUX_URL_X86_64
@@ -231,7 +161,6 @@ check_os() {
         fi
         ;;
     Darwin*)
-        # Differentiating between ARM and x86_64 architectures on macOS
         if [ "$ARCH" = "arm64" ]; then
             echo "- ${EMOJI_CHECK} macOS ARM64 architecture detected"
             TRACER_URL=$TRACER_MACOS_AARCH_URL
@@ -247,10 +176,14 @@ check_os() {
     esac
 }
 
-#-------------------------------------------------------------------------------
-#          NAME:  get_package_name
-#   DESCRIPTION:  Gets name of just the file from the download url
-#-------------------------------------------------------------------------------
+function check_system_requirements() {
+  echo "Checking System Requirements..."
+  check_os
+  check_prereqs
+}
+
+#---  INSTALLATION FUNCTIONS  --------------------------------------------------
+
 function get_package_name() {
     PACKAGE_NAME=$(basename "$TRACER_URL")
 }
@@ -262,40 +195,31 @@ function configure_bindir() {
             if [[ :$PATH: == *:$dir:* ]]; then
                 dirfound=1
                 BINDIR=$dir
-                printinfo "Local bin directory ${Blu}$dir${RCol} found. Tracer will be installed there."
+                printmsg "Using existing bin directory: ${Blu}$dir${RCol}"
                 break
             fi
         fi
     done
     if [ $dirfound -eq 0 ]; then
         BINDIR=${TRACER_HOME}/bin
-        printwarn "No local bin directory found. Tracer will be installed in ${Blu}$BINDIR${RCol}."
-        mkdir -p "$BINDIR"
-        if [ $? -ne 0 ]; then
-            printerror "Failed to create ${Blu}$BINDIR${RCol} directory. Please check your permissions and try again."
+        printmsg "Creating new bin directory: ${Blu}$BINDIR${RCol}"
+        mkdir -p "$BINDIR" || {
+            echo "- ${EMOJI_CANCEL} Failed to create ${Blu}$BINDIR${RCol} directory."
             exit 1
-        fi
+        }
         update_rc
     fi
 }
 
-#-------------------------------------------------------------------------------
-#          NAME:  make_temp_dir
-#   DESCRIPTION:  Creates a temporary directory to support installation
-#-------------------------------------------------------------------------------
 function make_temp_dir() {
     TRACER_TEMP_DIR=$(mktemp -d)
     if [ $? -ne 0 ]; then
-        printerror "Failed to create temporary directory. Please check your permissions and try again."
+        echo "- ${EMOJI_CANCEL} Failed to create temporary directory."
         exit 1
     fi
-    printinfo "Temporary directory ${Blu}$TRACER_TEMP_DIR${RCol} created."
+    printmsg "Created temporary directory: ${Blu}$TRACER_TEMP_DIR${RCol}"
 }
 
-#-------------------------------------------------------------------------------
-#          NAME:  download_tracer
-#   DESCRIPTION:  Downloads and extracts the Tracer binary
-#-------------------------------------------------------------------------------
 function download_tracer() {
     DLTARGET="$TRACER_TEMP_DIR/package"
     EXTRACTTARGET="$TRACER_TEMP_DIR/extracted"
@@ -303,82 +227,101 @@ function download_tracer() {
     mkdir -p "$DLTARGET"
     mkdir -p "$EXTRACTTARGET"
 
-    printpinfo "Downloading package..."
-    curl -sSL --progress-bar -o "${DLTARGET}/${PACKAGE_NAME}" "$TRACER_URL"
-    if [ $? -ne 0 ]; then
-        printerror "Failed to download Tracer. Please check your internet connection and try again."
+    # Download package (silent unless error)
+    curl -sSL -o "${DLTARGET}/${PACKAGE_NAME}" "$TRACER_URL" || {
+        echo "- ${EMOJI_CANCEL} Failed to download Tracer."
         exit 1
-    fi
-    printmsg " done."
+    }
+    echo "- ${EMOJI_CHECK} Package downloaded."
 
-    # Check if the file is a valid gzip file
+    # Validate and extract package
     if ! gzip -t "${DLTARGET}/${PACKAGE_NAME}" >/dev/null 2>&1; then
-        FILE_TYPE=$(file -b "${DLTARGET}/${PACKAGE_NAME}")
-        echo "Downloaded file is not a valid gzip file. It is a ${FILE_TYPE}. Please check the download URL and try again."
+        echo "- ${EMOJI_CANCEL} Invalid package format."
         exit 1
     fi
 
-    printpinfo "Extracting package..."
-    tar -xzf "${DLTARGET}/${PACKAGE_NAME}" -C "$EXTRACTTARGET"
-    printmsg " done."
-    chmod +x "${EXTRACTTARGET}/tracer"
-    if [ $? -ne 0 ]; then
-        printerror "Failed to set executable permissions on extracted binary. Please check your permissions and mount flags."
+    tar -xzf "${DLTARGET}/${PACKAGE_NAME}" -C "$EXTRACTTARGET" >/dev/null 2>&1 || {
+        echo "- ${EMOJI_CANCEL} Failed to extract package."
         exit 1
-    fi
+    }
+    echo "- ${EMOJI_CHECK} Extracted successfully."
 
-    # move binary to bin dir
-    mv "${EXTRACTTARGET}/tracer" "$BINDIR/tracer"
-    if [ $? -ne 0 ]; then
-        printerror "Failed to move Tracer binary to ${Blu}$BINDIR${RCol}. Please check your permissions and try again."
+    # Install binary
+    chmod +x "${EXTRACTTARGET}/tracer" && \
+    mv "${EXTRACTTARGET}/tracer" "$BINDIR/tracer" || {
+        echo "- ${EMOJI_CANCEL} Installation failed."
         exit 1
-    fi
-    printsucc "Tracer binary moved to ${Blu}$BINDIR${RCol}."
+    }
+    echo "- ${EMOJI_CHECK} Installed at: ${Blu}$BINDIR${RCol}"
 }
 
-#-------------------------------------------------------------------------------
-#          NAME:  configure_tracer
-#   DESCRIPTION:  Configures the Tracer installation
-#-------------------------------------------------------------------------------
-function configure_tracer() {
-    # check whether a .tracerbio directory exists in the user's home directory and create it if it doesn't
-    if [ ! -d "$TRACER_HOME" ]; then
-        mkdir -p "$TRACER_HOME"
-        # if this failed to create the directory, print an error message and exit
-        if [ $? -ne 0 ]; then
-            printerror "Failed to create $HOME/.tracerbio directory. Please check your permissions and try again."
-            exit 1
-        fi
-        printsucc "Tracer config directory ${Blu}$TRACER_HOME${RCol} created."
-    else
-        printinfo "Tracer config directory ${Blu}$TRACER_HOME${RCol} exists."
-    fi
-    printinfo "Installation log will be written to ${Blu}$LOGFILE${RCol}."
 
-    # check whether an API key file exists in the user's .tracerbio directory and create it if it doesn't
+function install_tracer_binary() {
+  echo ""
+  echo "${EMOJI_BOX} Installing Tracer CLI..."
+  get_package_name
+  configure_bindir >/dev/null  # Silent unless error
+  make_temp_dir >/dev/null     # Silent unless error
+  download_tracer
+}
+
+#---  CONFIGURATION FUNCTIONS  -------------------------------------------------
+
+function configure_tracer() {
+    echo ""
+    echo "Configure Tracer"
+    
+    # Create config directory if needed (silent)
+    mkdir -p "$TRACER_HOME" || {
+        echo "- ${EMOJI_CANCEL} Failed to create config directory."
+        exit 1
+    }
+
+    # Create API key file if needed (silent)
     if [ ! -f "$CONFIGFILE" ]; then
-        echo "$API_KEY" >"$CONFIGFILE"
-        # if this failed to create the file, print an error message and exit
-        if [ $? -ne 0 ]; then
-            # TODO: allow for this to be overriden by an existing TRACER_CONFDIR variable or something
-            printerror "Failed to create ${Blu}${CONFIGFILE}${RCol}. Please check your permissions and try again."
+        echo "$API_KEY" >"$CONFIGFILE" || {
+            echo "- ${EMOJI_CANCEL} Failed to create API key file."
             exit 1
-        fi
+        }
     else
-        printinfo "File ${Blu}$HOME/.tracerbio/$CONFIGFILE_NAME${RCol} exists."
-        # compare API key with existing API key
+        # Verify existing API key matches (silent unless error)
         existing_api_key=$(cat "$CONFIGFILE")
         if [ "$existing_api_key" != "$API_KEY" ]; then
-            printerror "API key does not match existing API key. Current: ${Blu}$existing_api_key${RCol}, new: ${Blu}$API_KEY${RCol}."
-            printindmsg "Either run ${Red}rm $CONFIGFILE${RCol} to delete the existing API key,"
-            printindmsg "or run this command again with the current API key."
+            echo "- ${EMOJI_CANCEL} API key does not match existing key."
+            printindmsg "Run ${Red}rm $CONFIGFILE${RCol} to reset or use correct key."
             exit 1
-        else
-            printinfo "API key ${Blu}$API_KEY${RCol} matches existing."
         fi
     fi
 
+    # Create tracer.toml file (silent)
+    mkdir -p ~/.config/tracer && \
+    cat > ~/.config/tracer/tracer.toml <<-'EOL'
+polling_interval_ms = 1500
+api_key = "$API_KEY"
+service_url = "https://app.tracer.bio/api"
+process_polling_interval_ms = 25
+batch_submission_interval_ms = 3000
+new_run_pause_ms = 600000
+file_size_not_changing_period_ms = 60000
+process_metrics_send_interval_ms = 10000
+aws_region = "us-east-2"
+aws_role_arn = "arn:aws:iam::395261708130:role/TestTracerClientServiceRole"
+
+database_secrets_arn = "arn:aws:secretsmanager:us-east-1:395261708130:secret:rds!cluster-51d6638e-5975-4a26-95d3-e271ac9b2a04-dOWVVO"
+database_host = "tracer-development-cluster.cluster-cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432"
+
+database_name = "tracer_db"
+
+grafana_workspace_url = "https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com"
+EOL
+    [ $? -ne 0 ] && {
+        echo "- ${EMOJI_CANCEL} Failed to create tracer.toml config."
+        exit 1
+    }
+
+ echo "- ${EMOJI_CHECK} Configuration Successful"
 }
+
 
 #-------------------------------------------------------------------------------
 #          NAME:  update_rc
@@ -400,19 +343,17 @@ update_rc() {
     printsucc "Added ${Blu}$BINDIR${RCol} to PATH variable in ${Blu}$RC_FILE${RCol} and added to current session."
 }
 
-#-------------------------------------------------------------------------------
-#          NAME:  cleanup
-#   DESCRIPTION:  Removes temporary directories and resets terminal
-#-------------------------------------------------------------------------------
-cleanup() {
-    rm -rf "$TRACER_TEMP_DIR"
-    if [ $? -ne 0 ]; then
-        printerror "Failed to remove temporary directory ${Blu}$TRACER_TEMP_DIR${RCol}."
-    else
-        printsucc "Temporary directory ${Blu}$TRACER_TEMP_DIR${RCol} removed."
-    fi
-    print_install_summary
 
+
+#---  CLEANUP FUNCTIONS  ------------------------------------------------------
+
+function cleanup() {
+    echo ""
+    echo "Cleanup"
+    if [ -d "$TRACER_TEMP_DIR" ]; then
+        rm -rf "$TRACER_TEMP_DIR" && echo "- ${EMOJI_CHECK} Cleaned up temporary files."
+    fi
+    print_install_complete
     $ExitTrap
 }
 
@@ -445,117 +386,41 @@ send_event() {
         "http://app.tracer.bio/api/data-collector-api")
 }
 
-#-------------------------------------------------------------------------------
-#          NAME:  configuration files including api key
-#   DESCRIPTION:  The confiugration file function
-#-------------------------------------------------------------------------------
-setup_tracer_configuration_file() {
-    # Define the content of the tracer.toml file
-    TRACER_TOML_CONTENT=$(
-        cat <<EOL
-polling_interval_ms = 1500
-api_key = "$API_KEY"
-service_url = "https://app.tracer.bio/api"
-process_polling_interval_ms = 25
-batch_submission_interval_ms = 3000
-new_run_pause_ms = 600000
-file_size_not_changing_period_ms = 60000
-process_metrics_send_interval_ms = 10000
-aws_region = "us-east-2"
-aws_role_arn = "arn:aws:iam::395261708130:role/TestTracerClientServiceRole"
 
-database_secrets_arn = "arn:aws:secretsmanager:us-east-1:395261708130:secret:rds!cluster-51d6638e-5975-4a26-95d3-e271ac9b2a04-dOWVVO"
-database_host = "tracer-development-cluster.cluster-cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432"
+#---  OUTPUT FUNCTIONS  -------------------------------------------------------
 
-database_name = "tracer_db"
-
-grafana_workspace_url = "https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com"
-EOL
-    )
-
-    # Create the destination directory if it doesn't exist
-    mkdir -p ~/.config/tracer
-
-    # Create the tracer.toml file with the specified content directly in the target directory
-    echo "$TRACER_TOML_CONTENT" > ~/.config/tracer/tracer.toml
-
-    # Confirm the file has been created with the correct content
-    if [ $? -eq 0 ]; then
-        echo "tracer.toml has been successfully created in ~/.config/tracer/tracer.toml"
-    else
-        echo "Failed to create tracer.toml"
-    fi
+function print_header() {
+  printnolog " "
+  printnolog "⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀│ "
+  printnolog "⠀⢷⣦⣦⣄⣄⣔⣿⣿⣆⣄⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀│ Tracer.bio CLI Installer"
+  printnolog "⠀⠀⠻⣿⣿⣿⣿⣿⣿⣿⣿⠛⣿⣷⣦⡄⡀⠀⠀⠀⠀⠀⠀⠀⠀│ "
+  printnolog "⠀⠀⠀⠈⠻⣻⣿⣿⣿⣿⣿⣷⣷⣿⣿⣿⣷⣧⡄⡀⠀⠀⠀⠀⠀│ Script version: ${Blu}${SCRIPT_VERSION}${RCol}"
+  printnolog "⠀⠀⠀⠀⠀⠀⠘⠉⠃⠑⠁⠃⠋⠋⠛⠟⢿⢿⣿⣷⣦⡀⠀⠀⠀│ Tracer version: ${Blu}${TRACER_VERSION}${RCol}"
+  printnolog "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠑⠙⠻⠿⣧⠄⠀│ "
+  printnolog "⠀          ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠀⠀│ "
+  printnolog " "
 }
 
-#-------------------------------------------------------------------------------
-#   NAME:  print_install_summary
-#   DESCRIPTION:  The print_install_summary function
-#-------------------------------------------------------------------------------
-print_install_summary() {
-    echo ""
-    echo "${Gry}=============[ Installation Complete ]=============${RCol}"
-    echo ""
-    echo " Daemon Status: ${Red}Not started yet${RCol}"
-    echo ""
-    echo "${Gry}-------------[ Next Steps ]-------------${RCol}"
-    echo ""
-    echo " To initialize the Tracer daemon, run:"
-    echo ""
-    echo "  ${Blu}tracer init${RCol}            ${Gry}# interactive setup${RCol}"
-    echo "  ${Blu}tracer init --help${RCol}     ${Gry}# view flags${RCol}"
-    echo ""
-    echo ""
-    echo " View dashboards at: ${Blu}https://sandbox.tracer.cloud${RCol}"
-    echo " ${Yel}Need help?${RCol}  Visit ${Blu}https://github.com/Tracer-Cloud/tracer${RCol} or email ${Blu}support@tracer.cloud${RCol}"
-    echo ""
-}
-
-
-function check_system_requirements() {
-  echo "Checking System Requirements..."
-  check_os
-  check_prereqs
-  
-}
-
-function install_tracer_binary() {
+function print_install_complete() {
   echo ""
-  echo "${EMOJI_BOX} Installing Tracer CLI..."
-  get_package_name
-  configure_bindir
-  make_temp_dir
-  download_tracer
-}
-
-
-function print_next_steps() {
+  echo "${EMOJI_CELEBRATE} Installation Complete!"
   echo ""
-  echo "${Gry}=============[ Installation Complete ]=============${RCol}"
+  echo "Next Steps: "
+  echo "# Copy the following code to start the Tracer daemon"
+  echo "tracer init // this yields the improved user CLI task and guides the user through important params."
   echo ""
-  echo " Daemon Status: ${Yel}Not started yet${RCol}"
-  echo ""
-  echo "${Gry}-------------[ Next Steps ]-------------${RCol}"
-  echo ""
-  echo " To initialize the Tracer daemon, run:"
-  echo ""
-  echo "  ${Blu}tracer init${RCol}            ${Gry}# interactive setup${RCol}"
-  echo "  ${Blu}tracer init --help${RCol}     ${Gry}# view flags${RCol}"
-  echo ""
-  echo " View dashboards at: ${Blu}https://sandbox.tracer.cloud${RCol}"
-  echo " ${Yel}Need help?${RCol}  Visit ${Blu}https://github.com/Tracer-Cloud/tracer${RCol} or email ${Blu}support@tracer.cloud${RCol}"
+  echo "# Start the Tracer daemon"
+  echo "tracer info // as is"
   echo ""
 }
 
+#---  MAIN FUNCTION  ----------------------------------------------------------
 
-#-------------------------------------------------------------------------------
-#          NAME:  main
-#   DESCRIPTION:  The main function
-#-------------------------------------------------------------------------------
-main() {
+function main() {
   print_header
   check_system_requirements
   install_tracer_binary
-  print_next_steps
+  configure_tracer
 }
 
 main "$@"
