@@ -219,102 +219,159 @@ static int handle_payload_flush(struct lib_ctx *lc, u16 cpu)
       u64 *descriptor_ptr = reinterpret_cast<u64 *>(src_dars.data[j]); // root descriptor
       u64 descriptor = *descriptor_ptr;
 
+      std::cerr << "=== Processing dynamic allocation root " << j << " ===" << std::endl;
+      std::cerr << "Root descriptor address: " << (void *)descriptor_ptr << std::endl;
+      std::cerr << "Root descriptor value: 0x" << std::hex << descriptor << std::dec << std::endl;
+
       if (descriptor == 0)
       {
+        std::cerr << "Root descriptor is null, skipping" << std::endl;
         break;
-      }
-
-      // Parse descriptor: [is_final:1][order:16][size:47]
-      bool is_final = (descriptor >> 63) & 1;
-      u16 order = (descriptor >> 47) & 0xFFFF; // Assume always 0 for now (TODO: handle multiple dynamic properties)
-      u64 size = descriptor & 0x7FFFFFFFFFFFULL;
-
-      // std::cerr << "Parsed descriptor - is_final: " << is_final << ", order: " << order << ", size: " << size << std::endl;
-
-      if (size > 4096)
-      {
-        std::cerr << "Allocation size > 4096 not supported" << std::endl;
-        break;
-      }
-
-      if ((src_offset / 4096) != ((src_offset + size) / 4096))
-      {
-        // Allocation doesn't fit in current page, so round up to next page boundary
-        src_offset = (src_offset + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-      }
-
-      // For initial case to solve, we expect is_final to be true
-      if (!is_final)
-      {
-        std::cerr << "Multi-node dynamic allocations not yet supported" << std::endl;
-        return -1;
       }
 
       // Get corresponding destination field (user-space structure)
       struct flex_buf *dst_field = reinterpret_cast<struct flex_buf *>(dst_dars.data[j]);
 
-      // std::cerr << "Data starts at offset " << src_offset << std::endl;
+      // Track total size and current write position for concatenated data
+      u32 total_chain_size = 0;
+      char *chain_write_ptr = dyn_write_ptr;
+      u32 current_src_offset = src_offset;
+      u64 current_descriptor = descriptor;
 
-      // Copy data from source buffer to destination buffer
-      memcpy(dyn_write_ptr, &lc->current_payload_flush[src_offset], size);
+      std::cerr << "Starting chain traversal at src_offset: " << current_src_offset << std::endl;
+      std::cerr << "Chain write pointer: " << (void *)chain_write_ptr << std::endl;
 
-      // std::cerr << "  Source payload bytes [" << src_offset << ".." << (src_offset + size) << "]: ";
-      // for (u64 i = 0; i < size; i++)
-      // {
-      //   char c = lc->current_payload_flush[src_offset + i];
-      //   std::cerr << c;
-      // }
-      // std::cerr << std::endl;
+      u32 chain_node_count = 0;
 
-      // std::cerr << "Copied " << size << " bytes to destination at " << (void *)dyn_write_ptr << std::endl;
+      // Follow the allocation chain and copy data as we go
+      while (true)
+      {
+        chain_node_count++;
+        std::cerr << "--- Chain node " << chain_node_count << " ---" << std::endl;
+        std::cerr << "Processing descriptor: 0x" << std::hex << current_descriptor << std::dec << std::endl;
 
-      // if (!is_final)
-      // {
-      // TODO: seek chain pointer
-      // TODO: this is the logic for finding the next descriptor in a chain. we're just focused on root descriptors right now
-      // // Seek descriptor at src_offset
-      // std::cerr << "Seeking descriptor at offset " << src_offset << std::endl;
-      // // Read descriptor from the source buffer
-      // u64 *src_descriptor_ptr = reinterpret_cast<u64 *>(&lc->current_payload_flush[src_offset]);
-      // u64 descriptor = *src_descriptor_ptr;
-      // std::cerr << "Found descriptor: 0x" << std::hex << descriptor << std::dec << std::endl;
-      // if (descriptor == 0)
-      // {
-      //   // If descriptor is NULL, round up to next page boundary
-      //   src_offset = (src_offset + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-      //   std::cerr << "Descriptor was NULL, seeking at page-aligned offset " << src_offset << std::endl;
-      //   src_descriptor_ptr = reinterpret_cast<u64 *>(&lc->current_payload_flush[src_offset]);
-      //   descriptor = *src_descriptor_ptr;
-      //   std::cerr << "Found descriptor after page alignment: 0x" << std::hex << descriptor << std::dec << std::endl;
-      //   if (descriptor == 0)
-      //   {
-      //     std::cerr << "ERROR: Descriptor is still NULL after page alignment. Payload may be corrupted." << std::endl;
-      //     return -1;
-      //   }
-      // }
-      // src_offset += 8; // skip descriptor
-      // }
+        // Parse descriptor: [is_final:1][order:16][size:47]
+        bool is_final = (current_descriptor >> 63) & 1;
+        u16 order = (current_descriptor >> 47) & 0xFFFF;
+        u64 size = current_descriptor & 0x7FFFFFFFFFFFULL;
 
-      // Set up destination field
-      dst_field->byte_length = static_cast<u32>(size);
+        std::cerr << "  is_final: " << (is_final ? "true" : "false") << std::endl;
+        std::cerr << "  order: " << order << std::endl;
+        std::cerr << "  size: " << size << std::endl;
+        std::cerr << "  current_src_offset: " << current_src_offset << std::endl;
+
+        if (size > 4096)
+        {
+          std::cerr << "Allocation size > 4096 not supported, breaking" << std::endl;
+          break;
+        }
+
+        // Handle page boundary alignment for data
+        u32 original_offset = current_src_offset;
+        if ((current_src_offset / 4096) != ((current_src_offset + size) / 4096))
+        {
+          current_src_offset = (current_src_offset + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+          std::cerr << "  Data crosses page boundary, aligned offset " << original_offset << " -> " << current_src_offset << std::endl;
+        }
+
+        std::cerr << "  Copying " << size << " bytes from offset " << current_src_offset << " to " << (void *)chain_write_ptr << std::endl;
+
+        // Copy data from this allocation in the chain
+        memcpy(chain_write_ptr, &lc->current_payload_flush[current_src_offset], size);
+
+        // Debug: show first few bytes of copied data
+        std::cerr << "  First 128 bytes copied: ";
+        for (u32 k = 0; k < std::min((u64)128, size); k++)
+        {
+          char c = chain_write_ptr[k];
+          if (c >= 32 && c <= 126)
+          {
+            std::cerr << c;
+          }
+          else
+          {
+            std::cerr << "\\x" << std::hex << (unsigned char)c << std::dec;
+          }
+        }
+        std::cerr << std::endl;
+
+        chain_write_ptr += size;
+        total_chain_size += size;
+        current_src_offset += size;
+
+        std::cerr << "  Updated total_chain_size: " << total_chain_size << std::endl;
+        std::cerr << "  Updated chain_write_ptr: " << (void *)chain_write_ptr << std::endl;
+        std::cerr << "  Updated current_src_offset: " << current_src_offset << std::endl;
+
+        if (is_final)
+        {
+          std::cerr << "  This is the final allocation in the chain" << std::endl;
+          break;
+        }
+
+        // For chained allocations, next descriptor is 8 bytes before the next data
+        // current_src_offset += 8; // Skip over the chain descriptor
+        std::cerr << "  Moving to next descriptor at offset: " << current_src_offset << std::endl;
+
+        // Handle page boundary for descriptor
+        u32 desc_original_offset = current_src_offset;
+        if ((current_src_offset / 4096) != ((current_src_offset + 8) / 4096))
+        {
+          current_src_offset = (current_src_offset + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+          std::cerr << "  Descriptor crosses page boundary, aligned offset " << desc_original_offset << " -> " << current_src_offset << std::endl;
+        }
+
+        if (current_src_offset + 8 > PAYLOAD_FLUSH_MAX_PAGES * PAGE_SIZE)
+        {
+          std::cerr << "  Chain extends beyond available payload buffer (" << current_src_offset + 8 << " > " << PAYLOAD_FLUSH_MAX_PAGES * PAGE_SIZE << ")" << std::endl;
+          break;
+        }
+
+        // Read next descriptor
+        u64 *next_descriptor_ptr = reinterpret_cast<u64 *>(&lc->current_payload_flush[current_src_offset]);
+        current_descriptor = *next_descriptor_ptr;
+        current_src_offset += 8; // Move past descriptor
+
+        std::cerr << "  Next descriptor at " << (void *)next_descriptor_ptr << ": 0x" << std::hex << current_descriptor << std::dec << std::endl;
+
+        if (current_descriptor == 0)
+        {
+          std::cerr << "  Null descriptor found in chain, breaking" << std::endl;
+          break;
+        }
+
+        if (chain_node_count > 20)
+        {
+          std::cerr << "  Too many chain nodes (>20), possible infinite loop, breaking" << std::endl;
+          break;
+        }
+      }
+
+      std::cerr << "Chain traversal complete. Total nodes: " << chain_node_count << std::endl;
+      std::cerr << "Total chain size: " << total_chain_size << " bytes" << std::endl;
+
+      // Set up destination field with concatenated data
+      dst_field->byte_length = total_chain_size;
       dst_field->data = dyn_write_ptr;
 
-      // std::cerr << "Set destination field: length=" << dst_field->byte_length << ", data=" << (void *)dst_field->data << std::endl;
+      std::cerr << "Set flex_buf: byte_length=" << dst_field->byte_length << ", data=" << (void *)dst_field->data << std::endl;
 
       // Move write pointer for next dynamic allocation
-      dyn_write_ptr += size;
+      dyn_write_ptr += total_chain_size;
 
-      // Move source offset past the data we just copied
-      src_offset += size;
-
-      // std::cerr << "Next write will be at " << (void *)dyn_write_ptr << ", next read at offset " << src_offset << std::endl;
+      // Update source offset to end of this chain
+      src_offset = current_src_offset;
 
       // Update total payload size to include this dynamic data
-      header->bytes_written += size;
+      header->bytes_written += total_chain_size;
+
+      std::cerr << "Updated dyn_write_ptr: " << (void *)dyn_write_ptr << std::endl;
+      std::cerr << "Updated src_offset: " << src_offset << std::endl;
+      std::cerr << "Updated header->bytes_written: " << header->bytes_written << std::endl;
+      std::cerr << "=== End dynamic allocation root " << j << " ===" << std::endl
+                << std::endl;
     }
   }
-
-  // std::cerr << "Successfully processed pending payloads. Total bytes written: " << header->bytes_written << std::endl;
 
   // Final callback to flush everything in payload_ctx->data
   lc->payload_cb(lc->payload_ctx_ptr);

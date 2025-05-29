@@ -37,7 +37,8 @@ typedef unsigned char u8;
 #define PAGE_SIZE 4096    // 4KB, (matches standard Intel/ARM page size)
 #define ARGV_MAX_SIZE 384 // 256+128 bytes (uses 75% of available in-kernel memory)
 #define FILENAME_MAX_SIZE 384
-#define WRITE_CONTENT_MAX_SIZE 256 // Maximum bytes to capture from stdout/stderr
+#define WRITE_CONTENT_ALLOCATION_MAX_SIZE 256 // Maximum bytes to capture from stdout/stderr per allocation
+#define WRITE_CONTENT_N_ALLOCATIONS_MAX 16    // Maximum number of allocations for stdout/stderr capture
 
 // Map keys for configuration values
 #define CONFIG_PID_BLACKLIST_0 0

@@ -14,8 +14,8 @@ extern "C"
 // ----------------------------------------------
 // Constants & Globals
 // ----------------------------------------------
-constexpr size_t HEADER_BUFFER_SIZE = 512 * 1024;   // 512 KB for headers
-constexpr size_t PAYLOAD_BUFFER_SIZE = 1024 * 1024; // 1024 KB for payloads
+constexpr size_t HEADER_BUFFER_SIZE = 512;         // 512 bytes for header
+constexpr size_t PAYLOAD_BUFFER_SIZE = 256 * 1024; // 256KB for payload
 static volatile sig_atomic_t exiting = 0;
 
 // ----------------------------------------------
@@ -72,7 +72,7 @@ static void print_kv_array_as_json(const struct kv_array &kv_array)
       {
         std::cout << "\"";
         // Print the string, ensuring null termination is handled
-        for (u32 j = 0; j < fb->byte_length; j++)
+        for (u32 j = 0; j < fb->byte_length && fb->data[j] != '\0'; j++)
         {
           print_escaped_char(fb->data[j]);
         }

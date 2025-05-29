@@ -303,7 +303,7 @@ static __always_inline void *buf_malloc_dyn(u32 size, bool is_final, u64 *descri
 
     // Used when there are multiple dynamic attributes in one event
     // and we need to determine memory layout
-    u16 order = prev_malloc_dyn.order++;
+    u16 order = ++prev_malloc_dyn.order;
 
     // Write root descriptor: [is_final:1][order:16][size:47]
     *descriptor = ((u64)is_final << 63) | ((u64)order << 47) | ((u64)size & 0x7FFFFFFFFFFFULL);
@@ -378,6 +378,8 @@ static __always_inline void buf_malloc_dyn_shrink_last(u32 new_size, u64 *root_d
       return;
     u64 *descriptor_ptr = (u64 *)&(*page)[prev_malloc_dyn.chain_descriptor_page_offset];
   }
+
+  // TODO: descriptor_ptr always seems to point to root descriptor(?)
 
   // Update descriptor
   *descriptor_ptr = ((u64)prev_malloc_dyn.is_final << 63) | ((u64)prev_malloc_dyn.order << 47) | ((u64)new_size & 0x7FFFFFFFFFFFULL);
@@ -568,15 +570,32 @@ payload_fill_syscalls_sys_enter_write(struct trace_event_raw_sys_enter *ctx)
   if (should_capture_write_content(p) && p->count > 0)
   {
     u64 content_ptr = BPF_CORE_READ(ctx, args[1]);
-    u32 capture_size = (p->count < WRITE_CONTENT_MAX_SIZE) ? (u32)p->count : WRITE_CONTENT_MAX_SIZE;
+    u32 content_offset = 0;
+    u32 remaining_size = (u32)p->count;
 
-    // Use dynamic allocation for the content
-    void *content = buf_malloc_dyn(WRITE_CONTENT_MAX_SIZE, true, &p->content);
-    if (content)
+    // Capture content in chunks using chained allocations
+    // Use bounded loop to satisfy BPF verifier constraints
+    for (int i = 0; i < WRITE_CONTENT_N_ALLOCATIONS_MAX; i++)
     {
-      // Copy content from user buffer
-      int ret = bpf_probe_read_user(content, WRITE_CONTENT_MAX_SIZE, (void *)content_ptr);
-      buf_malloc_dyn_shrink_last(capture_size, &p->content);
+      u32 chunk_size = (remaining_size < WRITE_CONTENT_ALLOCATION_MAX_SIZE) ? remaining_size : WRITE_CONTENT_ALLOCATION_MAX_SIZE;
+      bool is_final = (remaining_size <= WRITE_CONTENT_ALLOCATION_MAX_SIZE) || i == (WRITE_CONTENT_N_ALLOCATIONS_MAX - 1);
+
+      void *content_chunk = buf_malloc_dyn(WRITE_CONTENT_ALLOCATION_MAX_SIZE, is_final, &p->content);
+      if (!content_chunk)
+        break;
+
+      int err = bpf_probe_read_user(content_chunk, WRITE_CONTENT_ALLOCATION_MAX_SIZE, (void *)(content_ptr + content_offset));
+      if (err != 0)
+        break;
+
+      content_offset += chunk_size;
+      remaining_size -= chunk_size;
+
+      if (is_final)
+      {
+        // buf_malloc_dyn_shrink_last(chunk_size, &p->content);
+        break;
+      }
     }
   }
 }
