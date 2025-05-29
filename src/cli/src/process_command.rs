@@ -124,7 +124,7 @@ pub fn process_cli() -> Result<()> {
                 &config,
             )) {
                 Ok(_) => {
-                    println!("Command sent successfully.");
+                    // println!("Command sent successfully.");
                 }
 
                 Err(e) => {
