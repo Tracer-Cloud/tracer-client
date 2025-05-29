@@ -213,16 +213,10 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
                 "tracer init".cyan().bold(),
                 "# interactive setup".dimmed()
             )?;
-            writeln!(
-                &mut output,
-                "   {:<24}{}",
-                "tracer init --help".cyan().bold(),
-                "# view flags".dimmed()
-            )?;
 
             writeln!(
                 &mut output,
-                "\n   View dashboards: {}",
+                "\n   Visualize pipeline data at: {}",
                 "https://sandbox.tracer.app".cyan().underline()
             )?;
 

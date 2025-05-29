@@ -34,18 +34,26 @@ BINDIR="" # set later
 API_KEY="" # set later
 
 #---  VARIABLES  ---------------------------------------------------------------
-#          NAME:  Red|Gre|Yel|Bla|RCol
+#          NAME:  Red|Gre|Yel|Bla|Blu|Gry|Cya|RCol
 #   DESCRIPTION:  Utility variables for pretty printing etc
 #-------------------------------------------------------------------------------
 if tput setaf 1 >/dev/null 2>&1; then
     Red=$(tput setaf 1)
     Gre=$(tput setaf 2)
     Yel=$(tput setaf 3)
-    Blu=$(tput setaf 4)
     Bla=$(tput setaf 0)
-    Gry=$(tput setaf 7)  # Light gray / white
     RCol=$(tput sgr0)
     ExitTrap="" # placeholder for resetting advanced functionality
+
+    if [ "$(tput colors)" -ge 256 ]; then
+        Gry=$(tput setaf 244)  # soft gray for modern terminals
+        Blu=$(tput setaf 33)   # vivid blue
+        Cya=$(tput setaf 51)   # vivid cyan for 256-color terminals
+    else
+        Gry=$(tput setaf 7)    # fallback: white/light gray
+        Blu=$(tput setaf 4)    # fallback: basic blue
+        Cya=$(tput setaf 6)    # fallback: basic cyan
+    fi
 else
     Red=""
     Gre=""
@@ -53,22 +61,32 @@ else
     Bla=""
     Blu=""
     Gry=""
+    Cya=""
     RCol=""
     ExitTrap=""
 fi
 
 # Define emoji fallbacks
-EMOJI_CHECK="✅"
-EMOJI_BOX="📦"
-EMOJI_CELEBRATE="🎉"
-EMOJI_CANCEL="❌"
+EMOJI_CHECK="✅ "
+EMOJI_BOX="📦 "
+EMOJI_CELEBRATE="🎉 "
+EMOJI_CANCEL="❌ "
+EMOJI_NEXT_STEPS="🚀 "
+EMOJI_CLEANUP="🗑️ "
+EMOJI_REQUIREMENTS="🧰 "
+EMOJI_CONFIGURE="⚙️ "
+
 
 # Use fallback for terminals that don't support emojis
 if ! [[ "$TERM" =~ ^xterm.* || "$TERM" == "screen" ]]; then
-  EMOJI_CHECK="[OK]"
-  EMOJI_BOX="[INSTALL]"
-  EMOJI_CELEBRATE="[DONE]"
-  EMOJI_CANCEL="[X]"
+  EMOJI_CHECK="[OK] "
+  EMOJI_BOX="[INSTALL] "
+  EMOJI_CELEBRATE="[DONE] "
+  EMOJI_CANCEL="[X] "
+  EMOJI_NEXT_STEPS="==> "
+  EMOJI_CLEANUP="[CLEAN] "
+  EMOJI_REQUIREMENTS="[CHECK] "
+  EMOJI_CONFIGURE="[CFG] "
 fi
 
 # init var
@@ -178,7 +196,7 @@ function check_os() {
 
 function check_system_requirements() {
   echo ""
-  print_section "Checking System Requirements"
+  print_section "${EMOJI_REQUIREMENTS} Checking System Requirements"
   check_os
   check_prereqs
 }
@@ -271,7 +289,7 @@ function install_tracer_binary() {
 
 function configure_tracer() {
     echo ""
-    print_section "Configuration"
+    print_section "${EMOJI_CONFIGURE} Configuration"
 
     
     # Create config directory if needed (silent)
@@ -352,7 +370,7 @@ update_rc() {
 
 function cleanup() {
     echo ""
-    print_section "Cleanup" 
+    print_section "${EMOJI_CLEANUP} Cleanup" 
 
     if [ -d "$TRACER_TEMP_DIR" ]; then
         rm -rf "$TRACER_TEMP_DIR" && echo "- ${EMOJI_CHECK} Cleaned up temporary files."
@@ -414,18 +432,18 @@ function print_section() {
 
 function print_next_steps() {
     echo "    Daemon Status: ${Yel}Not started yet${RCol}"
-    print_section "Next Steps"
+    print_section "${EMOJI_NEXT_STEPS} Next Steps"
     echo "${Gry}- Copy the following code to start the Tracer daemon${RCol}"
-    echo "  ${Blu}tracer init${RCol}              ${Gry}# this yields the improved user CLI task and guides the user through important params.${RCol}"
+    echo "  ${Cya}tracer init${RCol}              ${Gry}# this yields the improved user CLI task and guides the user through important params.${RCol}"
     echo ""
 
-    echo "${Gry}- Start the Tracer daemon:${RCol}"
-    echo "  ${Blu}tracer info${RCol}              ${Gry}# view daemon and run status${RCol}"
+    echo "${Gry}- [Optional] View Daemon Status:${RCol}"
+    echo "  ${Cya}tracer info${RCol}              ${Gry}# check current daemon and run status${RCol}"
     echo ""
 
     echo "${Gry}- Dashboards & Support:${RCol}"
-    echo "  View dashboards at: ${Blu}https://sandbox.tracer.cloud${RCol}"
-    echo "  ${Yel}Need help?${RCol} Visit ${Blu}https://github.com/Tracer-Cloud/tracer${RCol} or email ${Blu}support@tracer.cloud${RCol}"
+    echo "  Visualize pipeline data at: ${Cya}https://sandbox.tracer.cloud${RCol}"
+    echo "  ${Yel}Need help?${RCol} Visit ${Cya}https://github.com/Tracer-Cloud/tracer${RCol} or email ${Cya}support@tracer.cloud${RCol}"
     echo ""
 
 }
@@ -440,6 +458,7 @@ function print_demarkated_block() {
 }
 
 function print_install_complete() {
+  echo ""
   echo ""
   echo " ${EMOJI_CELEBRATE} Installation Complete!"
   print_demarkated_block print_next_steps
