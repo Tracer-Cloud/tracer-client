@@ -45,11 +45,11 @@ $(call allow-override,LD,$(CROSS_COMPILE)ld)
 $(call allow-override,CXX,$(CROSS_COMPILE)c++)
 
 .PHONY: all clean
-all: libbootstrap.a example
+all: libbootstrap.a
 
 clean:
 	$(call msg,CLEAN)
-	$(Q)rm -rf $(OUTPUT) libbootstrap.a example
+	$(Q)rm -rf $(OUTPUT) libbootstrap.a
 
 $(OUTPUT) $(OUTPUT)/libbpf $(BPFTOOL_OUTPUT):
 	$(call msg,MKDIR,$@)
@@ -91,15 +91,6 @@ $(OUTPUT)/bootstrap_lib.o: bootstrap.c $(OUTPUT)/bootstrap.skel.h $(wildcard *.h
 libbootstrap.a: $(OUTPUT)/bootstrap_lib.o $(LIBBPF_OBJ) | $(OUTPUT)
 	$(call msg,STATICLIB,$@)
 	$(Q)$(AR) rcs $@ $^
-
-# Build example program (C++ version)
-$(OUTPUT)/example.o: example.cpp $(wildcard *.h) | $(OUTPUT)
-	$(call msg,CXX,$@)
-	$(Q)$(CLANGXX) $(CXXFLAGS) $(INCLUDES) -c $(filter %.cpp,$^) -o $@
-
-example: $(OUTPUT)/example.o libbootstrap.a | $(OUTPUT)
-	$(call msg,BINARY,$@)
-	$(Q)$(CLANGXX) $(CXXFLAGS) $< libbootstrap.a $(LIBBPF_OBJ) $(ALL_LDFLAGS) -lelf -lz -o $@
 
 # delete failed targets
 .DELETE_ON_ERROR:
