@@ -20,7 +20,6 @@ tracing = { workspace = true }
 itertools = { workspace = true }
 axum = { workspace = true }
 tracer_common = { workspace = true }
-tracer_extracts = { workspace = true }
 tracer_client = { workspace = true }
 
 [dev-dependencies]

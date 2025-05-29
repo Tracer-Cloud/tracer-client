@@ -11,12 +11,9 @@ anyhow = { workspace = true }
 chrono = { workspace = true }
 clap = { workspace = true }
 lazy_static = { workspace = true }
-log = { workspace = true }
-reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
-url = { workspace = true }
 tracer_aws = { workspace = true }
 uuid = { workspace = true }
 typed-builder = { workspace = true}
