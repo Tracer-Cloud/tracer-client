@@ -6,7 +6,8 @@ use std::time::Duration;
 use tokio::sync::mpsc::UnboundedSender;
 use tracer_common::types::trigger::Trigger;
 
-// Define the FFI interface to the C function
+// Define the FFI interface to the C function - only on Linux
+#[cfg(target_os = "linux")]
 #[link(name = "bootstrap", kind = "static")]
 extern "C" {
     // Corresponds to the initialize function in bootstrap_api.h
@@ -18,21 +19,25 @@ extern "C" {
     ) -> i32;
 }
 
-// Constants
+// Constants - only needed on Linux
+#[cfg(target_os = "linux")]
 const BUFFER_SIZE: usize = 4096;
 
-// Define a struct to hold our context
+// Define a struct to hold our context - only needed on Linux
+#[cfg(target_os = "linux")]
 struct ProcessingContext {
     events_tx: std_mpsc::Sender<Vec<Trigger>>,
     initialize_tx: std_mpsc::Sender<()>,
 }
 
-// Define a struct to hold our buffer and context
+// Define a struct to hold our buffer and context - only needed on Linux
+#[cfg(target_os = "linux")]
 struct BufferContext {
     buffer: Vec<u8>,
     shared_context: Arc<ProcessingContext>,
 }
 
+#[cfg(target_os = "linux")]
 pub fn start_processing_events(tx: UnboundedSender<Trigger>) -> Result<()> {
     // Channel for sending events from the C callback to our Rust thread
     let (events_tx, events_rx) = std_mpsc::channel::<Vec<Trigger>>();
@@ -157,5 +162,12 @@ pub fn start_processing_events(tx: UnboundedSender<Trigger>) -> Result<()> {
         }
     });
 
+    Ok(())
+}
+
+// No-op implementation for non-Linux platforms
+#[cfg(not(target_os = "linux"))]
+pub fn start_processing_events(_tx: UnboundedSender<Trigger>) -> Result<()> {
+    eprintln!("eBPF functionality is only supported on Linux");
     Ok(())
 }
