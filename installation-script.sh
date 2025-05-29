@@ -459,16 +459,10 @@ function print_demarkated_block() {
 function print_install_complete() {
   echo ""
   echo ""
-  echo " ${EMOJI_CELEBRATE} Installation Complete!"
+  echo "    ${EMOJI_CELEBRATE} Installation Complete!"
   print_demarkated_block print_next_steps
 }
 
-# function print_install_complete() {
-#   echo
-#   echo "${EMOJI_CELEBRATE} Installation Complete!"
-#   echo
-#   print_next_steps
-# }
 
 #---  MAIN FUNCTION  ----------------------------------------------------------
 
