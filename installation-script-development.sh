@@ -177,7 +177,8 @@ function check_os() {
 }
 
 function check_system_requirements() {
-  echo "Checking System Requirements..."
+  echo ""
+  print_section "Check System Requirements"
   check_os
   check_prereqs
 }
@@ -258,7 +259,8 @@ function download_tracer() {
 
 function install_tracer_binary() {
   echo ""
-  echo "${EMOJI_BOX} Installing Tracer CLI..."
+  print_section "${EMOJI_BOX} Installing Tracer CLI"
+
   get_package_name
   configure_bindir >/dev/null  # Silent unless error
   make_temp_dir >/dev/null     # Silent unless error
@@ -269,7 +271,8 @@ function install_tracer_binary() {
 
 function configure_tracer() {
     echo ""
-    echo "Configure Tracer"
+    print_section "Configuration"
+
     
     # Create config directory if needed (silent)
     mkdir -p "$TRACER_HOME" || {
@@ -349,7 +352,8 @@ update_rc() {
 
 function cleanup() {
     echo ""
-    echo "Cleanup"
+    print_section "Cleanup" 
+
     if [ -d "$TRACER_TEMP_DIR" ]; then
         rm -rf "$TRACER_TEMP_DIR" && echo "- ${EMOJI_CHECK} Cleaned up temporary files."
     fi
@@ -401,18 +405,52 @@ function print_header() {
   printnolog " "
 }
 
-function print_install_complete() {
+function print_section() {
+  local title="$1"
+  echo
+  echo "=== ${title} ==="
+}
+
+
+function print_next_steps() {
+    echo "    Daemon Status: ${Yel}Not started yet${RCol}"
+    print_section "Next Steps"
+    echo "${Gry}- Copy the following code to start the Tracer daemon${RCol}"
+    echo "  ${Blu}tracer init${RCol}              ${Gry}# this yields the improved user CLI task and guides the user through important params.${RCol}"
+    echo ""
+
+    echo "${Gry}- Start the Tracer daemon:${RCol}"
+    echo "  ${Blu}tracer info${RCol}              ${Gry}# view daemon and run status${RCol}"
+    echo ""
+
+    echo "${Gry}- Dashboards & Support:${RCol}"
+    echo "  View dashboards at: ${Blu}https://sandbox.tracer.cloud${RCol}"
+    echo "  ${Yel}Need help?${RCol} Visit ${Blu}https://github.com/Tracer-Cloud/tracer${RCol} or email ${Blu}support@tracer.cloud${RCol}"
+    echo ""
+
+}
+
+function print_demarkated_block() {
   echo ""
-  echo "${EMOJI_CELEBRATE} Installation Complete!"
   echo ""
-  echo "Next Steps: "
-  echo "# Copy the following code to start the Tracer daemon"
-  echo "tracer init // this yields the improved user CLI task and guides the user through important params."
-  echo ""
-  echo "# Start the Tracer daemon"
-  echo "tracer info // as is"
+  echo "╭──────────────────────────────────────────────────────"
+  "$@"  # Call the function passed as argument
+  echo "╰──────────────────────────────────────────────────────"
   echo ""
 }
+
+function print_install_complete() {
+  echo ""
+  echo " ${EMOJI_CELEBRATE} Installation Complete!"
+  print_demarkated_block print_next_steps
+}
+
+# function print_install_complete() {
+#   echo
+#   echo "${EMOJI_CELEBRATE} Installation Complete!"
+#   echo
+#   print_next_steps
+# }
 
 #---  MAIN FUNCTION  ----------------------------------------------------------
 
