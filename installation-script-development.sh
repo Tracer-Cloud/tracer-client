@@ -178,7 +178,7 @@ function check_os() {
 
 function check_system_requirements() {
   echo ""
-  print_section "Check System Requirements"
+  print_section "Checking System Requirements"
   check_os
   check_prereqs
 }
