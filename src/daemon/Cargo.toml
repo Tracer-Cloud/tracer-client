@@ -22,7 +22,6 @@ axum = { workspace = true }
 tracer_common = { workspace = true }
 tracer_extracts = { workspace = true }
 tracer_client = { workspace = true }
-log = "0.4.27"
 
 [dev-dependencies]
 dotenv = { workspace = true }

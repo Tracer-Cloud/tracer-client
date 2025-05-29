@@ -5135,17 +5135,14 @@ dependencies = [
  "predicates",
  "sentry",
  "sqlx",
- "sysinfo",
  "tempfile",
  "tokio",
  "tracer_aws",
  "tracer_client",
  "tracer_common",
  "tracer_daemon",
- "tracer_extracts",
  "tracing",
  "tracing-appender",
- "tracing-log",
  "tracing-subscriber",
 ]
 
@@ -5155,7 +5152,6 @@ version = "2025.5.15+1"
 dependencies = [
  "anyhow",
  "chrono",
- "clap",
  "config",
  "dirs",
  "homedir",
@@ -5175,7 +5171,6 @@ dependencies = [
  "tracer_common",
  "tracer_extracts",
  "tracing",
- "url",
  "uuid",
 ]
 
@@ -5210,7 +5205,6 @@ dependencies = [
  "chrono",
  "dotenv",
  "itertools 0.14.0",
- "log",
  "reqwest",
  "serde",
  "tokio",
