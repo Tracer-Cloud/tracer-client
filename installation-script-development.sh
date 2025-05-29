@@ -62,6 +62,22 @@ else
     ExitTrap=""
 fi
 
+# Define emoji fallbacks
+EMOJI_CHECK="✅"
+EMOJI_BOX="📦"
+EMOJI_CELEBRATE="🎉"
+EMOJI_CANCEL="❌"
+
+# Use fallback for terminals that don't support emojis
+if ! [[ "$TERM" =~ ^xterm.* || "$TERM" == "screen" ]]; then
+  EMOJI_CHECK="[OK]"
+  EMOJI_BOX="[INSTALL]"
+  EMOJI_CELEBRATE="[DONE]"
+  EMOJI_CANCEL="[X]"
+fi
+
+
+
 # init var
 tsnow=""
 
@@ -149,19 +165,18 @@ function check_prereqs() {
         printindmsg "Please install them or ensure they are on your PATH and try again."
         exit 1
     fi
-    printinfo "All required commands found on path." # in case the user had the error before
+    echo "- ${EMOJI_CHECK} All required dependencies found."
 }
-
 function print_header() {
-    printnolog " "
-    printnolog "⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀│ "
-    printnolog "⠀⢷⣦⣦⣄⣄⣔⣿⣿⣆⣄⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀│ Tracer.bio CLI Installer"
-    printnolog "⠀⠀⠻⣿⣿⣿⣿⣿⣿⣿⣿⠛⣿⣷⣦⡄⡀⠀⠀⠀⠀⠀⠀⠀⠀│ "
-    printnolog "⠀⠀⠀⠈⠻⣻⣿⣿⣿⣿⣿⣷⣷⣿⣿⣿⣷⣧⡄⡀⠀⠀⠀⠀⠀│ Script version: ${Blu}${SCRIPT_VERSION}${RCol}"
-    printnolog "⠀⠀⠀⠀⠀⠀⠘⠉⠃⠑⠁⠃⠋⠋⠛⠟⢿⢿⣿⣷⣦⡀⠀⠀⠀│ Tracer version: ${Blu}${TRACER_VERSION}${RCol}"
-    printnolog "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠑⠙⠻⠿⣧⠄⠀│ "
-    printnolog "⠀          ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠀⠀│ "
-    printnolog " "
+  printnolog " "
+  printnolog "⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀│ "
+  printnolog "⠀⢷⣦⣦⣄⣄⣔⣿⣿⣆⣄⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀│ Tracer.bio CLI Installer"
+  printnolog "⠀⠀⠻⣿⣿⣿⣿⣿⣿⣿⣿⠛⣿⣷⣦⡄⡀⠀⠀⠀⠀⠀⠀⠀⠀│ "
+  printnolog "⠀⠀⠀⠈⠻⣻⣿⣿⣿⣿⣿⣷⣷⣿⣿⣿⣷⣧⡄⡀⠀⠀⠀⠀⠀│ Script version: ${Blu}${SCRIPT_VERSION}${RCol}"
+  printnolog "⠀⠀⠀⠀⠀⠀⠘⠉⠃⠑⠁⠃⠋⠋⠛⠟⢿⢿⣿⣷⣦⡀⠀⠀⠀│ Tracer version: ${Blu}${TRACER_VERSION}${RCol}"
+  printnolog "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠑⠙⠻⠿⣧⠄⠀│ "
+  printnolog "⠀          ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠀⠀│ "
+  printnolog " "
 }
 
 
@@ -185,7 +200,7 @@ check_os() {
     Linux*)
         # Check for Amazon Linux
         if [ -f /etc/system-release ] && grep -q "Amazon Linux" /etc/system-release; then
-            printinfo "Detected Amazon Linux OS."
+            echo "- ${EMOJI_CHECK} Amazon Linux OS detected."
             # Amazon Linux uses the same architecture detection as other Linux distributions
             case "$ARCH" in
             x86_64)
@@ -195,12 +210,12 @@ check_os() {
                 TRACER_URL=$TRACER_LINUX_URL_ARM
                 ;;
             *)
-                printerror "Unsupported Amazon Linux architecture: $ARCH. Aborting."
+                echo "- ${EMOJI_CANCEL} Unsupported Amazon Linux architecture: $ARCH. Aborting."
                 exit 1
                 ;;
             esac
         else
-            printinfo "Detected Linux OS."
+            echo "- ${EMOJI_CHECK} Linux OS detected."
             case "$ARCH" in
             x86_64)
                 TRACER_URL=$TRACER_LINUX_URL_X86_64
@@ -209,7 +224,7 @@ check_os() {
                 TRACER_URL=$TRACER_LINUX_URL_ARM
                 ;;
             *)
-                printerror "Unsupported Linux architecture: $ARCH. Aborting."
+                echo "- ${EMOJI_CANCEL} Unsupported Linux architecture: $ARCH. Aborting."
                 exit 1
                 ;;
             esac
@@ -218,37 +233,22 @@ check_os() {
     Darwin*)
         # Differentiating between ARM and x86_64 architectures on macOS
         if [ "$ARCH" = "arm64" ]; then
-            printinfo "Detected macOS ARM64 architecture"
+            echo "- ${EMOJI_CHECK} macOS ARM64 architecture detected"
             TRACER_URL=$TRACER_MACOS_AARCH_URL
         else
-            printinfo "Detected macOS x86 architecture"
+            echo "- ${EMOJI_CHECK} macOS x86 architecture detected"
             TRACER_URL=$TRACER_MACOS_X86_URL
         fi
         ;;
     *)
-        printerror "Detected unsupported operating system: $OS. Aborting."
+        echo "- ${EMOJI_CANCEL} Unsupported Operating System: $OS. Aborting."
         exit 1
         ;;
     esac
 }
 
 #-------------------------------------------------------------------------------
-#          NAME:  check_args
-#   DESCRIPTION:  Checks if an API key was provided
-#-------------------------------------------------------------------------------
-check_args() {
-    # Check if an API key was provided
-    if [ "$#" -ne 1 ]; then
-        printerror "Incorrect number of arguments. To run this installer, please provide your Tracer API key"
-        print_help
-        exit 1
-    fi
-    API_KEY=$1
-
-}
-
-#-------------------------------------------------------------------------------
-#          NAME:  check_args
+#          NAME:  get_package_name
 #   DESCRIPTION:  Gets name of just the file from the download url
 #-------------------------------------------------------------------------------
 function get_package_name() {
@@ -510,24 +510,52 @@ print_install_summary() {
     echo ""
 }
 
+
+function check_system_requirements() {
+  echo "Checking System Requirements..."
+  check_os
+  check_prereqs
+  
+}
+
+function install_tracer_binary() {
+  echo ""
+  echo "${EMOJI_BOX} Installing Tracer CLI..."
+  get_package_name
+  configure_bindir
+  make_temp_dir
+  download_tracer
+}
+
+
+function print_next_steps() {
+  echo ""
+  echo "${Gry}=============[ Installation Complete ]=============${RCol}"
+  echo ""
+  echo " Daemon Status: ${Yel}Not started yet${RCol}"
+  echo ""
+  echo "${Gry}-------------[ Next Steps ]-------------${RCol}"
+  echo ""
+  echo " To initialize the Tracer daemon, run:"
+  echo ""
+  echo "  ${Blu}tracer init${RCol}            ${Gry}# interactive setup${RCol}"
+  echo "  ${Blu}tracer init --help${RCol}     ${Gry}# view flags${RCol}"
+  echo ""
+  echo " View dashboards at: ${Blu}https://sandbox.tracer.cloud${RCol}"
+  echo " ${Yel}Need help?${RCol}  Visit ${Blu}https://github.com/Tracer-Cloud/tracer${RCol} or email ${Blu}support@tracer.cloud${RCol}"
+  echo ""
+}
+
+
 #-------------------------------------------------------------------------------
 #          NAME:  main
 #   DESCRIPTION:  The main function
 #-------------------------------------------------------------------------------
 main() {
-
-    print_header
-
-    check_os
-    check_prereqs
-    get_package_name
-    configure_bindir
-
-    make_temp_dir
-    download_tracer
-    # setup_tracer_configuration_file
-    # printsucc "Ended setup the tracer configuration file"
-
+  print_header
+  check_system_requirements
+  install_tracer_binary
+  print_next_steps
 }
 
 main "$@"
