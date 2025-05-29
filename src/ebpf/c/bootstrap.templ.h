@@ -30,12 +30,14 @@ typedef unsigned char u8;
 #define PAYLOAD_BUFFER_N_PAGES 256            // 256 * 4KB = 1MB
 #define PAYLOAD_FLUSH_MAX_PAGES 16            // 16 * 4KB = 64KB max flush size
 #define PAYLOAD_FLUSH_TIMEOUT_NS 750000000ULL // 750 milliseconds (latency upper bound)
+#define MAX_CPUS 256                          // Maximum CPUs supported for manual per-CPU isolation
 
 // Memory and string size constants
 #define TASK_COMM_LEN 16  // Non-essential value, possibly trimmed
 #define PAGE_SIZE 4096    // 4KB, (matches standard Intel/ARM page size)
 #define ARGV_MAX_SIZE 384 // 256+128 bytes (uses 75% of available in-kernel memory)
 #define FILENAME_MAX_SIZE 384
+#define WRITE_CONTENT_MAX_SIZE 256 // Maximum bytes to capture from stdout/stderr
 
 // Map keys for configuration values
 #define CONFIG_PID_BLACKLIST_0 0
@@ -82,13 +84,11 @@ struct event_header_kernel
   char comm[TASK_COMM_LEN];
 } __attribute__((packed));
 
-// Target format for long strings and arrays,
-// created in-between kernel->userspace and userspace->external flush
 struct flex_buf
 {
   u32 byte_length;
-  char data[]; // Flexible Array Member (FAM)
-};
+  char *data;
+} __attribute__((packed));
 
 // templ_start:payload_structs
 // templ_end:payload_structs
@@ -100,6 +100,7 @@ struct dar_array
   u64 *data; // pointers to root descriptors
 };
 
+// Get pointers to dynamic payload attributes (ie, strings and arrays of compile-time-unknown size)
 // templ_start:payload_to_dynamic_allocation_roots
 static inline struct dar_array payload_to_dynamic_allocation_roots(enum event_type t, void *ptr)
 {
@@ -110,7 +111,7 @@ static inline struct dar_array payload_to_dynamic_allocation_roots(enum event_ty
 
 // For the statically measurable part of payloads only
 // templ_start:get_payload_size
-static inline u64 get_kernel_payload_size(enum event_type t)
+static inline u64 get_payload_fixed_size(enum event_type t)
 {
   return 0;
 }

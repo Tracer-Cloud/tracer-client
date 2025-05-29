@@ -67,13 +67,12 @@ static void print_kv_array_as_json(const struct kv_array &kv_array)
     else if (strcmp(entry.type, "char[]") == 0)
     {
       // Handle flex_buf for strings
-      struct flex_buf **flex_buf_ptr = static_cast<struct flex_buf **>(entry.value);
-      struct flex_buf *fb = *flex_buf_ptr;
-      if (fb && fb->byte_length > 0)
+      const struct flex_buf *fb = static_cast<const struct flex_buf *>(entry.value);
+      if (fb && fb->byte_length > 0 && fb->data)
       {
         std::cout << "\"";
         // Print the string, ensuring null termination is handled
-        for (u32 j = 0; j < fb->byte_length && fb->data[j] != '\0'; j++)
+        for (u32 j = 0; j < fb->byte_length; j++)
         {
           print_escaped_char(fb->data[j]);
         }
@@ -87,9 +86,8 @@ static void print_kv_array_as_json(const struct kv_array &kv_array)
     else if (strcmp(entry.type, "char[][]") == 0)
     {
       // Handle flex_buf for string arrays (null-separated strings)
-      struct flex_buf **flex_buf_ptr = static_cast<struct flex_buf **>(entry.value);
-      struct flex_buf *fb = *flex_buf_ptr;
-      if (fb && fb->byte_length > 0)
+      const struct flex_buf *fb = static_cast<const struct flex_buf *>(entry.value);
+      if (fb && fb->byte_length > 0 && fb->data)
       {
         std::cout << "[";
         bool first_string = true;
@@ -124,11 +122,6 @@ static void print_kv_array_as_json(const struct kv_array &kv_array)
       {
         std::cout << "[]";
       }
-    }
-    else if (strcmp(entry.type, "flex_buf") == 0)
-    {
-      // For now, just indicate it's a flexible buffer (as requested, don't print content)
-      std::cout << "\"<flex_buf>\"";
     }
     else
     {
@@ -216,8 +209,8 @@ static void payload_callback(payload_ctx *ctx)
   char *next_buffer = reinterpret_cast<char *>(ctx->data) + total_batch_size;
   size_t remaining_size = ctx->size - total_batch_size;
 
-  ctx->data = reinterpret_cast<struct payload_batch_header *>(next_buffer);
-  ctx->size = remaining_size;
+  // ctx->data = reinterpret_cast<struct payload_batch_header *>(next_buffer);
+  // ctx->size = remaining_size;
 }
 
 static void sig_handler(int) { exiting = 1; }

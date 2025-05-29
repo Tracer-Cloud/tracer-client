@@ -190,11 +190,6 @@ fn generate_payload_structs(
         }
 
         for &env in &["user", "kernel"] {
-            let buf_type = if env == "user" {
-                "struct flex_buf*"
-            } else {
-                "u64"
-            };
             let struct_name = format!("payload_{}_{}_{}", env, category, tracepoint);
             lines.push(format!("struct {}", struct_name));
             lines.push("{".into());
@@ -204,11 +199,10 @@ fn generate_payload_structs(
             } else {
                 for field in &info.payload {
                     let decl = if buffer_types.contains(&field.field_type.as_str()) {
-                        // add inline comment on the kernel buffer field
                         if env == "kernel" {
-                            format!("  {} {}; // From buf_malloc_dyn", buf_type, field.name)
+                            format!("  u64 {}; // Descriptor from buf_malloc_dyn\n  u32 _{}_unused; // Padding", field.name, field.name)
                         } else {
-                            format!("  {} {};", buf_type, field.name)
+                            format!("  struct flex_buf {};", field.name)
                         }
                     } else {
                         let c_type = type_map.get(field.field_type.as_str()).unwrap_or(&"u64");
@@ -217,7 +211,7 @@ fn generate_payload_structs(
                     lines.push(decl);
                 }
             }
-            lines.push("};".into());
+            lines.push("} __attribute__((packed));".into());
         }
         lines.push("".to_string());
     }
@@ -257,54 +251,74 @@ fn generate_payload_to_dynamic_allocation_roots(
     _type_map: &BTreeMap<&str, &str>,
     buffer_types: &[&str],
 ) -> String {
-    let header = vec![
-        "static inline struct dar_array payload_to_dynamic_allocation_roots(enum event_type t, void *ptr)",
-        "{",
-        "  struct dar_array result = {0, NULL};",
-        "  switch (t)",
-        "  {",
-    ].join("\n");
+    // ---------- prologue ----------
+    let header = r#"static inline void
+payload_to_dynamic_allocation_roots(enum event_type t,
+                                    void *src_ptr,
+                                    void *dst_ptr,
+                                    struct dar_array *src_result,
+                                    struct dar_array *dst_result)
+{
+  *src_result = (struct dar_array){0, NULL};
+  *dst_result = (struct dar_array){0, NULL};
+  switch (t)
+  {"#;
 
+    // ---------- one case per event that has dynamic fields ----------
     let mut case_parts = Vec::new();
+
     for (category_tp, info) in sorted_events {
         let (category, tracepoint) = category_tp.split_once('.').unwrap();
 
-        // Only generate cases for events that have dynamic fields
         let dynamic_fields: Vec<_> = info
             .payload
             .iter()
-            .filter(|field| buffer_types.contains(&field.field_type.as_str()))
+            .filter(|f| buffer_types.contains(&f.field_type.as_str()))
             .collect();
 
-        if !dynamic_fields.is_empty() {
-            let mut case_lines = vec![
-                format!("  case event_type_{}_{}:", category, tracepoint),
-                "  {".to_string(),
-                format!(
-                    "    struct payload_user_{}_{} *p = (struct payload_user_{}_{} *)ptr;",
-                    category, tracepoint, category, tracepoint
-                ),
-                format!("    static u64 roots[{}];", dynamic_fields.len()),
-            ];
-
-            for (i, field) in dynamic_fields.iter().enumerate() {
-                case_lines.push(format!("    roots[{}] = (u64)&p->{};", i, field.name));
-            }
-
-            case_lines.extend(vec![
-                format!("    result.length = {};", dynamic_fields.len()),
-                "    result.data = roots;".to_string(),
-                "    break;".to_string(),
-                "  }".to_string(),
-            ]);
-
-            case_parts.push(case_lines.join("\n"));
+        if dynamic_fields.is_empty() {
+            continue;
         }
+
+        // begin case
+        let mut lines = vec![
+            format!("  case event_type_{}_{}:", category, tracepoint),
+            "  {".into(),
+            format!(
+                "    struct payload_kernel_{}_{} *src = (struct payload_kernel_{}_{} *)src_ptr;",
+                category, tracepoint, category, tracepoint
+            ),
+            format!(
+                "    struct payload_user_{}_{} *dst = (struct payload_user_{}_{} *)dst_ptr;",
+                category, tracepoint, category, tracepoint
+            ),
+            format!("    static u64 src_roots[{}];", dynamic_fields.len()),
+            format!("    static u64 dst_roots[{}];", dynamic_fields.len()),
+        ];
+
+        for (i, field) in dynamic_fields.iter().enumerate() {
+            lines.push(format!("    src_roots[{i}] = (u64)&src->{name};", name = field.name));
+            lines.push(format!("    dst_roots[{i}] = (u64)&dst->{name};", name = field.name));
+        }
+
+        lines.push(format!(
+            "    *src_result = (struct dar_array){{{}, src_roots}};",
+            dynamic_fields.len()
+        ));
+        lines.push(format!(
+            "    *dst_result = (struct dar_array){{{}, dst_roots}};",
+            dynamic_fields.len()
+        ));
+        lines.push("    break;".into());
+        lines.push("  }".into());
+
+        case_parts.push(lines.join("\n"));
     }
 
-    let footer = vec!["  default:", "    break;", "  }", "  return result;", "}"].join("\n");
+    // ---------- epilogue ----------
+    let footer = "  default:\n    break;\n  }\n}".to_string();
 
-    format!("{}\n{}\n{}", header, case_parts.join("\n"), footer)
+    format!("{header}\n{}\n{footer}", case_parts.join("\n"))
 }
 
 fn generate_payload_to_kv_array(
@@ -376,7 +390,7 @@ fn generate_payload_to_kv_array(
 
 fn generate_get_payload_size(sorted_events: &[(&String, &EventInfo)]) -> String {
     let header = vec![
-        "static inline size_t get_kernel_payload_size(enum event_type t)",
+        "static inline size_t get_payload_fixed_size(enum event_type t)",
         "{",
         "  switch (t)",
         "  {",

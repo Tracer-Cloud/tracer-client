@@ -28,12 +28,14 @@ typedef unsigned char u8;
 #define PAYLOAD_BUFFER_N_PAGES 256            // 256 * 4KB = 1MB
 #define PAYLOAD_FLUSH_MAX_PAGES 16            // 16 * 4KB = 64KB max flush size
 #define PAYLOAD_FLUSH_TIMEOUT_NS 750000000ULL // 750 milliseconds (latency upper bound)
+#define MAX_CPUS 256                          // Maximum CPUs supported for manual per-CPU isolation
 
 // Memory and string size constants
 #define TASK_COMM_LEN 16  // Non-essential value, possibly trimmed
 #define PAGE_SIZE 4096    // 4KB, (matches standard Intel/ARM page size)
 #define ARGV_MAX_SIZE 384 // 256+128 bytes (uses 75% of available in-kernel memory)
 #define FILENAME_MAX_SIZE 384
+#define WRITE_CONTENT_MAX_SIZE 256 // Maximum bytes to capture from stdout/stderr
 
 // Map keys for configuration values
 #define CONFIG_PID_BLACKLIST_0 0
@@ -87,115 +89,116 @@ struct event_header_kernel
   char comm[TASK_COMM_LEN];
 } __attribute__((packed));
 
-// Target format for long strings and arrays,
-// created in-between kernel->userspace and userspace->external flush
 struct flex_buf
 {
   u32 byte_length;
-  char data[]; // Flexible Array Member (FAM)
-};
+  char *data;
+} __attribute__((packed));
 
 // Process execution (successful)
 struct payload_user_sched_sched_process_exec
 {
-  struct flex_buf* argv;
-};
+  struct flex_buf argv;
+} __attribute__((packed));
 struct payload_kernel_sched_sched_process_exec
 {
-  u64 argv; // From buf_malloc_dyn
-};
+  u64 argv; // Descriptor from buf_malloc_dyn
+  u32 _argv_unused; // Padding
+} __attribute__((packed));
 
 // Process termination (successful)
 struct payload_user_sched_sched_process_exit
 {
   u32 exit_code;
-};
+} __attribute__((packed));
 struct payload_kernel_sched_sched_process_exit
 {
   u32 exit_code;
-};
+} __attribute__((packed));
 
 // Memory pressure, stall begins
 struct payload_user_sched_psi_memstall_enter
 {
   char _unused; // Empty payload
-};
+} __attribute__((packed));
 struct payload_kernel_sched_psi_memstall_enter
 {
   char _unused; // Empty payload
-};
+} __attribute__((packed));
 
 // File open, syscall entry
 struct payload_user_syscalls_sys_enter_openat
 {
   u32 dfd;
-  struct flex_buf* filename;
+  struct flex_buf filename;
   u32 flags;
   u32 mode;
-};
+} __attribute__((packed));
 struct payload_kernel_syscalls_sys_enter_openat
 {
   u32 dfd;
-  u64 filename; // From buf_malloc_dyn
+  u64 filename; // Descriptor from buf_malloc_dyn
+  u32 _filename_unused; // Padding
   u32 flags;
   u32 mode;
-};
+} __attribute__((packed));
 
 // File open, syscall return
 struct payload_user_syscalls_sys_exit_openat
 {
   u32 fd;
-};
+} __attribute__((packed));
 struct payload_kernel_syscalls_sys_exit_openat
 {
   u32 fd;
-};
+} __attribute__((packed));
 
 // Files and pipes, read syscall entry
 struct payload_user_syscalls_sys_enter_read
 {
   u32 fd;
   u64 count;
-};
+} __attribute__((packed));
 struct payload_kernel_syscalls_sys_enter_read
 {
   u32 fd;
   u64 count;
-};
+} __attribute__((packed));
 
 // Files and pipes, write syscall entry
 struct payload_user_syscalls_sys_enter_write
 {
   u32 fd;
   u64 count;
-  struct flex_buf* content;
-};
+  struct flex_buf content;
+} __attribute__((packed));
 struct payload_kernel_syscalls_sys_enter_write
 {
   u32 fd;
   u64 count;
-  u64 content; // From buf_malloc_dyn
-};
+  u64 content; // Descriptor from buf_malloc_dyn
+  u32 _content_unused; // Padding
+} __attribute__((packed));
 
 // Memory pressure, reclaim begins
 struct payload_user_vmscan_mm_vmscan_direct_reclaim_begin
 {
   u32 order;
-};
+} __attribute__((packed));
 struct payload_kernel_vmscan_mm_vmscan_direct_reclaim_begin
 {
   u32 order;
-};
+} __attribute__((packed));
 
 // Memory pressure, OOM killer selects process
 struct payload_user_oom_mark_victim
 {
   char _unused; // Empty payload
-};
+} __attribute__((packed));
 struct payload_kernel_oom_mark_victim
 {
   char _unused; // Empty payload
-};
+} __attribute__((packed));
 
 
 // Helper for collapsing kernel-provided allocation chains into a single node
@@ -205,46 +208,61 @@ struct dar_array
   u64 *data; // pointers to root descriptors
 };
 
-static inline struct dar_array payload_to_dynamic_allocation_roots(enum event_type t, void *ptr)
+// Get pointers to dynamic payload attributes (ie, strings and arrays of compile-time-unknown size)
+static inline void
+payload_to_dynamic_allocation_roots(enum event_type t,
+                                    void *src_ptr,
+                                    void *dst_ptr,
+                                    struct dar_array *src_result,
+                                    struct dar_array *dst_result)
 {
-  struct dar_array result = {0, NULL};
+  *src_result = (struct dar_array){0, NULL};
+  *dst_result = (struct dar_array){0, NULL};
   switch (t)
   {
   case event_type_sched_sched_process_exec:
   {
-    struct payload_user_sched_sched_process_exec *p = (struct payload_user_sched_sched_process_exec *)ptr;
-    static u64 roots[1];
-    roots[0] = (u64)&p->argv;
-    result.length = 1;
-    result.data = roots;
+    struct payload_kernel_sched_sched_process_exec *src = (struct payload_kernel_sched_sched_process_exec *)src_ptr;
+    struct payload_user_sched_sched_process_exec *dst = (struct payload_user_sched_sched_process_exec *)dst_ptr;
+    static u64 src_roots[1];
+    static u64 dst_roots[1];
+    src_roots[0] = (u64)&src->argv;
+    dst_roots[0] = (u64)&dst->argv;
+    *src_result = (struct dar_array){1, src_roots};
+    *dst_result = (struct dar_array){1, dst_roots};
     break;
   }
   case event_type_syscalls_sys_enter_openat:
   {
-    struct payload_user_syscalls_sys_enter_openat *p = (struct payload_user_syscalls_sys_enter_openat *)ptr;
-    static u64 roots[1];
-    roots[0] = (u64)&p->filename;
-    result.length = 1;
-    result.data = roots;
+    struct payload_kernel_syscalls_sys_enter_openat *src = (struct payload_kernel_syscalls_sys_enter_openat *)src_ptr;
+    struct payload_user_syscalls_sys_enter_openat *dst = (struct payload_user_syscalls_sys_enter_openat *)dst_ptr;
+    static u64 src_roots[1];
+    static u64 dst_roots[1];
+    src_roots[0] = (u64)&src->filename;
+    dst_roots[0] = (u64)&dst->filename;
+    *src_result = (struct dar_array){1, src_roots};
+    *dst_result = (struct dar_array){1, dst_roots};
     break;
   }
   case event_type_syscalls_sys_enter_write:
   {
-    struct payload_user_syscalls_sys_enter_write *p = (struct payload_user_syscalls_sys_enter_write *)ptr;
-    static u64 roots[1];
-    roots[0] = (u64)&p->content;
-    result.length = 1;
-    result.data = roots;
+    struct payload_kernel_syscalls_sys_enter_write *src = (struct payload_kernel_syscalls_sys_enter_write *)src_ptr;
+    struct payload_user_syscalls_sys_enter_write *dst = (struct payload_user_syscalls_sys_enter_write *)dst_ptr;
+    static u64 src_roots[1];
+    static u64 dst_roots[1];
+    src_roots[0] = (u64)&src->content;
+    dst_roots[0] = (u64)&dst->content;
+    *src_result = (struct dar_array){1, src_roots};
+    *dst_result = (struct dar_array){1, dst_roots};
     break;
   }
   default:
     break;
   }
-  return result;
 }
 
 // For the statically measurable part of payloads only
-static inline size_t get_kernel_payload_size(enum event_type t)
+static inline size_t get_payload_fixed_size(enum event_type t)
 {
   switch (t)
   {

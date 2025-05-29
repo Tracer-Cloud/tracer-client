@@ -56,6 +56,13 @@ static u64 generate_event_id()
   return event_id_base + (++event_id_counter);
 }
 
+// Helper to calculate CPU-specific key for the payload_buffer map (userspace version)
+// Each CPU gets a contiguous range: CPU N uses keys [N * PAYLOAD_BUFFER_N_PAGES, (N+1) * PAYLOAD_BUFFER_N_PAGES)
+static u32 cpu_page_key(u32 page_index, u32 cpu)
+{
+  return cpu * PAYLOAD_BUFFER_N_PAGES + (page_index % PAYLOAD_BUFFER_N_PAGES);
+}
+
 // Minimal context needed to associate event headers and payloads
 struct pending_payload_info
 {
@@ -77,15 +84,12 @@ struct lib_ctx
   // Other context
   struct bootstrap_bpf *skel; // BPF skeleton
   struct ring_buffer *rb;     // Ring buffer
-  int data_buffer_fd;         // Per-CPU array map fd
-
-  // Per-CPU page buffers for fast access
-  void **cpu_pages; // Array of pointers to per-CPU pages
-  int n_cpus;       // Number of CPUs
+  int payload_buffer_fd;      // Shared array map fd (with manual CPU isolation)
 
   // Pending payloads tracking
+  int n_cpus;                                                      // Number of CPUs
   std::vector<std::vector<pending_payload_info>> pending_payloads; // One vector per CPU
-  u8 current_payload_flush[PAYLOAD_FLUSH_MAX_PAGES][PAGE_SIZE];
+  u8 current_payload_flush[PAYLOAD_FLUSH_MAX_PAGES * PAGE_SIZE];
 };
 
 /* Find when the host system booted */
@@ -120,44 +124,6 @@ static void sig_handler(int sig) { exiting = true; }
 /*                            Payload processing                              */
 /* -------------------------------------------------------------------------- */
 
-// Process a single dynamic allocation and convert to flex_buf
-static void process_dynamic_allocation(u64 descriptor,
-                                       u64 *descriptor_field,
-                                       char *kernel_allocation_data,
-                                       char **flex_buf_write_ptr,
-                                       char *flex_buf_write_end)
-{
-  // Parse descriptor: [is_final:1][order:16][size:47] for root allocations
-  bool is_final = (descriptor >> 63) & 1;
-  u64 size = descriptor & 0x7FFFFFFFFFFFULL;
-
-  // For single-node case, we expect is_final to be true
-  if (!is_final)
-  {
-    std::cerr << "Multi-node dynamic allocations not yet supported" << std::endl;
-    return;
-  }
-
-  // Create flex_buf in user payload buffer
-  if (*flex_buf_write_ptr + sizeof(u32) + size > flex_buf_write_end)
-  {
-    std::cerr << "Not enough space for flex_buf conversion" << std::endl;
-    return;
-  }
-
-  struct flex_buf *fb = reinterpret_cast<struct flex_buf *>(*flex_buf_write_ptr);
-  fb->byte_length = size;
-  memcpy(fb->data, kernel_allocation_data, size);
-
-  // Update the descriptor field to point to our flex_buf
-  *descriptor_field = reinterpret_cast<u64>(fb);
-
-  // Move write pointer for next flex_buf
-  *flex_buf_write_ptr += sizeof(u32) + size;
-  // Align to 8-byte boundary
-  *flex_buf_write_ptr = reinterpret_cast<char *>((reinterpret_cast<uintptr_t>(*flex_buf_write_ptr) + 7) & ~7);
-}
-
 // Process payload data from per-CPU pages
 static int handle_payload_flush(struct lib_ctx *lc, u16 cpu)
 {
@@ -173,7 +139,6 @@ static int handle_payload_flush(struct lib_ctx *lc, u16 cpu)
   // Calculate upper bound on space needed for complete flush
   u16 page_span = (last_page >= first_page) ? (last_page - first_page + 1) : (last_page + PAYLOAD_BUFFER_N_PAGES - first_page + 1);
   size_t num_payloads = lc->pending_payloads[cpu].size();
-  // TODO (when implementing dynamic allocation chain collapse): 4 extra bytes needed per flex_buf
   size_t space_needed_upper_bound = sizeof(struct payload_batch_header) +
                                     (num_payloads * sizeof(struct payload_batch_index_entry)) +
                                     page_span * PAGE_SIZE;
@@ -221,65 +186,135 @@ static int handle_payload_flush(struct lib_ctx *lc, u16 cpu)
     // Calculate the correct page in current_payload_flush buffer
     // Handle wrap-around: if page < first_page, it wrapped around
     u16 buffer_page_index = (pending.page_index < first_page) ? (pending.page_index + PAYLOAD_BUFFER_N_PAGES - first_page) : (pending.page_index - first_page);
+    u32 src_offset = buffer_page_index * PAGE_SIZE + pending.page_offset;
 
     // Calculate source address in current_payload_flush
-    void *src_payload = &lc->current_payload_flush[buffer_page_index][pending.page_offset];
+    void *src_payload = &lc->current_payload_flush[src_offset];
 
-    // Get the kernel payload size for this event type
-    size_t kernel_payload_size = get_kernel_payload_size(pending.event_type);
-
-    // Get dynamic allocation roots (for future use with dynamic payloads)
-    struct dar_array dar = payload_to_dynamic_allocation_roots(pending.event_type, src_payload);
-
-    size_t total_payload_size = kernel_payload_size;
+    size_t payload_fixed_size = get_payload_fixed_size(pending.event_type);
 
     // Add index entry for this payload
     index_array[header->num_payloads].event_id = pending.event_id;
     index_array[header->num_payloads].event_type = pending.event_type;
     index_array[header->num_payloads].offset = header->bytes_written;
 
-    // Copy the payload data
+    // Copy the fixed-size portion of the payload data
     void *dst_payload = payload_data_start + header->bytes_written;
-    memcpy(dst_payload, src_payload, kernel_payload_size);
+    memcpy(dst_payload, src_payload, payload_fixed_size);
 
-    // Process dynamic allocations if any exist
-    if (dar.length > 0)
+    header->bytes_written += payload_fixed_size;
+    header->num_payloads++;
+
+    // Get dynamic allocation roots
+    struct dar_array src_dars, dst_dars;
+    payload_to_dynamic_allocation_roots(pending.event_type,
+                                        src_payload, dst_payload, &src_dars, &dst_dars);
+
+    src_offset += payload_fixed_size;
+    char *dyn_write_ptr = static_cast<char *>(dst_payload) + payload_fixed_size;
+
+    // Process each dynamic allocation root
+    for (u32 j = 0; j < src_dars.length; j++)
     {
-      // Set up flex_buf writing area after the copied payload
-      char *flex_buf_write_ptr = static_cast<char *>(dst_payload) + kernel_payload_size;
-      char *flex_buf_write_end = reinterpret_cast<char *>(lc->payload_ctx_ptr->data) + lc->payload_ctx_ptr->size;
+      u64 *descriptor_ptr = reinterpret_cast<u64 *>(src_dars.data[j]); // root descriptor
+      u64 descriptor = *descriptor_ptr;
 
-      // Dynamic allocation data is stored sequentially after the fixed payload in the kernel page
-      char *kernel_dynamic_data = static_cast<char *>(src_payload) + kernel_payload_size;
-
-      // Get dynamic allocation roots for the destination payload
-      struct dar_array dst_dar = payload_to_dynamic_allocation_roots(pending.event_type, dst_payload);
-
-      // Process each dynamic allocation root
-      for (u32 j = 0; j < dst_dar.length; j++)
+      if (descriptor == 0)
       {
-        // Read descriptor from SOURCE kernel payload (not destination)
-        u64 *src_descriptor_field = reinterpret_cast<u64 *>(dar.data[j]);
-        u64 descriptor = *src_descriptor_field;
-
-        // Get corresponding destination field
-        u64 *dst_descriptor_field = reinterpret_cast<u64 *>(dst_dar.data[j]);
-
-        // Process the dynamic allocation
-        process_dynamic_allocation(descriptor, dst_descriptor_field, kernel_dynamic_data, &flex_buf_write_ptr, flex_buf_write_end);
-
-        // Move to next dynamic allocation (based on size from descriptor)
-        u64 size = descriptor & 0x7FFFFFFFFFFFULL;
-        kernel_dynamic_data += (size + 7) & ~7; // 8-byte aligned
+        break;
       }
 
-      total_payload_size = flex_buf_write_ptr - static_cast<char *>(dst_payload);
-    }
+      // Parse descriptor: [is_final:1][order:16][size:47]
+      bool is_final = (descriptor >> 63) & 1;
+      u16 order = (descriptor >> 47) & 0xFFFF; // Assume always 0 for now (TODO: handle multiple dynamic properties)
+      u64 size = descriptor & 0x7FFFFFFFFFFFULL;
 
-    // Update batch metadata
-    header->bytes_written += total_payload_size;
-    header->num_payloads++;
+      // std::cerr << "Parsed descriptor - is_final: " << is_final << ", order: " << order << ", size: " << size << std::endl;
+
+      if (size > 4096)
+      {
+        std::cerr << "Allocation size > 4096 not supported" << std::endl;
+        break;
+      }
+
+      if ((src_offset / 4096) != ((src_offset + size) / 4096))
+      {
+        // Allocation doesn't fit in current page, so round up to next page boundary
+        src_offset = (src_offset + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+      }
+
+      // For initial case to solve, we expect is_final to be true
+      if (!is_final)
+      {
+        std::cerr << "Multi-node dynamic allocations not yet supported" << std::endl;
+        return -1;
+      }
+
+      // Get corresponding destination field (user-space structure)
+      struct flex_buf *dst_field = reinterpret_cast<struct flex_buf *>(dst_dars.data[j]);
+
+      // std::cerr << "Data starts at offset " << src_offset << std::endl;
+
+      // Copy data from source buffer to destination buffer
+      memcpy(dyn_write_ptr, &lc->current_payload_flush[src_offset], size);
+
+      // std::cerr << "  Source payload bytes [" << src_offset << ".." << (src_offset + size) << "]: ";
+      // for (u64 i = 0; i < size; i++)
+      // {
+      //   char c = lc->current_payload_flush[src_offset + i];
+      //   std::cerr << c;
+      // }
+      // std::cerr << std::endl;
+
+      // std::cerr << "Copied " << size << " bytes to destination at " << (void *)dyn_write_ptr << std::endl;
+
+      // if (!is_final)
+      // {
+      // TODO: seek chain pointer
+      // TODO: this is the logic for finding the next descriptor in a chain. we're just focused on root descriptors right now
+      // // Seek descriptor at src_offset
+      // std::cerr << "Seeking descriptor at offset " << src_offset << std::endl;
+      // // Read descriptor from the source buffer
+      // u64 *src_descriptor_ptr = reinterpret_cast<u64 *>(&lc->current_payload_flush[src_offset]);
+      // u64 descriptor = *src_descriptor_ptr;
+      // std::cerr << "Found descriptor: 0x" << std::hex << descriptor << std::dec << std::endl;
+      // if (descriptor == 0)
+      // {
+      //   // If descriptor is NULL, round up to next page boundary
+      //   src_offset = (src_offset + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+      //   std::cerr << "Descriptor was NULL, seeking at page-aligned offset " << src_offset << std::endl;
+      //   src_descriptor_ptr = reinterpret_cast<u64 *>(&lc->current_payload_flush[src_offset]);
+      //   descriptor = *src_descriptor_ptr;
+      //   std::cerr << "Found descriptor after page alignment: 0x" << std::hex << descriptor << std::dec << std::endl;
+      //   if (descriptor == 0)
+      //   {
+      //     std::cerr << "ERROR: Descriptor is still NULL after page alignment. Payload may be corrupted." << std::endl;
+      //     return -1;
+      //   }
+      // }
+      // src_offset += 8; // skip descriptor
+      // }
+
+      // Set up destination field
+      dst_field->byte_length = static_cast<u32>(size);
+      dst_field->data = dyn_write_ptr;
+
+      // std::cerr << "Set destination field: length=" << dst_field->byte_length << ", data=" << (void *)dst_field->data << std::endl;
+
+      // Move write pointer for next dynamic allocation
+      dyn_write_ptr += size;
+
+      // Move source offset past the data we just copied
+      src_offset += size;
+
+      // std::cerr << "Next write will be at " << (void *)dyn_write_ptr << ", next read at offset " << src_offset << std::endl;
+
+      // Update total payload size to include this dynamic data
+      header->bytes_written += size;
+    }
   }
+
+  // std::cerr << "Successfully processed pending payloads. Total bytes written: " << header->bytes_written << std::endl;
 
   // Final callback to flush everything in payload_ctx->data
   lc->payload_cb(lc->payload_ctx_ptr);
@@ -328,17 +363,22 @@ static int handle_header_flush(void *ctx, void *data, size_t _)
   u16 payload_pages_to_flush = kern_header->payload.flush_signal;
 
   // Step 3: Copy payload pages from kernel to userspace (time-sensitive operation)
-  if (payload_pages_to_flush > 0)
+  if (payload_pages_to_flush > 0 && !lc->pending_payloads[cpu_to_flush].empty())
   {
     // Copy payload pages into lib_ctx->current_payload_flush without modification
     // Has to run before any callbacks triggered because of time-sensitivity
+    // std::cerr << "Copying " << payload_pages_to_flush << " pages starting from page " << kern_header->payload.page_index << " for CPU " << kern_header->payload.cpu << std::endl;
+
     for (u16 i = 0; i < payload_pages_to_flush; i++)
     {
-      u32 page_key = (kern_header->payload.page_index + i) % PAYLOAD_BUFFER_N_PAGES;
-      int ret = bpf_map_lookup_elem(lc->data_buffer_fd, &page_key, lc->current_payload_flush[i]);
-      if (ret < 0)
+      u32 page_key = cpu_page_key((kern_header->payload.page_index + i) % PAYLOAD_BUFFER_N_PAGES, cpu_to_flush);
+      void *dst = &lc->current_payload_flush[i * PAGE_SIZE];
+      int err = bpf_map_lookup_elem(lc->payload_buffer_fd, &page_key, dst);
+
+      if (err)
       {
-        std::cerr << "Failed to lookup page " << page_key << " for CPU " << kern_header->payload.cpu << std::endl;
+        std::cerr << "lookup failed for page " << page_key
+                  << " cpu " << cpu_to_flush << " → " << err << '\n';
         return -1;
       }
     }
@@ -352,7 +392,7 @@ static int handle_header_flush(void *ctx, void *data, size_t _)
   }
 
   // Step 5: Process flushed payload data (after header callback to maintain ordering)
-  if (payload_pages_to_flush > 0)
+  if (payload_pages_to_flush > 0 && !lc->pending_payloads[cpu_to_flush].empty())
   {
     handle_payload_flush(lc, cpu_to_flush);
   }
@@ -401,12 +441,11 @@ extern "C" int initialize(header_ctx *header_ctx_param, payload_ctx *payload_ctx
   signal(SIGINT, sig_handler);
   signal(SIGTERM, sig_handler);
 
-  /* ----------------------------------------------------- */
   /* Steps:
    * 1. Open BPF skeleton
    * 2. Load BPF programs
    * 3. Configure runtime parameters
-   * 4. Set up per-CPU array maps
+   * 4. Set up shared array map with manual CPU isolation
    * 5. Attach BPF programs to tracepoints
    * 6. Register ringbuffer callback
    */
@@ -446,11 +485,11 @@ extern "C" int initialize(header_ctx *header_ctx_param, payload_ctx *payload_ctx
     }
   }
 
-  // Get file descriptor for per-CPU array map
-  lc.data_buffer_fd = bpf_map__fd(lc.skel->maps.data_buffer);
-  if (lc.data_buffer_fd < 0)
+  // Get file descriptor for shared array map
+  lc.payload_buffer_fd = bpf_map__fd(lc.skel->maps.payload_buffer);
+  if (lc.payload_buffer_fd < 0)
   {
-    std::cerr << "C++: failed to get data_buffer map fd" << std::endl;
+    std::cerr << "C++: failed to get payload_buffer map fd" << std::endl;
     err = -1;
     goto out;
   }
@@ -492,6 +531,5 @@ extern "C" int initialize(header_ctx *header_ctx_param, payload_ctx *payload_ctx
 out:
   ring_buffer__free(lc.rb);
   bootstrap_bpf__destroy(lc.skel);
-  free(lc.cpu_pages);
   return err < 0 ? -err : 0;
 }
