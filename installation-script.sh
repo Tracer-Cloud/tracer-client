@@ -196,7 +196,7 @@ function check_os() {
 
 function check_system_requirements() {
   echo ""
-  print_section "${EMOJI_REQUIREMENTS} Checking System Requirements"
+  print_section "Checking System Requirements"
   check_os
   check_prereqs
 }
@@ -277,7 +277,7 @@ function download_tracer() {
 
 function install_tracer_binary() {
   echo ""
-  print_section "${EMOJI_BOX} Installing Tracer CLI"
+  print_section "Installing Tracer CLI"
 
   get_package_name
   configure_bindir >/dev/null  # Silent unless error
@@ -289,7 +289,7 @@ function install_tracer_binary() {
 
 function configure_tracer() {
     echo ""
-    print_section "${EMOJI_CONFIGURE} Configuration"
+    print_section "Configuration"
 
     
     # Create config directory if needed (silent)
@@ -369,7 +369,7 @@ update_rc() {
 
 function cleanup() {
     echo ""
-    print_section "${EMOJI_CLEANUP} Cleanup"
+    print_section "Cleanup"
 
     if [ -d "$TRACER_TEMP_DIR" ]; then
         rm -rf "$TRACER_TEMP_DIR" && echo "- ${EMOJI_CHECK} Cleaned up temporary files."
