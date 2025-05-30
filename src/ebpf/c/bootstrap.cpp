@@ -121,172 +121,150 @@ static void sig_handler(int sig) { exiting = true; }
 /* -------------------------------------------------------------------------- */
 
 // Ring‑buffer callback for processing headers, flush initiated by kernel
-static int handle_header_flush(void *ctx, void *data, size_t _)
+static int handle_header_flush(void *ctx, void *data, size_t /*unused*/)
 {
+  /* -------- basic validation -------------------------------------------------- */
   if (!ctx || !data)
   {
-    std::cerr << "Error: Invalid context or data in handle_header_flush" << std::endl;
+    std::cerr << "Error: Invalid context or data in handle_header_flush\n";
     return -1;
   }
 
-  struct lib_ctx *lc = static_cast<struct lib_ctx *>(ctx);
+  auto *lc = static_cast<lib_ctx *>(ctx);
 
-  if (!lc->header_ctx_ptr || !lc->header_ctx_ptr->data || !lc->payload_ctx_ptr || !lc->event_cb)
+  if (!lc->header_ctx_ptr || !lc->header_ctx_ptr->data ||
+      !lc->payload_ctx_ptr || !lc->event_cb)
   {
-    std::cerr << "Error: Invalid library context in handle_header_flush" << std::endl;
+    std::cerr << "Error: Invalid library context in handle_header_flush\n";
     return -1;
   }
 
-  struct event_header_kernel *kern_header = static_cast<struct event_header_kernel *>(data);
+  auto *kern_header = static_cast<event_header_kernel *>(data);
 
+  /* Skip events filtered in user space */
   if (bootstrap_filter__should_skip(kern_header))
-  {
     return 0;
-  }
 
-  // Generate event ID
-  u64 event_id = generate_event_id();
-
-  // Copy header data to header_ctx
-  *lc->header_ctx_ptr->data = *((struct event_header_user *)kern_header);
+  /* -------- header handling ---------------------------------------------------- */
+  const u64 event_id = generate_event_id();
+  *lc->header_ctx_ptr->data = *reinterpret_cast<event_header_user *>(kern_header);
   lc->header_ctx_ptr->data->event_id = event_id;
 
-  // Calculate positions within this CPU's buffer
-  int raw_start_idx = kern_header->payload.start_index;
-  int raw_end_idx = kern_header->payload.end_index;
+  /* -------- payload window calculation ---------------------------------------- */
+  const u32 raw_start = kern_header->payload.start_index;
+  const u32 raw_end = kern_header->payload.end_index;
 
-  int cpu_base = raw_start_idx - raw_start_idx % PAYLOAD_BUFFER_N_ENTRIES_PER_CPU;
-  int start_in_cpu = raw_start_idx % PAYLOAD_BUFFER_N_ENTRIES_PER_CPU;
-  int end_in_cpu = raw_end_idx % PAYLOAD_BUFFER_N_ENTRIES_PER_CPU;
+  const u32 entries_per_cpu = PAYLOAD_BUFFER_N_ENTRIES_PER_CPU;
+  const u32 cpu_base = raw_start - raw_start % entries_per_cpu;
 
-  int payload_size = end_in_cpu - start_in_cpu;
-  if (start_in_cpu > end_in_cpu)
-    payload_size += PAYLOAD_BUFFER_N_ENTRIES_PER_CPU;
+  const u32 start_in_cpu = raw_start % entries_per_cpu;
+  const u32 end_in_cpu = raw_end % entries_per_cpu;
 
-  // Copy payload entries to temporary buffer
-  for (u32 i = 0; i < payload_size; i++)
+  u32 payload_entries =
+      (end_in_cpu + entries_per_cpu - start_in_cpu) % entries_per_cpu;
+
+  /* -------- copy payload entries into temporary buffer ------------------------ */
+  const size_t tmp_capacity = sizeof(lc->current_payload_flush);
+  const size_t entry_size = PAYLOAD_BUFFER_ENTRY_SIZE;
+
+  for (u32 i = 0; i < payload_entries; ++i)
   {
-    // Bounds check to prevent buffer overflow
-    if (i * PAYLOAD_BUFFER_ENTRY_SIZE >= sizeof(lc->current_payload_flush))
-    {
-      std::cerr << "Error: Payload copy would overflow buffer at index " << i << std::endl;
+    const size_t dst_off = i * entry_size;
+    if (dst_off >= tmp_capacity)
+    { // hard safety stop
+      std::cerr << "Error: Payload copy would overflow buffer at index "
+                << i << '\n';
       break;
     }
 
-    u32 map_index = cpu_base + (start_in_cpu + i) % PAYLOAD_BUFFER_N_ENTRIES_PER_CPU;
-    void *dst = &lc->current_payload_flush[i * PAYLOAD_BUFFER_ENTRY_SIZE];
+    const u32 map_index = cpu_base + (start_in_cpu + i) % entries_per_cpu;
+    void *dst = lc->current_payload_flush + dst_off;
 
-    int lookup_result = bpf_map_lookup_elem(lc->payload_buffer_fd, &map_index, dst);
-    if (lookup_result != 0)
-    {
-      std::cerr << "Error: bpf_map_lookup_elem failed for index " << map_index << std::endl;
-    }
+    if (bpf_map_lookup_elem(lc->payload_buffer_fd, &map_index, dst) != 0)
+      std::cerr << "Error: bpf_map_lookup_elem failed for index "
+                << map_index << '\n';
   }
 
-  if (payload_size <= 0)
+  /* -------- fast path: header-only event -------------------------------------- */
+  if (payload_entries == 0)
   {
-    // No payload - just notify consumer of header data
     lc->payload_ctx_ptr->event_id = event_id;
     lc->payload_ctx_ptr->event_type = kern_header->event_type;
     lc->payload_ctx_ptr->data = nullptr;
-
     lc->event_cb(lc->header_ctx_ptr, lc->payload_ctx_ptr);
     return 0;
   }
 
-  // Set up payload context for single payload
+  /* -------- payload context initialisation ------------------------------------ */
   lc->payload_ctx_ptr->event_id = event_id;
   lc->payload_ctx_ptr->event_type = kern_header->event_type;
 
-  // Ensure enough space is available for the payload
-  size_t payload_fixed_size = get_payload_fixed_size(kern_header->event_type);
-
   if (!lc->payload_ctx_ptr->data)
   {
-    std::cerr << "Error: payload_ctx_ptr->data is NULL" << std::endl;
+    std::cerr << "Error: payload_ctx_ptr->data is NULL\n";
     return -1;
   }
 
-  // Copy fixed payload data directly to payload context
-  memcpy(lc->payload_ctx_ptr->data, lc->current_payload_flush, payload_fixed_size);
+  const size_t fixed_sz = get_payload_fixed_size(kern_header->event_type);
+  std::memcpy(lc->payload_ctx_ptr->data,
+              lc->current_payload_flush,
+              fixed_sz);
 
-  // Handle dynamic data
-  struct dar_array src_dars, dst_dars;
+  /* -------- dynamic fields ---------------------------------------------------- */
+  dar_array src, dst;
   payload_to_dynamic_allocation_roots(kern_header->event_type,
-                                      lc->current_payload_flush, lc->payload_ctx_ptr->data,
-                                      &src_dars, &dst_dars);
+                                      lc->current_payload_flush,
+                                      lc->payload_ctx_ptr->data,
+                                      &src, &dst);
 
-  // Write dynamic data immediately after fixed-size portion of payload
-  char *dyn_write_ptr = static_cast<char *>(lc->payload_ctx_ptr->data) + payload_fixed_size;
-  char *payload_end = static_cast<char *>(lc->payload_ctx_ptr->data) + lc->payload_ctx_ptr->size;
+  u8 *dyn_write = static_cast<u8 *>(lc->payload_ctx_ptr->data) + fixed_sz;
+  u8 *dyn_end = static_cast<u8 *>(lc->payload_ctx_ptr->data) +
+                lc->payload_ctx_ptr->size;
 
-  for (u32 j = 0; j < src_dars.length; j++)
+  const u32 bytes_per_cpu = entries_per_cpu * entry_size;
+  const u32 buffer_start_byte = raw_start * entry_size;
+
+  for (u32 j = 0; j < src.length; ++j)
   {
-    if (!src_dars.data[j] || !dst_dars.data[j])
-    {
+    if (!src.data[j] || !dst.data[j])
       continue;
-    }
 
-    u64 *descriptor_ptr = reinterpret_cast<u64 *>(src_dars.data[j]);
-    u64 descriptor = *descriptor_ptr;
+    const u64 desc = *reinterpret_cast<u64 *>(src.data[j]);
+    if (desc == 0) // field absent
+      continue;
 
-    if (descriptor == 0)
+    const u32 byte_index = desc >> 32;
+    const u32 byte_length = desc & 0xFFFFFFFFu;
+
+    auto *dst_field = reinterpret_cast<flex_buf *>(dst.data[j]);
+
+    /* convert absolute index to index inside current flush buffer */
+    const u32 rel_idx =
+        (byte_index + bytes_per_cpu - buffer_start_byte) % bytes_per_cpu;
+
+    /* validation */
+    if (byte_length == 0 ||
+        rel_idx + byte_length > tmp_capacity ||
+        dyn_write + byte_length > dyn_end)
     {
-      continue; // No dynamic data
-    }
-
-    // Parse descriptor: [byte_index:32][byte_length:32]
-    int byte_index = (descriptor >> 32) & 0xFFFFFFFF;
-    int byte_length = descriptor & 0xFFFFFFFF;
-
-    // Get destination buffer
-    struct flex_buf *dst_field = reinterpret_cast<struct flex_buf *>(dst_dars.data[j]);
-
-    // TODO: further simplify this logic
-    // Convert absolute byte_index to relative index in current_payload_flush
-    int buffer_start_byte = raw_start_idx * PAYLOAD_BUFFER_ENTRY_SIZE;
-    int relative_byte_index;
-
-    if (byte_index >= buffer_start_byte)
-    {
-      // Normal case: no wrap-around
-      relative_byte_index = byte_index - buffer_start_byte;
-    }
-    else
-    {
-      // Wrap-around case: byte_index is in the wrapped portion
-      int buffer_end_byte = (cpu_base + PAYLOAD_BUFFER_N_ENTRIES_PER_CPU) * PAYLOAD_BUFFER_ENTRY_SIZE;
-      int bytes_before_wrap = buffer_end_byte - buffer_start_byte;
-      relative_byte_index = bytes_before_wrap + byte_index;
-    }
-
-    if (
-        relative_byte_index + byte_length > sizeof(lc->current_payload_flush) || // Bounds check for source buffer
-        dyn_write_ptr + byte_length > payload_end ||                             // Bounds check for destination buffer
-        byte_length == 0                                                         // No data
-    )
-    {
-      // TODO: Unexpected failure occured, affecting about 1 in 20k events. Source unknown
-
-      // Abort copying the field
+      // YODO: investigate cases that end up here (shouldn't happen but it does)
       dst_field->byte_length = 0;
       dst_field->data = nullptr;
       continue;
     }
 
-    // Copy dynamic data
-    memcpy(dyn_write_ptr, &lc->current_payload_flush[relative_byte_index], byte_length);
+    /* copy & patch */
+    std::memcpy(dyn_write,
+                lc->current_payload_flush + rel_idx,
+                byte_length);
 
-    // Set up destination field
     dst_field->byte_length = byte_length;
-    dst_field->data = dyn_write_ptr;
-
-    dyn_write_ptr += byte_length;
+    dst_field->data = reinterpret_cast<char *>(dyn_write);
+    dyn_write += byte_length;
   }
 
-  // Notify consumer with both header and payload data
+  /* -------- deliver event to user code --------------------------------------- */
   lc->event_cb(lc->header_ctx_ptr, lc->payload_ctx_ptr);
-
   return 0;
 }
 
