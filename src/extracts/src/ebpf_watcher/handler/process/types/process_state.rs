@@ -90,6 +90,10 @@ impl ProcessState {
             .collect()
     }
 
+    pub fn set_processes(&mut self, processes: HashMap<usize, ProcessStartTrigger>) {
+        self.processes = processes;
+    }
+
     /// Gets a process and all its parent processes from the state
     ///
     /// Will panic if a cycle is detected in the process hierarchy.
