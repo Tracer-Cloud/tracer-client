@@ -20,14 +20,9 @@ use tracer_common::recorder::LogRecorder;
 use tracer_common::types::current_run::{PipelineMetadata, Run};
 use tracer_common::types::event::attributes::EventAttributes;
 use tracer_common::types::event::{Event, ProcessStatus};
+use tracer_extracts::ebpf_watcher::watcher::EbpfWatcher;
 use tracer_extracts::metrics::system_metrics_collector::SystemMetricsCollector;
-use tracer_extracts::process_watcher::ebpf_watcher::EbpfWatcher;
 use tracing::info;
-// NOTE: we might have to find a better alternative than passing the pipeline name to tracer client
-// directly. Currently with this approach, we do not need to generate a new pipeline name for every
-// new run.
-// But this also means that a system can setup tracer agent and exec
-// multiple pipelines
 
 pub struct TracerClient {
     system: Arc<RwLock<System>>, // todo: use arc swap
