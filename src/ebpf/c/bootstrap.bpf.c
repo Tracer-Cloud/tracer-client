@@ -74,8 +74,9 @@ struct
   u32 chain_descriptor_page_offset; // Page offset of current descriptor
   u16 depth;                        // Current depth in the allocation chain
   bool is_final;                    // Chain is finalised
-  u16 order;                        // Order of the allocation for attribute ordering
-  u32 size;                         // Size of the current allocation
+  u64 order;                        // Order of the allocation for attribute ordering
+  u64 size;                         // Size of the current allocation
+  bool success;
 } prev_malloc_dyn = {
     .root_descriptor = NULL,
     .chain_descriptor_page_index = 0,
@@ -83,7 +84,8 @@ struct
     .depth = 0,
     .is_final = true,
     .order = 0,
-    .size = 0};
+    .size = 0,
+    .success = true};
 
 /* -------------------------------------------------------------------------- */
 /*                            Helper utilities                                */
@@ -166,6 +168,7 @@ static __always_inline struct event_header_kernel *create_event(enum event_type 
   prev_malloc_dyn.is_final = true;
   prev_malloc_dyn.order = 0;
   prev_malloc_dyn.size = 0;
+  prev_malloc_dyn.success = true;
 
   // Get task info
   u64 id = bpf_get_current_pid_tgid();
@@ -261,13 +264,13 @@ static __always_inline void *buf_malloc(u64 size)
     state->page_start_timestamp_ns = current_time_ns;
   }
 
-  // Get pointer to reserved space
+  // Get pointer to reserved page
   u32 key = cpu_page_key(state->current_page);
   u8(*page)[PAGE_SIZE] = bpf_map_lookup_elem(&payload_buffer, &key);
   if (!page)
     return NULL;
 
-  // Help verifier understand the offset is bounded with redundant check
+  // Help verifier track offset upper bound with redundant check
   u32 offset = state->current_offset;
   if (offset > PAGE_SIZE - size)
     return NULL;
@@ -283,66 +286,73 @@ static __always_inline void *buf_malloc(u64 size)
 
 // Wrapper around buf_malloc that adds support for arrays and strings of variable size,
 // including support for splitting data across multiple allocations.
-static __always_inline void *buf_malloc_dyn(u32 size, bool is_final, u64 *descriptor)
+static __always_inline void *buf_malloc_dyn(u64 size, bool is_final, u64 *descriptor)
 {
-  bool is_first = (prev_malloc_dyn.is_final == true);
   void *ptr;
+  struct buffer_state *state = bpf_map_lookup_elem(&buffer_state_map, &buffer_state_key);
+  if (!state)
+    return NULL;
 
-  if (!is_first && prev_malloc_dyn.root_descriptor != descriptor)
+  u64 *prev_root_descriptor = prev_malloc_dyn.root_descriptor;
+  u32 prev_chain_descriptor_page_index = prev_malloc_dyn.chain_descriptor_page_index;
+  u32 prev_chain_descriptor_page_offset = prev_malloc_dyn.chain_descriptor_page_offset;
+  u16 prev_depth = prev_malloc_dyn.depth;
+  bool prev_is_final = prev_malloc_dyn.is_final;
+  u64 prev_order = prev_malloc_dyn.order;
+  u64 prev_size = prev_malloc_dyn.size;
+  u64 prev_success = prev_malloc_dyn.success;
+
+  u16 new_depth = prev_is_final ? 1 : prev_depth + 1;
+  u64 new_order = prev_is_final ? prev_order + 1 : prev_order;
+
+  prev_malloc_dyn.root_descriptor = descriptor;
+  prev_malloc_dyn.chain_descriptor_page_index = state->current_page;
+  prev_malloc_dyn.chain_descriptor_page_offset = state->current_offset;
+  prev_malloc_dyn.depth = new_depth;
+  prev_malloc_dyn.is_final = is_final;
+  prev_malloc_dyn.order = new_order;
+  prev_malloc_dyn.size = size;
+  prev_malloc_dyn.success = false;
+
+  if (!prev_is_final && prev_root_descriptor != descriptor)
   {
     bpf_printk("Previous dynamic memory allocation must be finalised before starting a new allocation");
     return NULL;
   }
 
-  if (is_first)
+  if (prev_is_final)
   {
     // Root allocation - reserve space for data only
     ptr = buf_malloc(size);
     if (!ptr)
       return NULL;
 
-    // Used when there are multiple dynamic attributes in one event
-    // and we need to determine memory layout
-    u16 order = ++prev_malloc_dyn.order;
-
     // Write root descriptor: [is_final:1][order:16][size:47]
-    *descriptor = ((u64)is_final << 63) | ((u64)order << 47) | ((u64)size & 0x7FFFFFFFFFFFULL);
-    prev_malloc_dyn.root_descriptor = descriptor;
-    prev_malloc_dyn.depth = 1;
+    *descriptor = ((u64)is_final << 63) | ((u64)new_order << 47) | ((u64)size & 0x7FFFFFFFFFFFULL);
   }
   else
   {
-    // Get current state
-    struct buffer_state *state = bpf_map_lookup_elem(&buffer_state_map, &buffer_state_key);
-    if (!state)
-      return NULL;
-
-    prev_malloc_dyn.chain_descriptor_page_index = state->current_page;
-    prev_malloc_dyn.chain_descriptor_page_offset = state->current_offset;
-    prev_malloc_dyn.depth++;
-
     // Allocate space for chain + data
     ptr = buf_malloc(size + 8);
     if (!ptr)
       return NULL;
 
-    // Write chain pointer at the beginning of this allocation
-    u64 *chain_ptr = (u64 *)ptr;
-    *chain_ptr = ((u64)is_final << 63) | ((u64)prev_malloc_dyn.order << 47) | ((u64)size & 0x7FFFFFFFFFFFULL);
+    // Write chain descriptor at the beginning of new allocation
+    u64 *chain_descriptor = (u64 *)ptr;
+    *chain_descriptor = ((u64)is_final << 63) | ((u64)new_order << 47) | ((u64)size & 0x7FFFFFFFFFFFULL);
 
-    // Return pointer to data (after chain pointer)
+    // Return pointer to data (after chain descriptor)
     ptr = (char *)ptr + 8;
   }
 
-  prev_malloc_dyn.is_final = is_final;
-  prev_malloc_dyn.size = size;
+  prev_malloc_dyn.success = true;
 
   return ptr;
 }
 
 // Shrink the last dynamic allocation to the specified size
 // This updates the descriptor and reclaims unused buffer space
-static __always_inline void buf_malloc_dyn_shrink_last(u32 new_size, u64 *root_descriptor)
+static __always_inline void buf_malloc_dyn_shrink_last(u64 new_size, u64 *root_descriptor)
 {
   if (!prev_malloc_dyn.root_descriptor)
     return;
@@ -351,12 +361,12 @@ static __always_inline void buf_malloc_dyn_shrink_last(u32 new_size, u64 *root_d
   if (!state)
     return;
 
-  u32 current_size = (prev_malloc_dyn.size);
+  u64 current_size = (prev_malloc_dyn.size);
 
   // Only shrink if new size is smaller than current size
   if (new_size >= current_size)
     return;
-  u32 size_diff = current_size - new_size;
+  u64 size_diff = current_size - new_size;
 
   // Update buffer state to reclaim space
   if (state->current_offset >= size_diff)
@@ -465,6 +475,8 @@ payload_fill_sched_sched_process_exec(struct trace_event_raw_sched_process_exec 
   if (!p)
     return;
 
+  prev_malloc_dyn.order = 10;
+
   // native format (null-separated strings) for sched_process_exec.argv matches our str[][] format,
   // so we can copy the entire array from memory directly and without modification
   char *payload_argv = buf_malloc_dyn(ARGV_MAX_SIZE, true, &p->argv);
@@ -474,7 +486,7 @@ payload_fill_sched_sched_process_exec(struct trace_event_raw_sched_process_exec 
     // the [arg_start … arg_end) range is mapped and already resident in the
     // new process's address-space. We sometimes get corrupted data with current solution.
     bpf_probe_read_user(payload_argv, argv_size, (void *)argv_start);
-    buf_malloc_dyn_shrink_last(argv_size, &p->argv);
+    // buf_malloc_dyn_shrink_last(argv_size, &p->argv);
   }
 }
 
@@ -514,13 +526,16 @@ payload_fill_syscalls_sys_enter_openat(struct trace_event_raw_sys_enter *ctx)
   p->flags = BPF_CORE_READ(ctx, args[2]);
   p->mode = BPF_CORE_READ(ctx, args[3]);
 
+  prev_malloc_dyn.is_final = true;
+  prev_malloc_dyn.order = 20;
+
   // Capture filename using buf_malloc_dyn_first
   // First, read filename into temporary buffer to get the actual length
   void *filename_payload = buf_malloc_dyn(FILENAME_MAX_SIZE, true, &p->filename);
   if (filename_payload)
   {
     int filename_len = bpf_probe_read_user_str(filename_payload, FILENAME_MAX_SIZE, (void *)BPF_CORE_READ(ctx, args[1]));
-    buf_malloc_dyn_shrink_last(filename_len, &p->filename);
+    // buf_malloc_dyn_shrink_last(filename_len, &p->filename);
   }
 }
 
@@ -565,6 +580,8 @@ payload_fill_syscalls_sys_enter_write(struct trace_event_raw_sys_enter *ctx)
   p->fd = BPF_CORE_READ(ctx, args[0]);
   p->content = 0; // No descriptor
   p->count = BPF_CORE_READ(ctx, args[2]);
+
+  prev_malloc_dyn.order = 40;
 
   // Capture content only for stdout/stderr
   if (should_capture_write_content(p) && p->count > 0)

@@ -213,6 +213,16 @@ static int handle_payload_flush(struct lib_ctx *lc, u16 cpu)
     src_offset += payload_fixed_size;
     char *dyn_write_ptr = static_cast<char *>(dst_payload) + payload_fixed_size;
 
+    std::cerr << "Processing payload " << i + 1 << "/" << num_payloads << ":" << std::endl;
+    std::cerr << "  event_id: " << pending.event_id << std::endl;
+    std::cerr << "  event_type: " << pending.event_type << std::endl;
+    std::cerr << "  page_index: " << pending.page_index << std::endl;
+    std::cerr << "  page_offset: " << pending.page_offset << std::endl;
+    std::cerr << "  src_offset: " << src_offset << std::endl;
+    std::cerr << "  payload_fixed_size: " << payload_fixed_size << std::endl;
+    std::cerr << "  dst_payload: " << dst_payload << std::endl
+              << std::endl;
+
     // Process each dynamic allocation root
     for (u32 j = 0; j < src_dars.length; j++)
     {
@@ -220,8 +230,6 @@ static int handle_payload_flush(struct lib_ctx *lc, u16 cpu)
       u64 descriptor = *descriptor_ptr;
 
       std::cerr << "=== Processing dynamic allocation root " << j << " ===" << std::endl;
-      std::cerr << "Root descriptor address: " << (void *)descriptor_ptr << std::endl;
-      std::cerr << "Root descriptor value: 0x" << std::hex << descriptor << std::dec << std::endl;
 
       if (descriptor == 0)
       {
@@ -229,7 +237,7 @@ static int handle_payload_flush(struct lib_ctx *lc, u16 cpu)
         break;
       }
 
-      // Get corresponding destination field (user-space structure)
+      // Get corresponding destination buffer
       struct flex_buf *dst_field = reinterpret_cast<struct flex_buf *>(dst_dars.data[j]);
 
       // Track total size and current write position for concatenated data
@@ -266,10 +274,10 @@ static int handle_payload_flush(struct lib_ctx *lc, u16 cpu)
           break;
         }
 
-        // Handle page boundary alignment for data
-        u32 original_offset = current_src_offset;
+        // Page boundary alignment
         if ((current_src_offset / 4096) != ((current_src_offset + size) / 4096))
         {
+          u32 original_offset = current_src_offset;
           current_src_offset = (current_src_offset + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
           std::cerr << "  Data crosses page boundary, aligned offset " << original_offset << " -> " << current_src_offset << std::endl;
         }
@@ -313,32 +321,28 @@ static int handle_payload_flush(struct lib_ctx *lc, u16 cpu)
         // current_src_offset += 8; // Skip over the chain descriptor
         std::cerr << "  Moving to next descriptor at offset: " << current_src_offset << std::endl;
 
-        // Handle page boundary for descriptor
-        u32 desc_original_offset = current_src_offset;
-        if ((current_src_offset / 4096) != ((current_src_offset + 8) / 4096))
-        {
-          current_src_offset = (current_src_offset + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-          std::cerr << "  Descriptor crosses page boundary, aligned offset " << desc_original_offset << " -> " << current_src_offset << std::endl;
-        }
-
-        if (current_src_offset + 8 > PAYLOAD_FLUSH_MAX_PAGES * PAGE_SIZE)
-        {
-          std::cerr << "  Chain extends beyond available payload buffer (" << current_src_offset + 8 << " > " << PAYLOAD_FLUSH_MAX_PAGES * PAGE_SIZE << ")" << std::endl;
-          break;
-        }
-
         // Read next descriptor
         u64 *next_descriptor_ptr = reinterpret_cast<u64 *>(&lc->current_payload_flush[current_src_offset]);
         current_descriptor = *next_descriptor_ptr;
-        current_src_offset += 8; // Move past descriptor
+        if (current_descriptor == 0)
+        {
+          // Search for descriptor at next page boundary
+          u32 desc_original_offset = current_src_offset;
+          current_src_offset = (current_src_offset + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+          std::cerr << "  Descriptor crosses page boundary, aligned offset " << desc_original_offset << " -> " << current_src_offset << std::endl;
+          u64 *next_descriptor_ptr = reinterpret_cast<u64 *>(&lc->current_payload_flush[current_src_offset]);
+          current_descriptor = *next_descriptor_ptr;
+        }
 
-        std::cerr << "  Next descriptor at " << (void *)next_descriptor_ptr << ": 0x" << std::hex << current_descriptor << std::dec << std::endl;
+        current_src_offset += 8; // Move past descriptor
 
         if (current_descriptor == 0)
         {
           std::cerr << "  Null descriptor found in chain, breaking" << std::endl;
           break;
         }
+
+        std::cerr << "  Next descriptor at " << (void *)next_descriptor_ptr << ": 0x" << std::hex << current_descriptor << std::dec << std::endl;
 
         if (chain_node_count > 20)
         {
@@ -424,9 +428,9 @@ static int handle_header_flush(void *ctx, void *data, size_t _)
   {
     // Copy payload pages into lib_ctx->current_payload_flush without modification
     // Has to run before any callbacks triggered because of time-sensitivity
-    // std::cerr << "Copying " << payload_pages_to_flush << " pages starting from page " << kern_header->payload.page_index << " for CPU " << kern_header->payload.cpu << std::endl;
+    std::cerr << "Copying " << payload_pages_to_flush << " pages starting from page " << kern_header->payload.page_index << " for CPU " << kern_header->payload.cpu << std::endl;
 
-    for (u16 i = 0; i < payload_pages_to_flush; i++)
+    for (u16 i = 0; i < payload_pages_to_flush + 1; i++)
     {
       u32 page_key = cpu_page_key((kern_header->payload.page_index + i) % PAYLOAD_BUFFER_N_PAGES, cpu_to_flush);
       void *dst = &lc->current_payload_flush[i * PAGE_SIZE];
