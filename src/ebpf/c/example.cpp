@@ -42,13 +42,32 @@ static void print_escaped_char(char c)
 // Helper function to print kv_array as JSON
 static void print_kv_array_as_json(const struct kv_array &kv_array)
 {
-  std::cout << "{";
+  std::cout << "[DEBUG] print_kv_array_as_json: ENTRY, length=" << kv_array.length << std::endl;
+  std::cout.flush();
+
   for (u32 i = 0; i < kv_array.length; i++)
   {
+
     if (i > 0)
       std::cout << ",";
 
     const struct kv_entry &entry = kv_array.data[i];
+
+    if (!entry.key)
+    {
+      continue;
+    }
+    if (!entry.type)
+    {
+      continue;
+    }
+    if (!entry.value)
+    {
+      continue;
+    }
+
+    std::cout.flush();
+
     std::cout << "\"" << entry.key << "\":";
 
     // Print value based on type
@@ -85,10 +104,13 @@ static void print_kv_array_as_json(const struct kv_array &kv_array)
     }
     else if (strcmp(entry.type, "char[][]") == 0)
     {
+
       // Handle flex_buf for string arrays (null-separated strings)
       const struct flex_buf *fb = static_cast<const struct flex_buf *>(entry.value);
       if (fb && fb->byte_length > 0 && fb->data)
       {
+        std::cout.flush();
+
         std::cout << "[";
         bool first_string = true;
         u32 start = 0;
@@ -128,19 +150,53 @@ static void print_kv_array_as_json(const struct kv_array &kv_array)
       // Unknown type, print as generic pointer
       std::cout << "\"<" << entry.type << ">\"";
     }
+
   }
   std::cout << "}";
+
+  std::cout << "[DEBUG] print_kv_array_as_json: EXIT" << std::endl;
+  std::cout.flush();
 }
 
 // ----------------------------------------------
-// Callback functions
+// Callback function
 // ----------------------------------------------
-static void header_callback(header_ctx *ctx)
+static void event_callback(header_ctx *header_ctx, payload_ctx *payload_ctx)
 {
-  // The header data is already populated in ctx->data by the library
-  const struct event_header_user *header = ctx->data;
+  std::cout << "[DEBUG] event_callback: ENTRY" << std::endl;
+  std::cout.flush();
 
-  // Print headers immediately since payloads are handled separately
+  // Validate inputs
+  if (!header_ctx)
+  {
+    std::cout << "[DEBUG] event_callback: header_ctx is NULL!" << std::endl;
+    std::cout.flush();
+    return;
+  }
+  if (!header_ctx->data)
+  {
+    std::cout << "[DEBUG] event_callback: header_ctx->data is NULL!" << std::endl;
+    std::cout.flush();
+    return;
+  }
+  if (!payload_ctx)
+  {
+    std::cout << "[DEBUG] event_callback: payload_ctx is NULL!" << std::endl;
+    std::cout.flush();
+    return;
+  }
+
+  std::cout << "[DEBUG] event_callback: Processing header data" << std::endl;
+  std::cout.flush();
+
+  // Process header data
+  const struct event_header_user *header = header_ctx->data;
+
+  std::cout << "[DEBUG] event_callback: Header processed, event_id=" << header->event_id
+            << ", event_type=" << (int)header->event_type << std::endl;
+  std::cout.flush();
+
+  // Print event as a single JSON object combining header and payload
   std::cout << "{";
   std::cout << "\"event_id\":" << header->event_id << ",";
   std::cout << "\"event_type\":\"" << event_type_to_string(header->event_type) << "\",";
@@ -150,67 +206,39 @@ static void header_callback(header_ctx *ctx)
   std::cout << "\"upid\":" << header->upid << ",";
   std::cout << "\"uppid\":" << header->uppid << ",";
   std::cout << "\"comm\":\"" << header->comm << "\"";
-  std::cout << "}" << std::endl;
 
-  // The callback can modify ctx->data to indicate where the next header should be written
-  // For this simple example, we'll leave it as-is, so the next write overwrites the previous
-}
+  std::cout << "[DEBUG] event_callback: Header JSON printed, checking payload" << std::endl;
+  std::cout.flush();
 
-static void payload_callback(payload_ctx *ctx)
-{
-  // The payload data is already populated in ctx->data by the library
-  struct payload_batch_header *batch = ctx->data;
-
-  if (!batch || batch->num_payloads == 0)
+  // Process payload data if available
+  if (payload_ctx->data != nullptr)
   {
-    std::cout << "{\"payload_batch\":\"empty\"}" << std::endl;
-    return;
-  }
-
-  std::cout << "{\"payload_batch\":{";
-  std::cout << "\"num_payloads\":" << batch->num_payloads << ",";
-  std::cout << "\"bytes_written\":" << batch->bytes_written << ",";
-  std::cout << "\"payloads\":[";
-
-  // Process each payload in the batch
-  for (u32 i = 0; i < batch->num_payloads; i++)
-  {
-    if (i > 0)
-      std::cout << ",";
-
-    const struct payload_batch_index_entry &index_entry = batch->payload_index[i];
-
-    // Calculate payload address
-    char *payload_data = static_cast<char *>(batch->payload_data) + index_entry.offset;
-
-    std::cout << "{";
-    std::cout << "\"event_id\":" << index_entry.event_id << ",";
-    std::cout << "\"event_type\":\"" << event_type_to_string(index_entry.event_type) << "\",";
-    std::cout << "\"offset\":" << index_entry.offset << ",";
+    std::cout << "[DEBUG] event_callback: Processing payload data" << std::endl;
+    std::cout.flush();
 
     // Use payload_to_kv_array to get structured payload data
-    struct kv_array kv_data = payload_to_kv_array(index_entry.event_type, payload_data);
-    std::cout << "\"payload\":";
-    print_kv_array_as_json(kv_data);
+    struct kv_array kv_data = payload_to_kv_array(payload_ctx->event_type, payload_ctx->data);
 
-    std::cout << "}";
+    std::cout << "[DEBUG] event_callback: payload_to_kv_array returned, length=" << kv_data.length << std::endl;
+    std::cout.flush();
+
+    std::cout << ",\"payload\":";
+    print_kv_array_as_json(kv_data);
+  }
+  else
+  {
+    std::cout << "[DEBUG] event_callback: No payload data (payload_ctx->data is null)" << std::endl;
+    std::cout.flush();
   }
 
-  std::cout << "]}}";
-  std::cout << std::endl;
+  std::cout << "}" << std::endl;
+  std::cout.flush();
 
-  // Reset for next batch - point to a fresh area of the buffer
-  // Calculate total space used for this batch
-  size_t total_batch_size = sizeof(struct payload_batch_header) +
-                            (batch->num_payloads * sizeof(struct payload_batch_index_entry)) +
-                            batch->bytes_written;
+  std::cout << "[DEBUG] event_callback: EXIT" << std::endl;
+  std::cout.flush();
 
-  // Move to next available space in buffer
-  char *next_buffer = reinterpret_cast<char *>(ctx->data) + total_batch_size;
-  size_t remaining_size = ctx->size - total_batch_size;
-
-  // ctx->data = reinterpret_cast<struct payload_batch_header *>(next_buffer);
-  // ctx->size = remaining_size;
+  // The callback can modify both contexts to indicate where the next data should be written
+  // For this simple example, we'll leave them as-is, so the next write overwrites the previous
 }
 
 static void sig_handler(int) { exiting = 1; }
@@ -220,40 +248,89 @@ static void sig_handler(int) { exiting = 1; }
 // ----------------------------------------------
 int main()
 {
-  // Allocate buffers for headers and payloads
-  void *header_buf = std::malloc(HEADER_BUFFER_SIZE);
-  void *payload_buf = std::malloc(PAYLOAD_BUFFER_SIZE);
+  std::cout << "[DEBUG] main: ENTRY" << std::endl;
+  std::cout.flush();
 
-  if (!header_buf || !payload_buf)
+  // Allocate buffers for headers and payloads
+  std::cout << "[DEBUG] main: Allocating header buffer (" << HEADER_BUFFER_SIZE << " bytes)" << std::endl;
+  std::cout.flush();
+
+  void *header_buf = std::malloc(HEADER_BUFFER_SIZE);
+  if (!header_buf)
   {
-    std::perror("malloc");
+    std::cout << "[DEBUG] main: header_buf allocation FAILED" << std::endl;
+    std::cout.flush();
+    std::perror("malloc header_buf");
     return EXIT_FAILURE;
   }
+  std::cout << "[DEBUG] main: header_buf allocated at " << header_buf << std::endl;
+  std::cout.flush();
+
+  std::cout << "[DEBUG] main: Allocating payload buffer (" << PAYLOAD_BUFFER_SIZE << " bytes)" << std::endl;
+  std::cout.flush();
+
+  void *payload_buf = std::malloc(PAYLOAD_BUFFER_SIZE);
+  if (!payload_buf)
+  {
+    std::cout << "[DEBUG] main: payload_buf allocation FAILED" << std::endl;
+    std::cout.flush();
+    std::perror("malloc payload_buf");
+    std::free(header_buf);
+    return EXIT_FAILURE;
+  }
+  std::cout << "[DEBUG] main: payload_buf allocated at " << payload_buf << std::endl;
+  std::cout.flush();
 
   // Initialize context structures
+  std::cout << "[DEBUG] main: Initializing context structures" << std::endl;
+  std::cout.flush();
+
   header_ctx header_context = {
       .data = static_cast<struct event_header_user *>(header_buf)};
 
   payload_ctx payload_context = {
-      .data = static_cast<struct payload_batch_header *>(payload_buf),
+      .event_id = 0,                    // Will be set by the library
+      .event_type = (enum event_type)0, // Will be set by the library
+      .data = payload_buf,
       .size = PAYLOAD_BUFFER_SIZE};
+
+  std::cout << "[DEBUG] main: Context structures initialized" << std::endl;
+  std::cout << "[DEBUG] main: header_context.data = " << header_context.data << std::endl;
+  std::cout << "[DEBUG] main: payload_context.data = " << payload_context.data << std::endl;
+  std::cout << "[DEBUG] main: payload_context.size = " << payload_context.size << std::endl;
+  std::cout.flush();
 
   std::signal(SIGINT, sig_handler);
   std::signal(SIGTERM, sig_handler);
 
   std::cout << "Starting eBPF event logger – press Ctrl+C to stop...\n";
+  std::cout.flush();
 
-  int err = initialize(&header_context, &payload_context,
-                       header_callback, payload_callback);
+  std::cout << "[DEBUG] main: Calling initialize() with callback function" << std::endl;
+  std::cout.flush();
+
+  int err = initialize(&header_context, &payload_context, event_callback);
+
+  std::cout << "[DEBUG] main: initialize() returned with err=" << err << std::endl;
+  std::cout.flush();
+
+  std::cout << "[DEBUG] main: Freeing buffers" << std::endl;
+  std::cout.flush();
 
   std::free(header_buf);
   std::free(payload_buf);
+
+  std::cout << "[DEBUG] main: Buffers freed" << std::endl;
+  std::cout.flush();
 
   if (err)
   {
     std::fprintf(stderr, "initialize() failed: %d\n", err);
     return EXIT_FAILURE;
   }
+
+  std::cout << "[DEBUG] main: EXIT (success)" << std::endl;
+  std::cout.flush();
 
   return EXIT_SUCCESS;
 }

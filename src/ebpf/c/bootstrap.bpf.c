@@ -37,55 +37,33 @@ struct
   __uint(max_entries, RINGBUF_MAX_ENTRIES);
 } rb SEC(".maps");
 
-// Sends payloads: variant-specific fields. Each entry is a large page, writable via buf_malloc
-// CPU X owns keys [X * PAYLOAD_BUFFER_N_PAGES, (X+1) * PAYLOAD_BUFFER_N_PAGES)
-// Pages flushed when full or upon timeout
+// Sends payloads: variant-specific fields
 struct
 {
   __uint(type, BPF_MAP_TYPE_ARRAY);
-  __uint(max_entries, PAYLOAD_BUFFER_N_PAGES *MAX_CPUS); // max_entries has to be known at compile-time
+  __uint(max_entries, PAYLOAD_BUFFER_N_ENTRIES_PER_CPU *MAX_CPUS); // max_entries has to be known at compile-time
   __type(key, u32);
-  __type(value, u8[PAGE_SIZE]); // 4KB = standard page size (hardware)
+  __type(value, u8[PAYLOAD_BUFFER_ENTRY_SIZE]);
 } payload_buffer SEC(".maps")
-    __attribute__((aligned(PAGE_SIZE))); // Reduces TLB and store/load buffer switches
+    __attribute__((aligned(PAYLOAD_BUFFER_ENTRY_SIZE)));
 
 // Per-CPU internal state (single map entry), persisted across kernel invocations
-// Access with `struct buffer_state *state = bpf_map_lookup_elem(&buffer_state_map, &buffer_state_key);`
-struct buffer_state
+struct internal_state
 {
-  u32 current_page;            // Current page index being written to
-  u32 current_offset;          // Current offset within the page
-  u64 page_start_timestamp_ns; // Timestamp when current page was started
+  struct event_header_kernel *ringbuf_entry;
+  u32 payload_entry_index;
+  u32 payload_entry_start;
+  u32 payload_entry_end;
+  bool initialised;
 };
 struct
 {
   __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
   __uint(max_entries, 1);
   __type(key, u32);
-  __type(value, struct buffer_state);
-} buffer_state_map SEC(".maps");
-u32 buffer_state_key = 0;
-
-// Per-CPU internal state NOT persisted across kernel invocations
-struct
-{
-  u64 *root_descriptor;             // Root descriptor for the allocation chain
-  u32 chain_descriptor_page_index;  // Page index of current descriptor
-  u32 chain_descriptor_page_offset; // Page offset of current descriptor
-  u16 depth;                        // Current depth in the allocation chain
-  bool is_final;                    // Chain is finalised
-  u64 order;                        // Order of the allocation for attribute ordering
-  u64 size;                         // Size of the current allocation
-  bool success;
-} prev_malloc_dyn = {
-    .root_descriptor = NULL,
-    .chain_descriptor_page_index = 0,
-    .chain_descriptor_page_offset = 0,
-    .depth = 0,
-    .is_final = true,
-    .order = 0,
-    .size = 0,
-    .success = true};
+  __type(value, struct internal_state);
+} internal_state_map SEC(".maps");
+u32 internal_state_key = 0;
 
 /* -------------------------------------------------------------------------- */
 /*                            Helper utilities                                */
@@ -96,13 +74,6 @@ static __always_inline u64 get_config(u32 key)
 {
   u64 *value = bpf_map_lookup_elem(&config, &key);
   return value ? *value : 0;
-}
-
-// Helper to calculate CPU-specific key for the payload_buffer map
-static __always_inline u32 cpu_page_key(u32 page_index)
-{
-  u32 cpu = bpf_get_smp_processor_id();
-  return cpu * PAYLOAD_BUFFER_N_PAGES + (page_index % PAYLOAD_BUFFER_N_PAGES);
 }
 
 // PIDs are not always sufficient to uniquely identify processes,
@@ -160,15 +131,16 @@ static __always_inline bool should_capture_write_content(struct payload_kernel_s
 // Creates a new event in the ringbuf and fills header, must be called before buf_malloc
 static __always_inline struct event_header_kernel *create_event(enum event_type type)
 {
-  // Reset state
-  prev_malloc_dyn.root_descriptor = NULL;
-  prev_malloc_dyn.chain_descriptor_page_index = 0;
-  prev_malloc_dyn.chain_descriptor_page_offset = 0;
-  prev_malloc_dyn.depth = 0;
-  prev_malloc_dyn.is_final = true;
-  prev_malloc_dyn.order = 0;
-  prev_malloc_dyn.size = 0;
-  prev_malloc_dyn.success = true;
+  struct internal_state *state = bpf_map_lookup_elem(&internal_state_map, &internal_state_key);
+  if (!state)
+    return NULL;
+  if (!state->initialised)
+  {
+    state->payload_entry_index = bpf_get_smp_processor_id() * PAYLOAD_BUFFER_N_ENTRIES_PER_CPU;
+    state->payload_entry_start = state->payload_entry_index;
+    state->payload_entry_end = state->payload_entry_index + PAYLOAD_BUFFER_N_ENTRIES_PER_CPU;
+    state->initialised = true;
+  }
 
   // Get task info
   u64 id = bpf_get_current_pid_tgid();
@@ -186,7 +158,11 @@ static __always_inline struct event_header_kernel *create_event(enum event_type 
   // Reserve space in ringbuf for header
   struct event_header_kernel *current_header = bpf_ringbuf_reserve(&rb, sizeof(struct event_header_kernel), 0);
   if (!current_header)
+  {
+    state->ringbuf_entry = NULL;
     return NULL;
+  }
+  state->ringbuf_entry = current_header;
 
   // Fill header
   current_header->event_type = type;
@@ -195,207 +171,88 @@ static __always_inline struct event_header_kernel *create_event(enum event_type 
   current_header->ppid = ppid;
   current_header->upid = upid;
   current_header->uppid = uppid;
-
-  // Get process name (first 16 bytes, possibly trimmed)
-  BPF_CORE_READ_STR_INTO(&current_header->comm, task, comm);
-
-  // Fill payload index
-  current_header->payload.cpu = bpf_get_smp_processor_id();
-  struct buffer_state *state = bpf_map_lookup_elem(&buffer_state_map, &buffer_state_key);
-  if (state)
-  {
-    current_header->payload.page_index = state->current_page;
-    current_header->payload.byte_offset = state->current_offset;
-  }
+  BPF_CORE_READ_STR_INTO(&current_header->comm, task, comm); // first 16 bytes of comm only
+  current_header->payload.start_index = state->payload_entry_index;
+  current_header->payload.end_index = state->payload_entry_index;
 
   return current_header;
 }
 
-static __always_inline u32 current_page_available_space()
+// Get a payload buffer entry and advance the index
+static __always_inline void *get_payload_buf_entry()
 {
-  struct buffer_state *state = bpf_map_lookup_elem(&buffer_state_map, &buffer_state_key);
+  struct internal_state *state = bpf_map_lookup_elem(&internal_state_map, &internal_state_key);
   if (!state)
-    return 0;
-  return PAGE_SIZE - state->current_offset;
+    return NULL;
+  u32 key = state->payload_entry_index++;
+  if (state->payload_entry_index >= state->payload_entry_end)
+    state->payload_entry_index = state->payload_entry_start;
+  return bpf_map_lookup_elem(&payload_buffer, &key);
 }
 
-// Helper to reserve buffer space for data.
-// Use directly for fixed-size payloads, and via buf_malloc_dyn for arrays and strings of compile-time unknown length.
-static __always_inline void *buf_malloc(u64 size)
+// Read data from memory into payload buffer, with support for variable-length strings and arrays
+// @src: Pointer to memory in userspace we should copy from
+// @max_size: Maximum size of data to read (must be passed as compile-time constant, to satisfy verifier)
+// @dyn_size: Size calculated at runtime; pass F_READ_NUL_TERMINATED to stop at first NUL (string termination)
+static __always_inline int read_into_payload(void *src, u64 max_size, u64 dyn_size)
 {
-  // Validate max allocation = 4KB
-  if (size > PAGE_SIZE)
+  bool is_nul_terminated = ((dyn_size & F_READ_NUL_TERMINATED) > 0);
+  u32 max_entries = (max_size + PAYLOAD_BUFFER_ENTRY_SIZE - 1) / PAYLOAD_BUFFER_ENTRY_SIZE;
+
+  if (is_nul_terminated)
   {
-    bpf_printk("Max allocation is %u bytes; attempted to allocate %u bytes", PAGE_SIZE, size);
-    return NULL;
-  }
-
-  struct buffer_state *state = bpf_map_lookup_elem(&buffer_state_map, &buffer_state_key);
-  if (!state)
-    return NULL;
-
-  u64 current_time_ns = bpf_ktime_get_ns();
-
-  // Initialize timestamp for the very first allocation
-  if (unlikely(state->page_start_timestamp_ns == 0))
-  {
-    state->page_start_timestamp_ns = current_time_ns;
-  }
-
-  // Maybe start new page (due to size or timeout)
-  if (state->current_offset + size >= PAGE_SIZE ||
-      (current_time_ns - state->page_start_timestamp_ns) > PAYLOAD_FLUSH_TIMEOUT_NS)
-  {
-    if (state->current_offset + 8 <= PAGE_SIZE)
+    for (int i = 0; i < max_entries; i++)
     {
-      // Zero out 8 bytes at current_offset to prevent false positives when
-      // seeking dynamic allocation descriptors in userspace
-      u32 key = cpu_page_key(state->current_page);
-      u8(*page)[PAGE_SIZE] = bpf_map_lookup_elem(&payload_buffer, &key);
-      if (page && state->current_offset <= PAGE_SIZE - 8)
-      {
-        u64 *clear_ptr = (u64 *)&(*page)[state->current_offset];
-        *clear_ptr = 0;
-      }
+      void *dst = get_payload_buf_entry();
+      if (!dst)
+        return -1;
+
+      int ret = bpf_probe_read_user_str(dst, PAYLOAD_BUFFER_ENTRY_SIZE, src);
+      if (ret < 0)
+        return ret; // error
+      else if (ret < PAYLOAD_BUFFER_ENTRY_SIZE)
+        return i * PAYLOAD_BUFFER_ENTRY_SIZE + ret; // success
+
+      src += PAYLOAD_BUFFER_ENTRY_SIZE; // advance pointer
     }
-
-    state->current_page = (state->current_page + 1) % PAYLOAD_BUFFER_N_PAGES;
-    state->current_offset = 0;
-    state->page_start_timestamp_ns = current_time_ns;
-  }
-
-  // Get pointer to reserved page
-  u32 key = cpu_page_key(state->current_page);
-  u8(*page)[PAGE_SIZE] = bpf_map_lookup_elem(&payload_buffer, &key);
-  if (!page)
-    return NULL;
-
-  // Help verifier track offset upper bound with redundant check
-  u32 offset = state->current_offset;
-  if (offset > PAGE_SIZE - size)
-    return NULL;
-
-  // Get location where data can be written
-  void *ptr = &(*page)[offset];
-
-  // Update offset for next allocation
-  state->current_offset = offset + size;
-
-  return ptr;
-}
-
-// Wrapper around buf_malloc that adds support for arrays and strings of variable size,
-// including support for splitting data across multiple allocations.
-static __always_inline void *buf_malloc_dyn(u64 size, bool is_final, u64 *descriptor)
-{
-  void *ptr;
-  struct buffer_state *state = bpf_map_lookup_elem(&buffer_state_map, &buffer_state_key);
-  if (!state)
-    return NULL;
-
-  u64 *prev_root_descriptor = prev_malloc_dyn.root_descriptor;
-  u32 prev_chain_descriptor_page_index = prev_malloc_dyn.chain_descriptor_page_index;
-  u32 prev_chain_descriptor_page_offset = prev_malloc_dyn.chain_descriptor_page_offset;
-  u16 prev_depth = prev_malloc_dyn.depth;
-  bool prev_is_final = prev_malloc_dyn.is_final;
-  u64 prev_order = prev_malloc_dyn.order;
-  u64 prev_size = prev_malloc_dyn.size;
-  u64 prev_success = prev_malloc_dyn.success;
-
-  u16 new_depth = prev_is_final ? 1 : prev_depth + 1;
-  u64 new_order = prev_is_final ? prev_order + 1 : prev_order;
-
-  prev_malloc_dyn.root_descriptor = descriptor;
-  prev_malloc_dyn.chain_descriptor_page_index = state->current_page;
-  prev_malloc_dyn.chain_descriptor_page_offset = state->current_offset;
-  prev_malloc_dyn.depth = new_depth;
-  prev_malloc_dyn.is_final = is_final;
-  prev_malloc_dyn.order = new_order;
-  prev_malloc_dyn.size = size;
-  prev_malloc_dyn.success = false;
-
-  if (!prev_is_final && prev_root_descriptor != descriptor)
-  {
-    bpf_printk("Previous dynamic memory allocation must be finalised before starting a new allocation");
-    return NULL;
-  }
-
-  if (prev_is_final)
-  {
-    // Root allocation - reserve space for data only
-    ptr = buf_malloc(size);
-    if (!ptr)
-      return NULL;
-
-    // Write root descriptor: [is_final:1][order:16][size:47]
-    *descriptor = ((u64)is_final << 63) | ((u64)new_order << 47) | ((u64)size & 0x7FFFFFFFFFFFULL);
+    return max_size;
   }
   else
   {
-    // Allocate space for chain + data
-    ptr = buf_malloc(size + 8);
-    if (!ptr)
-      return NULL;
+    dyn_size = dyn_size & 0xFFFFFFFF;                     // Mask lower 32 bits
+    dyn_size = dyn_size > max_size ? max_size : dyn_size; // Clamp value
+    u32 dyn_entries = (dyn_size + PAYLOAD_BUFFER_ENTRY_SIZE - 1) / PAYLOAD_BUFFER_ENTRY_SIZE;
+    for (int i = 0; i < max_entries && i < dyn_entries; i++)
+    {
+      void *dst = get_payload_buf_entry();
+      if (!dst)
+        return -1;
 
-    // Write chain descriptor at the beginning of new allocation
-    u64 *chain_descriptor = (u64 *)ptr;
-    *chain_descriptor = ((u64)is_final << 63) | ((u64)new_order << 47) | ((u64)size & 0x7FFFFFFFFFFFULL);
+      int ret = bpf_probe_read_user(dst, PAYLOAD_BUFFER_ENTRY_SIZE, src);
+      if (ret < 0)
+        return ret; // error
 
-    // Return pointer to data (after chain descriptor)
-    ptr = (char *)ptr + 8;
+      src += PAYLOAD_BUFFER_ENTRY_SIZE; // advance pointer
+    }
+    return dyn_size;
   }
-
-  prev_malloc_dyn.success = true;
-
-  return ptr;
 }
 
-// Shrink the last dynamic allocation to the specified size
-// This updates the descriptor and reclaims unused buffer space
-static __always_inline void buf_malloc_dyn_shrink_last(u64 new_size, u64 *root_descriptor)
+// Wrapper around read_into_payload that updates attribute descriptor with location
+static __always_inline int read_into_attr(void *src, u64 max_size, u64 dyn_size, u64 *attr)
 {
-  if (!prev_malloc_dyn.root_descriptor)
-    return;
-
-  struct buffer_state *state = bpf_map_lookup_elem(&buffer_state_map, &buffer_state_key);
+  struct internal_state *state = bpf_map_lookup_elem(&internal_state_map, &internal_state_key);
   if (!state)
-    return;
-
-  u64 current_size = (prev_malloc_dyn.size);
-
-  // Only shrink if new size is smaller than current size
-  if (new_size >= current_size)
-    return;
-  u64 size_diff = current_size - new_size;
-
-  // Update buffer state to reclaim space
-  if (state->current_offset >= size_diff)
-    state->current_offset -= size_diff;
-
-  u64 *descriptor_ptr;
-
-  if (prev_malloc_dyn.depth == 1)
+    return -1;
+  u32 byte_index = state->payload_entry_index * PAYLOAD_BUFFER_ENTRY_SIZE;
+  int ret = read_into_payload(src, max_size, dyn_size);
+  if (ret <= 0)
   {
-    descriptor_ptr = root_descriptor;
+    return ret; // Error
   }
-  else
-  {
-    // Chain descriptor pointers have to be reconstructed using page index and offset
-    // so BPF verifier can track bounds and confirm safety
-    u32 key = cpu_page_key(prev_malloc_dyn.chain_descriptor_page_index);
-    u8(*page)[PAGE_SIZE] = bpf_map_lookup_elem(&payload_buffer, &key);
-    if (!page || prev_malloc_dyn.chain_descriptor_page_offset > PAGE_SIZE - 8)
-      return;
-    u64 *descriptor_ptr = (u64 *)&(*page)[prev_malloc_dyn.chain_descriptor_page_offset];
-  }
-
-  // TODO: descriptor_ptr always seems to point to root descriptor(?)
-
-  // Update descriptor
-  *descriptor_ptr = ((u64)prev_malloc_dyn.is_final << 63) | ((u64)prev_malloc_dyn.order << 47) | ((u64)new_size & 0x7FFFFFFFFFFFULL);
-
-  // Update tracking size
-  prev_malloc_dyn.size = new_size;
+  u32 byte_length = (u32)ret;
+  *attr = ((u64)byte_index << 32) | byte_length;
+  return ret;
 }
 
 // Submit an event to ringbuf, called after all data has been captured.
@@ -404,21 +261,10 @@ static __always_inline void submit_event(struct event_header_kernel *current_hea
   if (!current_header)
     return;
 
-  struct buffer_state *state = bpf_map_lookup_elem(&buffer_state_map, &buffer_state_key);
+  struct internal_state *state = bpf_map_lookup_elem(&internal_state_map, &internal_state_key);
   if (state)
   {
-    // Tell userspace how many pages of payload data the kernel wants to flush
-    u16 first_page = current_header->payload.page_index;
-    u16 current_page = state->current_page;
-    if (current_page < first_page)
-    {
-      current_page += PAYLOAD_BUFFER_N_PAGES; // Started new cycle through page buffer
-    }
-    current_header->payload.flush_signal = current_page - first_page;
-  }
-  else
-  {
-    current_header->payload.flush_signal = 0;
+    current_header->payload.end_index = state->payload_entry_index;
   }
 
   // Submit event header via ringbuf
@@ -459,42 +305,26 @@ static __always_inline void
 payload_fill_sched_sched_process_exec(struct trace_event_raw_sched_process_exec *ctx)
 {
   struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-  struct mm_struct *mm; // memory map
-  u32 i, offset = 0;
-
-  mm = BPF_CORE_READ(task, mm);
+  struct mm_struct *mm = BPF_CORE_READ(task, mm); // memory map
   if (!mm)
     return;
 
-  u64 argv_start = BPF_CORE_READ(mm, arg_start);
-  u64 argv_end = BPF_CORE_READ(mm, arg_end);
-  u64 argv_size = argv_end - argv_start;
-  argv_size = 0 <= argv_size && argv_size <= ARGV_MAX_SIZE ? argv_size : ARGV_MAX_SIZE;
-
-  struct payload_kernel_sched_sched_process_exec *p = buf_malloc(sizeof(struct payload_kernel_sched_sched_process_exec));
+  struct payload_kernel_sched_sched_process_exec *p = get_payload_buf_entry();
   if (!p)
     return;
 
-  prev_malloc_dyn.order = 10;
-
-  // native format (null-separated strings) for sched_process_exec.argv matches our str[][] format,
-  // so we can copy the entire array from memory directly and without modification
-  char *payload_argv = buf_malloc_dyn(ARGV_MAX_SIZE, true, &p->argv);
-  if (payload_argv)
-  {
-    // TODO: read args one-at-a-time: current solution only works if every page in
-    // the [arg_start … arg_end) range is mapped and already resident in the
-    // new process's address-space. We sometimes get corrupted data with current solution.
-    bpf_probe_read_user(payload_argv, argv_size, (void *)argv_start);
-    // buf_malloc_dyn_shrink_last(argv_size, &p->argv);
-  }
+  // argv stored in user memory as nul-separated strings
+  u64 argv_start = BPF_CORE_READ(mm, arg_start);
+  u64 argv_end = BPF_CORE_READ(mm, arg_end);
+  u64 argv_size = argv_end - argv_start;
+  read_into_attr((void *)argv_start, ARGV_MAX_SIZE, argv_size, &p->argv);
 }
 
 // Process termination (successful)
 static __always_inline void
 payload_fill_sched_sched_process_exit(struct trace_event_raw_sched_process_template *ctx)
 {
-  struct payload_kernel_sched_sched_process_exit *p = buf_malloc(sizeof(struct payload_kernel_sched_sched_process_exit));
+  struct payload_kernel_sched_sched_process_exit *p = get_payload_buf_entry();
   if (!p)
     return;
 
@@ -506,7 +336,7 @@ payload_fill_sched_sched_process_exit(struct trace_event_raw_sched_process_templ
 static __always_inline void
 payload_fill_sched_psi_memstall_enter(struct trace_event_raw_psi_memstall *ctx)
 {
-  struct payload_kernel_sched_psi_memstall_enter *p = buf_malloc(sizeof(struct payload_kernel_sched_psi_memstall_enter));
+  struct payload_kernel_sched_psi_memstall_enter *p = get_payload_buf_entry();
   if (!p)
     return;
 
@@ -518,7 +348,7 @@ payload_fill_sched_psi_memstall_enter(struct trace_event_raw_psi_memstall *ctx)
 static __always_inline void
 payload_fill_syscalls_sys_enter_openat(struct trace_event_raw_sys_enter *ctx)
 {
-  struct payload_kernel_syscalls_sys_enter_openat *p = buf_malloc(sizeof(struct payload_kernel_syscalls_sys_enter_openat));
+  struct payload_kernel_syscalls_sys_enter_openat *p = get_payload_buf_entry();
   if (!p)
     return;
 
@@ -526,24 +356,15 @@ payload_fill_syscalls_sys_enter_openat(struct trace_event_raw_sys_enter *ctx)
   p->flags = BPF_CORE_READ(ctx, args[2]);
   p->mode = BPF_CORE_READ(ctx, args[3]);
 
-  prev_malloc_dyn.is_final = true;
-  prev_malloc_dyn.order = 20;
-
-  // Capture filename using buf_malloc_dyn_first
-  // First, read filename into temporary buffer to get the actual length
-  void *filename_payload = buf_malloc_dyn(FILENAME_MAX_SIZE, true, &p->filename);
-  if (filename_payload)
-  {
-    int filename_len = bpf_probe_read_user_str(filename_payload, FILENAME_MAX_SIZE, (void *)BPF_CORE_READ(ctx, args[1]));
-    // buf_malloc_dyn_shrink_last(filename_len, &p->filename);
-  }
+  void *content_ptr = (void *)BPF_CORE_READ(ctx, args[1]);
+  read_into_attr(content_ptr, FILENAME_MAX_SIZE, F_READ_NUL_TERMINATED, &p->filename);
 }
 
 // File open, syscall return
 static __always_inline void
 payload_fill_syscalls_sys_exit_openat(struct trace_event_raw_sys_exit *ctx)
 {
-  struct payload_kernel_syscalls_sys_exit_openat *p = buf_malloc(sizeof(struct payload_kernel_syscalls_sys_exit_openat));
+  struct payload_kernel_syscalls_sys_exit_openat *p = get_payload_buf_entry();
   if (!p)
     return;
 
@@ -554,7 +375,7 @@ payload_fill_syscalls_sys_exit_openat(struct trace_event_raw_sys_exit *ctx)
 static __always_inline void
 payload_fill_syscalls_sys_enter_read(struct trace_event_raw_sys_enter *ctx)
 {
-  struct payload_kernel_syscalls_sys_enter_read *p = buf_malloc(sizeof(struct payload_kernel_syscalls_sys_enter_read));
+  struct payload_kernel_syscalls_sys_enter_read *p = get_payload_buf_entry();
   if (!p)
     return;
 
@@ -573,7 +394,7 @@ payload_fill_syscalls_sys_exit_read(struct trace_event_raw_sys_exit *ctx)
 static __always_inline void
 payload_fill_syscalls_sys_enter_write(struct trace_event_raw_sys_enter *ctx)
 {
-  struct payload_kernel_syscalls_sys_enter_write *p = buf_malloc(sizeof(struct payload_kernel_syscalls_sys_enter_write));
+  struct payload_kernel_syscalls_sys_enter_write *p = get_payload_buf_entry();
   if (!p)
     return;
 
@@ -581,39 +402,11 @@ payload_fill_syscalls_sys_enter_write(struct trace_event_raw_sys_enter *ctx)
   p->content = 0; // No descriptor
   p->count = BPF_CORE_READ(ctx, args[2]);
 
-  prev_malloc_dyn.order = 40;
-
   // Capture content only for stdout/stderr
   if (should_capture_write_content(p) && p->count > 0)
   {
-    u64 content_ptr = BPF_CORE_READ(ctx, args[1]);
-    u32 content_offset = 0;
-    u32 remaining_size = (u32)p->count;
-
-    // Capture content in chunks using chained allocations
-    // Use bounded loop to satisfy BPF verifier constraints
-    for (int i = 0; i < WRITE_CONTENT_N_ALLOCATIONS_MAX; i++)
-    {
-      u32 chunk_size = (remaining_size < WRITE_CONTENT_ALLOCATION_MAX_SIZE) ? remaining_size : WRITE_CONTENT_ALLOCATION_MAX_SIZE;
-      bool is_final = (remaining_size <= WRITE_CONTENT_ALLOCATION_MAX_SIZE) || i == (WRITE_CONTENT_N_ALLOCATIONS_MAX - 1);
-
-      void *content_chunk = buf_malloc_dyn(WRITE_CONTENT_ALLOCATION_MAX_SIZE, is_final, &p->content);
-      if (!content_chunk)
-        break;
-
-      int err = bpf_probe_read_user(content_chunk, WRITE_CONTENT_ALLOCATION_MAX_SIZE, (void *)(content_ptr + content_offset));
-      if (err != 0)
-        break;
-
-      content_offset += chunk_size;
-      remaining_size -= chunk_size;
-
-      if (is_final)
-      {
-        // buf_malloc_dyn_shrink_last(chunk_size, &p->content);
-        break;
-      }
-    }
+    u64 *content_ptr = (u64 *)BPF_CORE_READ(ctx, args[1]);
+    read_into_attr(content_ptr, WRITE_CONTENT_MAX_SIZE, p->count, &p->content);
   }
 }
 
@@ -629,7 +422,7 @@ static __always_inline void
 payload_fill_vmscan_mm_vmscan_direct_reclaim_begin(struct trace_event_raw_vmscan_direct_reclaim_begin *ctx)
 {
   struct payload_kernel_vmscan_mm_vmscan_direct_reclaim_begin *p =
-      buf_malloc(sizeof(struct payload_kernel_vmscan_mm_vmscan_direct_reclaim_begin));
+      get_payload_buf_entry();
   if (!p)
     return;
 

@@ -33,6 +33,10 @@
 #define unlikely(x) __builtin_expect(!!(x), 0)
 #endif
 
+// Define missing constants
+#define PAGE_SIZE 4096
+#define PAYLOAD_FLUSH_MAX_PAGES 128 // Should be sufficient for most payloads
+
 /* -------------------------------------------------------------------------- */
 /*                                 Helpers                                    */
 /* -------------------------------------------------------------------------- */
@@ -56,13 +60,6 @@ static u64 generate_event_id()
   return event_id_base + (++event_id_counter);
 }
 
-// Helper to calculate CPU-specific key for the payload_buffer map (userspace version)
-// Each CPU gets a contiguous range: CPU N uses keys [N * PAYLOAD_BUFFER_N_PAGES, (N+1) * PAYLOAD_BUFFER_N_PAGES)
-static u32 cpu_page_key(u32 page_index, u32 cpu)
-{
-  return cpu * PAYLOAD_BUFFER_N_PAGES + (page_index % PAYLOAD_BUFFER_N_PAGES);
-}
-
 // Minimal context needed to associate event headers and payloads
 struct pending_payload_info
 {
@@ -72,23 +69,20 @@ struct pending_payload_info
   u16 page_offset;
 };
 
-// Extended library context to handle per-CPU arrays and 2-layer buffering
+// Extended library context to handle per-CPU arrays and simplified 2-layer buffering
 struct lib_ctx
 {
   // Context structures for the new API
   header_ctx *header_ctx_ptr;
   payload_ctx *payload_ctx_ptr;
-  header_callback_t header_cb;
-  payload_callback_t payload_cb;
+  event_callback_t event_cb;
 
   // Other context
   struct bootstrap_bpf *skel; // BPF skeleton
   struct ring_buffer *rb;     // Ring buffer
   int payload_buffer_fd;      // Shared array map fd (with manual CPU isolation)
 
-  // Pending payloads tracking
-  int n_cpus;                                                      // Number of CPUs
-  std::vector<std::vector<pending_payload_info>> pending_payloads; // One vector per CPU
+  // Reusable payload buffer for direct processing
   u8 current_payload_flush[PAYLOAD_FLUSH_MAX_PAGES * PAGE_SIZE];
 };
 
@@ -121,342 +115,299 @@ static volatile bool exiting;
 static void sig_handler(int sig) { exiting = true; }
 
 /* -------------------------------------------------------------------------- */
-/*                            Payload processing                              */
-/* -------------------------------------------------------------------------- */
-
-// Process payload data from per-CPU pages
-static int handle_payload_flush(struct lib_ctx *lc, u16 cpu)
-{
-  // Check if we have any pending payloads for this CPU
-  if (lc->pending_payloads[cpu].empty())
-  {
-    return 0;
-  }
-
-  u16 first_page = lc->pending_payloads[cpu][0].page_index;
-  u16 last_page = lc->pending_payloads[cpu].back().page_index;
-
-  // Calculate upper bound on space needed for complete flush
-  u16 page_span = (last_page >= first_page) ? (last_page - first_page + 1) : (last_page + PAYLOAD_BUFFER_N_PAGES - first_page + 1);
-  size_t num_payloads = lc->pending_payloads[cpu].size();
-  size_t space_needed_upper_bound = sizeof(struct payload_batch_header) +
-                                    (num_payloads * sizeof(struct payload_batch_index_entry)) +
-                                    page_span * PAGE_SIZE;
-
-  // Ensure enough space is available upfront
-  if (space_needed_upper_bound > lc->payload_ctx_ptr->size)
-  {
-    // Invoke callback with empty payload to request more space
-    lc->payload_ctx_ptr->data->bytes_written = 0;
-    lc->payload_ctx_ptr->data->num_payloads = 0;
-    lc->payload_cb(lc->payload_ctx_ptr);
-
-    // Verify we now have enough space
-    if (space_needed_upper_bound > lc->payload_ctx_ptr->size)
-    {
-      std::cerr << "Consumer failed to provide sufficient space: needed "
-                << space_needed_upper_bound << ", got " << lc->payload_ctx_ptr->size << std::endl;
-      return -1;
-    }
-  }
-
-  // Set up direct buffer layout: header, then index array, then payload data
-  char *buffer = reinterpret_cast<char *>(lc->payload_ctx_ptr->data);
-  struct payload_batch_header *header = reinterpret_cast<struct payload_batch_header *>(buffer);
-
-  // Index array starts right after the header
-  struct payload_batch_index_entry *index_array =
-      reinterpret_cast<struct payload_batch_index_entry *>(buffer + sizeof(struct payload_batch_header));
-
-  // Payload data starts after the index array
-  char *payload_data_start = buffer + sizeof(struct payload_batch_header) +
-                             (num_payloads * sizeof(struct payload_batch_index_entry));
-
-  // Update header to point to the correctly positioned arrays
-  header->payload_index = index_array;
-  header->payload_data = payload_data_start;
-  header->bytes_written = 0;
-  header->num_payloads = 0;
-
-  // Loop through all pending payloads for this CPU
-  for (size_t i = 0; i < num_payloads; i++)
-  {
-    const auto &pending = lc->pending_payloads[cpu][i];
-
-    // Calculate the correct page in current_payload_flush buffer
-    // Handle wrap-around: if page < first_page, it wrapped around
-    u16 buffer_page_index = (pending.page_index < first_page) ? (pending.page_index + PAYLOAD_BUFFER_N_PAGES - first_page) : (pending.page_index - first_page);
-    u32 src_offset = buffer_page_index * PAGE_SIZE + pending.page_offset;
-
-    // Calculate source address in current_payload_flush
-    void *src_payload = &lc->current_payload_flush[src_offset];
-
-    size_t payload_fixed_size = get_payload_fixed_size(pending.event_type);
-
-    // Add index entry for this payload
-    index_array[header->num_payloads].event_id = pending.event_id;
-    index_array[header->num_payloads].event_type = pending.event_type;
-    index_array[header->num_payloads].offset = header->bytes_written;
-
-    // Copy the fixed-size portion of the payload data
-    void *dst_payload = payload_data_start + header->bytes_written;
-    memcpy(dst_payload, src_payload, payload_fixed_size);
-
-    header->bytes_written += payload_fixed_size;
-    header->num_payloads++;
-
-    // Get dynamic allocation roots
-    struct dar_array src_dars, dst_dars;
-    payload_to_dynamic_allocation_roots(pending.event_type,
-                                        src_payload, dst_payload, &src_dars, &dst_dars);
-
-    src_offset += payload_fixed_size;
-    char *dyn_write_ptr = static_cast<char *>(dst_payload) + payload_fixed_size;
-
-    std::cerr << "Processing payload " << i + 1 << "/" << num_payloads << ":" << std::endl;
-    std::cerr << "  event_id: " << pending.event_id << std::endl;
-    std::cerr << "  event_type: " << pending.event_type << std::endl;
-    std::cerr << "  page_index: " << pending.page_index << std::endl;
-    std::cerr << "  page_offset: " << pending.page_offset << std::endl;
-    std::cerr << "  src_offset: " << src_offset << std::endl;
-    std::cerr << "  payload_fixed_size: " << payload_fixed_size << std::endl;
-    std::cerr << "  dst_payload: " << dst_payload << std::endl
-              << std::endl;
-
-    // Process each dynamic allocation root
-    for (u32 j = 0; j < src_dars.length; j++)
-    {
-      u64 *descriptor_ptr = reinterpret_cast<u64 *>(src_dars.data[j]); // root descriptor
-      u64 descriptor = *descriptor_ptr;
-
-      std::cerr << "=== Processing dynamic allocation root " << j << " ===" << std::endl;
-
-      if (descriptor == 0)
-      {
-        std::cerr << "Root descriptor is null, skipping" << std::endl;
-        break;
-      }
-
-      // Get corresponding destination buffer
-      struct flex_buf *dst_field = reinterpret_cast<struct flex_buf *>(dst_dars.data[j]);
-
-      // Track total size and current write position for concatenated data
-      u32 total_chain_size = 0;
-      char *chain_write_ptr = dyn_write_ptr;
-      u32 current_src_offset = src_offset;
-      u64 current_descriptor = descriptor;
-
-      std::cerr << "Starting chain traversal at src_offset: " << current_src_offset << std::endl;
-      std::cerr << "Chain write pointer: " << (void *)chain_write_ptr << std::endl;
-
-      u32 chain_node_count = 0;
-
-      // Follow the allocation chain and copy data as we go
-      while (true)
-      {
-        chain_node_count++;
-        std::cerr << "--- Chain node " << chain_node_count << " ---" << std::endl;
-        std::cerr << "Processing descriptor: 0x" << std::hex << current_descriptor << std::dec << std::endl;
-
-        // Parse descriptor: [is_final:1][order:16][size:47]
-        bool is_final = (current_descriptor >> 63) & 1;
-        u16 order = (current_descriptor >> 47) & 0xFFFF;
-        u64 size = current_descriptor & 0x7FFFFFFFFFFFULL;
-
-        std::cerr << "  is_final: " << (is_final ? "true" : "false") << std::endl;
-        std::cerr << "  order: " << order << std::endl;
-        std::cerr << "  size: " << size << std::endl;
-        std::cerr << "  current_src_offset: " << current_src_offset << std::endl;
-
-        if (size > 4096)
-        {
-          std::cerr << "Allocation size > 4096 not supported, breaking" << std::endl;
-          break;
-        }
-
-        // Page boundary alignment
-        if ((current_src_offset / 4096) != ((current_src_offset + size) / 4096))
-        {
-          u32 original_offset = current_src_offset;
-          current_src_offset = (current_src_offset + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-          std::cerr << "  Data crosses page boundary, aligned offset " << original_offset << " -> " << current_src_offset << std::endl;
-        }
-
-        std::cerr << "  Copying " << size << " bytes from offset " << current_src_offset << " to " << (void *)chain_write_ptr << std::endl;
-
-        // Copy data from this allocation in the chain
-        memcpy(chain_write_ptr, &lc->current_payload_flush[current_src_offset], size);
-
-        // Debug: show first few bytes of copied data
-        std::cerr << "  First 128 bytes copied: ";
-        for (u32 k = 0; k < std::min((u64)128, size); k++)
-        {
-          char c = chain_write_ptr[k];
-          if (c >= 32 && c <= 126)
-          {
-            std::cerr << c;
-          }
-          else
-          {
-            std::cerr << "\\x" << std::hex << (unsigned char)c << std::dec;
-          }
-        }
-        std::cerr << std::endl;
-
-        chain_write_ptr += size;
-        total_chain_size += size;
-        current_src_offset += size;
-
-        std::cerr << "  Updated total_chain_size: " << total_chain_size << std::endl;
-        std::cerr << "  Updated chain_write_ptr: " << (void *)chain_write_ptr << std::endl;
-        std::cerr << "  Updated current_src_offset: " << current_src_offset << std::endl;
-
-        if (is_final)
-        {
-          std::cerr << "  This is the final allocation in the chain" << std::endl;
-          break;
-        }
-
-        // For chained allocations, next descriptor is 8 bytes before the next data
-        // current_src_offset += 8; // Skip over the chain descriptor
-        std::cerr << "  Moving to next descriptor at offset: " << current_src_offset << std::endl;
-
-        // Read next descriptor
-        u64 *next_descriptor_ptr = reinterpret_cast<u64 *>(&lc->current_payload_flush[current_src_offset]);
-        current_descriptor = *next_descriptor_ptr;
-        if (current_descriptor == 0)
-        {
-          // Search for descriptor at next page boundary
-          u32 desc_original_offset = current_src_offset;
-          current_src_offset = (current_src_offset + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-          std::cerr << "  Descriptor crosses page boundary, aligned offset " << desc_original_offset << " -> " << current_src_offset << std::endl;
-          u64 *next_descriptor_ptr = reinterpret_cast<u64 *>(&lc->current_payload_flush[current_src_offset]);
-          current_descriptor = *next_descriptor_ptr;
-        }
-
-        current_src_offset += 8; // Move past descriptor
-
-        if (current_descriptor == 0)
-        {
-          std::cerr << "  Null descriptor found in chain, breaking" << std::endl;
-          break;
-        }
-
-        std::cerr << "  Next descriptor at " << (void *)next_descriptor_ptr << ": 0x" << std::hex << current_descriptor << std::dec << std::endl;
-
-        if (chain_node_count > 20)
-        {
-          std::cerr << "  Too many chain nodes (>20), possible infinite loop, breaking" << std::endl;
-          break;
-        }
-      }
-
-      std::cerr << "Chain traversal complete. Total nodes: " << chain_node_count << std::endl;
-      std::cerr << "Total chain size: " << total_chain_size << " bytes" << std::endl;
-
-      // Set up destination field with concatenated data
-      dst_field->byte_length = total_chain_size;
-      dst_field->data = dyn_write_ptr;
-
-      std::cerr << "Set flex_buf: byte_length=" << dst_field->byte_length << ", data=" << (void *)dst_field->data << std::endl;
-
-      // Move write pointer for next dynamic allocation
-      dyn_write_ptr += total_chain_size;
-
-      // Update source offset to end of this chain
-      src_offset = current_src_offset;
-
-      // Update total payload size to include this dynamic data
-      header->bytes_written += total_chain_size;
-
-      std::cerr << "Updated dyn_write_ptr: " << (void *)dyn_write_ptr << std::endl;
-      std::cerr << "Updated src_offset: " << src_offset << std::endl;
-      std::cerr << "Updated header->bytes_written: " << header->bytes_written << std::endl;
-      std::cerr << "=== End dynamic allocation root " << j << " ===" << std::endl
-                << std::endl;
-    }
-  }
-
-  // Final callback to flush everything in payload_ctx->data
-  lc->payload_cb(lc->payload_ctx_ptr);
-
-  // Clear pending payloads for this CPU as they've been processed
-  lc->pending_payloads[cpu].clear();
-
-  return 0;
-}
-
-/* -------------------------------------------------------------------------- */
-/*                           Header processing                                */
+/*                            Event processing                                */
 /* -------------------------------------------------------------------------- */
 
 // Ring‑buffer callback for processing headers, flush initiated by kernel
 static int handle_header_flush(void *ctx, void *data, size_t _)
 {
-  struct lib_ctx *lc = static_cast<struct lib_ctx *>(ctx);
-  struct event_header_kernel *kern_header = static_cast<struct event_header_kernel *>(data);
+  std::cout << "[DEBUG] handle_header_flush: ENTRY" << std::endl;
+  std::cout.flush();
 
-  bool should_skip = bootstrap_filter__should_skip(kern_header);
-
-  // Step 1: Process header if not filtered out
-  if (!should_skip)
+  if (!ctx)
   {
-    // Generate event ID
-    u64 event_id = generate_event_id();
-
-    // Copy header data to header_ctx
-    *lc->header_ctx_ptr->data = *((struct event_header_user *)kern_header);
-    lc->header_ctx_ptr->data->event_id = event_id;
-
-    // For retrieval of payload once flushed
-    pending_payload_info info = {
-        .event_id = event_id,
-        .event_type = kern_header->event_type,
-        .page_index = kern_header->payload.page_index,
-        .page_offset = kern_header->payload.byte_offset};
-
-    u32 cpu = kern_header->payload.cpu;
-    lc->pending_payloads[cpu].push_back(info);
+    std::cout << "[DEBUG] handle_header_flush: ctx is NULL!" << std::endl;
+    std::cout.flush();
+    return -1;
+  }
+  if (!data)
+  {
+    std::cout << "[DEBUG] handle_header_flush: data is NULL!" << std::endl;
+    std::cout.flush();
+    return -1;
   }
 
-  // Step 2: Check if kernel is signaling payload flush
-  u16 cpu_to_flush = kern_header->payload.cpu;
-  u16 payload_pages_to_flush = kern_header->payload.flush_signal;
+  struct lib_ctx *lc = static_cast<struct lib_ctx *>(ctx);
+  std::cout << "[DEBUG] handle_header_flush: lib_ctx cast successful" << std::endl;
+  std::cout.flush();
 
-  // Step 3: Copy payload pages from kernel to userspace (time-sensitive operation)
-  if (payload_pages_to_flush > 0 && !lc->pending_payloads[cpu_to_flush].empty())
+  if (!lc->header_ctx_ptr)
   {
-    // Copy payload pages into lib_ctx->current_payload_flush without modification
-    // Has to run before any callbacks triggered because of time-sensitivity
-    std::cerr << "Copying " << payload_pages_to_flush << " pages starting from page " << kern_header->payload.page_index << " for CPU " << kern_header->payload.cpu << std::endl;
+    std::cout << "[DEBUG] handle_header_flush: lc->header_ctx_ptr is NULL!" << std::endl;
+    std::cout.flush();
+    return -1;
+  }
+  if (!lc->header_ctx_ptr->data)
+  {
+    std::cout << "[DEBUG] handle_header_flush: lc->header_ctx_ptr->data is NULL!" << std::endl;
+    std::cout.flush();
+    return -1;
+  }
+  if (!lc->payload_ctx_ptr)
+  {
+    std::cout << "[DEBUG] handle_header_flush: lc->payload_ctx_ptr is NULL!" << std::endl;
+    std::cout.flush();
+    return -1;
+  }
+  if (!lc->event_cb)
+  {
+    std::cout << "[DEBUG] handle_header_flush: lc->event_cb is NULL!" << std::endl;
+    std::cout.flush();
+    return -1;
+  }
 
-    for (u16 i = 0; i < payload_pages_to_flush + 1; i++)
+  struct event_header_kernel *kern_header = static_cast<struct event_header_kernel *>(data);
+  std::cout << "[DEBUG] handle_header_flush: kernel header cast successful" << std::endl;
+  std::cout.flush();
+
+  if (bootstrap_filter__should_skip(kern_header))
+  {
+    std::cout << "[DEBUG] handle_header_flush: Event filtered, skipping" << std::endl;
+    std::cout.flush();
+    return 0;
+  };
+
+  std::cout << "[DEBUG] handle_header_flush: Event not filtered, processing" << std::endl;
+  std::cout.flush();
+
+  // Generate event ID
+  u64 event_id = generate_event_id();
+  std::cout << "[DEBUG] handle_header_flush: Generated event_id=" << event_id << std::endl;
+  std::cout.flush();
+
+  // Copy header data to header_ctx
+  std::cout << "[DEBUG] handle_header_flush: Copying header data" << std::endl;
+  std::cout.flush();
+
+  *lc->header_ctx_ptr->data = *((struct event_header_user *)kern_header);
+  lc->header_ctx_ptr->data->event_id = event_id;
+
+  std::cout << "[DEBUG] handle_header_flush: Header data copied successfully" << std::endl;
+  std::cout.flush();
+
+  // Calculate positions within this CPU's buffer
+  int raw_start_idx = kern_header->payload.start_index;
+  int raw_end_idx = kern_header->payload.end_index;
+
+  std::cout << "[DEBUG] handle_header_flush: Payload indices - start=" << raw_start_idx
+            << ", end=" << raw_end_idx << std::endl;
+  std::cout.flush();
+
+  int cpu_base = raw_start_idx - raw_start_idx % PAYLOAD_BUFFER_N_ENTRIES_PER_CPU;
+  int start_in_cpu = raw_start_idx % PAYLOAD_BUFFER_N_ENTRIES_PER_CPU;
+  int end_in_cpu = raw_end_idx % PAYLOAD_BUFFER_N_ENTRIES_PER_CPU;
+
+  int payload_size = end_in_cpu - start_in_cpu;
+  if (start_in_cpu > end_in_cpu)
+    payload_size += PAYLOAD_BUFFER_N_ENTRIES_PER_CPU;
+
+  std::cout << "[DEBUG] handle_header_flush: Calculated payload_size=" << payload_size
+            << ", cpu_base=" << cpu_base << std::endl;
+  std::cout.flush();
+
+  // Copy payload entries to temporary buffer
+  std::cout << "[DEBUG] handle_header_flush: Starting payload copy loop" << std::endl;
+  std::cout.flush();
+
+  for (u32 i = 0; i < payload_size; i++)
+  {
+    // Calculate the actual map index with wrap-around
+    u32 map_index = cpu_base + (start_in_cpu + i) % PAYLOAD_BUFFER_N_ENTRIES_PER_CPU;
+    void *dst = &lc->current_payload_flush[i * PAYLOAD_BUFFER_ENTRY_SIZE];
+
+    std::cout << "[DEBUG] handle_header_flush: Copying entry " << i << ", map_index=" << map_index
+              << ", dst=" << dst << std::endl;
+    std::cout.flush();
+
+    int lookup_result = bpf_map_lookup_elem(lc->payload_buffer_fd, &map_index, dst);
+    if (lookup_result != 0)
     {
-      u32 page_key = cpu_page_key((kern_header->payload.page_index + i) % PAYLOAD_BUFFER_N_PAGES, cpu_to_flush);
-      void *dst = &lc->current_payload_flush[i * PAGE_SIZE];
-      int err = bpf_map_lookup_elem(lc->payload_buffer_fd, &page_key, dst);
-
-      if (err)
-      {
-        std::cerr << "lookup failed for page " << page_key
-                  << " cpu " << cpu_to_flush << " → " << err << '\n';
-        return -1;
-      }
+      std::cout << "[DEBUG] handle_header_flush: bpf_map_lookup_elem failed for index " << map_index
+                << ", result=" << lookup_result << std::endl;
+      std::cout.flush();
     }
   }
 
-  // Step 4: Notify consumer of new header data (if not filtered)
-  if (!should_skip)
+  std::cout << "[DEBUG] handle_header_flush: Payload copy loop completed" << std::endl;
+  std::cout.flush();
+
+  if (payload_size <= 0)
   {
-    // Notify consumer of new data. The consumer updates ctx in-place, to tell this file where to write data
-    lc->header_cb(lc->header_ctx_ptr);
+    std::cout << "[DEBUG] handle_header_flush: No payload, calling callback with header only" << std::endl;
+    std::cout.flush();
+
+    // No payload - just notify consumer of header data
+    lc->payload_ctx_ptr->event_id = event_id;
+    lc->payload_ctx_ptr->event_type = kern_header->event_type;
+    lc->payload_ctx_ptr->data = nullptr;
+
+    std::cout << "[DEBUG] handle_header_flush: About to call event callback (no payload)" << std::endl;
+    std::cout.flush();
+
+    lc->event_cb(lc->header_ctx_ptr, lc->payload_ctx_ptr);
+
+    std::cout << "[DEBUG] handle_header_flush: Event callback returned (no payload)" << std::endl;
+    std::cout.flush();
+
+    return 0;
   }
 
-  // Step 5: Process flushed payload data (after header callback to maintain ordering)
-  if (payload_pages_to_flush > 0 && !lc->pending_payloads[cpu_to_flush].empty())
+  std::cout << "[DEBUG] handle_header_flush: Processing payload data" << std::endl;
+  std::cout.flush();
+
+  // Set up payload context for single payload
+  lc->payload_ctx_ptr->event_id = event_id;
+  lc->payload_ctx_ptr->event_type = kern_header->event_type;
+
+  // Ensure enough space is available for the payload
+  size_t payload_fixed_size = get_payload_fixed_size(kern_header->event_type);
+
+  std::cout << "[DEBUG] handle_header_flush: payload_fixed_size=" << payload_fixed_size << std::endl;
+  std::cout.flush();
+
+  if (!lc->payload_ctx_ptr->data)
   {
-    handle_payload_flush(lc, cpu_to_flush);
+    std::cout << "[DEBUG] handle_header_flush: lc->payload_ctx_ptr->data is NULL!" << std::endl;
+    std::cout.flush();
+    return -1;
   }
+
+  std::cout << "[DEBUG] handle_header_flush: About to copy fixed payload data" << std::endl;
+  std::cout.flush();
+
+  // Copy fixed payload data directly to payload context
+  memcpy(lc->payload_ctx_ptr->data, lc->current_payload_flush, payload_fixed_size);
+
+  std::cout << "[DEBUG] handle_header_flush: Fixed payload data copied, processing dynamic data" << std::endl;
+  std::cout.flush();
+
+  // Handle dynamic data
+  struct dar_array src_dars, dst_dars;
+  payload_to_dynamic_allocation_roots(kern_header->event_type,
+                                      lc->current_payload_flush, lc->payload_ctx_ptr->data,
+                                      &src_dars, &dst_dars);
+
+  std::cout << "[DEBUG] handle_header_flush: Dynamic allocation roots processed, src_dars.length="
+            << src_dars.length << ", dst_dars.length=" << dst_dars.length << std::endl;
+  std::cout.flush();
+
+  // Write dynamic data immediately after fixed-size portion of payload
+  char *dyn_write_ptr = static_cast<char *>(lc->payload_ctx_ptr->data) + payload_fixed_size;
+
+  std::cout << "[DEBUG] handle_header_flush: Starting dynamic data processing loop" << std::endl;
+  std::cout.flush();
+
+  for (u32 j = 0; j < src_dars.length; j++)
+  {
+    std::cout << "[DEBUG] handle_header_flush: Processing dynamic data entry " << j << std::endl;
+    std::cout.flush();
+
+    if (!src_dars.data[j])
+    {
+      std::cout << "[DEBUG] handle_header_flush: src_dars.data[" << j << "] is NULL!" << std::endl;
+      std::cout.flush();
+      continue;
+    }
+    if (!dst_dars.data[j])
+    {
+      std::cout << "[DEBUG] handle_header_flush: dst_dars.data[" << j << "] is NULL!" << std::endl;
+      std::cout.flush();
+      continue;
+    }
+
+    u64 *descriptor_ptr = reinterpret_cast<u64 *>(src_dars.data[j]);
+    u64 descriptor = *descriptor_ptr;
+
+    std::cout << "[DEBUG] handle_header_flush: Dynamic data entry " << j << ", descriptor=" << descriptor << std::endl;
+    std::cout.flush();
+
+    if (descriptor == 0)
+    {
+      std::cout << "[DEBUG] handle_header_flush: No dynamic data for entry " << j << std::endl;
+      std::cout.flush();
+      continue; // No dynamic data
+    }
+
+    // Parse descriptor: [byte_index:32][byte_length:32]
+    u32 byte_index = (descriptor >> 32) & 0xFFFFFFFF;
+    u32 byte_length = descriptor & 0xFFFFFFFF;
+
+    std::cout << "[DEBUG] handle_header_flush: Dynamic data " << j << " - byte_index=" << byte_index
+              << ", byte_length=" << byte_length << std::endl;
+    std::cout.flush();
+
+    // Get destination buffer
+    struct flex_buf *dst_field = reinterpret_cast<struct flex_buf *>(dst_dars.data[j]);
+
+    // Convert absolute byte_index to relative index in current_payload_flush
+    // byte_index is relative to the payload buffer map, but we copied entries sequentially
+    u32 buffer_start_byte = raw_start_idx * PAYLOAD_BUFFER_ENTRY_SIZE;
+    u32 relative_byte_index;
+
+    if (byte_index >= buffer_start_byte)
+    {
+      // Normal case: no wrap-around
+      relative_byte_index = byte_index - buffer_start_byte;
+    }
+    else
+    {
+      // Wrap-around case: byte_index is in the wrapped portion
+      u32 buffer_end_byte = PAYLOAD_BUFFER_N_ENTRIES_PER_CPU * PAYLOAD_BUFFER_ENTRY_SIZE;
+      u32 bytes_before_wrap = buffer_end_byte - buffer_start_byte;
+      relative_byte_index = bytes_before_wrap + byte_index;
+    }
+
+    std::cout << "[DEBUG] handle_header_flush: Dynamic data " << j << " - relative_byte_index="
+              << relative_byte_index << ", dyn_write_ptr=" << (void *)dyn_write_ptr << std::endl;
+    std::cout.flush();
+
+    // Bounds check
+    if (relative_byte_index + byte_length > sizeof(lc->current_payload_flush))
+    {
+      std::cout << "[DEBUG] handle_header_flush: ERROR - relative_byte_index + byte_length ("
+                << (relative_byte_index + byte_length) << ") > buffer size ("
+                << sizeof(lc->current_payload_flush) << ")" << std::endl;
+      std::cout.flush();
+      continue;
+    }
+
+    std::cout << "[DEBUG] handle_header_flush: About to copy dynamic data " << j << std::endl;
+    std::cout.flush();
+
+    // Copy dynamic data
+    memcpy(dyn_write_ptr, &lc->current_payload_flush[relative_byte_index], byte_length);
+
+    std::cout << "[DEBUG] handle_header_flush: Dynamic data " << j << " copied successfully" << std::endl;
+    std::cout.flush();
+
+    // Set up destination field
+    dst_field->byte_length = byte_length;
+    dst_field->data = dyn_write_ptr;
+
+    dyn_write_ptr += byte_length;
+  }
+
+  std::cout << "[DEBUG] handle_header_flush: Dynamic data processing completed, calling callback" << std::endl;
+  std::cout.flush();
+
+  // Notify consumer with both header and payload data
+  lc->event_cb(lc->header_ctx_ptr, lc->payload_ctx_ptr);
+
+  std::cout << "[DEBUG] handle_header_flush: Event callback returned" << std::endl;
+  std::cout.flush();
+
+  std::cout << "[DEBUG] handle_header_flush: EXIT" << std::endl;
+  std::cout.flush();
 
   return 0;
 }
@@ -474,21 +425,54 @@ struct ConfigItem
 
 // Public API implementation
 extern "C" int initialize(header_ctx *header_ctx_param, payload_ctx *payload_ctx_param,
-                          header_callback_t header_callback, payload_callback_t payload_callback)
+                          event_callback_t event_callback)
 {
-  // Get number of CPUs
-  int n_cpus = sysconf(_SC_NPROCESSORS_ONLN);
-  if (n_cpus < 1)
-    n_cpus = 1;
+  std::cout << "[DEBUG] initialize: ENTRY" << std::endl;
+  std::cout.flush();
+
+  // Validate parameters
+  if (!header_ctx_param)
+  {
+    std::cout << "[DEBUG] initialize: header_ctx_param is NULL!" << std::endl;
+    std::cout.flush();
+    return -1;
+  }
+  if (!header_ctx_param->data)
+  {
+    std::cout << "[DEBUG] initialize: header_ctx_param->data is NULL!" << std::endl;
+    std::cout.flush();
+    return -1;
+  }
+  if (!payload_ctx_param)
+  {
+    std::cout << "[DEBUG] initialize: payload_ctx_param is NULL!" << std::endl;
+    std::cout.flush();
+    return -1;
+  }
+  if (!payload_ctx_param->data)
+  {
+    std::cout << "[DEBUG] initialize: payload_ctx_param->data is NULL!" << std::endl;
+    std::cout.flush();
+    return -1;
+  }
+  if (!event_callback)
+  {
+    std::cout << "[DEBUG] initialize: event_callback is NULL!" << std::endl;
+    std::cout.flush();
+    return -1;
+  }
+
+  std::cout << "[DEBUG] initialize: Parameters validated successfully" << std::endl;
+  std::cout.flush();
 
   // Initialize library context
   struct lib_ctx lc = {};
   lc.header_ctx_ptr = header_ctx_param;
-  lc.header_cb = header_callback;
+  lc.event_cb = event_callback;
   lc.payload_ctx_ptr = payload_ctx_param;
-  lc.payload_cb = payload_callback;
-  lc.n_cpus = n_cpus;
-  lc.pending_payloads.resize(n_cpus);
+
+  std::cout << "[DEBUG] initialize: lib_ctx initialized" << std::endl;
+  std::cout.flush();
 
   int err;
   int config_fd;
@@ -497,6 +481,9 @@ extern "C" int initialize(header_ctx *header_ctx_param, payload_ctx *payload_ctx
       {CONFIG_DEBUG_ENABLED, static_cast<u64>(env.debug_bpf ? 1 : 0), "debug_enabled"},
       {CONFIG_SYSTEM_BOOT_NS, get_system_boot_ns(), "system_boot_ns"},
   };
+
+  std::cout << "[DEBUG] initialize: Setting up libbpf and signal handlers" << std::endl;
+  std::cout.flush();
 
   libbpf_set_print(libbpf_print_cb);
   signal(SIGINT, sig_handler);
@@ -511,12 +498,21 @@ extern "C" int initialize(header_ctx *header_ctx_param, payload_ctx *payload_ctx
    * 6. Register ringbuffer callback
    */
 
+  std::cout << "[DEBUG] initialize: Opening BPF skeleton" << std::endl;
+  std::cout.flush();
+
   lc.skel = bootstrap_bpf__open();
   if (!lc.skel)
   {
     std::cerr << "C++: failed to open skeleton" << std::endl;
     return 1;
   }
+
+  std::cout << "[DEBUG] initialize: BPF skeleton opened successfully" << std::endl;
+  std::cout.flush();
+
+  std::cout << "[DEBUG] initialize: Loading BPF programs" << std::endl;
+  std::cout.flush();
 
   err = bootstrap_bpf__load(lc.skel);
   if (err)
@@ -525,7 +521,13 @@ extern "C" int initialize(header_ctx *header_ctx_param, payload_ctx *payload_ctx
     goto out;
   }
 
+  std::cout << "[DEBUG] initialize: BPF programs loaded successfully" << std::endl;
+  std::cout.flush();
+
   // Initialize configuration map
+  std::cout << "[DEBUG] initialize: Getting config map fd" << std::endl;
+  std::cout.flush();
+
   config_fd = bpf_map__fd(lc.skel->maps.config);
   if (config_fd < 0)
   {
@@ -534,9 +536,18 @@ extern "C" int initialize(header_ctx *header_ctx_param, payload_ctx *payload_ctx
     goto out;
   }
 
+  std::cout << "[DEBUG] initialize: Config map fd=" << config_fd << std::endl;
+  std::cout.flush();
+
   // Set basic configuration values
+  std::cout << "[DEBUG] initialize: Setting configuration values" << std::endl;
+  std::cout.flush();
+
   for (const auto &config : configs)
   {
+    std::cout << "[DEBUG] initialize: Setting config " << config.name << "=" << config.value << std::endl;
+    std::cout.flush();
+
     err = bpf_map__update_elem(lc.skel->maps.config, &config.key, sizeof(u32),
                                &config.value, sizeof(u64), BPF_ANY);
     if (err)
@@ -546,7 +557,13 @@ extern "C" int initialize(header_ctx *header_ctx_param, payload_ctx *payload_ctx
     }
   }
 
+  std::cout << "[DEBUG] initialize: Configuration values set successfully" << std::endl;
+  std::cout.flush();
+
   // Get file descriptor for shared array map
+  std::cout << "[DEBUG] initialize: Getting payload buffer map fd" << std::endl;
+  std::cout.flush();
+
   lc.payload_buffer_fd = bpf_map__fd(lc.skel->maps.payload_buffer);
   if (lc.payload_buffer_fd < 0)
   {
@@ -555,8 +572,17 @@ extern "C" int initialize(header_ctx *header_ctx_param, payload_ctx *payload_ctx
     goto out;
   }
 
+  std::cout << "[DEBUG] initialize: Payload buffer map fd=" << lc.payload_buffer_fd << std::endl;
+  std::cout.flush();
+
   // Setup kernel-level filtering
+  std::cout << "[DEBUG] initialize: Setting up kernel-level filtering" << std::endl;
+  std::cout.flush();
+
   bootstrap_filter__register_skeleton(lc.skel);
+
+  std::cout << "[DEBUG] initialize: Attaching BPF programs" << std::endl;
+  std::cout.flush();
 
   err = bootstrap_bpf__attach(lc.skel);
   if (err)
@@ -564,6 +590,12 @@ extern "C" int initialize(header_ctx *header_ctx_param, payload_ctx *payload_ctx
     std::cerr << "C++: attach failed: " << err << std::endl;
     goto out;
   }
+
+  std::cout << "[DEBUG] initialize: BPF programs attached successfully" << std::endl;
+  std::cout.flush();
+
+  std::cout << "[DEBUG] initialize: Creating ring buffer" << std::endl;
+  std::cout.flush();
 
   lc.rb = ring_buffer__new(
       bpf_map__fd(lc.skel->maps.rb),
@@ -575,10 +607,16 @@ extern "C" int initialize(header_ctx *header_ctx_param, payload_ctx *payload_ctx
     goto out;
   }
 
+  std::cout << "[DEBUG] initialize: Ring buffer created successfully, entering poll loop" << std::endl;
+  std::cout.flush();
+
   /* ----------------------------------------------------- */
 
   while (!exiting)
   {
+    std::cout << "[DEBUG] initialize: Polling ring buffer..." << std::endl;
+    std::cout.flush();
+
     err = ring_buffer__poll(lc.rb, 200 /* timeout, ms */);
     if (err == -EINTR)
       err = 0;
@@ -587,10 +625,23 @@ extern "C" int initialize(header_ctx *header_ctx_param, payload_ctx *payload_ctx
       std::cerr << "C++: poll error " << err << std::endl;
       break;
     }
+
+    std::cout << "[DEBUG] initialize: Poll returned, err=" << err << std::endl;
+    std::cout.flush();
   }
 
+  std::cout << "[DEBUG] initialize: Exiting poll loop" << std::endl;
+  std::cout.flush();
+
 out:
+  std::cout << "[DEBUG] initialize: Cleanup phase" << std::endl;
+  std::cout.flush();
+
   ring_buffer__free(lc.rb);
   bootstrap_bpf__destroy(lc.skel);
+
+  std::cout << "[DEBUG] initialize: EXIT with err=" << err << std::endl;
+  std::cout.flush();
+
   return err < 0 ? -err : 0;
 }

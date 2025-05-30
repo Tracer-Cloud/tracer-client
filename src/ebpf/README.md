@@ -65,12 +65,12 @@ sudo ./example
 The output should look something like:
 
 ```sh
-{"event_type":"process_exec","timestamp":"1970-01-07 06:48:44.807862128","pid":1258136,"ppid":1244910,"comm":"git","argc":9,"argv":["/usr/bin/git","-c","core.quotepath=false","-c","color.ui=false","rev-parse","--verify","--end-of-options","1252231^{commit}"]}
-{"event_type":"process_exit","timestamp":"1970-01-07 06:48:44.809130125","pid":1258136,"ppid":1244910}
-{"event_type":"process_exec","timestamp":"1970-01-07 06:48:45.386948556","pid":1258137,"ppid":1206440,"comm":"sh","argc":3,"argv":["/bin/sh","-c","which ps"]}
-{"event_type":"process_exec","timestamp":"1970-01-07 06:48:45.387484766","pid":1258138,"ppid":1258137,"comm":"which","argc":3,"argv":["/bin/sh","/usr/bin/which","ps"]}
-{"event_type":"process_exit","timestamp":"1970-01-07 06:48:45.387959373","pid":1258138,"ppid":1258137}
-{"event_type":"process_exit","timestamp":"1970-01-07 06:48:45.388083524","pid":1258137,"ppid":1206440}
+{"event_type":"process_exec","timestamp":"2025-01-07 06:48:44.807862128","pid":1258136,"ppid":1244910,"comm":"git","argc":9,"argv":["/usr/bin/git","-c","core.quotepath=false","-c","color.ui=false","rev-parse","--verify","--end-of-options","1252231^{commit}"]}
+{"event_type":"process_exit","timestamp":"2025-01-07 06:48:44.809130125","pid":1258136,"ppid":1244910}
+{"event_type":"process_exec","timestamp":"2025-01-07 06:48:45.386948556","pid":1258137,"ppid":1206440,"comm":"sh","argc":3,"argv":["/bin/sh","-c","which ps"]}
+{"event_type":"process_exec","timestamp":"2025-01-07 06:48:45.387484766","pid":1258138,"ppid":1258137,"comm":"which","argc":3,"argv":["/bin/sh","/usr/bin/which","ps"]}
+{"event_type":"process_exit","timestamp":"2025-01-07 06:48:45.387959373","pid":1258138,"ppid":1258137}
+{"event_type":"process_exit","timestamp":"2025-01-07 06:48:45.388083524","pid":1258137,"ppid":1206440}
 ```
 
 **Updating vendored dependencies**:
