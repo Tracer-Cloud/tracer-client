@@ -3,6 +3,16 @@ use std::path::Path;
 use std::process::Command;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Skip build on macOS and Windows since eBPF is Linux-specific
+    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+    if target_os == "macos" || target_os == "windows" {
+        println!(
+            "cargo:warning=Skipping eBPF build on {} (Linux only)",
+            target_os
+        );
+        return Ok(());
+    }
+
     // Tell cargo to rerun this build script if any of the C files change
     println!("cargo:rerun-if-changed=c/");
 
