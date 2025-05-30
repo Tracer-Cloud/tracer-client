@@ -1,9 +1,9 @@
 use crate::ebpf_watcher::handler::process::process_utils::process_status_to_string;
 use chrono::{DateTime, Utc};
-use std::path::{Path, PathBuf};
-use sysinfo::{Pid, ProcessStatus, DiskUsage};
-use tracer_common::types::event::attributes::process::{FullProcessProperties, ProcessProperties};
 use mockall::automock;
+use std::path::PathBuf;
+use sysinfo::{DiskUsage, Pid, ProcessStatus};
+use tracer_common::types::event::attributes::process::{FullProcessProperties, ProcessProperties};
 
 // Create a trait that wraps the Process methods we need
 #[automock]
@@ -23,17 +23,39 @@ pub trait ProcessTrait {
 
 // Implement the trait for the real Process
 impl ProcessTrait for sysinfo::Process {
-    fn environ(&self) -> Vec<String> { self.environ().to_vec() }
-    fn cwd(&self) -> Option<PathBuf> { self.cwd().map(|p| p.to_path_buf()) }
-    fn pid(&self) -> Pid { self.pid() }
-    fn parent(&self) -> Option<Pid> { self.parent() }
-    fn exe(&self) -> Option<PathBuf> { self.exe().map(|p| p.to_path_buf()) }
-    fn cmd(&self) -> Vec<String> { self.cmd().to_vec() }
-    fn cpu_usage(&self) -> f32 { self.cpu_usage() }
-    fn disk_usage(&self) -> DiskUsage { self.disk_usage() }
-    fn memory(&self) -> u64 { self.memory() }
-    fn virtual_memory(&self) -> u64 { self.virtual_memory() }
-    fn status(&self) -> ProcessStatus { self.status() }
+    fn environ(&self) -> Vec<String> {
+        self.environ().to_vec()
+    }
+    fn cwd(&self) -> Option<PathBuf> {
+        self.cwd().map(|p| p.to_path_buf())
+    }
+    fn pid(&self) -> Pid {
+        self.pid()
+    }
+    fn parent(&self) -> Option<Pid> {
+        self.parent()
+    }
+    fn exe(&self) -> Option<PathBuf> {
+        self.exe().map(|p| p.to_path_buf())
+    }
+    fn cmd(&self) -> Vec<String> {
+        self.cmd().to_vec()
+    }
+    fn cpu_usage(&self) -> f32 {
+        self.cpu_usage()
+    }
+    fn disk_usage(&self) -> DiskUsage {
+        self.disk_usage()
+    }
+    fn memory(&self) -> u64 {
+        self.memory()
+    }
+    fn virtual_memory(&self) -> u64 {
+        self.virtual_memory()
+    }
+    fn status(&self) -> ProcessStatus {
+        self.status()
+    }
 }
 
 // Modified ExtractProcessData to work with the trait
@@ -88,7 +110,7 @@ impl ExtractProcessData {
             tool_binary_path: proc
                 .exe()
                 .map(|path| path.as_os_str().to_str().unwrap_or("").to_string())
-                .unwrap_or_else(|| "".to_string()),
+                .unwrap_or_default(),
             tool_cmd: proc.cmd().join(" "),
             start_timestamp: process_start_time.to_rfc3339(),
             process_cpu_utilization: proc.cpu_usage(),
@@ -112,8 +134,8 @@ impl ExtractProcessData {
 mod tests {
     use super::*;
     use chrono::{Duration, Utc};
-    use sysinfo::{Pid, ProcessStatus, DiskUsage};
     use std::path::PathBuf;
+    use sysinfo::{DiskUsage, Pid, ProcessStatus};
 
     #[test]
     fn test_get_process_environment_variables_with_all_variables() {
@@ -224,7 +246,11 @@ mod tests {
 
         let cwd_path = PathBuf::from("/test/working/directory");
         let exe_path = PathBuf::from("/usr/bin/test-app");
-        let cmd = vec!["test-app".to_string(), "--arg1".to_string(), "value1".to_string()];
+        let cmd = vec![
+            "test-app".to_string(),
+            "--arg1".to_string(),
+            "value1".to_string(),
+        ];
         let disk_usage = DiskUsage {
             total_read_bytes: 1024,
             read_bytes: 512,
@@ -232,17 +258,27 @@ mod tests {
             written_bytes: 256,
         };
 
-        mock_process.expect_environ().return_const(process_environment_variables);
+        mock_process
+            .expect_environ()
+            .return_const(process_environment_variables);
         mock_process.expect_cwd().return_const(Some(cwd_path));
         mock_process.expect_pid().return_const(Pid::from(1234));
-        mock_process.expect_parent().return_const(Some(Pid::from(5678)));
+        mock_process
+            .expect_parent()
+            .return_const(Some(Pid::from(5678)));
         mock_process.expect_exe().return_const(Some(exe_path));
         mock_process.expect_cmd().return_const(cmd);
         mock_process.expect_cpu_usage().return_const(25.5);
         mock_process.expect_disk_usage().return_const(disk_usage);
-        mock_process.expect_memory().return_const(1024 * 1024 * 100 as u64); // 100MB
-        mock_process.expect_virtual_memory().return_const(1024 * 1024 * 200 as u64); // 200MB
-        mock_process.expect_status().return_const(ProcessStatus::Run);
+        mock_process
+            .expect_memory()
+            .return_const(1024 * 1024 * 100 as u64); // 100MB
+        mock_process
+            .expect_virtual_memory()
+            .return_const(1024 * 1024 * 200 as u64); // 200MB
+        mock_process
+            .expect_status()
+            .return_const(ProcessStatus::Run);
 
         let display_name = "Test Application".to_string();
         let process_start_time = Utc::now() - Duration::seconds(30);
@@ -251,7 +287,8 @@ mod tests {
             &mock_process,
             display_name.clone(),
             process_start_time,
-        ).await;
+        )
+        .await;
 
         // Verify the result
         match result {
@@ -273,8 +310,11 @@ mod tests {
                 assert_eq!(props.container_id, Some("test-container".to_string()));
                 assert_eq!(props.job_id, Some("test-job-123".to_string()));
                 assert_eq!(props.trace_id, Some("test-trace-456".to_string()));
-                assert_eq!(props.working_directory, Some("/test/working/directory".to_string()));
-            },
+                assert_eq!(
+                    props.working_directory,
+                    Some("/test/working/directory".to_string())
+                );
+            }
             _ => panic!("Expected Full ProcessProperties"),
         }
     }
@@ -293,7 +333,9 @@ mod tests {
             written_bytes: 0,
         };
 
-        mock_process.expect_environ().return_const(process_environment_variables);
+        mock_process
+            .expect_environ()
+            .return_const(process_environment_variables);
         mock_process.expect_cwd().return_const(None);
         mock_process.expect_pid().return_const(Pid::from(9999));
         mock_process.expect_parent().return_const(None);
@@ -303,7 +345,9 @@ mod tests {
         mock_process.expect_disk_usage().return_const(disk_usage);
         mock_process.expect_memory().return_const(0u64);
         mock_process.expect_virtual_memory().return_const(0u64);
-        mock_process.expect_status().return_const(ProcessStatus::Sleep);
+        mock_process
+            .expect_status()
+            .return_const(ProcessStatus::Sleep);
 
         let display_name = "Minimal App".to_string();
         let process_start_time = Utc::now();
@@ -312,7 +356,8 @@ mod tests {
             &mock_process,
             display_name.clone(),
             process_start_time,
-        ).await;
+        )
+        .await;
 
         // Verify the result handles None values correctly
         match result {
@@ -326,7 +371,7 @@ mod tests {
                 assert_eq!(props.job_id, None);
                 assert_eq!(props.trace_id, None);
                 assert_eq!(props.working_directory, None);
-            },
+            }
             _ => panic!("Expected Full ProcessProperties"),
         }
     }
@@ -345,7 +390,9 @@ mod tests {
             written_bytes: 0,
         };
 
-        mock_process.expect_environ().return_const(process_environment_variables);
+        mock_process
+            .expect_environ()
+            .return_const(process_environment_variables);
         mock_process.expect_cwd().return_const(None);
         mock_process.expect_pid().return_const(Pid::from(1));
         mock_process.expect_parent().return_const(None);
@@ -355,7 +402,9 @@ mod tests {
         mock_process.expect_disk_usage().return_const(disk_usage);
         mock_process.expect_memory().return_const(0u64);
         mock_process.expect_virtual_memory().return_const(0u64);
-        mock_process.expect_status().return_const(ProcessStatus::Run);
+        mock_process
+            .expect_status()
+            .return_const(ProcessStatus::Run);
 
         let display_name = "Runtime Test".to_string();
         // Set start time to 5 minutes ago
@@ -365,7 +414,8 @@ mod tests {
             &mock_process,
             display_name,
             process_start_time,
-        ).await;
+        )
+        .await;
 
         match result {
             ProcessProperties::Full(props) => {
@@ -373,7 +423,7 @@ mod tests {
                 assert!(props.process_run_time >= 300_000);
                 // And should be reasonable (less than 6 minutes to account for test execution time)
                 assert!(props.process_run_time < 360_000);
-            },
+            }
             _ => panic!("Expected Full ProcessProperties"),
         }
     }
