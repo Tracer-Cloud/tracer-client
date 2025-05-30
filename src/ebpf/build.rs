@@ -6,7 +6,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Skip build on macOS and Windows since eBPF is Linux-specific
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     if target_os == "macos" || target_os == "windows" {
-        println!("cargo:warning=Skipping eBPF build on {} (Linux only)", target_os);
+        println!(
+            "cargo:warning=Skipping eBPF build on {} (Linux only)",
+            target_os
+        );
         return Ok(());
     }
 
