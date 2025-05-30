@@ -241,6 +241,8 @@ static __always_inline int read_into_payload(void *src, u64 max_size, u64 dyn_si
 // Wrapper around read_into_payload that updates attribute descriptor with location
 static __always_inline int read_into_attr(void *src, u64 max_size, u64 dyn_size, u64 *attr)
 {
+  if (max_size > PAYLOAD_BUFFER_N_ENTRIES_PER_CPU * PAYLOAD_BUFFER_ENTRY_SIZE)
+    return -1;
   struct internal_state *state = bpf_map_lookup_elem(&internal_state_map, &internal_state_key);
   if (!state)
     return -1;
