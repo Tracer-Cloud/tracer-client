@@ -13,7 +13,7 @@ use tracer_common::types::ebpf_trigger::{ProcessEndTrigger, ProcessStartTrigger,
 use tracer_common::types::event::attributes::{process::ProcessProperties, EventAttributes};
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 use tracer_common::types::pipeline_tags::PipelineTags;
-use tracer_extracts::process_watcher::ebpf_watcher::EbpfWatcher;
+use tracer_extracts::ebpf_watcher::watcher::EbpfWatcher;
 
 #[tokio::test]
 async fn test_process_triggers_process_lifecycle() -> anyhow::Result<()> {
