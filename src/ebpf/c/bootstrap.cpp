@@ -17,6 +17,8 @@
 #include <random>
 #include <unordered_map>
 #include <unordered_set>
+#include <iomanip>
+#include <sched.h>
 
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
@@ -234,15 +236,16 @@ static int handle_header_flush(void *ctx, void *data, size_t _)
     }
 
     // Parse descriptor: [byte_index:32][byte_length:32]
-    u32 byte_index = (descriptor >> 32) & 0xFFFFFFFF;
-    u32 byte_length = descriptor & 0xFFFFFFFF;
+    int byte_index = (descriptor >> 32) & 0xFFFFFFFF;
+    int byte_length = descriptor & 0xFFFFFFFF;
 
     // Get destination buffer
     struct flex_buf *dst_field = reinterpret_cast<struct flex_buf *>(dst_dars.data[j]);
 
+    // TODO: further simplify this logic
     // Convert absolute byte_index to relative index in current_payload_flush
-    u32 buffer_start_byte = raw_start_idx * PAYLOAD_BUFFER_ENTRY_SIZE;
-    u32 relative_byte_index;
+    int buffer_start_byte = raw_start_idx * PAYLOAD_BUFFER_ENTRY_SIZE;
+    int relative_byte_index;
 
     if (byte_index >= buffer_start_byte)
     {
@@ -252,46 +255,20 @@ static int handle_header_flush(void *ctx, void *data, size_t _)
     else
     {
       // Wrap-around case: byte_index is in the wrapped portion
-      u32 buffer_end_byte = PAYLOAD_BUFFER_N_ENTRIES_PER_CPU * PAYLOAD_BUFFER_ENTRY_SIZE;
-      u32 bytes_before_wrap = buffer_end_byte - buffer_start_byte;
+      int buffer_end_byte = (cpu_base + PAYLOAD_BUFFER_N_ENTRIES_PER_CPU) * PAYLOAD_BUFFER_ENTRY_SIZE;
+      int bytes_before_wrap = buffer_end_byte - buffer_start_byte;
       relative_byte_index = bytes_before_wrap + byte_index;
     }
 
-    // Bounds check for source buffer
-    if (relative_byte_index + byte_length > sizeof(lc->current_payload_flush))
+    if (
+        relative_byte_index + byte_length > sizeof(lc->current_payload_flush) || // Bounds check for source buffer
+        dyn_write_ptr + byte_length > payload_end ||                             // Bounds check for destination buffer
+        byte_length == 0                                                         // No data
+    )
     {
-      std::cerr << "Error: Buffer overflow in dynamic data processing" << std::endl;
-      std::cerr << "  Details:" << std::endl;
-      std::cerr << "    - relative_byte_index: " << relative_byte_index << std::endl;
-      std::cerr << "    - byte_length: " << byte_length << std::endl;
-      std::cerr << "    - buffer size: " << sizeof(lc->current_payload_flush) << std::endl;
-      std::cerr << "    - overflow by: " << (relative_byte_index + byte_length - sizeof(lc->current_payload_flush)) << " bytes" << std::endl;
-      std::cerr << "    - descriptor: 0x" << std::hex << descriptor << std::dec << std::endl;
-      std::cerr << "    - byte_index: " << byte_index << std::endl;
-      std::cerr << "    - buffer_start_byte: " << buffer_start_byte << std::endl;
-      std::cerr << "    - raw_start_idx: " << raw_start_idx << std::endl;
-      std::cerr << "    - PAYLOAD_BUFFER_ENTRY_SIZE: " << PAYLOAD_BUFFER_ENTRY_SIZE << std::endl;
-      std::cerr << "    - PAYLOAD_BUFFER_N_ENTRIES_PER_CPU: " << PAYLOAD_BUFFER_N_ENTRIES_PER_CPU << std::endl;
+      // TODO: Unexpected failure occured, affecting about 1 in 20k events. Source unknown
 
       // Abort copying the field
-      dst_field->byte_length = 0;
-      dst_field->data = nullptr;
-      continue;
-    }
-
-    // Bounds check for destination buffer
-    if (dyn_write_ptr + byte_length > payload_end)
-    {
-      std::cerr << "Error: Dynamic data would overflow payload buffer" << std::endl;
-      // Fix #2b: Zero the destination field
-      dst_field->byte_length = 0;
-      dst_field->data = nullptr;
-      continue;
-    }
-
-    // If we get here but byte_length is 0, also zero the field
-    if (byte_length == 0)
-    {
       dst_field->byte_length = 0;
       dst_field->data = nullptr;
       continue;

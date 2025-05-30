@@ -163,7 +163,7 @@ static void event_callback(header_ctx *header_ctx, payload_ctx *payload_ctx)
   {
     // Use payload_to_kv_array to get structured payload data
     struct kv_array kv_data = payload_to_kv_array(payload_ctx->event_type, payload_ctx->data);
-    std::cout << ",\"payload\":";
+    std::cout << ",\"payload\":{";
     print_kv_array_as_json(kv_data);
   }
 
