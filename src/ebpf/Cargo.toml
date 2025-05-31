@@ -11,11 +11,25 @@ links = "bootstrap"
 [lib]
 path = "rs/lib.rs"
 
+[[bin]]
+name = "build-typegen"
+path = "build-typegen.rs"
+
 [dependencies]
 anyhow = { workspace = true, default-features = true }
+env_logger = { workspace = true }
+log = { workspace = true }
 tokio = { workspace = true }
+tokio-stream = { workspace = true }
+tokio-util = { workspace = true }
+bytes = { workspace = true }
+tracing = { workspace = true }
 tracer_common = { workspace = true }
 chrono.workspace = true
+serde = { workspace = true, features = ["derive"] }
+toml = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+toml = { workspace = true }
