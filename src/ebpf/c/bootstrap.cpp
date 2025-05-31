@@ -17,6 +17,8 @@
 #include <random>
 #include <unordered_map>
 #include <unordered_set>
+#include <iomanip>
+#include <sched.h>
 
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
@@ -32,6 +34,10 @@
 #ifndef unlikely
 #define unlikely(x) __builtin_expect(!!(x), 0)
 #endif
+
+// Define missing constants
+#define PAGE_SIZE 4096
+#define PAYLOAD_FLUSH_MAX_PAGES 256 // Increased from 128 to handle full 1MB per-CPU buffer (16K * 64 bytes = 1MB)
 
 /* -------------------------------------------------------------------------- */
 /*                                 Helpers                                    */
@@ -65,27 +71,21 @@ struct pending_payload_info
   u16 page_offset;
 };
 
-// Extended library context to handle per-CPU arrays and 2-layer buffering
+// Extended library context to handle per-CPU arrays and simplified 2-layer buffering
 struct lib_ctx
 {
   // Context structures for the new API
   header_ctx *header_ctx_ptr;
   payload_ctx *payload_ctx_ptr;
-  header_callback_t header_cb;
-  payload_callback_t payload_cb;
+  event_callback_t event_cb;
 
   // Other context
   struct bootstrap_bpf *skel; // BPF skeleton
   struct ring_buffer *rb;     // Ring buffer
-  int data_buffer_fd;         // Per-CPU array map fd
+  int payload_buffer_fd;      // Shared array map fd (with manual CPU isolation)
 
-  // Per-CPU page buffers for fast access
-  void **cpu_pages; // Array of pointers to per-CPU pages
-  int n_cpus;       // Number of CPUs
-
-  // Pending payloads tracking
-  std::vector<std::vector<pending_payload_info>> pending_payloads; // One vector per CPU
-  u8 current_payload_flush[PAYLOAD_FLUSH_MAX_PAGES][PAGE_SIZE];
+  // Reusable payload buffer for direct processing
+  u8 current_payload_flush[PAYLOAD_FLUSH_MAX_PAGES * PAGE_SIZE];
 };
 
 /* Find when the host system booted */
@@ -117,246 +117,154 @@ static volatile bool exiting;
 static void sig_handler(int sig) { exiting = true; }
 
 /* -------------------------------------------------------------------------- */
-/*                            Payload processing                              */
-/* -------------------------------------------------------------------------- */
-
-// Process a single dynamic allocation and convert to flex_buf
-static void process_dynamic_allocation(u64 descriptor,
-                                       u64 *descriptor_field,
-                                       char *kernel_allocation_data,
-                                       char **flex_buf_write_ptr,
-                                       char *flex_buf_write_end)
-{
-  // Parse descriptor: [is_final:1][order:16][size:47] for root allocations
-  bool is_final = (descriptor >> 63) & 1;
-  u64 size = descriptor & 0x7FFFFFFFFFFFULL;
-
-  // For single-node case, we expect is_final to be true
-  if (!is_final)
-  {
-    std::cerr << "Multi-node dynamic allocations not yet supported" << std::endl;
-    return;
-  }
-
-  // Create flex_buf in user payload buffer
-  if (*flex_buf_write_ptr + sizeof(u32) + size > flex_buf_write_end)
-  {
-    std::cerr << "Not enough space for flex_buf conversion" << std::endl;
-    return;
-  }
-
-  struct flex_buf *fb = reinterpret_cast<struct flex_buf *>(*flex_buf_write_ptr);
-  fb->byte_length = size;
-  memcpy(fb->data, kernel_allocation_data, size);
-
-  // Update the descriptor field to point to our flex_buf
-  *descriptor_field = reinterpret_cast<u64>(fb);
-
-  // Move write pointer for next flex_buf
-  *flex_buf_write_ptr += sizeof(u32) + size;
-  // Align to 8-byte boundary
-  *flex_buf_write_ptr = reinterpret_cast<char *>((reinterpret_cast<uintptr_t>(*flex_buf_write_ptr) + 7) & ~7);
-}
-
-// Process payload data from per-CPU pages
-static int handle_payload_flush(struct lib_ctx *lc, u16 cpu)
-{
-  // Check if we have any pending payloads for this CPU
-  if (lc->pending_payloads[cpu].empty())
-  {
-    return 0;
-  }
-
-  u16 first_page = lc->pending_payloads[cpu][0].page_index;
-  u16 last_page = lc->pending_payloads[cpu].back().page_index;
-
-  // Calculate upper bound on space needed for complete flush
-  u16 page_span = (last_page >= first_page) ? (last_page - first_page + 1) : (last_page + PAYLOAD_BUFFER_N_PAGES - first_page + 1);
-  size_t num_payloads = lc->pending_payloads[cpu].size();
-  // TODO (when implementing dynamic allocation chain collapse): 4 extra bytes needed per flex_buf
-  size_t space_needed_upper_bound = sizeof(struct payload_batch_header) +
-                                    (num_payloads * sizeof(struct payload_batch_index_entry)) +
-                                    page_span * PAGE_SIZE;
-
-  // Ensure enough space is available upfront
-  if (space_needed_upper_bound > lc->payload_ctx_ptr->size)
-  {
-    // Invoke callback with empty payload to request more space
-    lc->payload_ctx_ptr->data->bytes_written = 0;
-    lc->payload_ctx_ptr->data->num_payloads = 0;
-    lc->payload_cb(lc->payload_ctx_ptr);
-
-    // Verify we now have enough space
-    if (space_needed_upper_bound > lc->payload_ctx_ptr->size)
-    {
-      std::cerr << "Consumer failed to provide sufficient space: needed "
-                << space_needed_upper_bound << ", got " << lc->payload_ctx_ptr->size << std::endl;
-      return -1;
-    }
-  }
-
-  // Set up direct buffer layout: header, then index array, then payload data
-  char *buffer = reinterpret_cast<char *>(lc->payload_ctx_ptr->data);
-  struct payload_batch_header *header = reinterpret_cast<struct payload_batch_header *>(buffer);
-
-  // Index array starts right after the header
-  struct payload_batch_index_entry *index_array =
-      reinterpret_cast<struct payload_batch_index_entry *>(buffer + sizeof(struct payload_batch_header));
-
-  // Payload data starts after the index array
-  char *payload_data_start = buffer + sizeof(struct payload_batch_header) +
-                             (num_payloads * sizeof(struct payload_batch_index_entry));
-
-  // Update header to point to the correctly positioned arrays
-  header->payload_index = index_array;
-  header->payload_data = payload_data_start;
-  header->bytes_written = 0;
-  header->num_payloads = 0;
-
-  // Loop through all pending payloads for this CPU
-  for (size_t i = 0; i < num_payloads; i++)
-  {
-    const auto &pending = lc->pending_payloads[cpu][i];
-
-    // Calculate the correct page in current_payload_flush buffer
-    // Handle wrap-around: if page < first_page, it wrapped around
-    u16 buffer_page_index = (pending.page_index < first_page) ? (pending.page_index + PAYLOAD_BUFFER_N_PAGES - first_page) : (pending.page_index - first_page);
-
-    // Calculate source address in current_payload_flush
-    void *src_payload = &lc->current_payload_flush[buffer_page_index][pending.page_offset];
-
-    // Get the kernel payload size for this event type
-    size_t kernel_payload_size = get_kernel_payload_size(pending.event_type);
-
-    // Get dynamic allocation roots (for future use with dynamic payloads)
-    struct dar_array dar = payload_to_dynamic_allocation_roots(pending.event_type, src_payload);
-
-    size_t total_payload_size = kernel_payload_size;
-
-    // Add index entry for this payload
-    index_array[header->num_payloads].event_id = pending.event_id;
-    index_array[header->num_payloads].event_type = pending.event_type;
-    index_array[header->num_payloads].offset = header->bytes_written;
-
-    // Copy the payload data
-    void *dst_payload = payload_data_start + header->bytes_written;
-    memcpy(dst_payload, src_payload, kernel_payload_size);
-
-    // Process dynamic allocations if any exist
-    if (dar.length > 0)
-    {
-      // Set up flex_buf writing area after the copied payload
-      char *flex_buf_write_ptr = static_cast<char *>(dst_payload) + kernel_payload_size;
-      char *flex_buf_write_end = reinterpret_cast<char *>(lc->payload_ctx_ptr->data) + lc->payload_ctx_ptr->size;
-
-      // Dynamic allocation data is stored sequentially after the fixed payload in the kernel page
-      char *kernel_dynamic_data = static_cast<char *>(src_payload) + kernel_payload_size;
-
-      // Get dynamic allocation roots for the destination payload
-      struct dar_array dst_dar = payload_to_dynamic_allocation_roots(pending.event_type, dst_payload);
-
-      // Process each dynamic allocation root
-      for (u32 j = 0; j < dst_dar.length; j++)
-      {
-        // Read descriptor from SOURCE kernel payload (not destination)
-        u64 *src_descriptor_field = reinterpret_cast<u64 *>(dar.data[j]);
-        u64 descriptor = *src_descriptor_field;
-
-        // Get corresponding destination field
-        u64 *dst_descriptor_field = reinterpret_cast<u64 *>(dst_dar.data[j]);
-
-        // Process the dynamic allocation
-        process_dynamic_allocation(descriptor, dst_descriptor_field, kernel_dynamic_data, &flex_buf_write_ptr, flex_buf_write_end);
-
-        // Move to next dynamic allocation (based on size from descriptor)
-        u64 size = descriptor & 0x7FFFFFFFFFFFULL;
-        kernel_dynamic_data += (size + 7) & ~7; // 8-byte aligned
-      }
-
-      total_payload_size = flex_buf_write_ptr - static_cast<char *>(dst_payload);
-    }
-
-    // Update batch metadata
-    header->bytes_written += total_payload_size;
-    header->num_payloads++;
-  }
-
-  // Final callback to flush everything in payload_ctx->data
-  lc->payload_cb(lc->payload_ctx_ptr);
-
-  // Clear pending payloads for this CPU as they've been processed
-  lc->pending_payloads[cpu].clear();
-
-  return 0;
-}
-
-/* -------------------------------------------------------------------------- */
-/*                           Header processing                                */
+/*                            Event processing                                */
 /* -------------------------------------------------------------------------- */
 
 // Ring‑buffer callback for processing headers, flush initiated by kernel
-static int handle_header_flush(void *ctx, void *data, size_t _)
+static int handle_header_flush(void *ctx, void *data, size_t /*unused*/)
 {
-  struct lib_ctx *lc = static_cast<struct lib_ctx *>(ctx);
-  struct event_header_kernel *kern_header = static_cast<struct event_header_kernel *>(data);
-
-  bool should_skip = bootstrap_filter__should_skip(kern_header);
-
-  // Step 1: Process header if not filtered out
-  if (!should_skip)
+  /* -------- basic validation -------------------------------------------------- */
+  if (!ctx || !data)
   {
-    // Generate event ID
-    u64 event_id = generate_event_id();
-
-    // Copy header data to header_ctx
-    *lc->header_ctx_ptr->data = *((struct event_header_user *)kern_header);
-    lc->header_ctx_ptr->data->event_id = event_id;
-
-    // For retrieval of payload once flushed
-    pending_payload_info info = {
-        .event_id = event_id,
-        .event_type = kern_header->event_type,
-        .page_index = kern_header->payload.page_index,
-        .page_offset = kern_header->payload.byte_offset};
-
-    u32 cpu = kern_header->payload.cpu;
-    lc->pending_payloads[cpu].push_back(info);
+    std::cerr << "Error: Invalid context or data in handle_header_flush\n";
+    return -1;
   }
 
-  // Step 2: Check if kernel is signaling payload flush
-  u16 cpu_to_flush = kern_header->payload.cpu;
-  u16 payload_pages_to_flush = kern_header->payload.flush_signal;
+  auto *lc = static_cast<lib_ctx *>(ctx);
 
-  // Step 3: Copy payload pages from kernel to userspace (time-sensitive operation)
-  if (payload_pages_to_flush > 0)
+  if (!lc->header_ctx_ptr || !lc->header_ctx_ptr->data ||
+      !lc->payload_ctx_ptr || !lc->event_cb)
   {
-    // Copy payload pages into lib_ctx->current_payload_flush without modification
-    // Has to run before any callbacks triggered because of time-sensitivity
-    for (u16 i = 0; i < payload_pages_to_flush; i++)
-    {
-      u32 page_key = (kern_header->payload.page_index + i) % PAYLOAD_BUFFER_N_PAGES;
-      int ret = bpf_map_lookup_elem(lc->data_buffer_fd, &page_key, lc->current_payload_flush[i]);
-      if (ret < 0)
-      {
-        std::cerr << "Failed to lookup page " << page_key << " for CPU " << kern_header->payload.cpu << std::endl;
-        return -1;
-      }
+    std::cerr << "Error: Invalid library context in handle_header_flush\n";
+    return -1;
+  }
+
+  auto *kern_header = static_cast<event_header_kernel *>(data);
+
+  /* Skip events filtered in user space */
+  if (bootstrap_filter__should_skip(kern_header))
+    return 0;
+
+  /* -------- header handling ---------------------------------------------------- */
+  const u64 event_id = generate_event_id();
+  *lc->header_ctx_ptr->data = *reinterpret_cast<event_header_user *>(kern_header);
+  lc->header_ctx_ptr->data->event_id = event_id;
+
+  /* -------- payload window calculation ---------------------------------------- */
+  const u32 raw_start = kern_header->payload.start_index;
+  const u32 raw_end = kern_header->payload.end_index;
+
+  const u32 entries_per_cpu = PAYLOAD_BUFFER_N_ENTRIES_PER_CPU;
+  const u32 cpu_base = raw_start - raw_start % entries_per_cpu;
+
+  const u32 start_in_cpu = raw_start % entries_per_cpu;
+  const u32 end_in_cpu = raw_end % entries_per_cpu;
+
+  u32 payload_entries =
+      (end_in_cpu + entries_per_cpu - start_in_cpu) % entries_per_cpu;
+
+  /* -------- copy payload entries into temporary buffer ------------------------ */
+  const size_t tmp_capacity = sizeof(lc->current_payload_flush);
+  const size_t entry_size = PAYLOAD_BUFFER_ENTRY_SIZE;
+
+  for (u32 i = 0; i < payload_entries; ++i)
+  {
+    const size_t dst_off = i * entry_size;
+    if (dst_off >= tmp_capacity)
+    { // hard safety stop
+      std::cerr << "Error: Payload copy would overflow buffer at index "
+                << i << '\n';
+      break;
     }
+
+    const u32 map_index = cpu_base + (start_in_cpu + i) % entries_per_cpu;
+    void *dst = lc->current_payload_flush + dst_off;
+
+    if (bpf_map_lookup_elem(lc->payload_buffer_fd, &map_index, dst) != 0)
+      std::cerr << "Error: bpf_map_lookup_elem failed for index "
+                << map_index << '\n';
   }
 
-  // Step 4: Notify consumer of new header data (if not filtered)
-  if (!should_skip)
+  /* -------- fast path: header-only event -------------------------------------- */
+  if (payload_entries == 0)
   {
-    // Notify consumer of new data. The consumer updates ctx in-place, to tell this file where to write data
-    lc->header_cb(lc->header_ctx_ptr);
+    lc->payload_ctx_ptr->event_id = event_id;
+    lc->payload_ctx_ptr->event_type = kern_header->event_type;
+    lc->payload_ctx_ptr->data = nullptr;
+    lc->event_cb(lc->header_ctx_ptr, lc->payload_ctx_ptr);
+    return 0;
   }
 
-  // Step 5: Process flushed payload data (after header callback to maintain ordering)
-  if (payload_pages_to_flush > 0)
+  /* -------- payload context initialisation ------------------------------------ */
+  lc->payload_ctx_ptr->event_id = event_id;
+  lc->payload_ctx_ptr->event_type = kern_header->event_type;
+
+  if (!lc->payload_ctx_ptr->data)
   {
-    handle_payload_flush(lc, cpu_to_flush);
+    std::cerr << "Error: payload_ctx_ptr->data is NULL\n";
+    return -1;
   }
 
+  const size_t fixed_sz = get_payload_fixed_size(kern_header->event_type);
+  std::memcpy(lc->payload_ctx_ptr->data,
+              lc->current_payload_flush,
+              fixed_sz);
+
+  /* -------- dynamic fields ---------------------------------------------------- */
+  dar_array src, dst;
+  payload_to_dynamic_allocation_roots(kern_header->event_type,
+                                      lc->current_payload_flush,
+                                      lc->payload_ctx_ptr->data,
+                                      &src, &dst);
+
+  u8 *dyn_write = static_cast<u8 *>(lc->payload_ctx_ptr->data) + fixed_sz;
+  u8 *dyn_end = static_cast<u8 *>(lc->payload_ctx_ptr->data) +
+                lc->payload_ctx_ptr->size;
+
+  const u32 bytes_per_cpu = entries_per_cpu * entry_size;
+  const u32 buffer_start_byte = raw_start * entry_size;
+
+  for (u32 j = 0; j < src.length; ++j)
+  {
+    if (!src.data[j] || !dst.data[j])
+      continue;
+
+    const u64 desc = *reinterpret_cast<u64 *>(src.data[j]);
+    if (desc == 0) // field absent
+      continue;
+
+    const u32 byte_index = desc >> 32;
+    const u32 byte_length = desc & 0xFFFFFFFFu;
+
+    auto *dst_field = reinterpret_cast<flex_buf *>(dst.data[j]);
+
+    /* convert absolute index to index inside current flush buffer */
+    const u32 rel_idx =
+        (byte_index + bytes_per_cpu - buffer_start_byte) % bytes_per_cpu;
+
+    /* validation */
+    if (byte_length == 0 ||
+        rel_idx + byte_length > tmp_capacity ||
+        dyn_write + byte_length > dyn_end)
+    {
+      // TODO: investigate cases that end up here (shouldn't happen but it does)
+      dst_field->byte_length = 0;
+      dst_field->data = nullptr;
+      continue;
+    }
+
+    /* copy & patch */
+    std::memcpy(dyn_write,
+                lc->current_payload_flush + rel_idx,
+                byte_length);
+
+    dst_field->byte_length = byte_length;
+    dst_field->data = reinterpret_cast<char *>(dyn_write);
+    dyn_write += byte_length;
+  }
+
+  /* -------- deliver event to user code --------------------------------------- */
+  lc->event_cb(lc->header_ctx_ptr, lc->payload_ctx_ptr);
   return 0;
 }
 
@@ -373,21 +281,21 @@ struct ConfigItem
 
 // Public API implementation
 extern "C" int initialize(header_ctx *header_ctx_param, payload_ctx *payload_ctx_param,
-                          header_callback_t header_callback, payload_callback_t payload_callback)
+                          event_callback_t event_callback)
 {
-  // Get number of CPUs
-  int n_cpus = sysconf(_SC_NPROCESSORS_ONLN);
-  if (n_cpus < 1)
-    n_cpus = 1;
+  // Validate parameters
+  if (!header_ctx_param || !header_ctx_param->data || !payload_ctx_param ||
+      !payload_ctx_param->data || !event_callback)
+  {
+    std::cerr << "Error: Invalid parameters in initialize" << std::endl;
+    return -1;
+  }
 
   // Initialize library context
   struct lib_ctx lc = {};
   lc.header_ctx_ptr = header_ctx_param;
-  lc.header_cb = header_callback;
+  lc.event_cb = event_callback;
   lc.payload_ctx_ptr = payload_ctx_param;
-  lc.payload_cb = payload_callback;
-  lc.n_cpus = n_cpus;
-  lc.pending_payloads.resize(n_cpus);
 
   int err;
   int config_fd;
@@ -401,27 +309,17 @@ extern "C" int initialize(header_ctx *header_ctx_param, payload_ctx *payload_ctx
   signal(SIGINT, sig_handler);
   signal(SIGTERM, sig_handler);
 
-  /* ----------------------------------------------------- */
-  /* Steps:
-   * 1. Open BPF skeleton
-   * 2. Load BPF programs
-   * 3. Configure runtime parameters
-   * 4. Set up per-CPU array maps
-   * 5. Attach BPF programs to tracepoints
-   * 6. Register ringbuffer callback
-   */
-
   lc.skel = bootstrap_bpf__open();
   if (!lc.skel)
   {
-    std::cerr << "C++: failed to open skeleton" << std::endl;
+    std::cerr << "Failed to open skeleton" << std::endl;
     return 1;
   }
 
   err = bootstrap_bpf__load(lc.skel);
   if (err)
   {
-    std::cerr << "C++: load failed: " << err << std::endl;
+    std::cerr << "Load failed: " << err << std::endl;
     goto out;
   }
 
@@ -429,7 +327,7 @@ extern "C" int initialize(header_ctx *header_ctx_param, payload_ctx *payload_ctx
   config_fd = bpf_map__fd(lc.skel->maps.config);
   if (config_fd < 0)
   {
-    std::cerr << "C++: failed to get config map fd" << std::endl;
+    std::cerr << "Failed to get config map fd" << std::endl;
     err = -1;
     goto out;
   }
@@ -441,16 +339,16 @@ extern "C" int initialize(header_ctx *header_ctx_param, payload_ctx *payload_ctx
                                &config.value, sizeof(u64), BPF_ANY);
     if (err)
     {
-      std::cerr << "C++: failed to set " << config.name << ": " << err << std::endl;
+      std::cerr << "Failed to set " << config.name << ": " << err << std::endl;
       goto out;
     }
   }
 
-  // Get file descriptor for per-CPU array map
-  lc.data_buffer_fd = bpf_map__fd(lc.skel->maps.data_buffer);
-  if (lc.data_buffer_fd < 0)
+  // Get file descriptor for shared array map
+  lc.payload_buffer_fd = bpf_map__fd(lc.skel->maps.payload_buffer);
+  if (lc.payload_buffer_fd < 0)
   {
-    std::cerr << "C++: failed to get data_buffer map fd" << std::endl;
+    std::cerr << "Failed to get payload_buffer map fd" << std::endl;
     err = -1;
     goto out;
   }
@@ -461,7 +359,7 @@ extern "C" int initialize(header_ctx *header_ctx_param, payload_ctx *payload_ctx
   err = bootstrap_bpf__attach(lc.skel);
   if (err)
   {
-    std::cerr << "C++: attach failed: " << err << std::endl;
+    std::cerr << "Attach failed: " << err << std::endl;
     goto out;
   }
 
@@ -470,12 +368,10 @@ extern "C" int initialize(header_ctx *header_ctx_param, payload_ctx *payload_ctx
       handle_header_flush, &lc, NULL);
   if (!lc.rb)
   {
-    std::cerr << "C++: ring-buffer create failed" << std::endl;
+    std::cerr << "Ring-buffer create failed" << std::endl;
     err = -1;
     goto out;
   }
-
-  /* ----------------------------------------------------- */
 
   while (!exiting)
   {
@@ -484,7 +380,7 @@ extern "C" int initialize(header_ctx *header_ctx_param, payload_ctx *payload_ctx
       err = 0;
     if (err < 0)
     {
-      std::cerr << "C++: poll error " << err << std::endl;
+      std::cerr << "Poll error " << err << std::endl;
       break;
     }
   }
@@ -492,6 +388,6 @@ extern "C" int initialize(header_ctx *header_ctx_param, payload_ctx *payload_ctx
 out:
   ring_buffer__free(lc.rb);
   bootstrap_bpf__destroy(lc.skel);
-  free(lc.cpu_pages);
+
   return err < 0 ? -err : 0;
 }
