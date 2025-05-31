@@ -44,12 +44,16 @@ $(call allow-override,CC,$(CROSS_COMPILE)cc)
 $(call allow-override,LD,$(CROSS_COMPILE)ld)
 $(call allow-override,CXX,$(CROSS_COMPILE)c++)
 
-.PHONY: all clean
-all: libbootstrap.a
+.PHONY: all clean typegen
+all: libbootstrap.a example
 
 clean:
 	$(call msg,CLEAN)
-	$(Q)rm -rf $(OUTPUT) libbootstrap.a
+	$(Q)rm -rf $(OUTPUT) libbootstrap.a example
+
+typegen:
+	$(call msg,TYPEGEN,bootstrap.gen.h)
+	$(Q)cd ../typegen && cargo run
 
 $(OUTPUT) $(OUTPUT)/libbpf $(BPFTOOL_OUTPUT):
 	$(call msg,MKDIR,$@)
@@ -71,7 +75,7 @@ $(BPFTOOL): | $(BPFTOOL_OUTPUT)
 		-C $(BPFTOOL_SRC) bootstrap
 
 # Build BPF code
-$(OUTPUT)/bootstrap.bpf.o: bootstrap.bpf.c $(LIBBPF_OBJ) $(wildcard *.h) $(VMLINUX) | $(OUTPUT) $(BPFTOOL)
+$(OUTPUT)/bootstrap.bpf.o: bootstrap.bpf.c $(LIBBPF_OBJ) $(wildcard *.h) $(wildcard *.hpp) $(VMLINUX) | $(OUTPUT) $(BPFTOOL) typegen
 	$(call msg,BPF,$@)
 	$(Q)$(CLANG) -g -O2 -target bpf -D__TARGET_ARCH_$(ARCH) \
 		$(INCLUDES) $(CLANG_BPF_SYS_INCLUDES) \
@@ -84,13 +88,22 @@ $(OUTPUT)/bootstrap.skel.h: $(OUTPUT)/bootstrap.bpf.o | $(OUTPUT) $(BPFTOOL)
 	$(Q)$(BPFTOOL) gen skeleton $< > $@
 
 # Build static library for Rust binding
-$(OUTPUT)/bootstrap_lib.o: bootstrap.c $(OUTPUT)/bootstrap.skel.h $(wildcard *.h) | $(OUTPUT)
-	$(call msg,CC,$@)
-	$(Q)$(CC) $(CFLAGS) $(INCLUDES) -c $(filter %.c,$^) -o $@
+$(OUTPUT)/bootstrap_lib.o: bootstrap.cpp $(OUTPUT)/bootstrap.skel.h $(wildcard *.h) $(wildcard *.hpp) | $(OUTPUT)
+	$(call msg,CXX,$@)
+	$(Q)$(CLANGXX) $(CXXFLAGS) $(INCLUDES) -c $(filter %.cpp,$^) -o $@
 
 libbootstrap.a: $(OUTPUT)/bootstrap_lib.o $(LIBBPF_OBJ) | $(OUTPUT)
 	$(call msg,STATICLIB,$@)
 	$(Q)$(AR) rcs $@ $^
+
+# Build example program (C++ version)
+$(OUTPUT)/example.o: example.cpp $(wildcard *.h) $(wildcard *.hpp) | $(OUTPUT)
+	$(call msg,CXX,$@)
+	$(Q)$(CLANGXX) $(CXXFLAGS) $(INCLUDES) -c $(filter %.cpp,$^) -o $@
+
+example: $(OUTPUT)/example.o libbootstrap.a | $(OUTPUT)
+	$(call msg,BINARY,$@)
+	$(Q)$(CLANGXX) $(CXXFLAGS) $< libbootstrap.a $(LIBBPF_OBJ) $(ALL_LDFLAGS) -lelf -lz -o $@
 
 # delete failed targets
 .DELETE_ON_ERROR:

@@ -1,0 +1,53 @@
+[sched.sched_process_exec]
+id = 0
+comment = "Process execution (successful)"
+payload = [{ name = "argv", type = "char[][]" }]
+
+[sched.sched_process_exit]
+id = 1
+comment = "Process termination (successful)"
+payload = [{ name = "exit_code", type = "u32" }]
+
+[sched.psi_memstall_enter]
+id = 16
+comment = "Memory pressure, stall begins"
+payload = []
+
+[syscalls.sys_enter_openat]
+id = 1024
+comment = "File open, syscall entry"
+payload = [
+  { name = "dfd", type = "u32" },
+  { name = "filename", type = "char[]" },
+  { name = "flags", type = "u32" },
+  { name = "mode", type = "u32" },
+]
+
+[syscalls.sys_exit_openat]
+id = 1025
+comment = "File open, syscall return"
+payload = [{ name = "fd", type = "u32" }]
+
+[syscalls.sys_enter_read]
+id = 1026
+comment = "Files and pipes, read syscall entry"
+payload = [{ name = "fd", type = "u32" }, { name = "count", type = "u64" }]
+
+[syscalls.sys_enter_write]
+id = 1028
+comment = "Files and pipes, write syscall entry"
+payload = [
+  { name = "fd", type = "u32" },
+  { name = "count", type = "u64" },
+  { name = "content", type = "char[]" },
+]
+
+[vmscan.mm_vmscan_direct_reclaim_begin]
+id = 2048
+comment = "Memory pressure, reclaim begins"
+payload = [{ name = "order", type = "u32" }]
+
+[oom.mark_victim]
+id = 3072
+comment = "Memory pressure, OOM killer selects process"
+payload = []
