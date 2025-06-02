@@ -5,6 +5,7 @@ ENV=${1:-production}
 
 BINARY_NAME="tracer"
 
+
 # Set environment-specific variables based on the environment parameter
 if [[ "$ENV" == "development" ]]; then
     # Development configuration // development binaries coming from S3 github actions
