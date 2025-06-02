@@ -1,13 +1,15 @@
 #!/bin/bash
 
 # Get environment from the first argument
-ENV=${1:-production}
+# ENV=${1:-production}
 
 BINARY_NAME="tracer"
 
+echo "Arg: $1"
 
 # Set environment-specific variables based on the environment parameter
-if [[ "$ENV" == "development" ]]; then
+if [[ "$1" == "development" ]]; then
+    echo "Development configuration"
     # Development configuration // development binaries coming from S3 github actions
     TRACER_VERSION="development"
     TRACER_LINUX_URL_X86_64="https://tracer-releases.s3.us-east-1.amazonaws.com/tracer-x86_64-unknown-linux-gnu.tar.gz"
@@ -16,6 +18,7 @@ if [[ "$ENV" == "development" ]]; then
     TRACER_MACOS_AARCH_URL="https://tracer-releases.s3.us-east-1.amazonaws.com/tracer-aarch64-apple-darwin.tar.gz"
     TRACER_MACOS_X86_URL="https://tracer-releases.s3.us-east-1.amazonaws.com/tracer-x86_64-apple-darwin.tar.gz"
 else
+    echo "Production configuration"
     # Production configuration // production binaries coming from Github 
     TRACER_VERSION="v2025.5.15+1"
     TRACER_LINUX_URL_X86_64="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer_cli-x86_64-unknown-linux-gnu.tar.gz"
