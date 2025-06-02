@@ -121,10 +121,10 @@ impl ProcessManager {
 
         // Find all processes that we were monitoring that have terminated
         let terminated_processes: HashSet<_> = {
-            let state = self.state.write().await;
+            let mut state = self.state.write().await;
+            let monitoring = state.get_monitoring_mut();
 
-            state
-                .get_monitoring()
+            monitoring
                 .iter_mut()
                 .flat_map(|(_, procs)| {
                     // Partition processes into terminated and still running
@@ -154,11 +154,6 @@ impl ProcessManager {
                 error!("Process doesn't exist: start_trigger={:?}", start_trigger);
                 continue;
             };
-            // should be safe since
-            // - we've checked the key is present
-            // - we have an exclusive lock on the state
-            // - if trigger is duplicated in monitoring (can happen if it matches several targets),
-            //   it'll be deduplicated via hashset
 
             self.log_process_completion(&start_trigger, &finish_trigger)
                 .await?;
@@ -661,8 +656,10 @@ mod tests {
         let log_recorder = create_mock_log_recorder();
 
         let process_manager = ProcessManager::new(target_manager, log_recorder);
-        let mut processes_from_state = process_manager.get_state_mut().await.get_processes();
-        processes_from_state = &processes;
+        process_manager
+            .get_state_mut()
+            .await
+            .set_processes(processes);
 
         // Test with the child process
         let result = process_manager

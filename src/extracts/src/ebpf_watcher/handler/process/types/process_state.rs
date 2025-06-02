@@ -35,11 +35,20 @@ impl ProcessState {
         &self.processes
     }
 
+    pub fn set_processes(&mut self, processes: HashMap<usize, ProcessStartTrigger>) {
+        self.processes = processes;
+    }
+
     // Monitoring related methods
 
-    pub fn get_monitoring(&self) -> HashMap<Target, HashSet<ProcessStartTrigger>> {
-        self.monitoring.clone()
+    pub fn get_monitoring(&self) -> &HashMap<Target, HashSet<ProcessStartTrigger>> {
+        &self.monitoring
     }
+
+    pub fn get_monitoring_mut(&mut self) -> &mut HashMap<Target, HashSet<ProcessStartTrigger>> {
+        &mut self.monitoring
+    }
+
     // eBPF task related methods
     /// Sets the eBPF task handle
     pub fn set_ebpf_task(&mut self, task: JoinHandle<()>) {
