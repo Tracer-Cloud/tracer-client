@@ -292,22 +292,49 @@ function install_tracer_binary() {
 
 #-------------------------------------------------------------------------------
 #          NAME:  update_rc
-#   DESCRIPTION:  Ensures paths are configured for active shell
+#   DESCRIPTION:  Ensures paths are configured for active shell and other common shells
 #-------------------------------------------------------------------------------
 update_rc() {
-    # check current shell
-    if [ -n "$ZSH_VERSION" ]; then
-        RC_FILE="$HOME/.zshrc"
-    elif [ -n "$BASH_VERSION" ]; then
-        RC_FILE="$HOME/.bashrc"
-    else
-        RC_FILE="$HOME/.bash_profile"
-    fi
+    # List of possible shell config files
+    RC_FILES=(
+        "$HOME/.bashrc"
+        "$HOME/.bash_profile"
+        "$HOME/.zshrc"
+        "$HOME/.profile"
+    )
 
-    # if custom bin dir had to be added to PATH, add it to .bashrc
-    echo "export PATH=\$PATH:$BINDIR" >>"$RC_FILE"
+    # Function to add path if it doesn't exist
+    add_path_to_file() {
+        local file=$1
+        if [ -f "$file" ]; then
+            # Check if the path is already in the file
+            if ! grep -q "export PATH=\$PATH:$BINDIR" "$file"; then
+                echo "export PATH=\$PATH:$BINDIR" >> "$file"
+                printsucc "Added ${Blu}$BINDIR${RCol} to PATH variable in ${Blu}$file${RCol}"
+            else
+                printmsg "PATH already configured in ${Blu}$file${RCol}"
+            fi
+        fi
+    }
+
+    # Add to all shell config files
+    for rc_file in "${RC_FILES[@]}"; do
+        add_path_to_file "$rc_file"
+    done
+
+    # Source all existing shell config files
+    printmsg "Sourcing shell configuration files..."
+    for rc_file in "${RC_FILES[@]}"; do
+        if [ -f "$rc_file" ]; then
+            # Use . instead of source for better shell compatibility
+            . "$rc_file" 2>/dev/null || true
+            printmsg "Sourced ${Blu}$rc_file${RCol}"
+        fi
+    done
+
+    # Add to current session
     export PATH="$PATH:$BINDIR"
-    printsucc "Added ${Blu}$BINDIR${RCol} to PATH variable in ${Blu}$RC_FILE${RCol} and added to current session."
+    printsucc "Added ${Blu}$BINDIR${RCol} to current session PATH"
 }
 
 
@@ -379,7 +406,10 @@ function print_section() {
 function print_next_steps() {
     echo "    Daemon Status: ${Yel}Not started yet${RCol}"
     print_section "${EMOJI_NEXT_STEPS} Next Steps"
-    echo "${Gry}- Copy the following code to start the Tracer daemon${RCol}"
+    echo "${Gry}- To use tracer in your current terminal session, run:${RCol}"
+    echo "  ${Cya}source ~/.zshrc${RCol}          ${Gry}# or start a new terminal session${RCol}"
+    echo ""
+    echo "${Gry}- Then initialize Tracer:${RCol}"
     echo "  ${Cya}tracer init${RCol}              ${Gry}# this yields the improved user CLI task and guides the user through important params.${RCol}"
     echo ""
 
@@ -391,7 +421,6 @@ function print_next_steps() {
     echo "  Visualize pipeline data at: ${Cya}https://sandbox.tracer.cloud${RCol}"
     echo "  ${Yel}Need help?${RCol} Visit ${Cya}https://github.com/Tracer-Cloud/tracer${RCol} or email ${Cya}support@tracer.cloud${RCol}"
     echo ""
-
 }
 
 function print_demarkated_block() {
