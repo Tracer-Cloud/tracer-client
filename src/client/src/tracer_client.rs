@@ -279,10 +279,3 @@ impl TracerClient {
         Ok(())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use std::path::Path;
-    use tempfile::tempdir;
-    use tracer_common::types::pipeline_tags::PipelineTags;
-}
