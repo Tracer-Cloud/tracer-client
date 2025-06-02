@@ -1,3 +1,4 @@
+use crate::types::trigger;
 // CEvent must be kept in-sync with bootstrap.h types
 pub const TASK_COMM_LEN: usize = 16;
 pub const MAX_ARR_LEN: usize = 16;
@@ -51,10 +52,10 @@ pub fn from_bpf_str(s: &[u8]) -> anyhow::Result<&str> {
 }
 
 // Implement TryInto for CEvent to convert directly to Trigger
-impl TryInto<tracer_common::types::ebpf_trigger::Trigger> for &CEvent {
+impl TryInto<trigger::Trigger> for &CEvent {
     type Error = anyhow::Error;
 
-    fn try_into(self) -> Result<tracer_common::types::ebpf_trigger::Trigger, Self::Error> {
+    fn try_into(self) -> Result<trigger::Trigger, Self::Error> {
         match self.event_type {
             EVENT__SCHED__SCHED_PROCESS_EXEC => {
                 // Access the exec payload by casting
@@ -73,8 +74,8 @@ impl TryInto<tracer_common::types::ebpf_trigger::Trigger> for &CEvent {
                     args.push(from_bpf_str(&payload.argv[i])?.to_string());
                 }
 
-                Ok(tracer_common::types::ebpf_trigger::Trigger::ProcessStart(
-                    tracer_common::types::ebpf_trigger::ProcessStartTrigger {
+                Ok(trigger::Trigger::ProcessStart(
+                    trigger::ProcessStartTrigger {
                         pid: self.pid as usize,
                         ppid: self.ppid as usize,
                         file_name: args.first().cloned().unwrap_or_default(),
@@ -90,8 +91,8 @@ impl TryInto<tracer_common::types::ebpf_trigger::Trigger> for &CEvent {
             }
             EVENT__SCHED__SCHED_PROCESS_EXIT => {
                 // Exit event is simpler - no payload fields needed
-                Ok(tracer_common::types::ebpf_trigger::Trigger::ProcessEnd(
-                    tracer_common::types::ebpf_trigger::ProcessEndTrigger {
+                Ok(trigger::Trigger::ProcessEnd(
+                    trigger::ProcessEndTrigger {
                         pid: self.pid as usize,
                         finished_at: chrono::DateTime::from_timestamp(
                             (self.timestamp_ns / 1_000_000_000) as i64,
@@ -106,8 +107,8 @@ impl TryInto<tracer_common::types::ebpf_trigger::Trigger> for &CEvent {
                 // Access the common process name (`comm`) by casting payload
                 let comm = from_bpf_str(&self.payload[..TASK_COMM_LEN])?;
 
-                Ok(tracer_common::types::ebpf_trigger::Trigger::OutOfMemory(
-                    tracer_common::types::ebpf_trigger::OutOfMemoryTrigger {
+                Ok(trigger::Trigger::OutOfMemory(
+                    trigger::OutOfMemoryTrigger {
                         pid: self.pid as usize,
                         upid: self.upid,
                         comm: comm.to_string(),

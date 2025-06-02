@@ -2,5 +2,9 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/vendor/bpftool" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/vendor/bpftool/libbpf" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/vendor/libbpf" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/vendor/vmlinux.h" vcs="Git" />
   </component>
 </project>
