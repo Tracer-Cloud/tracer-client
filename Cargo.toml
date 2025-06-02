@@ -74,7 +74,7 @@ aws-config = { version = "1.6.3", features = ["behavior-version-latest"] }
 aws-sdk-s3 = "1.69.0"
 aws-sdk-pricing = "1.71.0"
 aws-credential-types = "1.2.2"
-aws-sdk-secretsmanager = "1.72.0"
+aws-sdk-secretsmanager = "1.75.0"
 
 tracing-log = "0.2.0"
 tracing-loki = { version = "0.2.5", default-features = false, features = ["rustls", "compat-0-2-1"] }
