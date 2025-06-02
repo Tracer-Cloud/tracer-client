@@ -138,9 +138,9 @@ impl TracerClient {
         #[cfg(target_os = "linux")] {
             self.ebpf_watcher.start_ebpf().await
         }
-        
+         
         #[cfg(any(target_os = "windows", target_os = "macos"))] {
-            Ok(())
+            self.ebpf_watcher.start_process_polling(self.config.process_polling_interval_ms).await
         }
     }
 
