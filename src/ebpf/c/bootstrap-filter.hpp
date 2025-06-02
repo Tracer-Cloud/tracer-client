@@ -4,13 +4,10 @@
 #include <vector>
 #include <regex>
 #include <iostream>
-#include <dirent.h>
 #include <fstream>
 #include <algorithm>
-#include <ctime>
 #include <unistd.h>
 #include <unordered_set>
-#include <sstream>
 
 #include <bpf/libbpf.h>
 #include "bootstrap.gen.h"

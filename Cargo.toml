@@ -8,7 +8,8 @@ members = [
     "src/extracts",
     "src/common",
     "integration_tests",
-    "src/ebpf"
+    "src/ebpf",
+    "src/ebpf/typegen",
 ]
 default-members = [
     "src/cli",
@@ -18,7 +19,8 @@ default-members = [
     "src/extracts",
     "src/common",
     "integration_tests",
-    "src/ebpf"
+    "src/ebpf",
+    "src/ebpf/typegen",
 ]
 
 [workspace.package]
@@ -36,31 +38,45 @@ tracer_common = { path = "src/common" }
 tracer_extracts = { path = "src/extracts" }
 tracer_daemon = { path = "src/daemon" }
 tracer_cli = { path = "src/cli" }
-
+tracer_ebpf = { path = "src/ebpf" }
 
 anyhow = "1.0.98"
+bytes = "1.5.0"
 chrono = { version = "0.4.38", features = ["serde"] }
 clap = { version = "4.5.37", features = ["derive"] }
 daemonize = "0.5"
+env_logger = "0.11.5"
 homedir = "0.2.1"
 lazy_static = "1.5.0"
 log = "0.4.21"
 octocrab = "0.44.0"
 predicates = "3.1.2"
-reqwest = { version = "0.12.13", default-features = false, features = ["json", "rustls-tls"] }
+reqwest = { version = "0.12.13", default-features = false, features = [
+    "json",
+    "rustls-tls",
+] }
 serde = { version = "1.0", features = ["std", "derive", "serde_derive"] }
 serde_json = "1.0.117"
 sysinfo = "0.30"
 tokio = { version = "1.45.0", features = ["full"] }
+tokio-stream = "0.1.17"
 tokio-util = "0.7.15"
 toml = "0.8.22"
 tracing = { version = "0.1.40" }
 tracing-appender = "0.2"
-sqlx = { version = "0.8.3", features = ["runtime-tokio-rustls", "postgres", "chrono"] }
+sqlx = { version = "0.8.3", features = [
+    "runtime-tokio-rustls",
+    "postgres",
+    "chrono",
+] }
 
 ec2_instance_metadata = "0.3.0"
 rand = "0.9.1"
-uuid = { version = "1.16.0", features = ["v4", "fast-rng", "macro-diagnostics"] }
+uuid = { version = "1.16.0", features = [
+    "v4",
+    "fast-rng",
+    "macro-diagnostics",
+] }
 once_cell = "1.21.3"
 
 aws-config = { version = "1.6.3", features = ["behavior-version-latest"] }
@@ -69,7 +85,12 @@ aws-sdk-pricing = "1.71.0"
 aws-credential-types = "1.2.2"
 aws-sdk-secretsmanager = "1.72.0"
 
-tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json", "time", "local-time"] }
+tracing-subscriber = { version = "0.3.18", features = [
+    "env-filter",
+    "json",
+    "time",
+    "local-time",
+] }
 dirs = "6.0.0"
 serde-query = "0.2.0"
 itertools = "0.14.0"
@@ -77,7 +98,10 @@ percent-encoding = "2.3.1"
 colored = "3.0.0"
 axum = "0.8.3"
 tempfile = "3.20.0"
-config = { version = "0.15.11", default-features = false, features = ["toml", "convert-case"] }
+config = { version = "0.15.11", default-features = false, features = [
+    "toml",
+    "convert-case",
+] }
 serial_test = "3.1.1"
 dotenv = "0.15"
 bollard = "0.19.0"

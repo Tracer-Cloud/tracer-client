@@ -10,7 +10,7 @@ use tracer_common::target_process::Target;
 use tracer_common::types::ebpf_trigger::{
     OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger, Trigger,
 };
-use tracer_ebpf::binding::start_processing_events;
+use ebpf::binding::start_processing_events;
 use tracing::{debug, error};
 
 /// Watches system processes and records events related to them

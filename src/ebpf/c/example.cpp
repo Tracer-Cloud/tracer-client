@@ -14,8 +14,8 @@ extern "C"
 // ----------------------------------------------
 // Constants & Globals
 // ----------------------------------------------
-constexpr size_t HEADER_BUFFER_SIZE = 512;         // 512 bytes for header
-constexpr size_t PAYLOAD_BUFFER_SIZE = 256 * 1024; // 256KB for payload
+constexpr size_t HEADER_BUFFER_SIZE = 512;        // 512 bytes for header
+constexpr size_t PAYLOAD_BUFFER_SIZE = 64 * 1024; // 64KB for payload
 static volatile sig_atomic_t exiting = 0;
 
 // ----------------------------------------------

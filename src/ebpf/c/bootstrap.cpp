@@ -2,23 +2,12 @@
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <string.h>
-#include <sys/resource.h>
 #include <time.h>
 #include <unistd.h>
 #include <iostream>
 #include <cstring>
-#include <dirent.h>
-#include <fstream>
 #include <vector>
-#include <regex>
-#include <algorithm>
-#include <cassert>
 #include <random>
-#include <unordered_map>
-#include <unordered_set>
-#include <iomanip>
-#include <sched.h>
 
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
@@ -35,9 +24,7 @@
 #define unlikely(x) __builtin_expect(!!(x), 0)
 #endif
 
-// Define missing constants
-#define PAGE_SIZE 4096
-#define PAYLOAD_FLUSH_MAX_PAGES 256 // Increased from 128 to handle full 1MB per-CPU buffer (16K * 64 bytes = 1MB)
+#define FLUSH_MAX_BYTES (64 * 1024) // 64KB
 
 /* -------------------------------------------------------------------------- */
 /*                                 Helpers                                    */
@@ -85,7 +72,7 @@ struct lib_ctx
   int payload_buffer_fd;      // Shared array map fd (with manual CPU isolation)
 
   // Reusable payload buffer for direct processing
-  u8 current_payload_flush[PAYLOAD_FLUSH_MAX_PAGES * PAGE_SIZE];
+  u8 current_payload_flush[FLUSH_MAX_BYTES];
 };
 
 /* Find when the host system booted */

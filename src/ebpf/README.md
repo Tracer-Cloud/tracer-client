@@ -1,5 +1,7 @@
 # ebpf
 
+NOTE: this README is badly outdated.
+
 > A minimal BPF implementation based on [`libbpf/libbpf-bootstrap`](https://github.com/libbpf/libbpf-bootstrap) (examples/c/bootstrap).
 
 ## Features

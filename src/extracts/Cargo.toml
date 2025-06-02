@@ -12,10 +12,10 @@ chrono = { workspace = true }
 sysinfo = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
-tracer_ebpf = { path = "../ebpf" }
+tracer_ebpf = { workspace = true }
 itertools = { workspace = true }
 
 once_cell = { workspace = true }
 tracer_common = { workspace = true }
-rstest = {workspace = true}
-mockall = {workspace = true}
+rstest = { workspace = true }
+mockall = { workspace = true }

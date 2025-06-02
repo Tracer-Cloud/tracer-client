@@ -27,11 +27,16 @@ fn main() {
 
     // Define paths
     let config_path = script_dir.join("events.toml");
-    let template_path = parent_dir.join("c/bootstrap.templ.h");
-    let output_path = parent_dir.join("c/bootstrap.gen.h");
+    let c_template_path = parent_dir.join("c/bootstrap.templ.h");
+    let c_output_path = parent_dir.join("c/bootstrap.gen.h");
+    let rust_template_path = parent_dir.join("rs/types.templ.rs");
+    let rust_output_path = parent_dir.join("rs/types.gen.rs");
 
     // Type mapping from TOML to C for scalar types
-    let type_map: BTreeMap<&str, &str> = [("u32", "u32"), ("u64", "u64")].into_iter().collect();
+    let c_type_map: BTreeMap<&str, &str> = [("u32", "u32"), ("u64", "u64")].into_iter().collect();
+
+    // Type mapping from TOML to Rust for scalar types
+    let rust_type_map: BTreeMap<&str, &str> = [("u32", "u32"), ("u64", "u64")].into_iter().collect();
 
     // Types that need buffer representation
     let buffer_types = ["char[]", "char[][]"];
@@ -41,15 +46,6 @@ fn main() {
         Ok(content) => content,
         Err(err) => {
             eprintln!("Error reading {}: {}", config_path.display(), err);
-            process::exit(1);
-        }
-    };
-
-    // Read template file
-    let template_content = match fs::read_to_string(&template_path) {
-        Ok(content) => content,
-        Err(err) => {
-            eprintln!("Error reading {}: {}", template_path.display(), err);
             process::exit(1);
         }
     };
@@ -77,39 +73,93 @@ fn main() {
     let mut sorted_events: Vec<_> = events.iter().collect();
     sorted_events.sort_by_key(|(_, info)| info.id);
 
+    // Generate C code
+    generate_c_code(&c_template_path, &c_output_path, &sorted_events, &c_type_map, &buffer_types);
+
+    // Generate Rust code
+    generate_rust_code(&rust_template_path, &rust_output_path, &sorted_events, &rust_type_map, &buffer_types);
+}
+
+fn generate_c_code(
+    template_path: &PathBuf,
+    output_path: &PathBuf,
+    sorted_events: &[(&String, &EventInfo)],
+    type_map: &BTreeMap<&str, &str>,
+    buffer_types: &[&str],
+) {
+    // Read template file
+    let template_content = match fs::read_to_string(template_path) {
+        Ok(content) => content,
+        Err(err) => {
+            eprintln!("Error reading {}: {}", template_path.display(), err);
+            process::exit(1);
+        }
+    };
+
     // Generate content for each template section
-    let file_description_content = generate_file_description();
-    let event_type_content = generate_event_type_enum(&sorted_events);
-    let payload_structs_content =
-        generate_payload_structs(&sorted_events, &type_map, &buffer_types);
-    let event_type_to_string_content = generate_event_type_to_string(&sorted_events);
+    let file_description_content = generate_c_file_description();
+    let event_type_content = generate_c_event_type_enum(sorted_events);
+    let payload_structs_content = generate_c_payload_structs(sorted_events, type_map, buffer_types);
+    let event_type_to_string_content = generate_c_event_type_to_string(sorted_events);
     let payload_to_dynamic_allocation_roots_content =
-        generate_payload_to_dynamic_allocation_roots(&sorted_events, &type_map, &buffer_types);
-    let payload_to_kv_array_content =
-        generate_payload_to_kv_array(&sorted_events, &type_map, &buffer_types);
-    let get_payload_size_content = generate_get_payload_size(&sorted_events);
+        generate_c_payload_to_dynamic_allocation_roots(sorted_events, type_map, buffer_types);
+    let payload_to_kv_array_content = generate_c_payload_to_kv_array(sorted_events);
+    let get_payload_size_content = generate_c_get_payload_size(sorted_events);
 
     // Replace template sections
     let mut result = template_content;
-
     result = replace_template_section(&result, "file_description", &file_description_content);
     result = replace_template_section(&result, "event_type", &event_type_content);
     result = replace_template_section(&result, "payload_structs", &payload_structs_content);
-    result = replace_template_section(
-        &result,
-        "event_type_to_string",
-        &event_type_to_string_content,
-    );
-    result = replace_template_section(
-        &result,
-        "payload_to_dynamic_allocation_roots",
-        &payload_to_dynamic_allocation_roots_content,
-    );
+    result = replace_template_section(&result, "event_type_to_string", &event_type_to_string_content);
+    result = replace_template_section(&result, "payload_to_dynamic_allocation_roots", &payload_to_dynamic_allocation_roots_content);
     result = replace_template_section(&result, "payload_to_kv_array", &payload_to_kv_array_content);
     result = replace_template_section(&result, "get_payload_size", &get_payload_size_content);
 
     // Write the result file
-    if let Err(err) = fs::write(&output_path, result) {
+    if let Err(err) = fs::write(output_path, result) {
+        eprintln!("Error writing {}: {}", output_path.display(), err);
+        process::exit(1);
+    }
+
+    println!("Generated {}", output_path.display());
+}
+
+fn generate_rust_code(
+    template_path: &PathBuf,
+    output_path: &PathBuf,
+    sorted_events: &[(&String, &EventInfo)],
+    type_map: &BTreeMap<&str, &str>,
+    buffer_types: &[&str],
+) {
+    // Read template file
+    let template_content = match fs::read_to_string(template_path) {
+        Ok(content) => content,
+        Err(err) => {
+            eprintln!("Error reading {}: {}", template_path.display(), err);
+            process::exit(1);
+        }
+    };
+
+    // Generate content for each template section
+    let file_description_content = generate_rust_file_description();
+    let event_type_content = generate_rust_event_type_enum(sorted_events);
+    let event_payload_content = generate_rust_event_payload_enum(sorted_events);
+    let payload_structs_content = generate_rust_payload_structs(sorted_events, type_map, buffer_types);
+    let event_type_from_u32_content = generate_rust_event_type_from_u32(sorted_events);
+    let event_type_to_string_content = generate_rust_event_type_to_string(sorted_events);
+
+    // Replace template sections
+    let mut result = template_content;
+    result = replace_template_section(&result, "file_description", &file_description_content);
+    result = replace_template_section(&result, "event_type", &event_type_content);
+    result = replace_template_section(&result, "event_payload", &event_payload_content);
+    result = replace_template_section(&result, "payload_structs", &payload_structs_content);
+    result = replace_template_section(&result, "event_type_from_u32", &event_type_from_u32_content);
+    result = replace_template_section(&result, "event_type_to_string", &event_type_to_string_content);
+
+    // Write the result file
+    if let Err(err) = fs::write(output_path, result) {
         eprintln!("Error writing {}: {}", output_path.display(), err);
         process::exit(1);
     }
@@ -133,7 +183,8 @@ fn replace_template_section(content: &str, section_name: &str, replacement: &str
     content.to_string()
 }
 
-fn generate_file_description() -> String {
+// C generation functions (existing ones)
+fn generate_c_file_description() -> String {
     let lines = vec![
         "/* ========================================================================== */",
         "/*                           GENERATED FILE                                   */",
@@ -154,7 +205,7 @@ fn generate_file_description() -> String {
     lines.join("\n")
 }
 
-fn generate_event_type_enum(sorted_events: &[(&String, &EventInfo)]) -> String {
+fn generate_c_event_type_enum(sorted_events: &[(&String, &EventInfo)]) -> String {
     let header = vec!["enum event_type", "{"].join("\n");
 
     let mut enum_parts = Vec::new();
@@ -174,7 +225,7 @@ fn generate_event_type_enum(sorted_events: &[(&String, &EventInfo)]) -> String {
     format!("{}\n{}\n{}", header, enum_parts.join("\n"), footer)
 }
 
-fn generate_payload_structs(
+fn generate_c_payload_structs(
     sorted_events: &[(&String, &EventInfo)],
     type_map: &BTreeMap<&str, &str>,
     buffer_types: &[&str],
@@ -219,7 +270,7 @@ fn generate_payload_structs(
     lines.join("\n")
 }
 
-fn generate_event_type_to_string(sorted_events: &[(&String, &EventInfo)]) -> String {
+fn generate_c_event_type_to_string(sorted_events: &[(&String, &EventInfo)]) -> String {
     let header = vec![
         "static inline const char* event_type_to_string(enum event_type t)",
         "{",
@@ -246,7 +297,7 @@ fn generate_event_type_to_string(sorted_events: &[(&String, &EventInfo)]) -> Str
     format!("{}\n{}\n{}", header, case_parts.join("\n"), footer)
 }
 
-fn generate_payload_to_dynamic_allocation_roots(
+fn generate_c_payload_to_dynamic_allocation_roots(
     sorted_events: &[(&String, &EventInfo)],
     _type_map: &BTreeMap<&str, &str>,
     buffer_types: &[&str],
@@ -321,10 +372,8 @@ payload_to_dynamic_allocation_roots(enum event_type t,
     format!("{header}\n{}\n{footer}", case_parts.join("\n"))
 }
 
-fn generate_payload_to_kv_array(
+fn generate_c_payload_to_kv_array(
     sorted_events: &[(&String, &EventInfo)],
-    type_map: &BTreeMap<&str, &str>,
-    buffer_types: &[&str],
 ) -> String {
     let header = vec![
         "static inline struct kv_array payload_to_kv_array(enum event_type t, void *ptr)",
@@ -388,7 +437,7 @@ fn generate_payload_to_kv_array(
     format!("{}\n{}\n{}", header, case_parts.join("\n"), footer)
 }
 
-fn generate_get_payload_size(sorted_events: &[(&String, &EventInfo)]) -> String {
+fn generate_c_get_payload_size(sorted_events: &[(&String, &EventInfo)]) -> String {
     let header = vec![
         "static inline size_t get_payload_fixed_size(enum event_type t)",
         "{",
@@ -416,4 +465,191 @@ fn generate_get_payload_size(sorted_events: &[(&String, &EventInfo)]) -> String 
     let footer = vec!["  default:", "    return 0;", "  }", "}"].join("\n");
 
     format!("{}\n{}\n{}", header, case_parts.join("\n"), footer)
+}
+
+// Rust generation functions (new)
+fn generate_rust_file_description() -> String {
+    let lines = vec![
+        "/* ========================================================================== */",
+        "/*                           GENERATED FILE                                   */",
+        "/* ========================================================================== */",
+        "/*                                                                            */",
+        "/*  This file is automatically generated from types.templ.rs                 */",
+        "/*  DO NOT EDIT MANUALLY - changes will be overwritten                        */",
+        "/*                                                                            */",
+        "/*  Generator: ebpf/typegen/typegen.rs                                        */",
+        "/*  Template:  ebpf/rs/types.templ.rs                                         */",
+        "/*  Config:    ebpf/typegen/events.toml                                       */",
+        "/*                                                                            */",
+        "/*  To regenerate: `cd tracer-client/src/ebpf/c && make` (fast)               */",
+        "/*  Alternative:   `cd tracer-client && cargo build` (slower)                 */",
+        "/*                                                                            */",
+        "/* ========================================================================== */",
+    ];
+    lines.join("\n")
+}
+
+fn generate_rust_event_type_enum(sorted_events: &[(&String, &EventInfo)]) -> String {
+    let header = vec![
+        "#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]",
+        "#[repr(u32)]",
+        "pub enum EventType {",
+    ]
+    .join("\n");
+
+    let mut enum_parts = Vec::new();
+    for (category_tp, info) in sorted_events {
+        let parts: Vec<&str> = category_tp.split('.').collect();
+        if parts.len() != 2 {
+            eprintln!("Invalid category.tracepoint format: {}", category_tp);
+            process::exit(1);
+        }
+        let (category, tracepoint) = (parts[0], parts[1]);
+        
+        // Convert to PascalCase
+        let enum_name = to_pascal_case(&format!("{}_{}", category, tracepoint));
+        enum_parts.push(format!("    {} = {},", enum_name, info.id));
+    }
+
+    let footer = "}";
+
+    format!("{}\n{}\n{}", header, enum_parts.join("\n"), footer)
+}
+
+fn generate_rust_event_payload_enum(sorted_events: &[(&String, &EventInfo)]) -> String {
+    let header = vec![
+        "#[derive(Debug, Clone, Serialize, Deserialize)]",
+        "pub enum EventPayload {",
+        "    Empty,",
+    ]
+    .join("\n");
+
+    let mut enum_parts = Vec::new();
+    for (category_tp, info) in sorted_events {
+        if !info.payload.is_empty() {
+            let parts: Vec<&str> = category_tp.split('.').collect();
+            let (category, tracepoint) = (parts[0], parts[1]);
+            
+            // Convert to PascalCase
+            let variant_name = to_pascal_case(&format!("{}_{}", category, tracepoint));
+            let struct_name = format!("{}Payload", variant_name);
+            enum_parts.push(format!("    {}({}),", variant_name, struct_name));
+        }
+    }
+
+    let footer = "}";
+
+    format!("{}\n{}\n{}", header, enum_parts.join("\n"), footer)
+}
+
+fn generate_rust_payload_structs(
+    sorted_events: &[(&String, &EventInfo)],
+    type_map: &BTreeMap<&str, &str>,
+    buffer_types: &[&str],
+) -> String {
+    let mut lines = Vec::new();
+
+    for (category_tp, info) in sorted_events {
+        if info.payload.is_empty() {
+            continue;
+        }
+
+        let parts: Vec<&str> = category_tp.split('.').collect();
+        let (category, tracepoint) = (parts[0], parts[1]);
+
+        if !info.comment.is_empty() {
+            lines.push(format!("// {}", info.comment));
+        }
+
+        let variant_name = to_pascal_case(&format!("{}_{}", category, tracepoint));
+        let struct_name = format!("{}Payload", variant_name);
+        
+        lines.push("#[derive(Debug, Clone, Serialize, Deserialize)]".to_string());
+        lines.push(format!("pub struct {} {{", struct_name));
+
+        for field in &info.payload {
+            let rust_type = if buffer_types.contains(&field.field_type.as_str()) {
+                match field.field_type.as_str() {
+                    "char[]" => "String",
+                    "char[][]" => "Vec<String>",
+                    _ => "String",
+                }
+            } else {
+                type_map.get(field.field_type.as_str()).unwrap_or(&"u64")
+            };
+            
+            lines.push(format!("    pub {}: {},", field.name, rust_type));
+        }
+
+        lines.push("}".to_string());
+        lines.push("".to_string());
+    }
+
+    lines.join("\n")
+}
+
+fn generate_rust_event_type_from_u32(sorted_events: &[(&String, &EventInfo)]) -> String {
+    let header = vec![
+        "impl From<u32> for EventType {",
+        "    fn from(value: u32) -> Self {",
+        "        match value {",
+    ]
+    .join("\n");
+
+    let mut case_parts = Vec::new();
+    for (category_tp, info) in sorted_events {
+        let parts: Vec<&str> = category_tp.split('.').collect();
+        let (category, tracepoint) = (parts[0], parts[1]);
+        
+        let enum_name = to_pascal_case(&format!("{}_{}", category, tracepoint));
+        case_parts.push(format!("            {} => EventType::{},", info.id, enum_name));
+    }
+
+    let footer = vec![
+        "            _ => panic!(\"Unknown event type: {}\", value),",
+        "        }",
+        "    }",
+        "}",
+    ]
+    .join("\n");
+
+    format!("{}\n{}\n{}", header, case_parts.join("\n"), footer)
+}
+
+fn generate_rust_event_type_to_string(sorted_events: &[(&String, &EventInfo)]) -> String {
+    let header = vec![
+        "impl EventType {",
+        "    pub fn as_str(&self) -> &'static str {",
+        "        match self {",
+    ]
+    .join("\n");
+
+    let mut case_parts = Vec::new();
+    for (category_tp, _) in sorted_events {
+        let (category, tracepoint) = category_tp.split_once('.').unwrap();
+        
+        let enum_name = to_pascal_case(&format!("{}_{}", category, tracepoint));
+        case_parts.push(format!("            EventType::{} => \"{}/{}\",", enum_name, category, tracepoint));
+    }
+
+    let footer = vec![
+        "        }",
+        "    }",
+        "}",
+    ]
+    .join("\n");
+
+    format!("{}\n{}\n{}", header, case_parts.join("\n"), footer)
+}
+
+fn to_pascal_case(s: &str) -> String {
+    s.split('_')
+        .map(|part| {
+            let mut chars = part.chars();
+            match chars.next() {
+                None => String::new(),
+                Some(first) => first.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase(),
+            }
+        })
+        .collect()
 }

@@ -12,8 +12,8 @@ links = "bootstrap"
 path = "rs/lib.rs"
 
 [[bin]]
-name = "build-typegen"
-path = "build-typegen.rs"
+name = "example"
+path = "rs/example.rs"
 
 [dependencies]
 anyhow = { workspace = true, default-features = true }
@@ -27,7 +27,9 @@ tracing = { workspace = true }
 tracer_common = { workspace = true }
 chrono.workspace = true
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 toml = { workspace = true }
+ctrlc = "3.4"
 
 [build-dependencies]
 anyhow = { workspace = true }
