@@ -3,7 +3,7 @@
 # Get environment from the first argument
 ENV=${1:-production}
 
-BINARY_NAME="tracer"
+BINARY_NAME="tracer_cli"
 
 # Set environment-specific variables based on the environment parameter
 if [[ "$ENV" == "development" ]]; then
@@ -12,8 +12,8 @@ if [[ "$ENV" == "development" ]]; then
     TRACER_LINUX_URL_X86_64="https://tracer-releases.s3.us-east-1.amazonaws.com/tracer-x86_64-unknown-linux-gnu.tar.gz"
     TRACER_LINUX_URL_ARM="https://tracer-releases.s3.us-east-1.amazonaws.com/tracer-aarch64-unknown-linux-gnu.tar.gz"
     TRACER_AMAZON_LINUX_URL_X86_64="https://tracer-releases.s3.us-east-1.amazonaws.com/tracer-x86_64-amazon-linux-gnu.tar.gz"
-    TRACER_MACOS_AARCH_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-aarch64-apple-darwin.tar.gz"
-    TRACER_MACOS_X86_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-x86_64-apple-darwin.tar.gz"
+    TRACER_MACOS_AARCH_URL="https://tracer-releases.s3.us-east-1.amazonaws.com/tracer-aarch64-apple-darwin.tar.gz"
+    TRACER_MACOS_X86_URL="https://tracer-releases.s3.us-east-1.amazonaws.com/tracer-x86_64-apple-darwin.tar.gz"
 else
     # Production configuration // production binaries coming from Github 
     TRACER_VERSION="v2025.5.15+1"
@@ -257,7 +257,7 @@ function download_tracer() {
 
     # Validate and extract package
     if ! gzip -t "${DLTARGET}/${PACKAGE_NAME}" >/dev/null 2>&1; then
-        echo "- ${EMOJI_CANCEL} Invalid package format."
+        echo "- ${EMOJI_CANCEL} Invalid package format: "${DLTARGET}/${PACKAGE_NAME}""
         exit 1
     fi
 
