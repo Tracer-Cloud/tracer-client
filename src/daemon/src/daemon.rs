@@ -61,7 +61,7 @@ mod tests {
     use std::path::Path;
     use tracer_client::config_manager::{Config, ConfigLoader};
     use tracer_client::exporters::log_forward::LogForward;
-    use tracer_client::exporters::log_writer::{LogWriterEnum};
+    use tracer_client::exporters::log_writer::LogWriterEnum;
     use tracer_client::TracerClient;
     use tracer_common::types::cli::interactive::InteractiveInitArgs;
     use tracer_common::types::cli::params::TracerCliInitArgs;
