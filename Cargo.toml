@@ -80,8 +80,11 @@ serial_test = "3.1.1"
 dotenv = "0.15"
 bollard = "0.19.0"
 assert_cmd = "2.0"
-sentry = { version = "0.37.0", features = ["anyhow"] }
-
+which = { version = "6.0.0", default-features = false }
+bytes = "1.10.1"
+libc = { version = "0.2.172", default-features = false }
+sentry = { version = "0.38.1", default-features = false, features = ["anyhow", "backtrace", "reqwest", "rustls", "panic"] }
+rstest = "0.25.0"
 typed-builder = "0.21.0"
 futures-util = "0.3"
 dialoguer = "0.11.0"

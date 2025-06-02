@@ -121,7 +121,7 @@ jobs:
         run: |
           yum update -y
           yum groupinstall -y "Development Tools"
-          sudo yum  install -y kernel-devel kernel-headers clang llvm libbpf-devel
+          yum  install -y kernel-devel kernel-headers clang llvm libbpf-devel
 
 
       - name: Install Rust

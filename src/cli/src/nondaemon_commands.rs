@@ -184,44 +184,53 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
         Ok(info) => info,
         Err(e) => {
             tracing::error!("Error getting info response: {e}");
-            const NEXT: Emoji<'_, '_> = Emoji("⏭️", "->");
-            const CHECK: Emoji<'_, '_> = Emoji("✅", " ");
-
-            writeln!(&mut output, "Daemon status: {}\n", "Stopped".red())?;
-
-            //
+            const CHECK: Emoji<'_, '_> = Emoji("✅ ", "[OK] ");
+            const HELP: &str = "[HELP]";
 
             writeln!(
                 &mut output,
                 "\n{} {}",
                 CHECK,
-                "Tracer agent installed successfully:".bold()
+                "Tracer CLI installed.".bold()
+            )?;
+            writeln!(
+                &mut output,
+                "   Daemon status: {}",
+                "Not started yet".yellow()
             )?;
 
             writeln!(
                 &mut output,
-                "\n{} {}",
-                NEXT,
-                "Initialize the Tracer agent by running:".bold()
+                "\n   ╭────────────────────────────────────────────────────────────"
             )?;
-            writeln!(
-            &mut output,
-            "\n{}\n",
-            "tracer init --pipeline-name demo_username --environment demo --pipeline-type rnaseq --user-operator user_email --is-dev false"
-                .cyan()
-                .bold()
-        )?;
 
-            let raw_url = "https://sandbox.tracer.app";
-            let clickable_url = format!("\u{1b}]8;;{0}\u{1b}\\{0}\u{1b}]8;;\u{1b}\\", raw_url);
-            let colored_url = clickable_url.cyan().underline().to_string();
+            writeln!(&mut output, "   {:^60}", "=== Next Steps ===".bold())?;
+            writeln!(&mut output)?;
 
             writeln!(
                 &mut output,
-                "{} {} (see email or visit: {})",
-                NEXT,
-                "View results in Grafana".bold(),
-                colored_url
+                "   {:<24}{}",
+                "tracer init".cyan().bold(),
+                "# interactive setup".dimmed()
+            )?;
+
+            writeln!(
+                &mut output,
+                "\n   Visualize pipeline data at: {}",
+                "https://sandbox.tracer.app".cyan().underline()
+            )?;
+
+            writeln!(
+                &mut output,
+                "   {} Visit {} or email {}",
+                HELP.yellow(),
+                "https://github.com/Tracer-Cloud/tracer".cyan().underline(),
+                "support@tracer.cloud".cyan()
+            )?;
+
+            writeln!(
+                &mut output,
+                "\n   ╰────────────────────────────────────────────────────────────"
             )?;
 
             println!("{}", output);
@@ -230,7 +239,7 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
     };
 
     // Fixed width for the left column and separator
-    let total_header_width = 80; // Reasonable width for the header
+    let total_header_width = 80;
 
     writeln!(
         &mut output,
@@ -267,6 +276,7 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
             inner.formatted_runtime()
         )?;
     }
+
     writeln!(
         &mut output,
         "│ Recognized Processes:     │ {}:{}  ",
@@ -280,7 +290,6 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
         env!("CARGO_PKG_VERSION")
     )?;
 
-    // Special case for Grafana URL - create clickable link with color
     let clickable_url = format!(
         "\u{1b}]8;;{0}\u{1b}\\{0}\u{1b}]8;;\u{1b}\\",
         config.grafana_workspace_url
@@ -298,6 +307,7 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
     } else {
         config.config_sources.clone()
     };
+
     if let Some((first, rest)) = config_sources.split_first() {
         writeln!(&mut output, "│ Config Sources:           │ {}  ", first)?;
         for source in rest {
@@ -332,10 +342,8 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
     writeln!(&mut output, "└{:─^width$}┘", "", width = total_header_width)?;
 
     println!("{}", output);
-
     Ok(())
 }
-
 pub async fn setup_config(
     api_key: &Option<String>,
     process_polling_interval_ms: &Option<u64>,
