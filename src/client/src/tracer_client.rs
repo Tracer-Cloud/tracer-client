@@ -131,8 +131,17 @@ impl TracerClient {
         Ok(())
     }
 
+    /// This method start monitoring with ebpf it we are on linux
+    /// Otherwise will use the simple process polling
     pub async fn start_monitoring(&self) -> Result<()> {
-        self.ebpf_watcher.start_ebpf().await
+        
+        #[cfg(target_os = "linux")] {
+            self.ebpf_watcher.start_ebpf().await
+        }
+        
+        #[cfg(any(target_os = "windows", target_os = "macos"))] {
+            Ok(())
+        }
     }
 
     pub async fn poll_metrics_data(&self) -> Result<()> {
