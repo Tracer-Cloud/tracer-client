@@ -1,10 +1,16 @@
-use crate::types::CEvent;
 use anyhow::Result;
-use std::ffi::c_void;
-use std::sync::{mpsc as std_mpsc, Arc};
-use std::time::Duration;
 use tokio::sync::mpsc::UnboundedSender;
 use tracer_common::types::ebpf_trigger::Trigger;
+
+// Linux-specific imports
+#[cfg(target_os = "linux")]
+use crate::types::CEvent;
+#[cfg(target_os = "linux")]
+use std::ffi::c_void;
+#[cfg(target_os = "linux")]
+use std::sync::{mpsc as std_mpsc, Arc};
+#[cfg(target_os = "linux")]
+use std::time::Duration;
 
 // Define the FFI interface to the C function - only on Linux
 #[cfg(target_os = "linux")]

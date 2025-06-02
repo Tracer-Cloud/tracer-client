@@ -35,6 +35,7 @@ impl ProcessState {
         &self.processes
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn set_processes(&mut self, processes: HashMap<usize, ProcessStartTrigger>) {
         self.processes = processes;
     }
