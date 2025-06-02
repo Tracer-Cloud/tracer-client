@@ -1,22 +1,9 @@
 #!/bin/bash
 
-# TODOS:
-# - [x] check pre-requisite binaries are there
-# - [ ] check versions of dynamic libraries
-# - [x] check internet/server is accessible
-#       curl does this implicitly
-# - [x] move config to a .config or .tracerbio directory instead of /etc
-# - [x] add a function to check if the API key is valid
-#       tracer binary does this implicitly
-# - [x] check which shell is running (bash/zsh/older) and configure accordingly
-#
-
-# Define the version of the tracer you want to download
 #---  PARAMETERS  --------------------------------------------------------------
 #   DESCRIPTION:  Parameters used in the rest of this script
 #-------------------------------------------------------------------------------
 # https://github.com/Tracer-Cloud/tracer-client/releases/download/v0.0.8/tracer-universal-apple-darwin.tar.gz
-SCRIPT_VERSION="v0.0.1"
 TRACER_VERSION="v2025.5.15+1"
 TRACER_LINUX_URL_X86_64="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer_cli-x86_64-unknown-linux-gnu.tar.gz"
 TRACER_LINUX_URL_ARM="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer_cli-aarch64-unknown-linux-gnu.tar.gz"
@@ -285,64 +272,6 @@ function install_tracer_binary() {
   download_tracer
 }
 
-#---  CONFIGURATION FUNCTIONS  -------------------------------------------------
-
-function configure_tracer() {
-    echo ""
-    print_section "Configuration"
-
-    
-    # Create config directory if needed (silent)
-    mkdir -p "$TRACER_HOME" || {
-        echo "- ${EMOJI_CANCEL} Failed to create config directory."
-        exit 1
-    }
-
-    # Create API key file if needed (silent)
-    if [ ! -f "$CONFIGFILE" ]; then
-        echo "$API_KEY" >"$CONFIGFILE" || {
-            echo "- ${EMOJI_CANCEL} Failed to create API key file."
-            exit 1
-        }
-    else
-        # Verify existing API key matches (silent unless error)
-        existing_api_key=$(cat "$CONFIGFILE")
-        if [ "$existing_api_key" != "$API_KEY" ]; then
-            echo "- ${EMOJI_CANCEL} API key does not match existing key."
-            printindmsg "Run ${Red}rm $CONFIGFILE${RCol} to reset or use correct key."
-            exit 1
-        fi
-    fi
-
-    # Create tracer.toml file (silent)
-    mkdir -p ~/.config/tracer && \
-    cat > ~/.config/tracer/tracer.toml <<-'EOL'
-polling_interval_ms = 1500
-api_key = "$API_KEY"
-service_url = "https://app.tracer.bio/api"
-process_polling_interval_ms = 25
-batch_submission_interval_ms = 5000
-new_run_pause_ms = 600000
-file_size_not_changing_period_ms = 60000
-process_metrics_send_interval_ms = 10000
-aws_region = "us-east-2"
-aws_role_arn = "arn:aws:iam::395261708130:role/TestTracerClientServiceRole"
-database_secrets_arn = "arn:aws:secretsmanager:us-east-1:395261708130:secret:rds!cluster-cd690a09-953c-42e9-9d9f-1ed0b434d226-M0wZYA"
-database_host = "tracer-cluster-production.cluster-cdgizpzxtdp6.us-east-1.rds.amazonaws.com:5432"
-database_name = "tracer_db"
-endpoint = "https://sandbox.tracer.cloud/api/logs"
-grafana_workspace_url = "https://g-3f84880db9.grafana-workspace.us-east-1.amazonaws.com"
-sentry_dsn = "https://35e0843e6748d2c93dfd56716f2eecfe@o4509281671380992.ingest.us.sentry.io/4509281680949248"
-EOL
-    [ $? -ne 0 ] && {
-        echo "- ${EMOJI_CANCEL} Failed to create tracer.toml config."
-        exit 1
-    }
-
- echo "- ${EMOJI_CHECK} Configuration Successful"
-}
-
-
 #-------------------------------------------------------------------------------
 #          NAME:  update_rc
 #   DESCRIPTION:  Ensures paths are configured for active shell
@@ -415,7 +344,7 @@ function print_header() {
   printnolog "⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀│ "
   printnolog "⠀⢷⣦⣦⣄⣄⣔⣿⣿⣆⣄⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀│ Tracer.bio CLI Installer"
   printnolog "⠀⠀⠻⣿⣿⣿⣿⣿⣿⣿⣿⠛⣿⣷⣦⡄⡀⠀⠀⠀⠀⠀⠀⠀⠀│ "
-  printnolog "⠀⠀⠀⠈⠻⣻⣿⣿⣿⣿⣿⣷⣷⣿⣿⣿⣷⣧⡄⡀⠀⠀⠀⠀⠀│ Script version: ${Blu}${SCRIPT_VERSION}${RCol}"
+  printnolog "⠀⠀⠀⠈⠻⣻⣿⣿⣿⣿⣿⣷⣷⣿⣿⣿⣷⣧⡄⡀⠀⠀⠀⠀⠀│ "
   printnolog "⠀⠀⠀⠀⠀⠀⠘⠉⠃⠑⠁⠃⠋⠋⠛⠟⢿⢿⣿⣷⣦⡀⠀⠀⠀│ Tracer version: ${Blu}${TRACER_VERSION}${RCol}"
   printnolog "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠑⠙⠻⠿⣧⠄⠀│ "
   printnolog "⠀          ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠀⠀│ "
@@ -470,7 +399,6 @@ function main() {
   print_header
   check_system_requirements
   install_tracer_binary
-  configure_tracer
 }
 
 main "$@"
