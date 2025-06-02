@@ -51,8 +51,11 @@ impl EbpfWatcher {
             .get_or_try_init(|| Arc::clone(self).initialize_ebpf())?;
         Ok(())
     }
-    
-    pub async fn start_process_polling(self: &Arc<Self>, process_polling_interval_ms: u64) -> Result<()> {
+
+    pub async fn start_process_polling(
+        self: &Arc<Self>,
+        process_polling_interval_ms: u64,
+    ) -> Result<()> {
         println!("Starting process polling");
         let watcher = Arc::clone(self);
         let interval = std::time::Duration::from_millis(process_polling_interval_ms);
@@ -68,12 +71,21 @@ impl EbpfWatcher {
                 let mut current_processes = HashSet::new();
 
                 // Check for new processes (started)
-                println!("Starting to check for processes, system has {} processes", system.processes().len());
+                println!(
+                    "Starting to check for processes, system has {} processes",
+                    system.processes().len()
+                );
                 println!("known_processes size: {}", known_processes.len());
                 for (pid, process) in system.processes() {
                     let pid_u32 = pid.as_u32();
                     current_processes.insert(pid_u32);
-                    println!("Process {}: {}, know_processes contains it: {} and size is: {}", pid_u32, process.name(), known_processes.contains(&pid_u32), known_processes.len());
+                    println!(
+                        "Process {}: {}, know_processes contains it: {} and size is: {}",
+                        pid_u32,
+                        process.name(),
+                        known_processes.contains(&pid_u32),
+                        known_processes.len()
+                    );
 
                     if !known_processes.contains(&pid_u32) {
                         println!("New process detected: {}, {}", pid_u32, process.name());
@@ -83,11 +95,18 @@ impl EbpfWatcher {
                             ppid: process.parent().map(|p| p.as_u32()).unwrap_or(0) as usize,
                             comm: process.name().to_string(),
                             argv: vec![],
-                            file_name: process.exe().and_then(|p| p.to_str()).unwrap_or("").to_string(),
+                            file_name: process
+                                .exe()
+                                .and_then(|p| p.to_str())
+                                .unwrap_or("")
+                                .to_string(),
                             started_at: Default::default(),
                         };
 
-                        if let Err(e) = watcher.process_triggers(vec![Trigger::ProcessStart(start_trigger)]).await {
+                        if let Err(e) = watcher
+                            .process_triggers(vec![Trigger::ProcessStart(start_trigger)])
+                            .await
+                        {
                             error!("Failed to process start trigger: {}", e);
                         }
                     }
@@ -103,7 +122,10 @@ impl EbpfWatcher {
                             exit_reason: None,
                         };
 
-                        if let Err(e) = watcher.process_triggers(vec![Trigger::ProcessEnd(end_trigger)]).await {
+                        if let Err(e) = watcher
+                            .process_triggers(vec![Trigger::ProcessEnd(end_trigger)])
+                            .await
+                        {
                             error!("Failed to process end trigger: {}", e);
                         }
                     }

@@ -661,10 +661,7 @@ mod tests {
         let log_recorder = create_mock_log_recorder();
 
         let process_manager = ProcessManager::new(target_manager, log_recorder);
-        let mut processes_from_state = process_manager
-            .get_state_mut()
-            .await
-            .get_processes();
+        let mut processes_from_state = process_manager.get_state_mut().await.get_processes();
         processes_from_state = &processes;
 
         // Test with the child process
