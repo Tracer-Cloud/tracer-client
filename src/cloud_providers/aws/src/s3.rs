@@ -342,7 +342,7 @@ pub mod tests {
         assert!(objects_after_delete.is_none());
 
         // Clean up
-        cleanup_test_buckets(&s3_client).await?;
+        // cleanup_test_buckets(&s3_client).await?;
 
         Ok(())
     }

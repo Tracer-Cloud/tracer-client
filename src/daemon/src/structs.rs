@@ -84,12 +84,6 @@ pub struct TagData {
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct LogData {}
 
-#[derive(serde::Serialize, serde::Deserialize)]
-pub struct UploadData {
-    pub file_path: String,
-    pub socket_path: Option<String>,
-}
-
 #[derive(Serialize, Deserialize)]
 pub struct Message {
     pub payload: String,

@@ -2,14 +2,12 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 use tokio_util::sync::CancellationToken;
 
-use crate::structs::{InfoResponse, InnerInfoResponse, Message, RunData, TagData, UploadData};
+use crate::structs::{InfoResponse, InnerInfoResponse, Message, RunData, TagData};
 use axum::response::IntoResponse;
 use axum::routing::{post, put};
 use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
 use tracer_client::config_manager::{Config, ConfigLoader};
 use tracer_client::TracerClient;
-use tracer_common::debug_log::Logger;
-use tracer_common::http_client::upload::upload_from_file_path;
 
 #[derive(Clone)]
 struct AppState {
@@ -44,7 +42,6 @@ pub fn get_app(
             put(log_short_lived_process_command),
         )
         .route("/info", get(info))
-        .route("/upload", put(upload))
         .with_state(state)
 }
 
@@ -161,33 +158,11 @@ async fn info(State(state): State<AppState>) -> axum::response::Result<impl Into
 
     let response_inner = InnerInfoResponse::try_from(pipeline).ok();
 
-    let preview = guard.process_watcher.preview_targets(10).await;
-    let preview_len = guard.process_watcher.targets_len().await;
+    let preview = guard.ebpf_watcher.get_n_monitored_processes(10).await;
+    let number_of_monitored_processes =
+        guard.ebpf_watcher.get_number_of_monitored_processes().await;
 
-    let output = InfoResponse::new(preview, preview_len, response_inner);
+    let output = InfoResponse::new(preview, number_of_monitored_processes, response_inner);
 
     Ok(Json(output))
-}
-
-async fn upload(
-    State(state): State<AppState>,
-    Json(payload): Json<UploadData>,
-) -> axum::response::Result<impl IntoResponse> {
-    let guard = state.tracer_client.lock().await;
-
-    let logger = Logger::new();
-    logger.log("app//process_upload_command", None).await;
-
-    // todo: upload should happen as a part of `TracerClient`
-    upload_from_file_path(
-        guard.get_service_url(),
-        guard.get_api_key(),
-        payload.file_path.as_str(),
-        payload.socket_path.as_deref(),
-    )
-    .await
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    logger.log("process_upload_command completed", None).await;
-    Ok(StatusCode::ACCEPTED)
 }
