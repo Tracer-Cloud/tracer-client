@@ -3,7 +3,8 @@
 # Get environment from the first argument
 ENV=${1:-production}
 
-BINARY_NAME="tracer_cli"
+BINARY_NAME="tracer"
+
 
 # Set environment-specific variables based on the environment parameter
 if [[ "$ENV" == "development" ]]; then
