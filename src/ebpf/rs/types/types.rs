@@ -91,34 +91,30 @@ impl TryInto<trigger::Trigger> for &CEvent {
             }
             EVENT__SCHED__SCHED_PROCESS_EXIT => {
                 // Exit event is simpler - no payload fields needed
-                Ok(trigger::Trigger::ProcessEnd(
-                    trigger::ProcessEndTrigger {
-                        pid: self.pid as usize,
-                        finished_at: chrono::DateTime::from_timestamp(
-                            (self.timestamp_ns / 1_000_000_000) as i64,
-                            (self.timestamp_ns % 1_000_000_000) as u32,
-                        )
-                        .unwrap(),
-                        exit_reason: None,
-                    },
-                ))
+                Ok(trigger::Trigger::ProcessEnd(trigger::ProcessEndTrigger {
+                    pid: self.pid as usize,
+                    finished_at: chrono::DateTime::from_timestamp(
+                        (self.timestamp_ns / 1_000_000_000) as i64,
+                        (self.timestamp_ns % 1_000_000_000) as u32,
+                    )
+                    .unwrap(),
+                    exit_reason: None,
+                }))
             }
             EVENT__OOM__MARK_VICTIM => {
                 // Access the common process name (`comm`) by casting payload
                 let comm = from_bpf_str(&self.payload[..TASK_COMM_LEN])?;
 
-                Ok(trigger::Trigger::OutOfMemory(
-                    trigger::OutOfMemoryTrigger {
-                        pid: self.pid as usize,
-                        upid: self.upid,
-                        comm: comm.to_string(),
-                        timestamp: chrono::DateTime::from_timestamp(
-                            (self.timestamp_ns / 1_000_000_000) as i64,
-                            (self.timestamp_ns % 1_000_000_000) as u32,
-                        )
-                        .unwrap(),
-                    },
-                ))
+                Ok(trigger::Trigger::OutOfMemory(trigger::OutOfMemoryTrigger {
+                    pid: self.pid as usize,
+                    upid: self.upid,
+                    comm: comm.to_string(),
+                    timestamp: chrono::DateTime::from_timestamp(
+                        (self.timestamp_ns / 1_000_000_000) as i64,
+                        (self.timestamp_ns % 1_000_000_000) as u32,
+                    )
+                    .unwrap(),
+                }))
             }
             // We can add cases for other event types as needed
             _ => Err(anyhow::anyhow!("Unsupported event type")),

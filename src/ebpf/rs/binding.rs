@@ -1,10 +1,10 @@
+use crate::types::trigger::Trigger;
 use crate::types::types::CEvent;
 use anyhow::Result;
 use std::ffi::c_void;
 use std::sync::{mpsc as std_mpsc, Arc};
 use std::time::Duration;
 use tokio::sync::mpsc::UnboundedSender;
-use crate::types::trigger::Trigger;
 
 // Define the FFI interface to the C function - only on Linux
 #[cfg(target_os = "linux")]
