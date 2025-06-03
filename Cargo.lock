@@ -4737,6 +4737,7 @@ dependencies = [
  "console",
  "dialoguer",
  "lazy_static",
+ "regex",
  "serde",
  "serde_json",
  "tokio",
