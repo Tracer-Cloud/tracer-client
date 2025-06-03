@@ -164,6 +164,7 @@ jobs:
         uses: actions/checkout@v4.1.4
         with:
           submodules: recursive  # This will fetch all submodules recursively
+          fetch-depth: 0  # Fetch all history for versioning
 
       - name: Update version in Cargo.toml
         run: |
