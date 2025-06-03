@@ -20,7 +20,8 @@ use tracer_daemon::daemon::run;
 use tracer_daemon::structs::{Message, TagData};
 
 pub fn start_daemon() -> Outcome<()> {
-    let _ = std::fs::create_dir_all(WORKING_DIR);
+    let _ = std::fs::create_dir_all(WORKING_DIR)
+        .inspect_err(|err| println!("error creating directories: {err}"));
     println!("Starting daemon...");
 
     let daemon = Daemonize::new();
