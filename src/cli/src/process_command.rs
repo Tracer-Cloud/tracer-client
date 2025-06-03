@@ -78,6 +78,7 @@ pub fn process_cli() -> Result<()> {
                 {
                     // Serialize the finalized args to pass to the spawned process
                     let current_exe = std::env::current_exe()?;
+                    let is_dev_string = "false"; // for testing purposes //TODO remove
 
                     let child = Command::new(current_exe)
                         .arg("init")
@@ -90,6 +91,8 @@ pub fn process_cli() -> Result<()> {
                         .arg(args.tags.pipeline_type.as_deref().unwrap_or(""))
                         .arg("--user-operator")
                         .arg(args.tags.user_operator.as_deref().unwrap_or(""))
+                        .arg("--is-dev")
+                        .arg(is_dev_string)
                         .stdin(Stdio::null())
                         .stdout(Stdio::from(File::create(STDOUT_FILE)?))
                         .stderr(Stdio::from(File::create(STDERR_FILE)?))
