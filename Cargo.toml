@@ -20,7 +20,6 @@ default-members = [
 ]
 
 [workspace.package]
-name = "tracer"
 version = "2025.5.15+1"
 edition = "2021"
 authors = ["Tracer <info@tracer.cloud>"]

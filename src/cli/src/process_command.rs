@@ -74,7 +74,6 @@ pub fn process_cli() -> Result<()> {
             let args = init_command_interactive_mode(args);
 
             if !args.no_daemonize {
-
                 #[cfg(any(target_os = "macos", target_os = "windows"))]
                 {
                     // Serialize the finalized args to pass to the spawned process
@@ -83,10 +82,14 @@ pub fn process_cli() -> Result<()> {
                     let child = Command::new(current_exe)
                         .arg("init")
                         .arg("--no-daemonize")
-                        .arg("--pipeline-name").arg(&args.pipeline_name)
-                        .arg("--environment").arg(args.tags.environment.as_deref().unwrap_or(""))
-                        .arg("--pipeline-type").arg(args.tags.pipeline_type.as_deref().unwrap_or(""))
-                        .arg("--user-operator").arg(args.tags.user_operator.as_deref().unwrap_or(""))
+                        .arg("--pipeline-name")
+                        .arg(&args.pipeline_name)
+                        .arg("--environment")
+                        .arg(args.tags.environment.as_deref().unwrap_or(""))
+                        .arg("--pipeline-type")
+                        .arg(args.tags.pipeline_type.as_deref().unwrap_or(""))
+                        .arg("--user-operator")
+                        .arg(args.tags.user_operator.as_deref().unwrap_or(""))
                         .stdin(Stdio::null())
                         .stdout(Stdio::from(File::create(STDOUT_FILE)?))
                         .stderr(Stdio::from(File::create(STDERR_FILE)?))
@@ -177,7 +180,6 @@ pub fn process_cli() -> Result<()> {
         }
     }
 }
-
 
 pub async fn run_async_command(
     commands: Commands,
