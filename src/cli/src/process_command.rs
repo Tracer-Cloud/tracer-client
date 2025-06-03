@@ -45,8 +45,6 @@ pub fn process_cli() -> Result<()> {
     // setting env var to prevent fork safety issues on macOS
     std::env::set_var("OBJC_DISABLE_INITIALIZE_FORK_SAFETY", "YES");
 
-    create_necessary_files().expect("Error while creating necessary files");
-
     let cli = Cli::parse();
     // Use the --config flag, if provided, when loading the configuration
     let config = ConfigLoader::load_config(cli.config.as_deref())?;
@@ -70,6 +68,7 @@ pub fn process_cli() -> Result<()> {
 
     match cli.command {
         Commands::Init(args) => {
+            create_necessary_files().expect("Error while creating necessary files");
             println!("Starting daemon...");
             let args = init_command_interactive_mode(args);
 
