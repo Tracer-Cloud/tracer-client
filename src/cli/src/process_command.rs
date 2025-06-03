@@ -9,6 +9,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use daemonize::{Daemonize, Outcome};
 use std::fs::File;
+use std::process::{Command, Stdio};
 use tracer_client::config_manager::{Config, ConfigLoader};
 use tracer_common::constants::{PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR};
 use tracer_common::debug_log::Logger;
@@ -21,7 +22,6 @@ pub fn start_daemon() -> Outcome<()> {
     println!("Starting daemon...");
 
     let daemon = Daemonize::new();
-    println!("Create daemon object");
     daemon
         .pid_file(PID_FILE)
         .working_directory(WORKING_DIR)
@@ -41,6 +41,9 @@ pub fn start_daemon() -> Outcome<()> {
 
 pub fn process_cli() -> Result<()> {
     // has to be sync due to daemonizing
+
+    // setting env var to prevent fork safety issues on macOS
+    std::env::set_var("OBJC_DISABLE_INITIALIZE_FORK_SAFETY", "YES");
 
     let cli = Cli::parse();
     // Use the --config flag, if provided, when loading the configuration
@@ -69,15 +72,51 @@ pub fn process_cli() -> Result<()> {
             let args = init_command_interactive_mode(args);
 
             if !args.no_daemonize {
+
+                #[cfg(target_os = "macos")]
+                {
+                    // Serialize the finalized args to pass to the spawned process
+                    let current_exe = std::env::current_exe()?;
+
+                    let child = Command::new(current_exe)
+                        .arg("init")
+                        .arg("--no-daemonize")
+                        .arg("--pipeline-name").arg(&args.pipeline_name)
+                        .arg("--environment").arg(args.tags.environment.as_deref().unwrap_or(""))
+                        .arg("--pipeline-type").arg(args.tags.pipeline_type.as_deref().unwrap_or(""))
+                        .arg("--user-operator").arg(args.tags.user_operator.as_deref().unwrap_or(""))
+                        .stdin(Stdio::null())
+                        .stdout(Stdio::from(File::create(STDOUT_FILE)?))
+                        .stderr(Stdio::from(File::create(STDERR_FILE)?))
+                        .spawn()?;
+
+                    // Write PID file
+                    std::fs::write(PID_FILE, child.id().to_string())?;
+
+                    println!("Daemon started successfully.");
+
+                    // Wait a moment for daemon to start, then show info
+                    tokio::runtime::Runtime::new()?.block_on(async {
+                        let _ = print_install_readiness();
+                        wait(&api_client).await?;
+
+                        print_config_info(&api_client, &config).await
+                    })?;
+
+                    return Ok(());
+                }
+
+                #[cfg(target_os = "linux")]
                 match start_daemon() {
                     Outcome::Parent(Ok(_)) => {
                         println!("Daemon started successfully.");
                         tokio::runtime::Runtime::new()?.block_on(async {
                             let _ = print_install_readiness();
                             wait(&api_client).await?;
+
                             print_config_info(&api_client, &config).await
                         })?;
-                        println!("Daemon started successfully.");
+
                         return Ok(());
                     }
                     Outcome::Parent(Err(e)) => {
@@ -136,6 +175,7 @@ pub fn process_cli() -> Result<()> {
         }
     }
 }
+
 
 pub async fn run_async_command(
     commands: Commands,
