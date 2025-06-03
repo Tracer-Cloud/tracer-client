@@ -74,5 +74,6 @@ script-second-script.sh
 #
 **/.claude/settings.local.json
 
-#
+# Private notes / terminal snippets
 README.local.md
+.idea/vcs.xml

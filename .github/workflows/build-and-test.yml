@@ -1,8 +1,13 @@
 name: Rust CI
 on:
+  push:
+    branches:
+      - main
+      - dev
   pull_request:
-    branches: 
-      - "**"
+    branches:
+      - main
+      - dev
 
 env:
   CARGO_TERM_COLOR: always # Ensures colored output in GitHub Actions logs

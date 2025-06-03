@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::types::ebpf_trigger::ExitReason;
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct InputFile {
     pub file_name: String,
@@ -26,7 +28,6 @@ pub struct FullProcessProperties {
     pub process_disk_usage_read_total: u64,
     pub process_disk_usage_write_total: u64,
     pub process_status: String,
-    pub input_files: Option<Vec<InputFile>>,
     pub container_id: Option<String>,
     pub job_id: Option<String>,
     pub working_directory: Option<String>,
@@ -53,6 +54,7 @@ pub struct CompletedProcess {
     pub tool_name: String,
     pub tool_pid: String,
     pub duration_sec: u64,
+    pub exit_reason: Option<ExitReason>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

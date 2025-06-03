@@ -2,8 +2,6 @@ use chrono::Utc;
 use std::process::Command;
 use std::sync::Arc;
 use std::time::Duration;
-use sysinfo::System;
-use tempfile::TempDir;
 use tokio::sync::{mpsc, RwLock};
 use tokio::time::sleep;
 use tracer_common::recorder::LogRecorder;
@@ -11,12 +9,11 @@ use tracer_common::target_process::manager::TargetManager;
 use tracer_common::target_process::target_matching::{CommandContainsStruct, TargetMatch};
 use tracer_common::target_process::{DisplayName, Target};
 use tracer_common::types::current_run::{PipelineMetadata, Run};
+use tracer_common::types::ebpf_trigger::{ProcessEndTrigger, ProcessStartTrigger, Trigger};
 use tracer_common::types::event::attributes::{process::ProcessProperties, EventAttributes};
 use tracer_common::types::event::ProcessStatus as TracerProcessStatus;
 use tracer_common::types::pipeline_tags::PipelineTags;
-use tracer_common::types::trigger::{FinishTrigger, ProcessTrigger, Trigger};
-use tracer_extracts::file_watcher::FileWatcher;
-use tracer_extracts::process_watcher::ProcessWatcher;
+use tracer_extracts::ebpf_watcher::watcher::EbpfWatcher;
 
 #[tokio::test]
 async fn test_process_triggers_process_lifecycle() -> anyhow::Result<()> {
@@ -32,9 +29,6 @@ async fn test_process_triggers_process_lifecycle() -> anyhow::Result<()> {
     }));
 
     let log_recorder = LogRecorder::new(pipeline, tx);
-    let file_watcher = Arc::new(RwLock::new(FileWatcher::new(TempDir::new()?)));
-    let system = Arc::new(RwLock::new(System::new_all()));
-
     let target = Target::new(TargetMatch::CommandContains(CommandContainsStruct {
         process_name: None,
         command_content: "test_command".to_string(),
@@ -42,9 +36,9 @@ async fn test_process_triggers_process_lifecycle() -> anyhow::Result<()> {
     .set_display_name(DisplayName::Name("Test Process".to_string()));
     let mgr = TargetManager::new(vec![target], vec![]);
 
-    let watcher = Arc::new(ProcessWatcher::new(mgr, log_recorder, file_watcher, system));
+    let watcher = Arc::new(EbpfWatcher::new(mgr, log_recorder));
 
-    let start_trigger = ProcessTrigger {
+    let start_trigger = ProcessStartTrigger {
         pid,
         ppid: 1,
         comm: "test_process".to_string(),
@@ -57,13 +51,14 @@ async fn test_process_triggers_process_lifecycle() -> anyhow::Result<()> {
         started_at: now,
     };
 
-    let finish_trigger = FinishTrigger {
+    let finish_trigger = ProcessEndTrigger {
         pid,
         finished_at: now + chrono::Duration::seconds(10),
+        exit_reason: None,
     };
 
     // 1. Test that process creation is handled correctly
-    let start_triggers = vec![Trigger::Start(start_trigger.clone())];
+    let start_triggers = vec![Trigger::ProcessStart(start_trigger.clone())];
     watcher.process_triggers(start_triggers).await?;
 
     let start_event = rx
@@ -93,7 +88,7 @@ async fn test_process_triggers_process_lifecycle() -> anyhow::Result<()> {
     assert_eq!(props.tool_binary_path, "/usr/bin/test_process");
 
     // 2. Test that process termination is handled correctly
-    let finish_triggers = vec![Trigger::Finish(finish_trigger)];
+    let finish_triggers = vec![Trigger::ProcessEnd(finish_trigger)];
     watcher.process_triggers(finish_triggers).await?;
 
     let finish_event = rx
@@ -133,8 +128,6 @@ async fn test_process_triggers_no_matching_targets() -> anyhow::Result<()> {
     }));
 
     let log_recorder = LogRecorder::new(pipeline, tx);
-    let file_watcher = Arc::new(RwLock::new(FileWatcher::new(TempDir::new()?)));
-    let system = Arc::new(RwLock::new(System::new_all()));
 
     let target = Target::new(TargetMatch::CommandContains(CommandContainsStruct {
         process_name: None,
@@ -144,11 +137,11 @@ async fn test_process_triggers_no_matching_targets() -> anyhow::Result<()> {
 
     let mgr = TargetManager::new(vec![target], vec![]);
 
-    let watcher = Arc::new(ProcessWatcher::new(mgr, log_recorder, file_watcher, system));
+    let watcher = Arc::new(EbpfWatcher::new(mgr, log_recorder));
 
     let now = Utc::now();
     let pid = (1u32 << 30) - 1;
-    let start_trigger = ProcessTrigger {
+    let start_trigger = ProcessStartTrigger {
         pid: pid as usize,
         ppid: 1,
         comm: "test_process".to_string(),
@@ -161,12 +154,13 @@ async fn test_process_triggers_no_matching_targets() -> anyhow::Result<()> {
         started_at: now,
     };
 
-    let finish_trigger = FinishTrigger {
+    let finish_trigger = ProcessEndTrigger {
         pid: pid as usize,
         finished_at: now + chrono::Duration::seconds(10),
+        exit_reason: None,
     };
 
-    let start_triggers = vec![Trigger::Start(start_trigger.clone())];
+    let start_triggers = vec![Trigger::ProcessStart(start_trigger.clone())];
     watcher.process_triggers(start_triggers).await?;
 
     assert!(
@@ -174,7 +168,7 @@ async fn test_process_triggers_no_matching_targets() -> anyhow::Result<()> {
         "Should not receive events for non-matching processes"
     );
 
-    let finish_triggers = vec![Trigger::Finish(finish_trigger)];
+    let finish_triggers = vec![Trigger::ProcessEnd(finish_trigger)];
     watcher.process_triggers(finish_triggers).await?;
 
     assert!(
@@ -182,7 +176,7 @@ async fn test_process_triggers_no_matching_targets() -> anyhow::Result<()> {
         "Should not receive events for non-matching processes"
     );
     assert_eq!(
-        watcher.targets_len().await,
+        watcher.get_number_of_monitored_processes().await,
         0,
         "No processes should be monitored"
     );
@@ -201,8 +195,6 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
     }));
 
     let log_recorder = LogRecorder::new(pipeline, tx);
-    let file_watcher = Arc::new(RwLock::new(FileWatcher::new(TempDir::new()?)));
-    let system = Arc::new(RwLock::new(System::new_all()));
 
     let sleep_duration = 10;
     let unique_identifier = format!("TRACER_TEST_{}", Utc::now().timestamp());
@@ -225,15 +217,10 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
 
     let mgr = TargetManager::new(vec![target.clone()], vec![]);
 
-    let watcher = Arc::new(ProcessWatcher::new(
-        mgr,
-        log_recorder,
-        file_watcher,
-        system.clone(),
-    ));
+    let watcher = Arc::new(EbpfWatcher::new(mgr, log_recorder));
 
     let now = Utc::now();
-    let start_trigger = ProcessTrigger {
+    let start_trigger = ProcessStartTrigger {
         pid,
         ppid: 1,
         comm: "sleep".to_string(),
@@ -243,7 +230,7 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
     };
 
     // 1. Send start trigger and verify the process starts correctly
-    let start_triggers = vec![Trigger::Start(start_trigger.clone())];
+    let start_triggers = vec![Trigger::ProcessStart(start_trigger.clone())];
     watcher.process_triggers(start_triggers).await?;
 
     let mut execution_event = rx
@@ -293,13 +280,13 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
     );
 
     // Verify that we're tracking one process
-    let targets_count = watcher.targets_len().await;
+    let targets_count = watcher.get_number_of_monitored_processes().await;
     assert_eq!(
         targets_count, 1,
         "One process should be monitored after start"
     );
 
-    let previewed_targets = watcher.preview_targets(5).await;
+    let previewed_targets = watcher.get_n_monitored_processes(5).await;
     assert!(
         previewed_targets.contains(&"sleep".to_string()),
         "The process name should be in the targets list"
@@ -360,12 +347,13 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
         "Timestamp should be in ISO time"
     );
 
-    let finish_trigger = FinishTrigger {
+    let finish_trigger = ProcessEndTrigger {
         pid,
         finished_at: now + chrono::Duration::seconds(5),
+        exit_reason: None,
     };
 
-    let finish_triggers = vec![Trigger::Finish(finish_trigger)];
+    let finish_triggers = vec![Trigger::ProcessEnd(finish_trigger)];
     watcher.process_triggers(finish_triggers).await?;
 
     let finish_event = rx
@@ -392,7 +380,7 @@ async fn test_real_process_monitoring() -> anyhow::Result<()> {
     assert!(props.duration_sec <= sleep_duration as u64);
 
     assert_eq!(
-        watcher.targets_len().await,
+        watcher.get_number_of_monitored_processes().await,
         0,
         "No processes should be monitored after finish"
     );

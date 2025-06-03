@@ -9,25 +9,13 @@ authors = { workspace = true }
 [dependencies]
 anyhow = { workspace = true }
 chrono = { workspace = true }
-lazy_static = { workspace = true }
-predicates = { workspace = true }
-random-string = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
 sysinfo = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
-linemux = { workspace = true }
-tokio-stream = { workspace = true }
-tracer_ebpf_libbpf = { path = "../ebpf-libbpf" }
+tracer_ebpf = { path = "../ebpf" }
 itertools = { workspace = true }
 
 once_cell = { workspace = true }
-dirs = { workspace = true }
-walkdir = { workspace = true }
-tempfile = { workspace = true }
 tracer_common = { workspace = true }
-
-
-[dev-dependencies]
-rstest = { workspace = true }
+rstest = {workspace = true}
+mockall = {workspace = true}

@@ -1,22 +1,27 @@
 use crate::commands::{Cli, Commands};
+use crate::init_command_interactive_mode;
+#[cfg(target_os = "linux")]
 use crate::logging::setup_logging;
 use crate::nondaemon_commands::{
-    clean_up_after_daemon, print_config_info, setup_config, update_tracer, wait,
+    clean_up_after_daemon, print_config_info, print_install_readiness, setup_config, update_tracer,
+    wait,
 };
 use anyhow::{Context, Result};
 use clap::Parser;
 use daemonize::{Daemonize, Outcome};
 use std::fs::File;
-use std::{env, fs::canonicalize};
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use std::process::{Command, Stdio};
 use tracer_client::config_manager::{Config, ConfigLoader};
 use tracer_common::constants::{PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR};
 use tracer_common::debug_log::Logger;
 use tracer_daemon::client::DaemonClient;
 use tracer_daemon::daemon::run;
-use tracer_daemon::structs::{Message, TagData, UploadData};
+use tracer_daemon::structs::{Message, TagData};
 
 pub fn start_daemon() -> Outcome<()> {
     let _ = std::fs::create_dir_all(WORKING_DIR);
+    println!("Starting daemon...");
 
     let daemon = Daemonize::new();
     daemon
@@ -38,6 +43,9 @@ pub fn start_daemon() -> Outcome<()> {
 
 pub fn process_cli() -> Result<()> {
     // has to be sync due to daemonizing
+
+    // setting env var to prevent fork safety issues on macOS
+    std::env::set_var("OBJC_DISABLE_INITIALIZE_FORK_SAFETY", "YES");
 
     let cli = Cli::parse();
     // Use the --config flag, if provided, when loading the configuration
@@ -63,16 +71,57 @@ pub fn process_cli() -> Result<()> {
     match cli.command {
         Commands::Init(args) => {
             println!("Starting daemon...");
-            let current_working_directory = env::current_dir()?;
+            let args = init_command_interactive_mode(args);
 
             if !args.no_daemonize {
+                #[cfg(any(target_os = "macos", target_os = "windows"))]
+                {
+                    // Serialize the finalized args to pass to the spawned process
+                    let current_exe = std::env::current_exe()?;
+
+                    let child = Command::new(current_exe)
+                        .arg("init")
+                        .arg("--no-daemonize")
+                        .arg("--pipeline-name")
+                        .arg(&args.pipeline_name)
+                        .arg("--environment")
+                        .arg(args.tags.environment.as_deref().unwrap_or(""))
+                        .arg("--pipeline-type")
+                        .arg(args.tags.pipeline_type.as_deref().unwrap_or(""))
+                        .arg("--user-operator")
+                        .arg(args.tags.user_operator.as_deref().unwrap_or(""))
+                        .stdin(Stdio::null())
+                        .stdout(Stdio::from(File::create(STDOUT_FILE)?))
+                        .stderr(Stdio::from(File::create(STDERR_FILE)?))
+                        .spawn()?;
+
+                    // Write PID file
+                    std::fs::write(PID_FILE, child.id().to_string())?;
+
+                    println!("Daemon started successfully.");
+
+                    // Wait a moment for daemon to start, then show info
+                    tokio::runtime::Runtime::new()?.block_on(async {
+                        let _ = print_install_readiness();
+                        wait(&api_client).await?;
+
+                        print_config_info(&api_client, &config).await
+                    })?;
+
+                    return Ok(());
+                }
+
+                #[cfg(target_os = "linux")]
                 match start_daemon() {
                     Outcome::Parent(Ok(_)) => {
+                        println!("Daemon started successfully.");
                         tokio::runtime::Runtime::new()?.block_on(async {
+                            let _ = print_install_readiness();
                             wait(&api_client).await?;
+
                             print_config_info(&api_client, &config).await
                         })?;
-                        println!("Daemon started successfully.");
+
                         return Ok(());
                     }
                     Outcome::Parent(Err(e)) => {
@@ -89,11 +138,7 @@ pub fn process_cli() -> Result<()> {
                 }
             }
 
-            run(
-                current_working_directory.to_str().unwrap().to_string(),
-                args,
-                config,
-            )?;
+            run(args, config)?;
             clean_up_after_daemon()
         }
         //TODO: figure out what test should do now
@@ -120,7 +165,7 @@ pub fn process_cli() -> Result<()> {
                 &config,
             )) {
                 Ok(_) => {
-                    println!("Command sent successfully.");
+                    // println!("Command sent successfully.");
                 }
 
                 Err(e) => {
@@ -174,33 +219,6 @@ pub async fn run_async_command(
                 &batch_submission_interval_ms,
             )
             .await?
-        }
-        Commands::LogShortLivedProcess { .. } => {
-            println!("Command is deprecated");
-        }
-        Commands::Upload { file_path } => {
-            let path = canonicalize(&file_path);
-            match path {
-                Err(e) => {
-                    println!(
-                        "Failed to find the file. Please provide the full path to the file. Error: {}",
-                        e
-                    );
-                    return Ok(());
-                }
-                Ok(file_path) => {
-                    let path = UploadData {
-                        file_path: file_path
-                            .as_os_str()
-                            .to_str()
-                            .unwrap_or_default()
-                            .to_string(),
-                        socket_path: None,
-                    };
-
-                    api_client.send_upload_file_request(path).await?;
-                }
-            }
         }
         Commands::Info => {
             print_config_info(api_client, config).await?;

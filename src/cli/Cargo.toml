@@ -13,20 +13,19 @@ clap = { workspace = true }
 daemonize = { workspace = true }
 octocrab = { workspace = true }
 predicates = { workspace = true }
-sysinfo = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 sqlx = { workspace = true }
 colored = { workspace = true }
 tempfile = { workspace = true }
 tracer_common = { workspace = true }
-tracer_extracts = { workspace = true }
 tracer_client = { workspace = true }
 tracer_daemon = { workspace = true }
 tracing-subscriber = { workspace = true }
-tracing-log = { workspace = true }
 tracing-appender = { workspace = true }
 sentry = { workspace = true }
+console = { workspace = true }
+
 
 
 [dev-dependencies]
