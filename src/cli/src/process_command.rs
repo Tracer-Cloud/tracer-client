@@ -1,5 +1,6 @@
 use crate::commands::{Cli, Commands};
 use crate::init_command_interactive_mode;
+#[cfg(target_os = "linux")]
 use crate::logging::setup_logging;
 use crate::nondaemon_commands::{
     clean_up_after_daemon, print_config_info, print_install_readiness, setup_config, update_tracer,
@@ -9,6 +10,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use daemonize::{Daemonize, Outcome};
 use std::fs::File;
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 use std::process::{Command, Stdio};
 use tracer_client::config_manager::{Config, ConfigLoader};
 use tracer_common::constants::{PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR};
@@ -73,7 +75,7 @@ pub fn process_cli() -> Result<()> {
 
             if !args.no_daemonize {
 
-                #[cfg(target_os = "macos")]
+                #[cfg(any(target_os = "macos", target_os = "windows"))]
                 {
                     // Serialize the finalized args to pass to the spawned process
                     let current_exe = std::env::current_exe()?;
