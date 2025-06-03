@@ -8,3 +8,4 @@ INSTALL_SCRIPT_URL="https://raw.githubusercontent.com/Tracer-Cloud/tracer-client
 
 # Download and execute the installation script with production parameter
 curl -sSL "$INSTALL_SCRIPT_URL" | bash -s development
+
