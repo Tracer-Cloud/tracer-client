@@ -18,11 +18,9 @@ use tracer_common::debug_log::Logger;
 use tracer_daemon::client::DaemonClient;
 use tracer_daemon::daemon::run;
 use tracer_daemon::structs::{Message, TagData};
+use crate::utils::ensure_file_can_be_created;
 
 pub fn start_daemon() -> Outcome<()> {
-    let _ = std::fs::create_dir_all(WORKING_DIR);
-    println!("Starting daemon...");
-
     let daemon = Daemonize::new();
     daemon
         .pid_file(PID_FILE)
@@ -46,6 +44,8 @@ pub fn process_cli() -> Result<()> {
 
     // setting env var to prevent fork safety issues on macOS
     std::env::set_var("OBJC_DISABLE_INITIALIZE_FORK_SAFETY", "YES");
+
+    create_necessary_files().expect("Error while creating necessary files");
 
     let cli = Cli::parse();
     // Use the --config flag, if provided, when loading the configuration
@@ -231,5 +231,20 @@ pub async fn run_async_command(
         }
     };
 
+    Ok(())
+}
+
+pub fn create_necessary_files() -> Result<()> {
+    // CRITICAL: Ensure working directory exists BEFORE any other operations
+    std::fs::create_dir_all(WORKING_DIR)
+        .with_context(|| format!("Failed to create working directory: {}", WORKING_DIR))?;
+
+    // Ensure directories for all files exist
+    for file_path in [STDOUT_FILE, STDERR_FILE, PID_FILE] {
+        if let Err(e) = ensure_file_can_be_created(file_path) {
+            return Err(e);
+        }
+    }
+    
     Ok(())
 }
