@@ -13,13 +13,7 @@ path = "rs/lib.rs"
 
 [dependencies]
 anyhow = { workspace = true, default-features = true }
-env_logger = { workspace = true }
-log = { workspace = true }
 tokio = { workspace = true }
-tokio-stream = { workspace = true }
-tokio-util = { workspace = true }
-bytes = { workspace = true }
-tracing = { workspace = true }
 tracer_common = { workspace = true }
 chrono.workspace = true
 

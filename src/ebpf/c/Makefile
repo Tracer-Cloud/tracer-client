@@ -15,8 +15,9 @@ ARCH ?= $(shell uname -m | sed 's/x86_64/x86/' \
 			 | sed 's/loongarch64/loongarch/')
 VMLINUX := ../../../vendor/vmlinux.h/include/$(ARCH)/vmlinux.h
 INCLUDES := -I$(OUTPUT) -I../../../vendor/libbpf/include/uapi -I$(dir $(VMLINUX))
-CFLAGS := -g -Wall
+CFLAGS := -g -Wall -fPIC
 CXXFLAGS := -g -Wall
+
 ALL_LDFLAGS := $(LDFLAGS) $(EXTRA_LDFLAGS)
 
 # Get Clang's default includes for BPF target
@@ -45,11 +46,11 @@ $(call allow-override,LD,$(CROSS_COMPILE)ld)
 $(call allow-override,CXX,$(CROSS_COMPILE)c++)
 
 .PHONY: all clean
-all: libbootstrap.a example
+all: libbootstrap.a
 
 clean:
 	$(call msg,CLEAN)
-	$(Q)rm -rf $(OUTPUT) libbootstrap.a example
+	$(Q)rm -rf $(OUTPUT) libbootstrap.a
 
 $(OUTPUT) $(OUTPUT)/libbpf $(BPFTOOL_OUTPUT):
 	$(call msg,MKDIR,$@)
@@ -58,7 +59,7 @@ $(OUTPUT) $(OUTPUT)/libbpf $(BPFTOOL_OUTPUT):
 # Build libbpf
 $(LIBBPF_OBJ): $(wildcard $(LIBBPF_SRC)/*.[ch] $(LIBBPF_SRC)/Makefile) | $(OUTPUT)/libbpf
 	$(call msg,LIB,$@)
-	$(Q)$(MAKE) -C $(LIBBPF_SRC) BUILD_STATIC_ONLY=1 \
+	$(Q)$(MAKE) -C $(LIBBPF_SRC) BUILD_STATIC_ONLY=1 EXTRA_CFLAGS="-fPIC" \
 		    OBJDIR=$(dir $@)/libbpf DESTDIR=$(dir $@) \
 		    INCLUDEDIR= LIBDIR= UAPIDIR= \
 		    install
@@ -91,15 +92,6 @@ $(OUTPUT)/bootstrap_lib.o: bootstrap.c $(OUTPUT)/bootstrap.skel.h $(wildcard *.h
 libbootstrap.a: $(OUTPUT)/bootstrap_lib.o $(LIBBPF_OBJ) | $(OUTPUT)
 	$(call msg,STATICLIB,$@)
 	$(Q)$(AR) rcs $@ $^
-
-# Build example program (C++ version)
-$(OUTPUT)/example.o: example.cpp $(wildcard *.h) | $(OUTPUT)
-	$(call msg,CXX,$@)
-	$(Q)$(CLANGXX) $(CXXFLAGS) $(INCLUDES) -c $(filter %.cpp,$^) -o $@
-
-example: $(OUTPUT)/example.o libbootstrap.a | $(OUTPUT)
-	$(call msg,BINARY,$@)
-	$(Q)$(CLANGXX) $(CXXFLAGS) $< libbootstrap.a $(LIBBPF_OBJ) $(ALL_LDFLAGS) -lelf -lz -o $@
 
 # delete failed targets
 .DELETE_ON_ERROR:

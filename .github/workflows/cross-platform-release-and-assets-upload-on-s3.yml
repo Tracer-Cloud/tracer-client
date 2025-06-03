@@ -17,6 +17,12 @@ jobs:
           - arch: aarch64
             target: aarch64-unknown-linux-gnu
             runner: ubuntu-22.04-arm  # Native ARM runner
+          - arch: macos-arm64
+            target: aarch64-apple-darwin
+            runner: macos-latest
+          - arch: macos-x86_64
+            target: x86_64-apple-darwin
+            runner: macos-latest
 
     runs-on: ${{ matrix.runner }}
 
@@ -63,9 +69,11 @@ jobs:
         run: |
           rustup toolchain install nightly-2025-04-15 --component rust-src
           
-          # Install necessary eBPF dependencies
-          sudo apt-get update
-          sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm          
+           if [[ "${{ matrix.runner }}" == *"ubuntu"* ]]; then
+            # Install necessary eBPF dependencies for Linux
+            sudo apt-get update
+            sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm libelf-dev
+          fi  
 
       # Verify submodules are properly loaded
       - name: Verify submodule content
@@ -121,7 +129,7 @@ jobs:
         run: |
           yum update -y
           yum groupinstall -y "Development Tools"
-          sudo yum  install -y kernel-devel kernel-headers clang llvm libbpf-devel
+          yum  install -y kernel-devel kernel-headers clang llvm libbpf-devel
 
 
       - name: Install Rust

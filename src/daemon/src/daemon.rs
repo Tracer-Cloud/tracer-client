@@ -60,9 +60,8 @@ mod tests {
     use dotenv::dotenv;
     use std::path::Path;
     use tracer_client::config_manager::{Config, ConfigLoader};
-    use tracer_client::exporters::db::AuroraClient;
     use tracer_client::exporters::log_forward::LogForward;
-    use tracer_client::exporters::log_writer::{LogWriter, LogWriterEnum};
+    use tracer_client::exporters::log_writer::LogWriterEnum;
     use tracer_client::TracerClient;
     use tracer_common::types::cli::interactive::InteractiveInitArgs;
     use tracer_common::types::cli::params::TracerCliInitArgs;
@@ -80,7 +79,6 @@ mod tests {
     #[tokio::test]
     async fn test_monitor_processes() -> Result<(), anyhow::Error> {
         let config = load_test_config();
-        let pwd = std::env::current_dir()?;
         let region = "us-east-2";
 
         setup_env_vars(region);

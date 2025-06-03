@@ -20,14 +20,9 @@ use tracer_common::recorder::LogRecorder;
 use tracer_common::types::current_run::{PipelineMetadata, Run};
 use tracer_common::types::event::attributes::EventAttributes;
 use tracer_common::types::event::{Event, ProcessStatus};
+use tracer_extracts::ebpf_watcher::watcher::EbpfWatcher;
 use tracer_extracts::metrics::system_metrics_collector::SystemMetricsCollector;
-use tracer_extracts::process_watcher::ebpf_watcher::EbpfWatcher;
 use tracing::info;
-// NOTE: we might have to find a better alternative than passing the pipeline name to tracer client
-// directly. Currently with this approach, we do not need to generate a new pipeline name for every
-// new run.
-// But this also means that a system can setup tracer agent and exec
-// multiple pipelines
 
 pub struct TracerClient {
     system: Arc<RwLock<System>>, // todo: use arc swap
@@ -136,8 +131,20 @@ impl TracerClient {
         Ok(())
     }
 
+    /// This method start monitoring with ebpf it we are on linux
+    /// Otherwise will use the simple process polling
     pub async fn start_monitoring(&self) -> Result<()> {
-        self.ebpf_watcher.start_ebpf().await
+        #[cfg(target_os = "linux")]
+        {
+            self.ebpf_watcher.start_ebpf().await
+        }
+
+        #[cfg(any(target_os = "windows", target_os = "macos"))]
+        {
+            self.ebpf_watcher
+                .start_process_polling(self.config.process_polling_interval_ms)
+                .await
+        }
     }
 
     pub async fn poll_metrics_data(&self) -> Result<()> {
@@ -271,134 +278,4 @@ impl TracerClient {
         self.exporter.close().await?;
         Ok(())
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::config_manager::ConfigLoader;
-    use crate::exporters::db::AuroraClient;
-
-    use anyhow::Result;
-    use serde_json::Value;
-    use sqlx::types::Json;
-    use std::path::Path;
-    use tempfile::tempdir;
-    use tracer_common::types::pipeline_tags::PipelineTags;
-
-    // #[tokio::test]
-    // async fn test_submit_batched_data() -> Result<()> {
-    //     // Load the configuration
-    //     let path = Path::new("../../");
-    //     let config = ConfigLoader::load_config_at(path, None).unwrap();
-    //
-    //     let temp_dir = tempdir().expect("cant create temp dir");
-    //
-    //     let work_dir = temp_dir.path().to_str().unwrap();
-    //
-    //     // Create an instance of AuroraClient
-    //     let db_client = AuroraClient::try_new(&config, Some(1)).await?;
-    //
-    //     let cli_config = TracerCliInitArgs::default();
-    //
-    //     let client = TracerClient::new(config, work_dir.to_string(), db_client, cli_config)
-    //         .await
-    //         .expect("Failed to create tracer client");
-    //
-    //     client
-    //         .start_new_run(None)
-    //         .await
-    //         .expect("Error starting new run");
-    //
-    //     // Record a test event
-    //     client
-    //         .log_recorder
-    //         .log(
-    //             ProcessStatus::TestEvent,
-    //             "[submit_batched_data.rs] Test event".to_string(),
-    //             None,
-    //             None,
-    //         )
-    //         .await
-    //         .unwrap();
-    //
-    //     // submit_batched_data
-    //     client.exporter.submit_batched_data().await.unwrap();
-    //
-    //     let run = client.get_run_metadata();
-    //
-    //     let run_metadata = run.read().await;
-    //     let run_name = run_metadata.run.as_ref().unwrap().name.as_str();
-    //
-    //     // Prepare the SQL query
-    //     let query = "SELECT attributes, run_name FROM batch_jobs_logs WHERE run_name = $1";
-    //
-    //     let db_client = client.exporter.db_client.get_pool();
-    //
-    //     // Verify the row was inserted into the database
-    //     let result: (Json<Value>, String) = sqlx::query_as(query)
-    //         .bind(run_name) // Use the job_id for the query
-    //         .fetch_one(db_client) // Use the pool from the AuroraClient
-    //         .await?;
-    //
-    //     // Check that the inserted data matches the expected data
-    //     assert_eq!(result.1, run_name); // Compare with the unique job ID
-    //
-    //     Ok(())
-    // }
-    //
-    // #[tokio::test]
-    // async fn test_tags_attribution_works() {
-    //     // Load the configuration
-    //     let path = Path::new("../../");
-    //     let config = ConfigLoader::load_config_at(path, None).unwrap();
-    //
-    //     let temp_dir = tempdir().expect("cant create temp dir");
-    //
-    //     let work_dir = temp_dir.path().to_str().unwrap();
-    //     let job_id = "job-1234";
-    //
-    //     // Create an instance of AuroraClient
-    //     let db_client = AuroraClient::try_new(&config, Some(1)).await.unwrap();
-    //
-    //     let tags = PipelineTags::default();
-    //
-    //     let cli_config = TracerCliInitArgs {
-    //         pipeline_name: "Test Pipeline".to_string(),
-    //         run_id: None,
-    //         tags: tags.clone(),
-    //         no_daemonize: false,
-    //     };
-    //
-    //     let client = TracerClient::new(config, work_dir.to_string(), db_client, cli_config)
-    //         .await
-    //         .expect("Failed to create tracerclient");
-    //
-    //     client
-    //         .start_new_run(None)
-    //         .await
-    //         .expect("Error starting new run");
-    //
-    //     // Record a test event
-    //     client
-    //         .log_recorder
-    //         .log(
-    //             ProcessStatus::TestEvent,
-    //             format!("[submit_batched_data.rs] Test event for job {}", job_id),
-    //             None,
-    //             None,
-    //         )
-    //         .await
-    //         .unwrap();
-    //
-    //     // assertions
-    //     let events = client.exporter.rx.lock().await.recv().await.unwrap();
-    //     let event_tags = events.tags.clone().unwrap();
-    //     assert_eq!(event_tags.pipeline_type, tags.pipeline_type);
-    //
-    //     assert_eq!(
-    //         client.pipeline.read().await.tags.pipeline_type,
-    //         tags.pipeline_type
-    //     );
-    // }
 }
