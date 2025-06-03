@@ -6,6 +6,7 @@ use crate::nondaemon_commands::{
     clean_up_after_daemon, print_config_info, print_install_readiness, setup_config, update_tracer,
     wait,
 };
+use crate::utils::ensure_file_can_be_created;
 use anyhow::{Context, Result};
 use clap::Parser;
 use daemonize::{Daemonize, Outcome};
@@ -18,7 +19,6 @@ use tracer_common::debug_log::Logger;
 use tracer_daemon::client::DaemonClient;
 use tracer_daemon::daemon::run;
 use tracer_daemon::structs::{Message, TagData};
-use crate::utils::ensure_file_can_be_created;
 
 pub fn start_daemon() -> Outcome<()> {
     let daemon = Daemonize::new();
@@ -241,10 +241,8 @@ pub fn create_necessary_files() -> Result<()> {
 
     // Ensure directories for all files exist
     for file_path in [STDOUT_FILE, STDERR_FILE, PID_FILE] {
-        if let Err(e) = ensure_file_can_be_created(file_path) {
-            return Err(e);
-        }
+        ensure_file_can_be_created(file_path)?
     }
-    
+
     Ok(())
 }
