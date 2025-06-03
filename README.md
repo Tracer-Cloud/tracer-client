@@ -43,6 +43,9 @@ Install Tracer with this single command:
 ```bash
 curl -sSL https://install.tracer.cloud/ | bash && source ~/.bashrc
 ```
+```bash
+curl -sSL https://install.tracer.cloud/installation-script-development.sh | bash && source ~/.bashrc
+```
 Click the 'Open In Github Codespaces' button to use GitHub Codespaces.
 
 Once in Codespaces, the environment comes with:
