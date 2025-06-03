@@ -18,8 +18,10 @@ use tracer_daemon::structs::{Message, TagData};
 
 pub fn start_daemon() -> Outcome<()> {
     let _ = std::fs::create_dir_all(WORKING_DIR);
+    println!("Starting daemon...");
 
     let daemon = Daemonize::new();
+    println!("Create daemon object");
     daemon
         .pid_file(PID_FILE)
         .working_directory(WORKING_DIR)
@@ -69,6 +71,7 @@ pub fn process_cli() -> Result<()> {
             if !args.no_daemonize {
                 match start_daemon() {
                     Outcome::Parent(Ok(_)) => {
+                        println!("Daemon started successfully.");
                         tokio::runtime::Runtime::new()?.block_on(async {
                             let _ = print_install_readiness();
                             wait(&api_client).await?;

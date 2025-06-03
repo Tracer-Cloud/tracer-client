@@ -66,29 +66,15 @@ impl EbpfWatcher {
             let mut known_processes: HashSet<u32> = HashSet::new();
 
             loop {
-                println!("Polling processes: system refresh");
                 system.refresh_processes();
                 let mut current_processes = HashSet::new();
 
                 // Check for new processes (started)
-                println!(
-                    "Starting to check for processes, system has {} processes",
-                    system.processes().len()
-                );
-                println!("known_processes size: {}", known_processes.len());
                 for (pid, process) in system.processes() {
                     let pid_u32 = pid.as_u32();
                     current_processes.insert(pid_u32);
-                    println!(
-                        "Process {}: {}, know_processes contains it: {} and size is: {}",
-                        pid_u32,
-                        process.name(),
-                        known_processes.contains(&pid_u32),
-                        known_processes.len()
-                    );
 
                     if !known_processes.contains(&pid_u32) {
-                        println!("New process detected: {}, {}", pid_u32, process.name());
                         // New process detected
                         let start_trigger = ProcessStartTrigger {
                             pid: pid_u32 as usize,
@@ -121,7 +107,6 @@ impl EbpfWatcher {
                             finished_at: Default::default(),
                             exit_reason: None,
                         };
-
                         if let Err(e) = watcher
                             .process_triggers(vec![Trigger::ProcessEnd(end_trigger)])
                             .await
