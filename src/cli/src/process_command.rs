@@ -78,6 +78,7 @@ pub fn process_cli() -> Result<()> {
                 {
                     // Serialize the finalized args to pass to the spawned process
                     let current_exe = std::env::current_exe()?;
+                    let _ = std::fs::create_dir_all(WORKING_DIR);
 
                     let child = Command::new(current_exe)
                         .arg("init")
