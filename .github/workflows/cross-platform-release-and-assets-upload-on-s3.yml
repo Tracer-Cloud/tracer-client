@@ -35,12 +35,14 @@ jobs:
 
       - name: Update version in Cargo.toml
         run: |
-          # Get current date in YYYY.MM.DD.HHmm format
-          DATE=$(date +'%Y.%-m.%-d.%-H%M')
+          # Get current date in YYYY.MM.DD format
+          DATE=$(date +'%Y.%-m.%-d')
           # Get short commit hash
           COMMIT_HASH=$(git rev-parse --short HEAD)
+          # Get time in HHmm format
+          TIME=$(date +'%H%M')
           # Create new version string
-          NEW_VERSION="${DATE}+${COMMIT_HASH}"
+          NEW_VERSION="${DATE}+${TIME}.${COMMIT_HASH}"
           # Update version in Cargo.toml (compatible with both macOS and Linux)
           if [[ "${{ matrix.runner }}" == *"macos"* ]]; then
             sed -i '' "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
@@ -168,8 +170,10 @@ jobs:
           DATE=$(date +'%Y.%-m.%-d')
           # Get short commit hash
           COMMIT_HASH=$(git rev-parse --short HEAD)
+          # Get time in HHmm format
+          TIME=$(date +'%H%M')
           # Create new version string
-          NEW_VERSION="${DATE}+${COMMIT_HASH}"
+          NEW_VERSION="${DATE}+${TIME}.${COMMIT_HASH}"
           # Update version in Cargo.toml (compatible with both macOS and Linux)
           if [[ "${{ matrix.runner }}" == *"macos"* ]]; then
             sed -i '' "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
