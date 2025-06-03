@@ -47,7 +47,7 @@ pub fn process_cli() -> Result<()> {
 
     let cli = Cli::parse();
     // Use the --config flag, if provided, when loading the configuration
-    let config = ConfigLoader::load_config(cli.config.as_deref())?;
+    let config = ConfigLoader::load_default_config()?;
 
     let _guard = (!cfg!(test)).then(|| {
         config.sentry_dsn.as_deref().map(|dsn| {
