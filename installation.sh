@@ -278,6 +278,17 @@ function download_tracer() {
         exit 1
     }
     echo "- ${EMOJI_CHECK} Installed at: ${Blu}$BINDIR${RCol}"
+
+    # Set up SUID bit for macOS
+    if [[ "$OS" == "Darwin"* ]]; then
+        sudo chown root "$BINDIR/tracer" && \
+        sudo chmod u+s "$BINDIR/tracer" && \
+        echo "- ${EMOJI_CHECK} Set up SUID bit for elevated privileges" || {
+            echo "- ${EMOJI_CANCEL} Failed to set up SUID bit. You may need to run the following commands manually:"
+            echo "  sudo chown root $BINDIR/tracer"
+            echo "  sudo chmod u+s $BINDIR/tracer"
+        }
+    fi
 }
 
 
