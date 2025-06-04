@@ -142,7 +142,7 @@ impl TracerClient {
             match self.ebpf_watcher.start_ebpf().await {
                 Ok(_) => Ok(()),
                 Err(err) => {
-                    println!("eBPF failed, falling back to polling: {:?}", err);
+                    tracing::error!("eBPF failed, falling back to polling: {:?}", err);
                     self.ebpf_watcher
                         .start_process_polling(self.config.process_polling_interval_ms)
                         .await
