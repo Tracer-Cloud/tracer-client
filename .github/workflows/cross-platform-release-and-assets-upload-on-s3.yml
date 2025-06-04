@@ -16,7 +16,7 @@ jobs:
             runner: ubuntu-22.04
           - arch: aarch64
             target: aarch64-unknown-linux-gnu
-            runner: ubuntu-22.04-arm64
+            runner: ubuntu-22.04
           - arch: macos-arm64
             target: aarch64-apple-darwin
             runner: macos-latest
@@ -72,39 +72,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm libelf-dev
-
-      - name: Cache Dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target/
-          key: cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
-
-
-      - name: Cache Rust dependencies
-        id: cache-deps
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-          key: cargo-deps-${{ matrix.target }}-stable-v1
-          restore-keys: |
-            cargo-deps-${{ matrix.target }}-stable-
-
-      - name: Cache build artifacts
-        id: cache-build
-        uses: actions/cache@v3
-        with:
-          path: |
-            target/
-          key: cargo-build-${{ matrix.target }}-stable-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            cargo-build-${{ matrix.target }}-stable-
 
       # Verify submodules are properly loaded
       - name: Verify submodule content
