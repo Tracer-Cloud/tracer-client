@@ -25,16 +25,8 @@ pub fn start_daemon() -> Outcome<()> {
     daemon
         .pid_file(PID_FILE)
         .working_directory(WORKING_DIR)
-        .stdout(
-            File::create(STDOUT_FILE)
-                .context("Failed to create stdout file")
-                .unwrap(),
-        )
-        .stderr(
-            File::create(STDERR_FILE)
-                .context("Failed to create stderr file")
-                .unwrap(),
-        )
+        .stdout(File::create(STDOUT_FILE).expect("Failed to create stdout file"))
+        .stderr(File::create(STDERR_FILE).expect("Failed to create stderr file"))
         .umask(0o002)
         .execute()
 }
@@ -47,7 +39,7 @@ pub fn process_cli() -> Result<()> {
 
     let cli = Cli::parse();
     // Use the --config flag, if provided, when loading the configuration
-    let config = ConfigLoader::load_config(cli.config.as_deref())?;
+    let config = ConfigLoader::load_default_config()?;
 
     let _guard = (!cfg!(test)).then(|| {
         config.sentry_dsn.as_deref().map(|dsn| {

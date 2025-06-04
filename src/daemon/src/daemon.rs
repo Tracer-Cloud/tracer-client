@@ -58,7 +58,6 @@ pub async fn monitor_processes(tracer_client: &mut TracerClient) -> Result<()> {
 mod tests {
     use crate::daemon::monitor_processes;
     use dotenv::dotenv;
-    use std::path::Path;
     use tracer_client::config_manager::{Config, ConfigLoader};
     use tracer_client::exporters::log_forward::LogForward;
     use tracer_client::exporters::log_writer::LogWriterEnum;
@@ -67,8 +66,7 @@ mod tests {
     use tracer_common::types::cli::params::TracerCliInitArgs;
 
     fn load_test_config() -> Config {
-        let path = Path::new("../../");
-        ConfigLoader::load_config_at(path, None).unwrap()
+        ConfigLoader::load_default_config().unwrap()
     }
 
     pub fn setup_env_vars(region: &str) {

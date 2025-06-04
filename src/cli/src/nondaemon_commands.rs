@@ -358,7 +358,7 @@ pub async fn setup_config(
     process_polling_interval_ms: &Option<u64>,
     batch_submission_interval_ms: &Option<u64>,
 ) -> Result<()> {
-    let mut current_config = ConfigLoader::load_config(None)?;
+    let mut current_config = ConfigLoader::load_default_config()?;
     if let Some(api_key) = api_key {
         current_config.api_key.clone_from(api_key);
     }
@@ -368,7 +368,8 @@ pub async fn setup_config(
     if let Some(batch_submission_interval_ms) = batch_submission_interval_ms {
         current_config.batch_submission_interval_ms = *batch_submission_interval_ms;
     }
-    ConfigLoader::save_config(&current_config)?;
+
+    //ConfigLoader::save_config(&current_config)?;
 
     Ok(())
 }
@@ -387,7 +388,7 @@ pub async fn update_tracer() -> Result<()> {
         return Ok(());
     }
 
-    let config = ConfigLoader::load_config(None)?;
+    let config = ConfigLoader::load_default_config()?;
 
     println!("Updating Tracer to version {}", release.tag_name);
 
