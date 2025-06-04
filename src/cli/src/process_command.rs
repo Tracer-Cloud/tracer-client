@@ -6,7 +6,7 @@ use crate::nondaemon_commands::{
     clean_up_after_daemon, print_config_info, print_install_readiness, setup_config, update_tracer,
     wait,
 };
-use crate::utils::ensure_file_can_be_created;
+use crate::utils::{check_sudo_privileges, ensure_file_can_be_created};
 use anyhow::{Context, Result};
 use clap::Parser;
 use daemonize::{Daemonize, Outcome};
@@ -60,6 +60,10 @@ pub fn process_cli() -> Result<()> {
 
     match cli.command {
         Commands::Init(args) => {
+            // Check if running with sudo
+            check_sudo_privileges();
+
+            // Create necessary files for logging and daemonizing
             create_necessary_files().expect("Error while creating necessary files");
             println!("Starting daemon...");
             let args = init_command_interactive_mode(args);
