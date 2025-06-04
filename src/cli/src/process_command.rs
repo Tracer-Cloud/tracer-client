@@ -37,9 +37,6 @@ pub fn process_cli() -> Result<()> {
     // setting env var to prevent fork safety issues on macOS
     std::env::set_var("OBJC_DISABLE_INITIALIZE_FORK_SAFETY", "YES");
 
-    // Check if running with sudo
-    check_sudo_privileges();
-
     let cli = Cli::parse();
     // Use the --config flag, if provided, when loading the configuration
     let config = ConfigLoader::load_default_config()?;
@@ -63,6 +60,10 @@ pub fn process_cli() -> Result<()> {
 
     match cli.command {
         Commands::Init(args) => {
+            // Check if running with sudo
+            check_sudo_privileges();
+
+            // Create necessary files for logging and daemonizing
             create_necessary_files().expect("Error while creating necessary files");
             println!("Starting daemon...");
             let args = init_command_interactive_mode(args);
