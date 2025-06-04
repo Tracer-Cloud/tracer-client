@@ -18,20 +18,20 @@ pub async fn run(cli_config_args: FinalizedInitArgs, config: Config) -> Result<(
         println!("cli_config_args: {:?}", &cli_config_args);
         // if we pass --is-dev=false, we use the prod endpoint
         // if we pass --is-dev=true or don't pass the value, we use the dev endpoint
-        let forward_endpoint =
-            if cli_config_args.is_dev.is_some() && cli_config_args.is_dev.unwrap().eq(&false) {
-                println!(
-                    "Using prod endpoint: {}",
-                    &config.log_forward_endpoint_prod.as_ref().unwrap()
-                );
-                &config.log_forward_endpoint_prod.as_ref().unwrap()
-            } else {
-                println!(
-                    "Using dev endpoint: {}",
-                    &config.log_forward_endpoint_dev.as_ref().unwrap()
-                );
-                &config.log_forward_endpoint_dev.as_ref().unwrap()
-            };
+        let forward_endpoint = &config.log_forward_endpoint_prod.as_ref().unwrap(); //TODO remove
+                                                                                    // if cli_config_args.is_dev.is_some() && cli_config_args.is_dev.unwrap().eq(&false) {
+                                                                                    //     println!(
+                                                                                    //         "Using prod endpoint: {}",
+                                                                                    //         &config.log_forward_endpoint_prod.as_ref().unwrap()
+                                                                                    //     );
+                                                                                    //     &config.log_forward_endpoint_prod.as_ref().unwrap()
+                                                                                    // } else {
+                                                                                    //     println!(
+                                                                                    //         "Using dev endpoint: {}",
+                                                                                    //         &config.log_forward_endpoint_dev.as_ref().unwrap()
+                                                                                    //     );
+                                                                                    //     &config.log_forward_endpoint_dev.as_ref().unwrap()
+                                                                                    // };
 
         LogWriterEnum::Forward(LogForward::try_new(forward_endpoint).await?)
     };

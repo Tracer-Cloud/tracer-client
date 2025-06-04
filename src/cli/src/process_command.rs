@@ -6,6 +6,7 @@ use crate::nondaemon_commands::{
     clean_up_after_daemon, print_config_info, print_install_readiness, setup_config, update_tracer,
     wait,
 };
+use crate::utils::ensure_file_can_be_created;
 use anyhow::{Context, Result};
 use clap::Parser;
 use daemonize::{Daemonize, Outcome};
@@ -20,9 +21,6 @@ use tracer_daemon::daemon::run;
 use tracer_daemon::structs::{Message, TagData};
 
 pub fn start_daemon() -> Outcome<()> {
-    let _ = std::fs::create_dir_all(WORKING_DIR);
-    println!("Starting daemon...");
-
     let daemon = Daemonize::new();
     daemon
         .pid_file(PID_FILE)
@@ -70,6 +68,7 @@ pub fn process_cli() -> Result<()> {
 
     match cli.command {
         Commands::Init(args) => {
+            create_necessary_files().expect("Error while creating necessary files");
             println!("Starting daemon...");
             let args = init_command_interactive_mode(args);
 
@@ -78,7 +77,7 @@ pub fn process_cli() -> Result<()> {
                 {
                     // Serialize the finalized args to pass to the spawned process
                     let current_exe = std::env::current_exe()?;
-                    let _ = std::fs::create_dir_all(WORKING_DIR);
+                    let is_dev_string = "false"; // for testing purposes //TODO remove
 
                     let child = Command::new(current_exe)
                         .arg("init")
@@ -91,6 +90,8 @@ pub fn process_cli() -> Result<()> {
                         .arg(args.tags.pipeline_type.as_deref().unwrap_or(""))
                         .arg("--user-operator")
                         .arg(args.tags.user_operator.as_deref().unwrap_or(""))
+                        .arg("--is-dev")
+                        .arg(is_dev_string)
                         .stdin(Stdio::null())
                         .stdout(Stdio::from(File::create(STDOUT_FILE)?))
                         .stderr(Stdio::from(File::create(STDERR_FILE)?))
@@ -228,6 +229,19 @@ pub async fn run_async_command(
             println!("Command not implemented yet");
         }
     };
+
+    Ok(())
+}
+
+pub fn create_necessary_files() -> Result<()> {
+    // CRITICAL: Ensure working directory exists BEFORE any other operations
+    std::fs::create_dir_all(WORKING_DIR)
+        .with_context(|| format!("Failed to create working directory: {}", WORKING_DIR))?;
+
+    // Ensure directories for all files exist
+    for file_path in [STDOUT_FILE, STDERR_FILE, PID_FILE] {
+        ensure_file_can_be_created(file_path)?
+    }
 
     Ok(())
 }
