@@ -337,18 +337,21 @@ pub mod tests {
 
         // Create mock  file data in memory instead of reading from file
         let mock_data = vec![
-            0x50, 0x41, 0x52, 0x31,  
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // padding
+            0x50, 0x41, 0x52, 0x31, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // padding
             0x54, 0x65, 0x73, 0x74, 0x20, 0x64, 0x61, 0x74, 0x61, // "Test data"
-            0x50, 0x41, 0x52, 0x31,  
+            0x50, 0x41, 0x52, 0x31,
         ];
 
         // Create bucket
         s3_client.create_bucket(&test_bucket, None).await?;
 
         // Add multiple objects using in-memory data
-        s3_client.put_object_from_bytes(&test_bucket, mock_data.clone(), key_1).await?;
-        s3_client.put_object_from_bytes(&test_bucket, mock_data, key_2).await?;
+        s3_client
+            .put_object_from_bytes(&test_bucket, mock_data.clone(), key_1)
+            .await?;
+        s3_client
+            .put_object_from_bytes(&test_bucket, mock_data, key_2)
+            .await?;
 
         // List buckets (paginated)
         let buckets = s3_client.list_buckets_paginated().await;
