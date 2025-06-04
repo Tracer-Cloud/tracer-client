@@ -37,6 +37,16 @@ pub fn process_cli() -> Result<()> {
     // setting env var to prevent fork safety issues on macOS
     std::env::set_var("OBJC_DISABLE_INITIALIZE_FORK_SAFETY", "YES");
 
+    // Check if running with sudo
+    if std::env::var("SUDO_USER").is_err() {
+        println!("Warning: Running without sudo privileges. Some operations may fail.");
+        // Get the current executable path and arguments
+        let current_exe = std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("tracer"));
+        let args: Vec<String> = std::env::args().collect();
+        let sudo_command = format!("sudo {} {}", current_exe.display(), args[1..].join(" "));
+        panic!("This command requires sudo privileges.\nTry running: {}", sudo_command);
+    }
+
     let cli = Cli::parse();
     // Use the --config flag, if provided, when loading the configuration
     let config = ConfigLoader::load_default_config()?;
