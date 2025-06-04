@@ -137,6 +137,7 @@ jobs:
       - name: Upload to S3
         run: |
           aws s3 cp release-files/tracer-${{ matrix.target }}.tar.gz s3://tracer-releases/tracer-${{ matrix.target }}.tar.gz
+          aws s3 cp release-files/tracer-${{ matrix.target }}.tar.gz s3://tracer-releases/${{ github.ref_name }}/tracer-${{ matrix.target }}.tar.gz
 
   build-and-release-amazon-linux:
     permissions: write-all
@@ -216,3 +217,4 @@ jobs:
       - name: Upload to S3
         run: |
           aws s3 cp release-files/tracer-x86_64-amazon-linux-gnu.tar.gz s3://tracer-releases/tracer-x86_64-amazon-linux-gnu.tar.gz
+          aws s3 cp release-files/tracer-${{ matrix.target }}.tar.gz s3://tracer-releases/${{ github.ref_name }}/tracer-x86_64-amazon-linux-gnu.tar.gz
