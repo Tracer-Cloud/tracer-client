@@ -48,6 +48,7 @@ PACKAGE_NAME="" # set later
 BINDIRS=("$HOME/bin" "$HOME/.local/bin" "$TRACER_HOME/bin")
 BINDIR="" # set later
 API_KEY="" # set later
+SUID_SETUP_FAILED=false  # Flag for SUID setup status
 
 #---  VARIABLES  ---------------------------------------------------------------
 #          NAME:  Red|Gre|Yel|Bla|Blu|Gry|Cya|RCol
@@ -116,27 +117,6 @@ tsnow=""
 #                 error sticks a big red error in front and prints to both
 #    PARAMETERS:  $1 is whatever is to be printed
 #-------------------------------------------------------------------------------
-
-# Progress bar function for overall installation progress
-show_install_progress() {
-    local current_step=$1
-    local total_steps=4  # Download, Extract, Install, SUID setup
-    local width=50
-    local progress=$((current_step * 100 / total_steps))
-    local filled=$((width * progress / 100))
-    local empty=$((width - filled))
-
-    # Create progress bar string
-    local bar=""
-    for ((i=0; i<filled; i++)); do
-        bar+="#"
-    done
-    for ((i=0; i<empty; i++)); do
-        bar+=" "
-    done
-
-    printf "\r[%-${width}s] %d%%" "$bar" "$progress"
-}
 
 tsupd() { command -v date >/dev/null 2>&1 && tsnow=$(date +%F,%T%t); }
 printlog() {
@@ -284,7 +264,6 @@ function download_tracer() {
     mkdir -p "$EXTRACTTARGET"
 
     echo "- ${EMOJI_BOX} Downloading Tracer CLI..."
-    show_install_progress 0
     # Download package with curl's progress meter
     curl -L -o "${DLTARGET}/${PACKAGE_NAME}" "$TRACER_URL" || {
         echo "- ${EMOJI_CANCEL} Failed to download Tracer."
@@ -293,7 +272,6 @@ function download_tracer() {
     echo "- ${EMOJI_CHECK} Package downloaded."
 
     echo "- ${EMOJI_BOX} Extracting package..."
-    show_install_progress 1
     # Validate and extract package
     if ! gzip -t "${DLTARGET}/${PACKAGE_NAME}" >/dev/null 2>&1; then
         echo "- ${EMOJI_CANCEL} Invalid package format: "${DLTARGET}/${PACKAGE_NAME}""
@@ -307,10 +285,9 @@ function download_tracer() {
     echo "- ${EMOJI_CHECK} Extracted successfully."
 
     echo "- ${EMOJI_BOX} Installing binary..."
-    show_install_progress 2
     # Install binary
     chmod +x "${EXTRACTTARGET}/${BINARY_NAME}" && \
-    mv "${EXTRACTTARGET}/${BINARY_NAME}" "$BINDIR/tracer" || {
+    mv -f "${EXTRACTTARGET}/${BINARY_NAME}" "$BINDIR/tracer" || {
         echo "- ${EMOJI_CANCEL} Installation failed."
         exit 1
     }
@@ -319,19 +296,15 @@ function download_tracer() {
     # Set up SUID bit for macOS
     if [[ "$OS" == "Darwin"* ]]; then
         echo "- ${EMOJI_BOX} Setting up elevated privileges..."
-        show_install_progress 3
-        sudo chown root "$BINDIR/tracer" && \
-        sudo chmod u+s "$BINDIR/tracer" && \
-        echo "- ${EMOJI_CHECK} Set up SUID bit for elevated privileges" || {
+        if ! sudo -n chown root "$BINDIR/tracer" || ! sudo -n chmod u+s "$BINDIR/tracer"; then
+            SUID_SETUP_FAILED=true
             echo "- ${EMOJI_CANCEL} Failed to set up SUID bit. You may need to run the following commands manually:"
             echo "  sudo chown root $BINDIR/tracer"
             echo "  sudo chmod u+s $BINDIR/tracer"
-        }
+        else
+            echo "- ${EMOJI_CHECK} Set up SUID bit for elevated privileges"
+        fi
     fi
-
-    # Show 100% completion
-    show_install_progress 4
-    echo  # Add a newline after the progress bar
 }
 
 
@@ -470,6 +443,13 @@ function print_next_steps() {
     echo "${Gry}- [Optional] View Daemon Status:${RCol}"
     echo "  ${Cya}tracer info${RCol}              ${Gry}# check current daemon and run status${RCol}"
     echo ""
+
+    if [[ "$SUID_SETUP_FAILED" == "true" ]]; then
+        echo "${Yel}- Required: Set up elevated privileges:${RCol}"
+        echo "  ${Cya}sudo chown root $BINDIR/tracer${RCol}"
+        echo "  ${Cya}sudo chmod u+s $BINDIR/tracer${RCol}"
+        echo ""
+    fi
 
     echo "${Gry}- Dashboards & Support:${RCol}"
     echo "  Visualize pipeline data at: ${Cya}https://sandbox.tracer.cloud${RCol}"
