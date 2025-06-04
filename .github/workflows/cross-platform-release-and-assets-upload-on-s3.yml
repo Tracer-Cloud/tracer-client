@@ -16,7 +16,7 @@ jobs:
             runner: ubuntu-22.04
           - arch: aarch64
             target: aarch64-unknown-linux-gnu
-            runner: ubuntu-22.04
+            runner: ubuntu-22.04-arm64
           - arch: macos-arm64
             target: aarch64-apple-darwin
             runner: macos-latest
