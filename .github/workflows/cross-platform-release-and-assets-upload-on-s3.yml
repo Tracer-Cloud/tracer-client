@@ -4,6 +4,12 @@ on:
   pull_request:
     branches: 
       - "**"
+    types: [closed]
+    branches:
+      - "dev"
+  push:
+    branches:
+      - "dev"
 
 jobs:
   build-and-release:
@@ -137,7 +143,11 @@ jobs:
       - name: Upload to S3
         run: |
           aws s3 cp release-files/tracer-${{ matrix.target }}.tar.gz s3://tracer-releases/tracer-${{ matrix.target }}.tar.gz
-          aws s3 cp release-files/tracer-${{ matrix.target }}.tar.gz s3://tracer-releases/${{ github.head_ref || github.ref_name }}/tracer-${{ matrix.target }}.tar.gz
+          if [ -n "${{ github.head_ref }}" ]; then
+            aws s3 cp release-files/tracer-${{ matrix.target }}.tar.gz s3://tracer-releases/${{ github.head_ref }}/tracer-${{ matrix.target }}.tar.gz
+          else
+            aws s3 cp release-files/tracer-${{ matrix.target }}.tar.gz s3://tracer-releases/${{ github.ref_name }}/tracer-${{ matrix.target }}.tar.gz
+          fi
 
   build-and-release-amazon-linux:
     permissions: write-all
@@ -217,4 +227,8 @@ jobs:
       - name: Upload to S3
         run: |
           aws s3 cp release-files/tracer-x86_64-amazon-linux-gnu.tar.gz s3://tracer-releases/tracer-x86_64-amazon-linux-gnu.tar.gz
-          aws s3 cp release-files/tracer-x86_64-amazon-linux-gnu.tar.gz s3://tracer-releases/${{ github.head_ref || github.ref_name }}/tracer-x86_64-amazon-linux-gnu.tar.gz
+          if [ -n "${{ github.head_ref }}" ]; then
+            aws s3 cp release-files/tracer-x86_64-amazon-linux-gnu.tar.gz s3://tracer-releases/${{ github.head_ref }}/tracer-x86_64-amazon-linux-gnu.tar.gz
+          else
+            aws s3 cp release-files/tracer-x86_64-amazon-linux-gnu.tar.gz s3://tracer-releases/${{ github.ref_name }}/tracer-x86_64-amazon-linux-gnu.tar.gz
+          fi
