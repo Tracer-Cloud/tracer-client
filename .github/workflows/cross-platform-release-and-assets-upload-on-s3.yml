@@ -2,8 +2,12 @@ name: Development Release On S3
 
 on:
   pull_request:
-    branches: 
-      - "**"
+    types: [opened, synchronize, reopened, closed]
+    branches:
+      - "dev"
+  push:
+    branches:
+      - "dev"
 
 jobs:
   build-and-release:
@@ -13,7 +17,7 @@ jobs:
         include:
           - arch: x86_64
             target: x86_64-unknown-linux-gnu
-            runner: ubuntu-latest
+            runner: ubuntu-22.04
           - arch: aarch64
             target: aarch64-unknown-linux-gnu
             runner: ubuntu-22.04-arm  # Native ARM runner
@@ -137,6 +141,7 @@ jobs:
       - name: Upload to S3
         run: |
           aws s3 cp release-files/tracer-${{ matrix.target }}.tar.gz s3://tracer-releases/tracer-${{ matrix.target }}.tar.gz
+          aws s3 cp release-files/tracer-${{ matrix.target }}.tar.gz s3://tracer-releases/${{ github.head_ref || github.ref_name }}/tracer-${{ matrix.target }}.tar.gz
 
   build-and-release-amazon-linux:
     permissions: write-all
@@ -216,3 +221,4 @@ jobs:
       - name: Upload to S3
         run: |
           aws s3 cp release-files/tracer-x86_64-amazon-linux-gnu.tar.gz s3://tracer-releases/tracer-x86_64-amazon-linux-gnu.tar.gz
+          aws s3 cp release-files/tracer-x86_64-amazon-linux-gnu.tar.gz s3://tracer-releases/${{ github.head_ref || github.ref_name }}/tracer-x86_64-amazon-linux-gnu.tar.gz

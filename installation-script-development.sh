@@ -6,8 +6,11 @@
 # URL to the main installation script
 INSTALL_SCRIPT_URL="https://install.tracer.cloud/installation.sh"
 
-# Download and execute the installation script with production parameter
-curl -sSL "$INSTALL_SCRIPT_URL" | bash -s development
+# Get the branch name from the first argument, default to "development" if not provided
+BRANCH_NAME=${1:-"development"}
+
+# Download and execute the installation script with the branch name parameter
+curl -sSL "$INSTALL_SCRIPT_URL" | bash -s "$BRANCH_NAME"
 
     make_temp_dir
     download_tracer
