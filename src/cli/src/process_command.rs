@@ -6,7 +6,7 @@ use crate::nondaemon_commands::{
     clean_up_after_daemon, print_config_info, print_install_readiness, setup_config, update_tracer,
     wait,
 };
-use crate::utils::ensure_file_can_be_created;
+use crate::utils::{check_sudo_privileges, ensure_file_can_be_created};
 use anyhow::{Context, Result};
 use clap::Parser;
 use daemonize::{Daemonize, Outcome};
@@ -38,14 +38,7 @@ pub fn process_cli() -> Result<()> {
     std::env::set_var("OBJC_DISABLE_INITIALIZE_FORK_SAFETY", "YES");
 
     // Check if running with sudo
-    if std::env::var("SUDO_USER").is_err() {
-        println!("Warning: Running without sudo privileges. Some operations may fail.");
-        // Get the current executable path and arguments
-        let current_exe = std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("tracer"));
-        let args: Vec<String> = std::env::args().collect();
-        let sudo_command = format!("sudo {} {}", current_exe.display(), args[1..].join(" "));
-        panic!("This command requires sudo privileges.\nTry running: {}", sudo_command);
-    }
+    check_sudo_privileges();
 
     let cli = Cli::parse();
     // Use the --config flag, if provided, when loading the configuration
