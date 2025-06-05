@@ -11,14 +11,3 @@ BRANCH_NAME=${1:-"development"}
 
 # Download and execute the installation script with the branch name parameter
 curl -sSL "$INSTALL_SCRIPT_URL" | bash -s "$BRANCH_NAME"
-
-    make_temp_dir
-    download_tracer
-    # setup_tracer_configuration_file
-    # printsucc "Ended setup the tracer configuration file"
-
-    printsucc "Tracer CLI has been successfully installed."
-
-}
-
-main "$@"

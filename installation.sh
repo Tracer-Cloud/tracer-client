@@ -5,7 +5,7 @@
 
 BINARY_NAME="tracer"
 
-echo "Arg: $1"
+# echo "Arg: $1"
 
 # Set environment-specific variables based on the environment parameter
 if [[ "$1" == "development" ]]; then
@@ -265,10 +265,10 @@ function download_tracer() {
 
     echo "- ${EMOJI_BOX} Downloading Tracer CLI..."
     # Download package with curl's progress meter
-    curl -L -o "${DLTARGET}/${PACKAGE_NAME}" "$TRACER_URL" || {
+    if ! curl -L "$TRACER_URL" -o "${DLTARGET}/${PACKAGE_NAME}"; then
         echo "- ${EMOJI_CANCEL} Failed to download Tracer."
         exit 1
-    }
+    fi
     echo "- ${EMOJI_CHECK} Package downloaded."
 
     echo "- ${EMOJI_BOX} Extracting package..."
