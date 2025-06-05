@@ -1,6 +1,7 @@
 use crate::ebpf_watcher::handler::process::process_manager::ProcessManager;
 use crate::ebpf_watcher::handler::trigger::trigger_processor::TriggerProcessor;
 use anyhow::{Error, Result};
+use chrono::Utc;
 use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
@@ -86,7 +87,7 @@ impl EbpfWatcher {
                                 .and_then(|p| p.to_str())
                                 .unwrap_or("")
                                 .to_string(),
-                            started_at: Default::default(),
+                            started_at: Utc::now(),
                         };
 
                         if let Err(e) = watcher

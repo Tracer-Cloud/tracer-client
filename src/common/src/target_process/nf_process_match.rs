@@ -55,7 +55,7 @@ impl NextFlowProcessMatcher {
 
             compiled_regexes
                 .entry(process.process_name.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push((idx, regex));
         }
 

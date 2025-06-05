@@ -2,8 +2,12 @@ name: Development Release On S3
 
 on:
   pull_request:
-    branches: 
-      - "**"
+    types: [opened, synchronize, reopened, closed]
+    branches:
+      - "dev"
+  push:
+    branches:
+      - "dev"
 
 jobs:
   build-and-release:
@@ -13,7 +17,7 @@ jobs:
         include:
           - arch: x86_64
             target: x86_64-unknown-linux-gnu
-            runner: ubuntu-latest
+            runner: ubuntu-22.04
           - arch: aarch64
             target: aarch64-unknown-linux-gnu
             runner: ubuntu-22.04-arm  # Native ARM runner
@@ -31,6 +35,26 @@ jobs:
         uses: actions/checkout@v4.1.4
         with:
           submodules: recursive  # This will fetch all submodules recursively
+          fetch-depth: 0  # Fetch all history for versioning
+
+      - name: Update version in Cargo.toml
+        run: |
+          # Get current date in YYYY.MM.DD format
+          DATE=$(date +'%Y.%-m.%-d')
+          # Get short commit hash
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          # Get time in HH.MM format
+          TIME=$(date +'%H.%M')
+          # Create new version string
+          NEW_VERSION="${DATE}+${TIME}.${COMMIT_HASH}"
+          # Update version in Cargo.toml (compatible with both macOS and Linux)
+          if [[ "${{ matrix.runner }}" == *"macos"* ]]; then
+            sed -i '' "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
+          else
+            sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
+          fi
+          # Print the new version for verification
+          echo "Updated version to: ${NEW_VERSION}"
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -117,6 +141,7 @@ jobs:
       - name: Upload to S3
         run: |
           aws s3 cp release-files/tracer-${{ matrix.target }}.tar.gz s3://tracer-releases/tracer-${{ matrix.target }}.tar.gz
+          aws s3 cp release-files/tracer-${{ matrix.target }}.tar.gz s3://tracer-releases/${{ github.head_ref || github.ref_name }}/tracer-${{ matrix.target }}.tar.gz
 
   build-and-release-amazon-linux:
     permissions: write-all
@@ -144,6 +169,29 @@ jobs:
         uses: actions/checkout@v4.1.4
         with:
           submodules: recursive  # This will fetch all submodules recursively
+          fetch-depth: 0  # Fetch all history for versioning
+
+      - name: Configure Git safe directory
+        run: git config --global --add safe.directory $GITHUB_WORKSPACE
+
+      - name: Update version in Cargo.toml
+        run: |
+          # Get current date in YYYY.MM.DD format
+          DATE=$(date +'%Y.%-m.%-d')
+          # Get short commit hash
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          # Get time in HH.MM format
+          TIME=$(date +'%H.%M')
+          # Create new version string
+          NEW_VERSION="${DATE}+${TIME}.${COMMIT_HASH}"
+          # Update version in Cargo.toml (compatible with both macOS and Linux)
+          if [[ "${{ matrix.runner }}" == *"macos"* ]]; then
+            sed -i '' "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
+          else
+            sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
+          fi
+          # Print the new version for verification
+          echo "Updated version to: ${NEW_VERSION}"
 
       - name: Build the binary
         run: |
@@ -173,3 +221,4 @@ jobs:
       - name: Upload to S3
         run: |
           aws s3 cp release-files/tracer-x86_64-amazon-linux-gnu.tar.gz s3://tracer-releases/tracer-x86_64-amazon-linux-gnu.tar.gz
+          aws s3 cp release-files/tracer-x86_64-amazon-linux-gnu.tar.gz s3://tracer-releases/${{ github.head_ref || github.ref_name }}/tracer-x86_64-amazon-linux-gnu.tar.gz

@@ -306,111 +306,120 @@ pub async fn wait(api_client: &DaemonClient) -> Result<()> {
 }
 
 pub fn print_install_readiness() -> Result<()> {
-    let mut diagnostics: Vec<String> = vec![];
-    let mut missing_packages: Vec<String> = vec![];
-    let mut missing_package_advice: Vec<String> = vec![];
+    #[cfg(target_os = "linux")]
+    {
+        let mut diagnostics: Vec<String> = vec![];
+        let mut missing_packages: Vec<String> = vec![];
+        let mut missing_package_advice: Vec<String> = vec![];
 
-    let packages = [
-        (
-            "build-essential",
-            "dpkg -s build-essential",
-            "apt-get:build-essential",
-        ),
-        ("pkg-config", "dpkg -s pkg-config", "apt-get:pkg-config"),
-        ("libelf1", "dpkg -s libelf1", "apt-get:libelf1"),
-        ("libelf-dev", "dpkg -s libelf-dev", "apt-get:libelf-dev"),
-        ("zlib1g-dev", "dpkg -s zlib1g-dev", "apt-get:zlib1g-dev"),
-        ("llvm", "dpkg -s llvm", "apt-get:llvm"),
-        ("clang", "dpkg -s clang", "apt-get:clang"),
-    ];
+        let packages = [
+            (
+                "build-essential",
+                "dpkg -s build-essential",
+                "apt-get:build-essential",
+            ),
+            ("pkg-config", "dpkg -s pkg-config", "apt-get:pkg-config"),
+            ("libelf1", "dpkg -s libelf1", "apt-get:libelf1"),
+            ("libelf-dev", "dpkg -s libelf-dev", "apt-get:libelf-dev"),
+            ("zlib1g-dev", "dpkg -s zlib1g-dev", "apt-get:zlib1g-dev"),
+            ("llvm", "dpkg -s llvm", "apt-get:llvm"),
+            ("clang", "dpkg -s clang", "apt-get:clang"),
+        ];
 
-    for (package_name, check_cmd, install_advice) in &packages {
-        let is_installed = Command::new("sh")
-            .arg("-c")
-            .arg(check_cmd)
-            .output()
-            .map(|output| output.status.success())
-            .unwrap_or(false);
+        for (package_name, check_cmd, install_advice) in &packages {
+            let is_installed = Command::new("sh")
+                .arg("-c")
+                .arg(check_cmd)
+                .output()
+                .map(|output| output.status.success())
+                .unwrap_or(false);
 
-        if !is_installed {
-            missing_packages.push(package_name.to_string());
-            missing_package_advice.push(install_advice.to_string());
-        }
-    }
-
-    if !missing_packages.is_empty() {
-        let mut message = format!(
-            "Found missing packages: {}\n\nTo install them run:\n",
-            missing_packages.join(", ")
-        );
-
-        let mut apt_get_packages = vec![];
-        let mut cargo_packages = vec![];
-
-        for (package_name, _, install_advice) in &packages {
-            if missing_packages.contains(&package_name.to_string()) {
-                if install_advice.starts_with("apt-get:") {
-                    apt_get_packages.push(install_advice.replace("apt-get:", ""));
-                } else if install_advice.starts_with("cargo:") {
-                    cargo_packages.push(install_advice.replace("cargo:", ""));
-                }
+            if !is_installed {
+                missing_packages.push(package_name.to_string());
+                missing_package_advice.push(install_advice.to_string());
             }
         }
 
-        if !apt_get_packages.is_empty() {
-            message.push_str(&format!(
-                "sudo apt-get install -y {}\n",
-                apt_get_packages.join(" ")
-            ));
-        }
+        if !missing_packages.is_empty() {
+            let mut message = format!(
+                "Found missing packages: {}\n\nTo install them run:\n",
+                missing_packages.join(", ")
+            );
 
-        if !cargo_packages.is_empty() {
-            message.push_str(&format!("cargo install {}\n", cargo_packages.join(" ")));
-        }
+            let mut apt_get_packages = vec![];
+            let mut cargo_packages = vec![];
 
-        diagnostics.push(message);
-    }
-
-    // Check kernel version (should be v5.15)
-    let kernel_version = Command::new("uname")
-        .arg("-r")
-        .output()
-        .ok()
-        .and_then(|output| {
-            String::from_utf8(output.stdout).ok().and_then(|version| {
-                let parts: Vec<&str> = version.trim().split('.').collect();
-                if parts.len() >= 2 {
-                    let major = parts[0].parse::<u32>().ok()?;
-                    let minor = parts[1].parse::<u32>().ok()?;
-                    Some((major, minor))
-                } else {
-                    None
+            for (package_name, _, install_advice) in &packages {
+                if missing_packages.contains(&package_name.to_string()) {
+                    if install_advice.starts_with("apt-get:") {
+                        apt_get_packages.push(install_advice.replace("apt-get:", ""));
+                    } else if install_advice.starts_with("cargo:") {
+                        cargo_packages.push(install_advice.replace("cargo:", ""));
+                    }
                 }
-            })
-        });
+            }
 
-    match kernel_version {
-        Some((5, 15)) => {
-            // Kernel version matches
+            if !apt_get_packages.is_empty() {
+                message.push_str(&format!(
+                    "sudo apt-get install -y {}\n",
+                    apt_get_packages.join(" ")
+                ));
+            }
+
+            if !cargo_packages.is_empty() {
+                message.push_str(&format!("cargo install {}\n", cargo_packages.join(" ")));
+            }
+
+            diagnostics.push(message);
         }
-        Some((major, minor)) => {
-            diagnostics.push(format!(
-                "Tracer has been tested and confirmed to work on Linux kernel v5.15, detected v{}.{}. Contact support if issues arise.",
-                major, minor
-            ));
+
+        // Check kernel version (should be v5.15)
+        let kernel_version = Command::new("uname")
+            .arg("-r")
+            .output()
+            .ok()
+            .and_then(|output| {
+                String::from_utf8(output.stdout).ok().and_then(|version| {
+                    let parts: Vec<&str> = version.trim().split('.').collect();
+                    if parts.len() >= 2 {
+                        let major = parts[0].parse::<u32>().ok()?;
+                        let minor = parts[1].parse::<u32>().ok()?;
+                        Some((major, minor))
+                    } else {
+                        None
+                    }
+                })
+            });
+
+        match kernel_version {
+            Some((5, 15)) => {
+                // Kernel version matches
+            }
+            Some((major, minor)) => {
+                diagnostics.push(format!(
+                    "Tracer has been tested and confirmed to work on Linux kernel v5.15, detected v{}.{}. Contact support if issues arise.",
+                    major, minor
+                ));
+            }
+            None => {
+                diagnostics.push("Linux kernel version unknown. Recommended: v5.15.".to_string());
+            }
         }
-        None => {
-            diagnostics.push("Linux kernel version unknown. Recommended: v5.15.".to_string());
+
+        // Print all collected diagnostics
+        for warning in &diagnostics {
+            println!();
+            println!("{}", warning);
+        }
+        if !&diagnostics.is_empty() {
+            println!();
         }
     }
 
-    // Print all collected diagnostics
-    for warning in &diagnostics {
-        println!();
-        println!("{}", warning);
-    }
-    if !&diagnostics.is_empty() {
-        println!();
+    #[cfg(target_os = "macos")]
+    {
+        println!("Detected MacOS. eBPF is not supported on MacOS.");
+        println!("Activated process polling");
     }
 
     Ok(())
@@ -588,7 +597,7 @@ pub async fn setup_config(
     process_polling_interval_ms: &Option<u64>,
     batch_submission_interval_ms: &Option<u64>,
 ) -> Result<()> {
-    let mut current_config = ConfigLoader::load_config(None)?;
+    let mut current_config = ConfigLoader::load_default_config()?;
     if let Some(api_key) = api_key {
         current_config.api_key.clone_from(api_key);
     }
@@ -598,7 +607,8 @@ pub async fn setup_config(
     if let Some(batch_submission_interval_ms) = batch_submission_interval_ms {
         current_config.batch_submission_interval_ms = *batch_submission_interval_ms;
     }
-    ConfigLoader::save_config(&current_config)?;
+
+    //ConfigLoader::save_config(&current_config)?;
 
     Ok(())
 }
@@ -703,6 +713,8 @@ pub async fn update_tracer() -> Result<()> {
         api_client.send_terminate_request().await?;
         clean_up_after_daemon()?;
     }
+
+    let config = ConfigLoader::load_default_config()?;
 
     println!(
         "\nUpdating Tracer to version {}...",
