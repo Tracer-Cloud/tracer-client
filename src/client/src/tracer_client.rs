@@ -131,15 +131,26 @@ impl TracerClient {
         Ok(())
     }
 
-    /// This method start monitoring with ebpf it we are on linux
-    /// Otherwise will use the simple process polling
+    /// Starts process monitoring using eBPF if the system is running on Linux and meets kernel requirements.
+    ///
+    /// Falls back to simple polling if eBPF initialization fails (e.g., due to missing kernel features or permissions).
+    ///
+    /// On non-Linux platforms, polling is used by default.
     pub async fn start_monitoring(&self) -> Result<()> {
         #[cfg(target_os = "linux")]
         {
-            self.ebpf_watcher.start_ebpf().await
+            match self.ebpf_watcher.start_ebpf().await {
+                Ok(_) => Ok(()),
+                Err(err) => {
+                    tracing::error!("eBPF failed, falling back to polling: {:?}", err);
+                    self.ebpf_watcher
+                        .start_process_polling(self.config.process_polling_interval_ms)
+                        .await
+                }
+            }
         }
 
-        #[cfg(any(target_os = "windows", target_os = "macos"))]
+        #[cfg(not(target_os = "linux"))]
         {
             self.ebpf_watcher
                 .start_process_polling(self.config.process_polling_interval_ms)

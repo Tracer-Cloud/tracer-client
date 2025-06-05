@@ -23,9 +23,6 @@ pub fn check_sudo_privileges() {
             std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("tracer"));
         let args: Vec<String> = std::env::args().collect();
         let sudo_command = format!("sudo {} {}", current_exe.display(), args[1..].join(" "));
-        panic!(
-            "This command requires sudo privileges.\nTry running: {}",
-            sudo_command
-        );
+        println!("Try runing with elevated privileges:\n {}", sudo_command);
     }
 }
