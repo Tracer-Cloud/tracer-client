@@ -6,7 +6,7 @@ use crate::nondaemon_commands::{
     clean_up_after_daemon, print_config_info, print_install_readiness, setup_config, update_tracer,
     wait,
 };
-use crate::utils::ensure_file_can_be_created;
+use crate::utils::{check_sudo_privileges, ensure_file_can_be_created};
 use anyhow::{Context, Result};
 use clap::Parser;
 use daemonize::{Daemonize, Outcome};
@@ -25,16 +25,8 @@ pub fn start_daemon() -> Outcome<()> {
     daemon
         .pid_file(PID_FILE)
         .working_directory(WORKING_DIR)
-        .stdout(
-            File::create(STDOUT_FILE)
-                .context("Failed to create stdout file")
-                .unwrap(),
-        )
-        .stderr(
-            File::create(STDERR_FILE)
-                .context("Failed to create stderr file")
-                .unwrap(),
-        )
+        .stdout(File::create(STDOUT_FILE).expect("Failed to create stdout file"))
+        .stderr(File::create(STDERR_FILE).expect("Failed to create stderr file"))
         .umask(0o002)
         .execute()
 }
@@ -47,7 +39,7 @@ pub fn process_cli() -> Result<()> {
 
     let cli = Cli::parse();
     // Use the --config flag, if provided, when loading the configuration
-    let config = ConfigLoader::load_config(cli.config.as_deref())?;
+    let config = ConfigLoader::load_default_config()?;
 
     let _guard = (!cfg!(test)).then(|| {
         config.sentry_dsn.as_deref().map(|dsn| {
@@ -68,6 +60,10 @@ pub fn process_cli() -> Result<()> {
 
     match cli.command {
         Commands::Init(args) => {
+            // Check if running with sudo
+            check_sudo_privileges();
+
+            // Create necessary files for logging and daemonizing
             create_necessary_files().expect("Error while creating necessary files");
             println!("Starting daemon...");
             let args = init_command_interactive_mode(args);

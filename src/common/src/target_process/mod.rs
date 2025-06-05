@@ -1,5 +1,6 @@
 // File: src/target/mod.rs
 pub mod manager;
+pub mod nf_process_match;
 pub mod target_matching;
 pub mod targets_list;
 use crate::types::ebpf_trigger::ProcessStartTrigger;
@@ -45,6 +46,15 @@ impl DisplayName {
     }
 
     fn process_default_display_name(process_name: &str, commands: &[String]) -> String {
+        // First try NextFlow process matching
+        if !commands.is_empty() {
+            let command_string = commands.join(" ");
+            if let Ok(nf_process_name) = nf_process_match::match_process_command(&command_string) {
+                return nf_process_name;
+            }
+        }
+
+        // Fall back to the existing logic
         let tokens: Vec<String> = commands
             .iter()
             .flat_map(|cmd| cmd.split([' ', ';']))
