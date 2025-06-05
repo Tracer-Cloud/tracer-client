@@ -16,7 +16,7 @@ use tracing::{debug, error};
 
 /// Watches system processes and records events related to them
 pub struct EbpfWatcher {
-    ebpf: once_cell::sync::OnceCell<()>, // not tokio, because ebpf initialisation is sync
+    ebpf: tokio::sync::OnceCell<()>, // not tokio, because ebpf initialisation is sync
     process_manager: Arc<RwLock<ProcessManager>>,
     trigger_processor: TriggerProcessor,
     // here will go the file manager for dataset recognition operations
@@ -31,7 +31,7 @@ impl EbpfWatcher {
         )));
 
         EbpfWatcher {
-            ebpf: once_cell::sync::OnceCell::new(),
+            ebpf: tokio::sync::OnceCell::new(),
             trigger_processor: TriggerProcessor::new(Arc::clone(&process_manager)),
             process_manager,
         }
@@ -49,7 +49,8 @@ impl EbpfWatcher {
     pub async fn start_ebpf(self: &Arc<Self>) -> Result<()> {
         Arc::clone(self)
             .ebpf
-            .get_or_try_init(|| Arc::clone(self).initialize_ebpf())?;
+            .get_or_try_init(|| Arc::clone(self).initialize_ebpf())
+            .await?;
         Ok(())
     }
 
@@ -125,9 +126,10 @@ impl EbpfWatcher {
         Ok(())
     }
 
-    fn initialize_ebpf(self: Arc<Self>) -> Result<(), Error> {
+    async fn initialize_ebpf(self: Arc<Self>) -> Result<(), Error> {
         // Use unbounded channel for cross-runtime compatibility
         let (tx, rx) = mpsc::unbounded_channel::<Trigger>();
+        let (err_tx, err_rx) = tokio::sync::oneshot::channel::<Result<(), Error>>(); // Fallback signal
 
         // Start the eBPF event processing
         start_processing_events(tx)?;
@@ -135,25 +137,25 @@ impl EbpfWatcher {
         // Start the event processing loop
         let watcher = Arc::clone(&self);
         let task = tokio::spawn(async move {
-            if let Err(e) = watcher.process_trigger_loop(rx).await {
-                error!("process_trigger_loop failed: {:?}", e);
-            }
+            let result = watcher.process_trigger_loop(rx).await;
+            // Send the result back to the caller
+            let _ = err_tx.send(result);
         });
 
-        // Store the task handle in the state
-        match tokio::runtime::Handle::try_current() {
-            Ok(_) => {
-                tokio::spawn(async move {
-                    let mut process_manager = self.process_manager.write().await;
-                    process_manager.set_ebpf_task(task).await;
-                });
-            }
-            Err(_) => {
-                // Not in a tokio runtime, can't store the task handle
-            }
+        // Monitor the task and store it if needed
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            handle.spawn(async move {
+                let mut process_manager = self.process_manager.write().await;
+                process_manager.set_ebpf_task(task).await;
+            });
         }
 
-        Ok(())
+        // Wait for the process_trigger_loop to confirm startup or fail fast
+        match err_rx.await {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(e)) => Err(e),
+            Err(_) => Err(anyhow::anyhow!("Failed to receive eBPF startup status")),
+        }
     }
 
     /// Main loop that processes triggers from eBPF
@@ -193,7 +195,7 @@ impl EbpfWatcher {
                 }
                 Ok(None) => {
                     error!("Event channel closed, exiting process loop");
-                    return Ok(());
+                    return Err(anyhow::anyhow!("Event Channel closed!"));
                 }
                 Err(_) => {
                     // Timeout occurred, just continue the loop

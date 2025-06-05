@@ -45,14 +45,15 @@ pub fn bin_path_starts_with(expected_prefix: &str, bin_path: &str) -> bool {
 }
 
 pub fn bin_path_last_component_matches(expected_name: &str, bin_path: &str) -> bool {
-    let last_component_lower =
-        to_lowercase(Path::new(bin_path).file_name().unwrap().to_str().unwrap());
-    let name_lower = to_lowercase(expected_name);
-    last_component_lower == name_lower
+    let last_component = Path::new(bin_path).file_name().and_then(|s| s.to_str());
+    match last_component {
+        Some(name) => to_lowercase(name) == to_lowercase(expected_name),
+        None => false,
+    }
 }
 
 pub fn bin_path_contains(expected_content: &str, bin_path: &str) -> bool {
-    let bin_path_lower = to_lowercase(bin_path);
+    let bin_path_lower: Cow<'_, str> = to_lowercase(bin_path);
     let expected_content_lower = to_lowercase(expected_content);
     bin_path_lower.contains(expected_content_lower.as_ref())
 }
