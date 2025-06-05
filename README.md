@@ -46,6 +46,15 @@ curl -sSL https://install.tracer.cloud/ | sudo bash && source ~/.bashrc && sourc
 ```bash
 curl -sSL https://install.tracer.cloud/installation-script-development.sh | sudo bash && source ~/.bashrc && source ~/.zshrc
 ```
+To get the binary corresponding to the dev branch you just have to put `-s dev` after the bash command like in the following example
+```bash
+curl -sSL https://install.tracer.cloud/installation-script-development.sh | sudo bash -s dev && source ~/.bashrc
+```
+To get your pr binary use `bash -s <branch-name>` like in the following example
+```bash
+curl -sSL https://install.tracer.cloud/installation-script-development.sh | sudo bash -s feature/my-branch && source ~/.bashrc
+```
+
 Click the 'Open In Github Codespaces' button to use GitHub Codespaces.
 
 Once in Codespaces, the environment comes with:
