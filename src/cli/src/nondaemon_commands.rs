@@ -180,7 +180,7 @@ pub fn print_install_readiness() -> Result<()> {
     #[cfg(target_os = "macos")]
     {
         println!("Detected MacOS. eBPF is not supported on MacOS.");
-        println!("Activated process polling");
+        println!("Activated process polling \n");
     }
 
     Ok(())
