@@ -8,7 +8,7 @@ BINARY_NAME="tracer"
 echo "Arg: $1"
 
 # Set environment-specific variables based on the environment parameter
-if [[ "$1" == "development" ]] || [[ "$1" == "latest" ]]; then
+if [[ "$1" == "development" ]]; then
     echo "Development configuration"
     # Development configuration // development binaries coming from S3 github actions
     TRACER_VERSION="development"
