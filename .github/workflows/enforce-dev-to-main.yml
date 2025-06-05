@@ -1,0 +1,17 @@
+name: Enforce dev to main
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  enforce-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check base branch
+        run: |
+          if [ "${{ github.head_ref }}" != "dev" ]; then
+            echo "Merges into main must come from dev branch."
+            exit 1
+          fi
