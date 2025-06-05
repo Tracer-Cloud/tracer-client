@@ -349,12 +349,11 @@ update_rc() {
         add_path_to_file "$rc_file"
     done
 
-    # Source all existing shell config files
     printmsg "Sourcing shell configuration files..."
     for rc_file in "${RC_FILES[@]}"; do
         if [ -f "$rc_file" ]; then
-            # Use . instead of source for better shell compatibility
-            . "$rc_file" 2>/dev/null || true
+            # Redirect both stdout and stderr so no messages appear
+            . "$rc_file" >/dev/null 2>&1 || true
             printmsg "Sourced ${Blu}$rc_file${RCol}"
         fi
     done
@@ -364,22 +363,6 @@ update_rc() {
     printsucc "Added ${Blu}$BINDIR${RCol} to current session PATH"
 }
 
-
-
-#---  CLEANUP FUNCTIONS  ------------------------------------------------------
-
-function cleanup() {
-    echo ""
-    print_section "Cleanup"
-
-    if [ -d "$TRACER_TEMP_DIR" ]; then
-        rm -rf "$TRACER_TEMP_DIR" && echo "- ${EMOJI_CHECK} Cleaned up temporary files."
-    fi
-    print_install_complete
-    $ExitTrap
-}
-
-trap cleanup EXIT
 
 #-------------------------------------------------------------------------------
 #          NAME:  send_event
@@ -472,6 +455,22 @@ function print_install_complete() {
   echo "    ${EMOJI_CELEBRATE} Installation Complete!"
   print_demarkated_block print_next_steps
 }
+
+
+
+#---  CLEANUP FUNCTIONS  ------------------------------------------------------
+function cleanup() {
+    echo ""
+    print_section "Cleanup"
+
+    if [ -d "$TRACER_TEMP_DIR" ]; then
+        rm -rf "$TRACER_TEMP_DIR" && echo "- ${EMOJI_CHECK} Cleaned up temporary files."
+    fi
+    print_install_complete
+    $ExitTrap
+}
+
+trap cleanup EXIT
 
 
 #---  MAIN FUNCTION  ----------------------------------------------------------
