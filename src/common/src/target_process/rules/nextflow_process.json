@@ -1,0 +1,202 @@
+[
+  {
+    "label": "Clip BED coordinates (UCSC_BEDCLIP)",
+    "pattern": "^bedClip \\S+ \\S+ \\S+$"
+  },
+  {
+    "label": "Assess read duplication rates (RSEQC_READDUPLICATION)",
+    "pattern": "^read_duplication\\.py -i \\S+ -o \\S+"
+  },
+  {
+    "label": "Generate STAR genome index (STAR_GENOMEGENERATE)",
+    "pattern": "^STAR --runMode genomeGenerate --genomeDir star/ --genomeFastaFiles \\S+"
+  },
+  {
+    "label": "Merge RSEM count matrices (RSEM_MERGE_COUNTS)",
+    "pattern": "^paste gene_ids\\.txt tmp/genes/.*\\.counts\\.txt.* > rsem\\.merged\\.gene_counts\\.tsv$"
+  },
+  {
+    "label": "Generate BAM index statistics (SAMTOOLS_IDXSTATS)",
+    "pattern": "^samtools idxstats --threads \\d+ \\S+\\.bam$"
+  },
+  {
+    "label": "Prepare RSEM reference index (RSEM_PREPAREREFERENCE)",
+    "pattern": "^STAR --runMode genomeGenerate --genomeDir rsem/ --genomeFastaFiles \\S+ --sjdbGTFfile \\S+ --runThreadN \\d+"
+  },
+  {
+    "label": "Remove UMI duplicates (UMITOOLS_DEDUP)",
+    "pattern": "^umi_tools dedup -I \\S+ -S \\S+ -L \\S+"
+  },
+  {
+    "label": "Align RNA-seq reads (STAR_ALIGN)",
+    "pattern": "^STAR --genomeDir \\S+ --readFilesIn .+ --runThreadN \\d+ --outFileNamePrefix \\S+\\."
+  },
+  {
+    "label": "Filter GTF annotations (GTF_FILTER)",
+    "pattern": "^filter_gtf\\.py --gtf \\S+ --fasta \\S+ --prefix \\S+$"
+  },
+  {
+    "label": "Build Salmon transcript index (SALMON_INDEX)",
+    "pattern": "^salmon index --threads \\d+ -t \\S+ -d decoys\\.txt.*-i salmon$"
+  },
+  {
+    "label": "Build kallisto index (KALLISTO_INDEX)",
+    "pattern": "^kallisto index.*-i kallisto \\S+\\.fa(\\.gz)?$"
+  },
+  {
+    "label": "Analyze junction saturation (RSEQC_JUNCTIONSATURATION)",
+    "pattern": "^junction_saturation\\.py -i \\S+ -r \\S+ -o \\S+"
+  },
+  {
+    "label": "Generate alignment statistics (SAMTOOLS_STATS)",
+    "pattern": "^samtools stats --threads \\d+"
+  },
+  {
+    "label": "Align RNA-seq reads (STAR_ALIGN_IGENOMES)",
+    "pattern": "^STAR --genomeDir \\S+ --readFilesIn .+ --runThreadN \\d+ --outFileNamePrefix \\S+\\."
+  },
+  {
+    "label": "Subsample FASTQ reads (FQ_SUBSAMPLE)",
+    "pattern": "^fq subsample.*(--probability|--record-count|-p|-n).*--r1-dst"
+  },
+  {
+    "label": "Separate reads by reference (BBMAP_BBSPLIT)",
+    "pattern": "^bbsplit\\.sh -Xmx\\d+M.*threads=\\d+"
+  },
+  {
+    "label": "Validate FASTQ format (FQ_LINT)",
+    "pattern": "^fq lint(?!.*--version).*\\.fastq(?:\\.gz)?$"
+  },
+  {
+    "label": "Calculate inner distance statistics (RSEQC_INNERDISTANCE)",
+    "pattern": "^inner_distance\\.py -i \\S+ -r \\S+ -o \\S+"
+  },
+  {
+    "label": "Infer RNA-seq strandedness (RSEQC_INFEREXPERIMENT)",
+    "pattern": "^infer_experiment\\.py -i \\S+ -r \\S+"
+  },
+  {
+    "label": "Generate STAR genome index (STAR_GENOMEGENERATE)",
+    "pattern": "^STAR --runMode genomeGenerate --genomeDir star/ --genomeFastaFiles \\S+"
+  },
+  {
+    "label": "RNA-seq quality assessment (QUALIMAP_RNASEQ)",
+    "pattern": "^qualimap --java-mem-size=\\d+M rnaseq.*-bam \\S+.*-gtf \\S+.*-p (strand-specific-forward|strand-specific-reverse|non-strand-specific).*-outdir \\S+"
+  },
+  {
+    "label": "Generate STAR genome index (STAR_GENOMEGENERATE_IGENOMES)",
+    "pattern": "^STAR --runMode genomeGenerate --genomeDir star/ --genomeFastaFiles \\S+.*--genomeSAindexNbases"
+  },
+  {
+    "label": "Generate STAR genome index (STAR_GENOMEGENERATE_IGENOMES)",
+    "pattern": "^STAR --runMode genomeGenerate --genomeDir star/ --genomeFastaFiles \\S+"
+  },
+  {
+    "label": "Extract chromosome sizes (CUSTOM_GETCHROMSIZES)",
+    "pattern": "^samtools faidx \\S+\\.(fa|fasta|fna)(\\.gz)?$"
+  },
+  {
+    "label": "Prepare RSEM reference index (RSEM_PREPAREREFERENCE)",
+    "pattern": "^rsem-prepare-reference --gtf \\S+ --num-threads \\d+.*rsem/\\S+\\.fa rsem/genome$"
+  },
+  {
+    "label": "Refine taxonomic abundance estimates (BRACKEN_BRACKEN)",
+    "pattern": "^bracken.*-d \\S+.*-i \\S+.*-o \\S+.*-w \\S+"
+  },
+  {
+    "label": "Clean GENCODE transcript headers (PREPROCESS_TRANSCRIPTS_FASTA_GENCODE)",
+    "pattern": "^(zcat|cat) \\S+\\.(fa|fasta)(\\.gz)?$"
+  },
+  {
+    "label": "Calculate genome coverage (BEDTOOLS_GENOMECOV)",
+    "pattern": "^bedtools genomecov -i \\S+ -g \\S+"
+  },
+  {
+    "label": "Quantify transcript abundance (SALMON_QUANT)",
+    "pattern": "^salmon quant --geneMap \\S+ --threads \\d+ --libType=\\S+"
+  },
+  {
+    "label": "Assemble RNA-seq transcripts (STRINGTIE_STRINGTIE)",
+    "pattern": "^stringtie \\S+\\.bam.*-o \\S+\\.transcripts\\.gtf.*-A \\S+\\.abundance\\.txt"
+  },
+  {
+    "label": "Quantify transcript abundance (KALLISTO_QUANT)",
+    "pattern": "^kallisto quant --threads \\d+ --index \\S+"
+  },
+  {
+    "label": "Concatenate FASTQ files (CAT_FASTQ)",
+    "pattern": "^cat .+\\.fastq\\.gz .+\\.fastq\\.gz.*\\.merged\\.fastq\\.gz$"
+  },
+  {
+    "label": "Mark duplicate reads (PICARD_MARKDUPLICATES)",
+    "pattern": "^picard -Xmx\\d+M MarkDuplicates.*--INPUT \\S+.*--OUTPUT \\S+.*--METRICS_FILE \\S+"
+  },
+  {
+    "label": "Concatenate FASTQ files (CAT_FASTQ)",
+    "pattern": "^cat .+\\.fastq\\.gz .+\\.fastq\\.gz"
+  },
+  {
+    "label": "Generate BAM statistics (RSEQC_BAMSTAT)",
+    "pattern": "^bam_stat\\.py -i \\S+\\.bam"
+  },
+  {
+    "label": "Analyze read distribution across features (RSEQC_READDISTRIBUTION)",
+    "pattern": "^read_distribution\\.py -i \\S+ -r \\S+$"
+  },
+  {
+    "label": "Sort BAM files (SAMTOOLS_SORT)",
+    "pattern": "^samtools sort.*-T \\S+.*--threads \\d+.*-$"
+  },
+  {
+    "label": "Extract unique molecular identifiers (UMITOOLS_EXTRACT)",
+    "pattern": "^umi_tools extract -I \\S+ --read2-in=\\S+ -S \\S+ --read2-out=\\S+"
+  },
+  {
+    "label": "Predict library complexity (PRESEQ_LCEXTRAP)",
+    "pattern": "^preseq lc_extrap.*-output \\S+\\.lc_extrap\\.txt.*\\.bam$"
+  },
+  {
+    "label": "Calculate genome coverage (BEDTOOLS_GENOMECOV)",
+    "pattern": "^bedtools genomecov -ibam \\S+\\.bam"
+  },
+  {
+    "label": "Calculate transcript integrity numbers (RSEQC_TIN)",
+    "pattern": "^tin\\.py -i \\S+\\.bam -r \\S+\\.bed"
+  },
+  {
+    "label": "Count gene features (SUBREAD_FEATURECOUNTS)",
+    "pattern": "^featureCounts.*-T \\d+.*-a \\S+.*-s [012].*-o \\S+\\.featureCounts\\.txt.*\\.bam"
+  },
+  {
+    "label": "Generate alignment statistics (SAMTOOLS_FLAGSTAT)",
+    "pattern": "^samtools flagstat --threads \\d+ \\S+\\.bam$"
+  },
+  {
+    "label": "Annotate RNA-seq splice junctions (RSEQC_JUNCTIONANNOTATION)",
+    "pattern": "^junction_annotation\\.py -i \\S+\\.bam -r \\S+\\.bed -o \\S+"
+  },
+  {
+    "label": "Format biotype counts (MULTIQC_CUSTOM_BIOTYPE)",
+    "pattern": "^mqc_features_stat\\.py \\S+\\.biotype_counts_mqc\\.tsv -s \\S+ -f rRNA -o \\S+\\.biotype_counts_rrna_mqc\\.tsv$"
+  },
+  {
+    "label": "Extract unique molecular identifiers (UMITOOLS_EXTRACT)",
+    "pattern": "^umi_tools extract -I \\S+ -S \\S+\\.umi_extract\\.fastq\\.gz"
+  },
+  {
+    "label": "Index alignment files (SAMTOOLS_INDEX)",
+    "pattern": "^samtools index -@ \\d+.*\\.(bam|cram)$"
+  },
+  {
+    "label": "Convert bedGraph to bigWig (UCSC_BEDGRAPHTOBIGWIG)",
+    "pattern": "^bedGraphToBigWig \\S+\\.bedGraph \\S+ \\S+\\.bigWig$"
+  },
+  {
+    "label": "Quantify gene expression (RSEM_CALCULATEEXPRESSION)",
+    "pattern": "^rsem-calculate-expression --num-threads \\d+ --temporary-folder \\./tmp/"
+  },
+  {
+    "label": "Prepare BAM for RSEM (UMITOOLS_PREPAREFORRSEM)",
+    "pattern": "^umi_tools prepare-for-rsem --stdin=\\S+\\.bam --stdout=\\S+\\.bam --log=\\S+\\.log"
+  }
+]

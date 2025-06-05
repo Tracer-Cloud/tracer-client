@@ -4,7 +4,6 @@ use crate::config_manager::Config;
 use anyhow::{Context, Result};
 use tracer_aws::pricing::PricingSource;
 use tracer_common::target_process::manager::TargetManager;
-use tracer_common::target_process::targets_list::DEFAULT_EXCLUDED_PROCESS_RULES;
 use tracer_common::types::cli::params::FinalizedInitArgs;
 
 use crate::events::{send_alert_event, send_log_event, send_start_run_event};
@@ -107,10 +106,7 @@ impl TracerClient {
     }
 
     fn init_ebpf_watcher(config: &Config, log_recorder: &LogRecorder) -> Arc<EbpfWatcher> {
-        let target_manager = TargetManager::new(
-            config.targets.clone(),
-            DEFAULT_EXCLUDED_PROCESS_RULES.to_vec(),
-        );
+        let target_manager = TargetManager::new(vec![], vec![]);
         Arc::new(EbpfWatcher::new(target_manager, log_recorder.clone()))
     }
 
@@ -123,9 +119,9 @@ impl TracerClient {
 
     pub async fn reload_config_file(&mut self, config: Config) -> Result<()> {
         self.interval = Duration::from_millis(config.process_polling_interval_ms);
-        self.ebpf_watcher
-            .update_targets(config.targets.clone())
-            .await?;
+        // self.ebpf_watcher
+        //     .update_targets(config.targets.clone())
+        //     .await?;
         self.config = config;
 
         Ok(())

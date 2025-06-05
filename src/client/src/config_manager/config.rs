@@ -10,9 +10,6 @@ use crate::config_manager::bashrc_intercept::{
 use config::Config as RConfig;
 use tracer_aws::config::AwsConfig;
 use tracer_aws::types::aws_region::AwsRegion;
-use tracer_common::target_process::target_matching::TargetMatch;
-use tracer_common::target_process::targets_list;
-use tracer_common::target_process::Target;
 
 const DEFAULT_API_KEY: &str = "EAjg7eHtsGnP3fTURcPz1";
 const PROCESS_POLLING_INTERVAL_MS: u64 = 5;
@@ -34,7 +31,6 @@ pub struct Config {
     pub process_metrics_send_interval_ms: u64,
     pub file_size_not_changing_period_ms: u64,
     pub new_run_pause_ms: u64,
-    pub targets: Vec<Target>,
 
     pub aws_init_type: AwsConfig,
     pub aws_region: AwsRegion,
@@ -109,44 +105,16 @@ impl ConfigLoader {
             .try_deserialize()
             .context("failed to parse config file")?;
 
-        if config.targets.is_empty() {
-            config.targets = targets_list::TARGETS.to_vec()
-            // todo: TARGETS shouldn't be specified in the code. Instead, we should have this set in the config file
-        }
-
         Ok(config)
     }
 
     pub fn setup_aliases() -> Result<()> {
         let config = ConfigLoader::load_default_config()?;
-        rewrite_interceptor_bashrc_file(
-            env::current_exe()?,
-            config
-                .targets
-                .iter()
-                .filter(|target| {
-                    matches!(
-                        &target.match_type,
-                        TargetMatch::ShortLivedProcessExecutable(_)
-                    )
-                })
-                .collect(),
-        )?;
+        rewrite_interceptor_bashrc_file(env::current_exe()?, vec![])?;
 
         modify_bashrc_file(".bashrc")?;
 
         println!("Command interceptors setup successfully.");
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_default_config() {
-        let config = ConfigLoader::load_default_config().unwrap();
-        assert!(!config.targets.is_empty());
     }
 }

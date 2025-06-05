@@ -310,7 +310,6 @@ impl ProcessManager {
 
         for trigger in triggers {
             if let Some(matched_target) = Self::get_matched_target(&state, &trigger) {
-                let matched_target = matched_target.clone(); // todo: remove clone, or move targets to arcs?
                 matched_processes
                     .entry(matched_target)
                     .or_insert(HashSet::new())
@@ -321,10 +320,7 @@ impl ProcessManager {
         Ok(matched_processes)
     }
 
-    fn get_matched_target<'a>(
-        state: &'a ProcessState,
-        process: &ProcessStartTrigger,
-    ) -> Option<&'a Target> {
+    fn get_matched_target(state: &ProcessState, process: &ProcessStartTrigger) -> Option<Target> {
         if let Some(target) = state.get_target_manager().get_target_match(process) {
             return Some(target);
         }
@@ -347,7 +343,7 @@ impl ProcessManager {
         for parent in parents {
             for target in eligible_targets_for_parents.iter() {
                 if target.matches_process(parent) {
-                    return Some(target);
+                    return Some((*target).clone());
                 }
             }
         }
@@ -531,7 +527,6 @@ mod tests {
     use std::sync::Arc;
     use tokio::sync::mpsc;
     use tracer_common::target_process::target_matching::TargetMatch;
-    use tracer_common::target_process::targets_list::TARGETS;
     use tracer_common::types::current_run::{PipelineMetadata, Run};
     use tracer_common::types::pipeline_tags::PipelineTags;
     // Helper function to create a process trigger with specified properties
@@ -795,7 +790,7 @@ mod tests {
         #[case] expected_count: usize,
         #[case] msg: &str,
     ) {
-        let target_manager = TargetManager::new(TARGETS.to_vec(), vec![]);
+        let target_manager = TargetManager::new(vec![], vec![]);
         let log_recorder = create_mock_log_recorder();
 
         let process_manager = ProcessManager::new(target_manager, log_recorder);
@@ -833,7 +828,7 @@ mod tests {
 )]
     #[tokio::test]
     async fn test_nextflow_wrapped_scripts(#[case] process: ProcessStartTrigger) {
-        let target_manager = TargetManager::new(TARGETS.to_vec(), vec![]);
+        let target_manager = TargetManager::new(vec![], vec![]);
         let log_recorder = create_mock_log_recorder();
 
         let process_manager = ProcessManager::new(target_manager, log_recorder);

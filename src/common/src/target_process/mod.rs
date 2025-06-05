@@ -1,47 +1,20 @@
-// File: src/target/mod.rs
 pub mod manager;
-pub mod nf_process_match;
+pub mod pattern_match;
 pub mod target_matching;
-pub mod targets_list;
 use crate::types::ebpf_trigger::ProcessStartTrigger;
 use serde::{Deserialize, Serialize};
-use target_matching::{matches_target, TargetMatch};
-use targets_list::DEFAULT_DISPLAY_PROCESS_RULES;
+use target_matching::TargetMatch;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Hash, Eq)]
 pub enum DisplayName {
-    Name(String),
     Default(),
-    UseFirstArgument(),
-    UseFirstArgumentBaseName(),
 }
 
 impl DisplayName {
     pub fn get_display_name(&self, process_name: &str, commands: &[String]) -> String {
         match self {
-            DisplayName::Name(name) => name.clone(),
+            // DisplayName::Name(name) => name.clone(),
             DisplayName::Default() => Self::process_default_display_name(process_name, commands),
-            DisplayName::UseFirstArgument() => commands
-                .get(1)
-                .unwrap_or(&process_name.to_string())
-                .to_string(),
-            DisplayName::UseFirstArgumentBaseName() => {
-                if commands.is_empty() {
-                    return process_name.to_string();
-                }
-                let first_command = commands
-                    .iter()
-                    .skip(1)
-                    .find(|x| !x.is_empty() && !x.starts_with('-'));
-                if first_command.is_none() {
-                    return process_name.to_string();
-                }
-                let base_name = std::path::Path::new(first_command.unwrap()).file_name();
-                if base_name.is_none() {
-                    return first_command.unwrap().to_string();
-                }
-                base_name.unwrap().to_str().unwrap().to_string()
-            }
         }
     }
 
@@ -49,35 +22,9 @@ impl DisplayName {
         // First try NextFlow process matching
         if !commands.is_empty() {
             let command_string = commands.join(" ");
-            if let Ok(nf_process_name) = nf_process_match::match_process_command(&command_string) {
+            if let Ok(nf_process_name) = pattern_match::match_process_command(&command_string) {
                 return nf_process_name;
             }
-        }
-
-        // Fall back to the existing logic
-        let tokens: Vec<String> = commands
-            .iter()
-            .flat_map(|cmd| cmd.split([' ', ';']))
-            .map(|token| {
-                std::path::Path::new(token)
-                    .file_stem()
-                    .map(|f| f.to_string_lossy().to_lowercase())
-                    .unwrap_or_else(|| token.to_lowercase())
-            })
-            .collect();
-
-        for label in DEFAULT_DISPLAY_PROCESS_RULES.iter() {
-            if tokens.iter().any(|t| t == label) {
-                return label.to_string();
-            }
-        }
-
-        // If process name contains a valid path, return just the file stem
-        if let Some(stem) = std::path::Path::new(process_name)
-            .file_stem()
-            .map(|s| s.to_string_lossy().to_string())
-        {
-            return stem;
         }
 
         // Fallback: return as-is
@@ -157,20 +104,21 @@ impl Target {
 
 impl TargetMatchable for Target {
     fn matches(&self, process_name: &str, command: &str, bin_path: &str) -> bool {
-        matches_target(&self.match_type, process_name, command, bin_path)
-            && (self.filter_out.is_none()
-                || !self
-                    .filter_out
-                    .as_ref()
-                    .unwrap()
-                    .matches(process_name, command, bin_path))
+        if let Ok(_) = pattern_match::match_process_command(&command) {
+            true
+        } else {
+            false
+        }
     }
 }
 
 impl TargetMatchable for Vec<TargetMatch> {
     fn matches(&self, process_name: &str, command: &str, bin_path: &str) -> bool {
-        self.iter()
-            .any(|target| matches_target(target, process_name, command, bin_path))
+        if let Ok(_) = pattern_match::match_process_command(&command) {
+            true
+        } else {
+            false
+        }
     }
 }
 

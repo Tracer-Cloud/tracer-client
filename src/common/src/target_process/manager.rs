@@ -1,6 +1,9 @@
-use crate::types::ebpf_trigger::ProcessStartTrigger;
+use crate::{
+    target_process::{pattern_match, target_matching::TargetMatch, DisplayName},
+    types::ebpf_trigger::ProcessStartTrigger,
+};
 
-use super::{Target, TargetMatchable};
+use super::Target;
 
 #[derive(Clone, Debug)]
 pub struct TargetManager {
@@ -13,66 +16,22 @@ impl TargetManager {
         Self { targets, blacklist }
     }
 
-    /// Returns the matching target if it's not blacklisted
-    pub fn get_target_match(&self, process: &ProcessStartTrigger) -> Option<&Target> {
-        // Skip blacklisted processes
-        if self.blacklist.iter().any(|b| b.matches_process(process)) {
-            tracing::error!(
-                "blocking process: {} | path: {} | argv: {:?}",
-                process.comm,
-                process.file_name,
-                process.argv
-            );
-            return None;
-        }
+    pub fn get_target_match(&self, process: &ProcessStartTrigger) -> Option<Target> {
+        let cmd_match = pattern_match::match_process_command(&process.argv.join(" "));
+        match cmd_match {
+            Ok(_) => {}
+            Err(_) => return None,
+        };
+        let process_name = process.comm.clone();
 
-        // Return first matching target
-        self.targets.iter().find(|t| t.matches_process(process))
-    }
-}
+        let target = Target {
+            match_type: TargetMatch::ProcessName(process_name),
+            display_name: DisplayName::Default(),
+            merge_with_parents: false,
+            force_ancestor_to_match: false,
+            filter_out: None,
+        };
 
-//TODO add tests related to targets
-#[cfg(test)]
-mod tests {
-    use crate::target_process::manager::TargetManager;
-    use crate::target_process::target_matching::{CommandContainsStruct, TargetMatch};
-    use crate::target_process::Target;
-    use crate::types::ebpf_trigger::ProcessStartTrigger;
-
-    fn dummy_process(name: &str, cmd: &str, path: &str) -> ProcessStartTrigger {
-        ProcessStartTrigger {
-            pid: 1,
-            ppid: 0,
-            comm: name.to_string(),
-            argv: cmd.split_whitespace().map(String::from).collect(),
-            file_name: path.to_string(),
-            started_at: chrono::Utc::now(),
-        }
-    }
-
-    #[test]
-    fn test_blacklist_excludes_match() {
-        let blacklist = vec![Target::new(TargetMatch::CommandContains(
-            CommandContainsStruct {
-                process_name: None,
-                command_content: "spack".to_string(),
-            },
-        ))];
-        let targets = vec![Target::new(TargetMatch::ProcessName("fastqc".to_string()))];
-
-        let mgr = TargetManager::new(targets, blacklist);
-        let proc = dummy_process("fastqc", "spack activate && fastqc", "/usr/bin/fastqc");
-
-        assert!(mgr.get_target_match(&proc).is_none());
-    }
-
-    #[test]
-    fn test_target_match_without_blacklist() {
-        let mgr = TargetManager::new(
-            vec![Target::new(TargetMatch::ProcessName("fastqc".to_string()))],
-            vec![],
-        );
-        let process = dummy_process("fastqc", "fastqc file.fq", "/usr/bin/fastqc");
-        assert!(mgr.get_target_match(&process).is_some());
+        Some(target)
     }
 }

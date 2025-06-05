@@ -1,0 +1,518 @@
+[
+  {
+    "id": "simple/star",
+    "label": "STAR",
+    "pattern": "^(/opt/bin/conda\b.*?)STAR\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/bowtie2",
+    "label": "Bowtie2",
+    "pattern": "^(/opt/bin/conda\b.*?)bowtie2\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/bowtie2-build",
+    "label": "Bowtie2-build",
+    "pattern": "^(/opt/bin/conda\b.*?)bowtie2-build-s\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/bowtie2-align",
+    "label": "Bowtie2-align",
+    "pattern": "^(/opt/bin/conda\b.*?)bowtie2-align-s\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/bwa",
+    "label": "BWA",
+    "pattern": "^(/opt/bin/conda\b.*?)bwa\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/salmon",
+    "label": "Salmon",
+    "pattern": "^(/opt/bin/conda\b.*?)salmon\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/hisat2",
+    "label": "HISAT2",
+    "pattern": "^(/opt/bin/conda\b.*?)hisat2\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/hisat2-build",
+    "label": "HISAT2-build",
+    "pattern": "^(/opt/bin/conda\b.*?)hisat2-build\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/stringtie",
+    "label": "StringTie",
+    "pattern": "^(/opt/bin/conda\b.*?)stringtie\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/featurecounts",
+    "label": "featureCounts",
+    "pattern": "^(/opt/bin/conda\b.*?)featureCounts\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/homer",
+    "label": "HOMER",
+    "pattern": "^(/opt/bin/conda\b.*?)HOMER\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/samtools",
+    "label": "SAMtools",
+    "pattern": "^(/opt/bin/conda\b.*?)samtools\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/seasmoke",
+    "label": "Seasmoke",
+    "pattern": "^(/opt/bin/conda\b.*?)seasmoke\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/alphafold",
+    "label": "AlphaFold",
+    "pattern": "^(/opt/bin/conda\b.*?)alphafold\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/bedtools",
+    "label": "BEDtools",
+    "pattern": "^(/opt/bin/conda\b.*?)bedtools\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/deeptools",
+    "label": "deepTools",
+    "pattern": "^(/opt/bin/conda\b.*?)deeptools\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/macs3",
+    "label": "MACS3",
+    "pattern": "^(/opt/bin/conda\b.*?)macs3\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/plotcoverage",
+    "label": "plotCoverage",
+    "pattern": "^(/opt/bin/conda\b.*?)plotCoverage\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/plotpca",
+    "label": "plotPCA",
+    "pattern": "^(/opt/bin/conda\b.*?)plotPCA\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/plotfingerprint",
+    "label": "plotFingerprint",
+    "pattern": "^(/opt/bin/conda\b.*?)plotFingerprint\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/macs3",
+    "label": "MACS3",
+    "pattern": "^(/opt/bin/conda\b.*?)MACS33\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/genrich",
+    "label": "Genrich",
+    "pattern": "^(/opt/bin/conda\b.*?)Genrich\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/tophat",
+    "label": "TopHat",
+    "pattern": "^(/opt/bin/conda\b.*?)TopHat\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/jamm",
+    "label": "JAMM",
+    "pattern": "^(/opt/bin/conda\b.*?)JAMM\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/fastqc",
+    "label": "FastQC",
+    "pattern": "^(/opt/bin/conda\b.*?)fastqc\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/multiqc",
+    "label": "MultiQC",
+    "pattern": "^(/opt/bin/conda\b.*?)multiqc\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/fastp",
+    "label": "fastp",
+    "pattern": "^(/opt/bin/conda\b.*?)fastp\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/pear",
+    "label": "PEAR",
+    "pattern": "^(/opt/bin/conda\b.*?)PEAR\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/trimmomatic",
+    "label": "Trimmomatic",
+    "pattern": "^(/opt/bin/conda\b.*?)Trimmomatic\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/sra-toolkit",
+    "label": "SRA Toolkit",
+    "pattern": "^(/opt/bin/conda\b.*?)sra-toolkit\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/picard",
+    "label": "Picard",
+    "pattern": "^(/opt/bin/conda\b.*?)Picard\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/cutadapt",
+    "label": "Cutadapt",
+    "pattern": "^(/opt/bin/conda\b.*?)cutadapt\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/cell-ranger",
+    "label": "Cell Ranger",
+    "pattern": "^(/opt/bin/conda\b.*?)cellranger\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/statsolo",
+    "label": "STATsolo",
+    "pattern": "^(/opt/bin/conda\b.*?)STATsolo\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/scte",
+    "label": "scTE",
+    "pattern": "^(/opt/bin/conda\b.*?)scTE\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/scanpy",
+    "label": "Scanpy",
+    "pattern": "^(/opt/bin/conda\b.*?)scanpy\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/seurat",
+    "label": "Seurat",
+    "pattern": "^(/opt/bin/conda\b.*?)Seurat\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/liger",
+    "label": "LIGER",
+    "pattern": "^(/opt/bin/conda\b.*?)LIGER\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/sc3",
+    "label": "SC3",
+    "pattern": "^(/opt/bin/conda\b.*?)SC3\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/louvain",
+    "label": "Louvain",
+    "pattern": "^(/opt/bin/conda\b.*?)Louvain\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/leiden",
+    "label": "Leiden",
+    "pattern": "^(/opt/bin/conda\b.*?)Leiden\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/garnett",
+    "label": "Garnett",
+    "pattern": "^(/opt/bin/conda\b.*?)Garnett\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/monocle",
+    "label": "Monocle",
+    "pattern": "^(/opt/bin/conda\b.*?)Monocle\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/harmony",
+    "label": "Harmony",
+    "pattern": "^(/opt/bin/conda\b.*?)Harmony\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/paga",
+    "label": "PAGA",
+    "pattern": "^(/opt/bin/conda\b.*?)PAGA\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/palantir",
+    "label": "Palantir",
+    "pattern": "^(/opt/bin/conda\b.*?)Palantir\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/rna-velocity",
+    "label": "RNA Velocity",
+    "pattern": "^(/opt/bin/conda\b.*?)velocity\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/cellphonedb",
+    "label": "CellPhoneDB",
+    "pattern": "^(/opt/bin/conda\b.*?)CellPhoneDB\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/cellchat",
+    "label": "CellChat",
+    "pattern": "^(/opt/bin/conda\b.*?)CellChat\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/nichenet",
+    "label": "NicheNet",
+    "pattern": "^(/opt/bin/conda\b.*?)NicheNet\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/fit-sne",
+    "label": "FIt-SNE",
+    "pattern": "^(/opt/bin/conda\b.*?)FIt-SNE\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/umap",
+    "label": "UMAP",
+    "pattern": "^(/opt/bin/conda\b.*?)umap\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/bbmap",
+    "label": "BBMap",
+    "pattern": "^(/opt/bin/conda\b.*?)bbmap\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/cuffdiff",
+    "label": "Cuffdiff",
+    "pattern": "^(/opt/bin/conda\b.*?)cuffdiff\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/rna-seqc",
+    "label": "RNA-SeQC",
+    "pattern": "^(/opt/bin/conda\b.*?)RNA-SeQC\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/rseqc",
+    "label": "RSeQC",
+    "pattern": "^(/opt/bin/conda\b.*?)RSeQC\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/trim-galore",
+    "label": "Trim Galore!",
+    "pattern": "^(/opt/bin/conda\b.*?)Trimgalore\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/uchime",
+    "label": "UCHIME",
+    "pattern": "^(/opt/bin/conda\b.*?)UCHIME\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/erange",
+    "label": "ERANGE",
+    "pattern": "^(/opt/bin/conda\b.*?)Erange\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/x-mate",
+    "label": "X-Mate",
+    "pattern": "^(/opt/bin/conda\b.*?)X-Mate\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/spliceseq",
+    "label": "SpliceSeq",
+    "pattern": "^(/opt/bin/conda\b.*?)SpliceSeq\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/casper",
+    "label": "casper",
+    "pattern": "^(/opt/bin/conda\b.*?)casper\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/deseq",
+    "label": "DESeq",
+    "pattern": "^(/opt/bin/conda\b.*?)DESeq\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/edger",
+    "label": "EdgeR",
+    "pattern": "^(/opt/bin/conda\b.*?)EdgeR\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/bamsummary",
+    "label": "bamSummary",
+    "pattern": "^(/opt/bin/conda\b.*?)bamSummary\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/kallisto",
+    "label": "kallisto",
+    "pattern": "^(/opt/bin/conda\b.*?)kallisto\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/pairtools",
+    "label": "pairtools",
+    "pattern": "^(/opt/bin/conda\b.*?)pairtools\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/hicexplorer",
+    "label": "HiCExplorer",
+    "pattern": "^(/opt/bin/conda\b.*?)HiCExplorer\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/gitar",
+    "label": "GITAR",
+    "pattern": "^(/opt/bin/conda\b.*?)GITAR\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/tadbit",
+    "label": "TADbit",
+    "pattern": "^(/opt/bin/conda\b.*?)TADbit\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/juicer",
+    "label": "Juicer",
+    "pattern": "^(/opt/bin/conda\b.*?)Juicer\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/hic-pro",
+    "label": "HiC-Pro",
+    "pattern": "^(/opt/bin/conda\b.*?)HiC-Pro\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/cooler",
+    "label": "cooler",
+    "pattern": "^(/opt/bin/conda\b.*?)cooler\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/cooltools",
+    "label": "cooltools",
+    "pattern": "^(/opt/bin/conda\b.*?)cooltools\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/runhic",
+    "label": "runHiC",
+    "pattern": "^(/opt/bin/conda\b.*?)runHiC\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/htslib",
+    "label": "HTSlib",
+    "pattern": "^(/opt/bin/conda\b.*?)HTSlib\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/htslib",
+    "label": "htslib",
+    "pattern": "^(/opt/bin/conda\b.*?)htslib\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/zlib",
+    "label": "zlib",
+    "pattern": "^(/opt/bin/conda\b.*?)zlib\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/libbz2",
+    "label": "libbz2",
+    "pattern": "^(/opt/bin/conda\b.*?)libbz2\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/liblzma",
+    "label": "liblzma",
+    "pattern": "^(/opt/bin/conda\b.*?)liblzma\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/libcurl",
+    "label": "libcurl",
+    "pattern": "^(/opt/bin/conda\b.*?)libcurl\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/libdeflate",
+    "label": "libdeflate",
+    "pattern": "^(/opt/bin/conda\b.*?)libdeflate\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/ncurses",
+    "label": "ncurses",
+    "pattern": "^(/opt/bin/conda\b.*?)ncurses\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/pthread",
+    "label": "pthread",
+    "pattern": "^(/opt/bin/conda\b.*?)pthread\b",
+    "priority": 1
+  },
+  {
+    "id": "simple/java-fastqc",
+    "label": "java.+?\bFastQC",
+    "pattern": "^(/opt/bin/conda\b.*?)java.+?\bFastQC\b",
+    "priority": 1
+  },
+  {
+    "id": "tracer-internal/oom_example_c",
+    "label": "TRACER INTERNAL: oom_example_c",
+    "pattern": "^(/opt/bin/conda\b.*?)oom_example_c\b",
+    "priority": 1
+  }
+]

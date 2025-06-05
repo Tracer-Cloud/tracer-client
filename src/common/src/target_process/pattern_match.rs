@@ -5,9 +5,16 @@ use std::error::Error;
 use std::fmt;
 
 #[derive(Debug, Deserialize, Serialize)]
+pub struct TestFixture {
+    pub label: String,
+    pub script: String,
+    pub commands: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ProcessInfo {
-    pub process_name: String,
-    pub test_commands: Vec<Vec<String>>,
+    pub label: String,
+    pub test_fixtures: Vec<TestFixture>,
     pub pattern: String,
 }
 
@@ -34,7 +41,7 @@ impl fmt::Display for MatchError {
 
 impl Error for MatchError {}
 
-pub struct NextFlowProcessMatcher {
+struct NextFlowProcessMatcher {
     processes: Vec<ProcessInfo>,
     // Changed to store Vec<(usize, Regex)> to handle multiple patterns per process name
     // The usize is the index in the processes vector
@@ -49,14 +56,17 @@ impl NextFlowProcessMatcher {
         let mut compiled_regexes: HashMap<String, Vec<(usize, Regex)>> = HashMap::new();
 
         for (idx, process) in processes.iter().enumerate() {
-            let regex = Regex::new(&process.pattern).map_err(|e| {
-                MatchError::RegexError(format!("Pattern '{}': {}", process.pattern, e))
-            })?;
-
-            compiled_regexes
-                .entry(process.process_name.clone())
-                .or_default()
-                .push((idx, regex));
+            match Regex::new(&process.pattern) {
+                Ok(regex) => {
+                    compiled_regexes
+                        .entry(process.label.clone())
+                        .or_default()
+                        .push((idx, regex));
+                }
+                Err(e) => {
+                    continue;
+                }
+            }
         }
 
         Ok(NextFlowProcessMatcher {
@@ -87,44 +97,19 @@ impl NextFlowProcessMatcher {
 
         match matches.len() {
             0 => Err(MatchError::NoMatch),
-            1 => Ok(matches[0].clone()),
-            _ => {
-                // Deduplicate by removing duplicate names
-                matches.sort();
-                matches.dedup();
-
-                // If after deduplication we have only one match, return it
-                if matches.len() == 1 {
-                    return Ok(matches[0].clone());
-                }
-
-                // Sort by length (shortest first)
-                matches.sort_by_key(|name| name.len());
-
-                // Check if shortest is a substring of all others
-                let shortest = &matches[0];
-                let all_contain_shortest = matches[1..].iter().all(|name| name.contains(shortest));
-
-                if all_contain_shortest {
-                    Ok(shortest.clone())
-                } else {
-                    Err(MatchError::MultipleMatches(matches))
-                }
-            }
+            _ => Ok(matches[0].clone()),
         }
     }
 
     pub fn get_process_info(&self, process_name: &str) -> Option<&ProcessInfo> {
-        self.processes
-            .iter()
-            .find(|p| p.process_name == process_name)
+        self.processes.iter().find(|p| p.label == process_name)
     }
 
     // New method to get all process infos for a given name
     pub fn get_all_process_infos(&self, process_name: &str) -> Vec<&ProcessInfo> {
         self.processes
             .iter()
-            .filter(|p| p.process_name == process_name)
+            .filter(|p| p.label == process_name)
             .collect()
     }
 }
@@ -135,9 +120,10 @@ static MATCHER: OnceLock<NextFlowProcessMatcher> = OnceLock::new();
 /// Public convenience function for matching a single command against the default processes file
 pub fn match_process_command(command: &str) -> Result<String, MatchError> {
     let matcher = MATCHER.get_or_init(|| {
-        let json_content = include_str!("./nf_process_list.json");
+        let json_content = include_str!("./rules/nextflow_process.json");
         NextFlowProcessMatcher::new(json_content).expect("Failed to create matcher")
     });
+
     matcher.match_command(command)
 }
 
@@ -148,7 +134,7 @@ mod tests {
     #[test]
     fn test_all_patterns() {
         // Load and parse the JSON data
-        let json_content = include_str!("./nf_process_list.json");
+        let json_content = include_str!("./rules/nextflow_process.json");
         let processes: Vec<ProcessInfo> =
             serde_json::from_str(json_content).expect("Failed to parse nf_process_list.json");
 
@@ -157,25 +143,25 @@ mod tests {
         let mut passed_tests = 0;
 
         for process in &processes {
-            println!("Testing process: {}", process.process_name);
+            println!("Testing process: {}", process.label);
 
-            for (command_set_idx, command_set) in process.test_commands.iter().enumerate() {
+            for (command_set_idx, command_set) in process.test_fixtures.iter().enumerate() {
                 total_tests += 1;
                 let mut matching_commands = 0;
                 let mut relaxed_matches = 0;
                 let mut command_results = Vec::new();
 
                 // Test each command in the command set
-                for (cmd_idx, command) in command_set.iter().enumerate() {
+                for (cmd_idx, command) in command_set.commands.iter().enumerate() {
                     match match_process_command(command) {
                         Ok(matched_process) => {
-                            if matched_process == process.process_name {
+                            if matched_process == process.label {
                                 matching_commands += 1;
                                 command_results.push(format!(
                                     "  Command {}: '{}' -> MATCH ({})",
                                     cmd_idx, command, matched_process
                                 ));
-                            } else if process.process_name.contains(&matched_process) {
+                            } else if process.label.contains(&matched_process) {
                                 matching_commands += 1;
                                 relaxed_matches += 1;
                                 command_results.push(format!(
@@ -185,7 +171,7 @@ mod tests {
                             } else {
                                 command_results.push(format!(
                                     "  Command {}: '{}' -> WRONG MATCH (got '{}', expected '{}')",
-                                    cmd_idx, command, matched_process, process.process_name
+                                    cmd_idx, command, matched_process, process.label
                                 ));
                             }
                         }
@@ -226,7 +212,7 @@ mod tests {
                 } else {
                     failed_cases.push(format!(
                         "FAILED - Process '{}', Command set {}: Expected at least 1 match, got {}\n{}",
-                        process.process_name,
+                        process.label,
                         command_set_idx,
                         matching_commands,
                         command_results.join("\n")
