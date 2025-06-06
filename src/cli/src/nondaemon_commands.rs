@@ -198,6 +198,7 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
             const BOOK: Emoji<'_, '_> = Emoji("📖 ", "-> ");
             const SUPPORT: Emoji<'_, '_> = Emoji("✉️ ", "-> ");
             const WEB: Emoji<'_, '_> = Emoji("🌐 ", "-> ");
+            const WARNING: Emoji<'_, '_> = Emoji("⚠️ ", "⚠ ");
             let width = 75;
 
             writeln!(
@@ -208,7 +209,8 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
             )?;
             writeln!(
                 &mut output,
-                "   Daemon status: {}",
+                "{} Daemon status: {}",
+                WARNING,
                 "Not started yet".yellow()
             )?;
 
@@ -256,6 +258,7 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
                 "           support@tracer.cloud".cyan(),
                 width = width - 15
             )?;
+            writeln!(&mut output, "   │{:width$}│", "", width = width)?;
 
             writeln!(&mut output, "   ╰{:─^width$}╯", "", width = width)?;
             println!("{}", output);
