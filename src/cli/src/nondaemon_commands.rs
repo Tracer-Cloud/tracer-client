@@ -3,6 +3,7 @@ use console::Emoji;
 use std::fmt::Write;
 use std::process::Command;
 
+use crate::utils::get_kernel_version;
 use anyhow::{bail, Context, Result};
 use std::result::Result::Ok;
 use tokio::time::sleep;
@@ -135,22 +136,7 @@ pub fn print_install_readiness() -> Result<()> {
         }
 
         // Check kernel version (should be v5.15)
-        let kernel_version = Command::new("uname")
-            .arg("-r")
-            .output()
-            .ok()
-            .and_then(|output| {
-                String::from_utf8(output.stdout).ok().and_then(|version| {
-                    let parts: Vec<&str> = version.trim().split('.').collect();
-                    if parts.len() >= 2 {
-                        let major = parts[0].parse::<u32>().ok()?;
-                        let minor = parts[1].parse::<u32>().ok()?;
-                        Some((major, minor))
-                    } else {
-                        None
-                    }
-                })
-            });
+        let kernel_version = get_kernel_version();
 
         match kernel_version {
             Some((5, 15)) => {

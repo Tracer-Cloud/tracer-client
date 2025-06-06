@@ -139,7 +139,25 @@ impl TracerClient {
     pub async fn start_monitoring(&self) -> Result<()> {
         #[cfg(target_os = "linux")]
         {
-            self.ebpf_watcher.start_ebpf().await
+            let kernel_version = get_kernel_version();
+            match kernel_version {
+                Some((5, 15)) => {
+                    println!("Starting eBPF monitoring");
+                    self.ebpf_watcher.start_ebpf().await
+                }
+                Some((major, minor)) => {
+                    println!("Starting process polling monitoring");
+                    self.ebpf_watcher
+                        .start_process_polling(self.config.process_polling_interval_ms)
+                        .await
+                }
+                None => {
+                    println!("Starting process polling monitoring");
+                    self.ebpf_watcher
+                        .start_process_polling(self.config.process_polling_interval_ms)
+                        .await
+                }
+            }
         }
 
         #[cfg(not(target_os = "linux"))]
