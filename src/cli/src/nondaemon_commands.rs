@@ -235,7 +235,7 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
                 &mut output,
                 "   │ {} Visualize Data:     {:<width$}                        │",
                 WEB,
-                "https://sandbox.tracer.app".cyan().underline(),
+                "https://sandbox.tracer.app".bright_blue().underline(),
                 width = width - 50
             )?;
             writeln!(&mut output, "   │{:width$}│", "", width = width)?;
@@ -245,7 +245,7 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
                 "   │ {} Documentation:      {:<width$}     │",
                 BOOK,
                 "https://github.com/Tracer-Cloud/tracer-client"
-                    .cyan()
+                    .bright_blue()
                     .underline(),
                 width = width - 30
             )?;
@@ -255,7 +255,7 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
                 &mut output,
                 "   │ {} Support: {:<width$} │",
                 SUPPORT,
-                "           support@tracer.cloud".cyan(),
+                "           support@tracer.cloud".bright_blue(),
                 width = width - 15
             )?;
             writeln!(&mut output, "   │{:width$}│", "", width = width)?;
@@ -322,7 +322,7 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
         "\u{1b}]8;;{0}\u{1b}\\{0}\u{1b}]8;;\u{1b}\\",
         config.grafana_workspace_url
     );
-    let colored_url = clickable_url.cyan().underline().to_string();
+    let colored_url = clickable_url.bright_blue().underline().to_string();
 
     writeln!(
         &mut output,

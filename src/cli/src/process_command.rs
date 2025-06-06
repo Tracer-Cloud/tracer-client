@@ -75,6 +75,8 @@ pub fn process_cli() -> Result<()> {
                     let current_exe = std::env::current_exe()?;
                     let is_dev_string = "false"; // for testing purposes //TODO remove
 
+                    println!("Spawning child process...");
+
                     let child = Command::new(current_exe)
                         .arg("init")
                         .arg("--no-daemonize")
