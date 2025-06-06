@@ -78,7 +78,7 @@ impl EbpfWatcher {
                     current_processes.insert(pid_u32);
 
                     if !known_processes.contains(&pid_u32) {
-                        let argv = get_process_argv(pid_u32 as i32).await;
+                        let argv = get_process_argv(pid_u32 as i32);
 
                         // New process detected
                         let start_trigger = ProcessStartTrigger {
@@ -86,11 +86,7 @@ impl EbpfWatcher {
                             ppid: process.parent().map(|p| p.as_u32()).unwrap_or(0) as usize,
                             comm: process.name().to_string(),
                             argv,
-                            file_name: process
-                                .exe()
-                                .and_then(|p| p.to_str())
-                                .unwrap_or("")
-                                .to_string(),
+                            file_name: "".to_string(),
                             started_at: Utc::now(),
                         };
 
