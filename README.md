@@ -2,6 +2,8 @@
 Tracer Linux Agent: Observability for Scientific HPC Workloads
 </h2>
 
+![image](https://github.com/user-attachments/assets/760334a8-5612-4581-b702-f4bf43a9f43f)
+
 ![Tracer Banner](docs/images/tracer-banner-image.jpeg)
 
 ## What Is Tracer and Why Use It? 
