@@ -5,7 +5,6 @@ use std::{
     path::PathBuf,
 };
 
-use tracer_common::target_process::target_matching::TargetMatch;
 use tracer_common::target_process::Target;
 
 const INTERCEPTOR_BASHRC_PATH: &str = ".config/tracer/.bashrc";
@@ -44,7 +43,6 @@ pub fn rewrite_interceptor_bashrc_file(
     for command in targets.into_iter().map(|target| {
         let name = target.get_display_name_object();
         let command_to_alias = match &target.match_type {
-            TargetMatch::ShortLivedProcessExecutable(alias) => alias.clone(),
             _ => "unknown_command".to_string(),
         };
         format!(

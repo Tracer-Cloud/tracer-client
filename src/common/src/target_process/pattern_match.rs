@@ -21,8 +21,6 @@ pub struct ProcessInfo {
 #[derive(Debug)]
 pub enum MatchError {
     NoMatch,
-    MultipleMatches(Vec<String>),
-    RegexError(String),
     JsonError(String),
 }
 
@@ -30,10 +28,6 @@ impl fmt::Display for MatchError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             MatchError::NoMatch => write!(f, "No matching process found"),
-            MatchError::MultipleMatches(matches) => {
-                write!(f, "Multiple matches found: {}", matches.join(", "))
-            }
-            MatchError::RegexError(msg) => write!(f, "Regex error: {}", msg),
             MatchError::JsonError(msg) => write!(f, "JSON error: {}", msg),
         }
     }
@@ -41,14 +35,13 @@ impl fmt::Display for MatchError {
 
 impl Error for MatchError {}
 
-struct NextFlowProcessMatcher {
-    processes: Vec<ProcessInfo>,
+struct RuleMatcher {
     // Changed to store Vec<(usize, Regex)> to handle multiple patterns per process name
     // The usize is the index in the processes vector
     compiled_regexes: HashMap<String, Vec<(usize, Regex)>>,
 }
 
-impl NextFlowProcessMatcher {
+impl RuleMatcher {
     pub fn new(json_content: &str) -> Result<Self, MatchError> {
         let processes: Vec<ProcessInfo> =
             serde_json::from_str(json_content).map_err(|e| MatchError::JsonError(e.to_string()))?;
@@ -63,34 +56,24 @@ impl NextFlowProcessMatcher {
                         .or_default()
                         .push((idx, regex));
                 }
-                Err(e) => {
+                Err(_) => {
                     continue;
                 }
             }
         }
 
-        Ok(NextFlowProcessMatcher {
-            processes,
-            compiled_regexes,
-        })
-    }
-
-    pub fn from_file(file_path: &str) -> Result<Self, MatchError> {
-        let content = std::fs::read_to_string(file_path)
-            .map_err(|e| MatchError::JsonError(format!("Failed to read file: {}", e)))?;
-        Self::new(&content)
+        Ok(RuleMatcher { compiled_regexes })
     }
 
     pub fn match_command(&self, command: &str) -> Result<String, MatchError> {
         let mut matches = Vec::new();
 
         // Check all unique process names
-        for (process_name, regex_list) in &self.compiled_regexes {
-            // Check if any of the patterns for this process name match
+        for (label, regex_list) in &self.compiled_regexes {
             for (_, regex) in regex_list {
                 if regex.is_match(command) {
-                    matches.push(process_name.clone());
-                    break; // Only add the process name once even if multiple patterns match
+                    matches.push(label.clone());
+                    break;
                 }
             }
         }
@@ -100,28 +83,16 @@ impl NextFlowProcessMatcher {
             _ => Ok(matches[0].clone()),
         }
     }
-
-    pub fn get_process_info(&self, process_name: &str) -> Option<&ProcessInfo> {
-        self.processes.iter().find(|p| p.label == process_name)
-    }
-
-    // New method to get all process infos for a given name
-    pub fn get_all_process_infos(&self, process_name: &str) -> Vec<&ProcessInfo> {
-        self.processes
-            .iter()
-            .filter(|p| p.label == process_name)
-            .collect()
-    }
 }
 
 use std::sync::OnceLock;
-static MATCHER: OnceLock<NextFlowProcessMatcher> = OnceLock::new();
+static MATCHER: OnceLock<RuleMatcher> = OnceLock::new();
 
 /// Public convenience function for matching a single command against the default processes file
 pub fn match_process_command(command: &str) -> Result<String, MatchError> {
     let matcher = MATCHER.get_or_init(|| {
         let json_content = include_str!("./rules/nextflow_process.json");
-        NextFlowProcessMatcher::new(json_content).expect("Failed to create matcher")
+        RuleMatcher::new(json_content).expect("Failed to create matcher")
     });
 
     matcher.match_command(command)
@@ -178,14 +149,6 @@ mod tests {
                         Err(MatchError::NoMatch) => {
                             command_results
                                 .push(format!("  Command {}: '{}' -> NO MATCH", cmd_idx, command));
-                        }
-                        Err(MatchError::MultipleMatches(matches)) => {
-                            command_results.push(format!(
-                                "  Command {}: '{}' -> MULTIPLE MATCHES: {}",
-                                cmd_idx,
-                                command,
-                                matches.join(", ")
-                            ));
                         }
                         Err(e) => {
                             command_results.push(format!(
