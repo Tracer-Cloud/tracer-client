@@ -21,14 +21,18 @@ use tracer_daemon::daemon::run;
 use tracer_daemon::structs::{Message, TagData};
 
 pub fn start_daemon() -> Outcome<()> {
-    let daemon = Daemonize::new();
-    daemon
+    let daemon = Daemonize::new()
         .pid_file(PID_FILE)
         .working_directory(WORKING_DIR)
         .stdout(File::create(STDOUT_FILE).expect("Failed to create stdout file"))
         .stderr(File::create(STDERR_FILE).expect("Failed to create stderr file"))
         .umask(0o002)
-        .execute()
+        .privileged_action(|| {
+            // Ensure the PID file is removed if the process exits
+            let _ = std::fs::remove_file(PID_FILE);
+        });
+
+    daemon.execute()
 }
 
 pub fn process_cli() -> Result<()> {

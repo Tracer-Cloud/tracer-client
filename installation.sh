@@ -23,7 +23,7 @@ elif [[ "$1" == "production" ]]; then
     TRACER_VERSION="v2025.5.15+1"
     TRACER_LINUX_URL_X86_64="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer_cli-x86_64-unknown-linux-gnu.tar.gz"
     TRACER_LINUX_URL_ARM="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer_cli-aarch64-unknown-linux-gnu.tar.gz"
-    TRACER_AMAZON_LINUX_URL_X86_64="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-x86_64-amazon-linux-gnu.tar.gz"
+    TRACER_AMAZON_LINUX_URL_X86_64="https://tracer-releases.s3.us-east-1.amazonaws.com/tracer-x86_64-amazon-linux-gnu.tar.gz"
     TRACER_MACOS_AARCH_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer_cli-aarch64-apple-darwin.tar.gz"
     TRACER_MACOS_X86_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer_cli-x86_64-apple-darwin.tar.gz"
 else
@@ -41,9 +41,7 @@ fi
 #   DESCRIPTION:  Parameters used in the rest of this script
 #-------------------------------------------------------------------------------
 TRACER_HOME="$HOME/.tracerbio"
-LOGFILE_NAME="tracer-installer.log"
 
-LOGFILE="$TRACER_HOME/$LOGFILE_NAME"
 PACKAGE_NAME="" # set later
 BINDIRS=("$HOME/bin" "$HOME/.local/bin" "$TRACER_HOME/bin")
 BINDIR="" # set later
@@ -52,7 +50,7 @@ SUID_SETUP_FAILED=false  # Flag for SUID setup status
 SOURCE_SUCCESS=false
 
 #---  VARIABLES  ---------------------------------------------------------------
-#          NAME:  Red|Gre|Yel|Bla|Blu|Gry|Cya|RCol
+#          NAME:  Red|Gre|Yel|Bla|Blu|Gry|Cya|Org|RCol
 #   DESCRIPTION:  Utility variables for pretty printing etc
 #-------------------------------------------------------------------------------
 # if tput is available use colours.
@@ -68,10 +66,12 @@ if tput setaf 1 >/dev/null 2>&1; then
         Gry=$(tput setaf 244)  # soft gray for modern terminals
         Blu=$(tput setaf 33)   # vivid blue
         Cya=$(tput setaf 51)   # vivid cyan for 256-color terminals
+        Org=$(tput setaf 208)  # vivid orange for 256-color terminals
     else
         Gry=$(tput setaf 7)    # fallback: white/light gray
         Blu=$(tput setaf 4)    # fallback: basic blue
         Cya=$(tput setaf 6)    # fallback: basic cyan
+        Org=$(tput setaf 3)    # fallback: yellow (closest to orange in basic colors)
     fi
 else
     Red=""
@@ -81,6 +81,7 @@ else
     Blu=""
     Gry=""
     Cya=""
+    Org=""
     RCol=""
     ExitTrap=""
 fi
@@ -122,7 +123,9 @@ tsnow=""
 tsupd() { command -v date >/dev/null 2>&1 && tsnow=$(date +%F,%T%t); }
 printlog() {
     tsupd
-    echo -e "${tsnow} - $*" >>"$LOGFILE"
+    if [ -n "${LOGFILE:-}" ]; then
+        echo -e "${tsnow} - $*" >>"$LOGFILE"
+    fi
 }
 
 printmsg() {
@@ -437,19 +440,15 @@ function print_section() {
 
 function print_next_steps() {
     print_section "${EMOJI_NEXT_STEPS} Next Steps"
-    echo "${Gry}- To use tracer in your current terminal session, run:${RCol}"
-    if [ "$SOURCE_SUCCESS" = false ]; then
-        echo "  ${Cya}source ~/.bashrc${RCol} or ${Cya}source ~/.zshrc${RCol} or ${Cya}source ~/.profile${RCol}  ${Gry}# or start a new terminal session${RCol}"
-    else
-        echo "  ${Cya}source ~/.zshrc${RCol} or ${Cya}source ~/.bashrc${RCol}              ${Gry}# or start a new terminal session${RCol}"
-    fi
+    echo ""
+    echo "- ${Org}For a better onboarding${RCol} please follow the instructions at ${Cya}https://sandbox.tracer.cloud${RCol}"
     echo ""
     echo "${Gry}- Then initialize Tracer:${RCol}"
     echo "  ${Cya}tracer init${RCol}"
     echo ""
 
     echo "${Gry}- [Optional] View Daemon Status:${RCol}"
-    echo "  ${Cya}tracer info${RCol}              ${Gry}# check current daemon and run status${RCol}"
+    echo "  ${Cya}tracer info${RCol}"
     echo ""
 
     if [[ "$SUID_SETUP_FAILED" == "true" ]]; then
@@ -459,26 +458,16 @@ function print_next_steps() {
         echo ""
     fi
 
-    echo "${Gry}- Dashboards & Support:${RCol}"
-    echo "  Visualize pipeline data at: ${Cya}https://sandbox.tracer.cloud${RCol}"
+    echo "${Gry}- Support:${RCol}"
     echo "  ${Yel}Need help?${RCol} Visit ${Cya}https://github.com/Tracer-Cloud/tracer${RCol} or email ${Cya}support@tracer.cloud${RCol}"
     echo ""
-}
-
-function print_demarkated_block() {
-  echo ""
-  echo ""
-  echo "╭──────────────────────────────────────────────────────"
-  "$@"  # Call the function passed as argument
-  echo "╰──────────────────────────────────────────────────────"
-  echo ""
 }
 
 function print_install_complete() {
   echo ""
   echo ""
-  echo "    ${EMOJI_CELEBRATE} Installation Complete!"
-  print_demarkated_block print_next_steps
+  echo "${EMOJI_CELEBRATE} Installation Complete!"
+  print_next_steps
 }
 
 
@@ -486,10 +475,9 @@ function print_install_complete() {
 #---  CLEANUP FUNCTIONS  ------------------------------------------------------
 function cleanup() {
     echo ""
-    print_section "Cleanup"
 
     if [ -d "$TRACER_TEMP_DIR" ]; then
-        rm -rf "$TRACER_TEMP_DIR" && echo "- ${EMOJI_CHECK} Cleaned up temporary files."
+        rm -rf "$TRACER_TEMP_DIR"
     fi
     print_install_complete
     $ExitTrap

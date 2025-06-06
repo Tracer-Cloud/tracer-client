@@ -10,9 +10,14 @@ pub struct DaemonClient {
 
 impl DaemonClient {
     pub fn new(base_url: String) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .expect("Failed to create HTTP client");
+
         Self {
             base_uri: base_url,
-            client: reqwest::Client::new(), // todo: timeout, max payload?
+            client,
         }
     }
 
