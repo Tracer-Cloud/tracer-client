@@ -1,3 +1,4 @@
+use std::process::Command;
 // src/tracer_client.rs
 use crate::config_manager::Config;
 
@@ -139,7 +140,7 @@ impl TracerClient {
     pub async fn start_monitoring(&self) -> Result<()> {
         #[cfg(target_os = "linux")]
         {
-            let kernel_version = get_kernel_version();
+            let kernel_version = Self::get_kernel_version();
             match kernel_version {
                 Some((5, 15)) => {
                     println!("Starting eBPF monitoring");
@@ -298,5 +299,26 @@ impl TracerClient {
     pub async fn close(&self) -> Result<()> {
         self.exporter.close().await?;
         Ok(())
+    }
+
+    pub fn get_kernel_version() -> Option<(u32, u32)> {
+        let kernel_version = Command::new("uname")
+            .arg("-r")
+            .output()
+            .ok()
+            .and_then(|output| {
+                String::from_utf8(output.stdout).ok().and_then(|version| {
+                    let parts: Vec<&str> = version.trim().split('.').collect();
+                    if parts.len() >= 2 {
+                        let major = parts[0].parse::<u32>().ok()?;
+                        let minor = parts[1].parse::<u32>().ok()?;
+                        Some((major, minor))
+                    } else {
+                        None
+                    }
+                })
+            });
+
+        kernel_version
     }
 }

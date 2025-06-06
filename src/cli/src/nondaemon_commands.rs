@@ -3,7 +3,9 @@ use console::Emoji;
 use std::fmt::Write;
 use std::process::Command;
 
+#[cfg(target_os = "linux")]
 use crate::utils::get_kernel_version;
+
 use anyhow::{bail, Context, Result};
 use std::result::Result::Ok;
 use tokio::time::sleep;
