@@ -49,6 +49,7 @@ BINDIRS=("$HOME/bin" "$HOME/.local/bin" "$TRACER_HOME/bin")
 BINDIR="" # set later
 API_KEY="" # set later
 SUID_SETUP_FAILED=false  # Flag for SUID setup status
+SOURCE_SUCCESS=false
 
 #---  VARIABLES  ---------------------------------------------------------------
 #          NAME:  Red|Gre|Yel|Bla|Blu|Gry|Cya|RCol
@@ -333,17 +334,24 @@ update_rc() {
     # Function to add path if it doesn't exist
     add_path_to_file() {
         local file=$1
-        if [ -f "$file" ]; then
-            # Check if the path is already in the file
-            if ! grep -q "export PATH=\$PATH:$BINDIR" "$file"; then
-                echo "export PATH=\$PATH:$BINDIR" >> "$file"
-                printsucc "Added ${Blu}$BINDIR${RCol} to PATH variable in ${Blu}$file${RCol}"
-            else
-                printmsg "PATH already configured in ${Blu}$file${RCol}"
-            fi
+        # Create the file if it doesn't exist
+        if [ ! -f "$file" ]; then
+            touch "$file"
+            printmsg "Created ${Blu}$file${RCol}"
+        fi
+        
+        # Check if the path is already in the file
+        if ! grep -q "export PATH=\$PATH:$BINDIR" "$file"; then
+            echo "export PATH=\$PATH:$BINDIR" >> "$file"
+            printsucc "Added ${Blu}$BINDIR${RCol} to PATH variable in ${Blu}$file${RCol}"
+        else
+            printmsg "PATH already configured in ${Blu}$file${RCol}"
         fi
     }
 
+    # Try to determine the user's current shell
+    CURRENT_SHELL=$(basename "$SHELL")
+    
     # Add to all shell config files
     for rc_file in "${RC_FILES[@]}"; do
         add_path_to_file "$rc_file"
@@ -354,8 +362,13 @@ update_rc() {
     for rc_file in "${RC_FILES[@]}"; do
         if [ -f "$rc_file" ]; then
             # Use . instead of source for better shell compatibility
-            . "$rc_file" 2>/dev/null || true
-            printmsg "Sourced ${Blu}$rc_file${RCol}"
+            if . "$rc_file" 2>/dev/null; then
+                # Check if the path was actually added to PATH
+                if [[ ":$PATH:" == *":$BINDIR:"* ]]; then
+                    SOURCE_SUCCESS=true
+                    printmsg "Sourced ${Blu}$rc_file${RCol}"
+                fi
+            fi
         fi
     done
 
@@ -431,13 +444,16 @@ function print_section() {
 
 
 function print_next_steps() {
-    echo "    Daemon Status: ${Yel}Not started yet${RCol}"
     print_section "${EMOJI_NEXT_STEPS} Next Steps"
     echo "${Gry}- To use tracer in your current terminal session, run:${RCol}"
-    echo "  ${Cya}source ~/.zshrc${RCol}          ${Gry}# or start a new terminal session${RCol}"
+    if [ "$SOURCE_SUCCESS" = false ]; then
+        echo "  ${Cya}source ~/.bashrc${RCol} or ${Cya}source ~/.zshrc${RCol} or ${Cya}source ~/.profile${RCol}  ${Gry}# or start a new terminal session${RCol}"
+    else
+        echo "  ${Cya}source ~/.zshrc${RCol} or ${Cya}source ~/.bashrc${RCol}              ${Gry}# or start a new terminal session${RCol}"
+    fi
     echo ""
     echo "${Gry}- Then initialize Tracer:${RCol}"
-    echo "  ${Cya}tracer init${RCol}              ${Gry}# this yields the improved user CLI task and guides the user through important params.${RCol}"
+    echo "  ${Cya}tracer init${RCol}"
     echo ""
 
     echo "${Gry}- [Optional] View Daemon Status:${RCol}"
