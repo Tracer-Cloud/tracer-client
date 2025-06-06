@@ -17,7 +17,7 @@ use tracing::{debug, error};
 
 /// Watches system processes and records events related to them
 pub struct EbpfWatcher {
-    ebpf: tokio::sync::OnceCell<()>, // not tokio, because ebpf initialisation is sync
+    ebpf: once_cell::sync::OnceCell<()>, // not tokio, because ebpf initialisation is sync
     process_manager: Arc<RwLock<ProcessManager>>,
     trigger_processor: TriggerProcessor,
     // here will go the file manager for dataset recognition operations
@@ -32,7 +32,7 @@ impl EbpfWatcher {
         )));
 
         EbpfWatcher {
-            ebpf: tokio::sync::OnceCell::new(),
+            ebpf: once_cell::sync::OnceCell::new(),
             trigger_processor: TriggerProcessor::new(Arc::clone(&process_manager)),
             process_manager,
         }
@@ -50,8 +50,7 @@ impl EbpfWatcher {
     pub async fn start_ebpf(self: &Arc<Self>) -> Result<()> {
         Arc::clone(self)
             .ebpf
-            .get_or_try_init(|| Arc::clone(self).initialize_ebpf())
-            .await?;
+            .get_or_try_init(|| Arc::clone(self).initialize_ebpf())?;
         Ok(())
     }
 
@@ -78,7 +77,13 @@ impl EbpfWatcher {
                     current_processes.insert(pid_u32);
 
                     if !known_processes.contains(&pid_u32) {
-                        let argv = get_process_argv(pid_u32 as i32).await;
+
+                        let mut argv = process.cmd().to_vec();
+
+                        if argv.is_empty() {
+                            argv = get_process_argv(pid_u32 as i32);
+                        }
+
 
                         // New process detected
                         let start_trigger = ProcessStartTrigger {
@@ -86,11 +91,7 @@ impl EbpfWatcher {
                             ppid: process.parent().map(|p| p.as_u32()).unwrap_or(0) as usize,
                             comm: process.name().to_string(),
                             argv,
-                            file_name: process
-                                .exe()
-                                .and_then(|p| p.to_str())
-                                .unwrap_or("")
-                                .to_string(),
+                            file_name: "".to_string(),
                             started_at: Utc::now(),
                         };
 
@@ -129,10 +130,9 @@ impl EbpfWatcher {
         Ok(())
     }
 
-    async fn initialize_ebpf(self: Arc<Self>) -> Result<(), Error> {
+    fn initialize_ebpf(self: Arc<Self>) -> Result<(), Error> {
         // Use unbounded channel for cross-runtime compatibility
         let (tx, rx) = mpsc::unbounded_channel::<Trigger>();
-        let (err_tx, err_rx) = tokio::sync::oneshot::channel::<Result<(), Error>>(); // Fallback signal
 
         // Start the eBPF event processing
         start_processing_events(tx)?;
@@ -140,25 +140,25 @@ impl EbpfWatcher {
         // Start the event processing loop
         let watcher = Arc::clone(&self);
         let task = tokio::spawn(async move {
-            let result = watcher.process_trigger_loop(rx).await;
-            // Send the result back to the caller
-            let _ = err_tx.send(result);
+            if let Err(e) = watcher.process_trigger_loop(rx).await {
+                error!("process_trigger_loop failed: {:?}", e);
+            }
         });
 
-        // Monitor the task and store it if needed
-        if let Ok(handle) = tokio::runtime::Handle::try_current() {
-            handle.spawn(async move {
-                let mut process_manager = self.process_manager.write().await;
-                process_manager.set_ebpf_task(task).await;
-            });
+        // Store the task handle in the stateAdd commentMore actions
+        match tokio::runtime::Handle::try_current() {
+            Ok(_) => {
+                tokio::spawn(async move {
+                    let mut process_manager = self.process_manager.write().await;
+                    process_manager.set_ebpf_task(task).await;
+                });
+            }
+            Err(_) => {
+                // Not in a tokio runtime, can't store the task handle
+            }
         }
 
-        // Wait for the process_trigger_loop to confirm startup or fail fast
-        match err_rx.await {
-            Ok(Ok(())) => Ok(()),
-            Ok(Err(e)) => Err(e),
-            Err(_) => Err(anyhow::anyhow!("Failed to receive eBPF startup status")),
-        }
+        Ok(())
     }
 
     /// Main loop that processes triggers from eBPF
@@ -198,7 +198,7 @@ impl EbpfWatcher {
                 }
                 Ok(None) => {
                     error!("Event channel closed, exiting process loop");
-                    return Err(anyhow::anyhow!("Event Channel closed!"));
+                    return Ok(());
                 }
                 Err(_) => {
                     // Timeout occurred, just continue the loop

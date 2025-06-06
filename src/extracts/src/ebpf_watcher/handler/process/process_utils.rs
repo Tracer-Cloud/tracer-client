@@ -67,7 +67,7 @@ pub fn parse_command_line(cmd_line: &str) -> Vec<String> {
 }
 
 // Helper function to get command line arguments using ps
-pub async fn get_process_argv(pid: i32) -> Vec<String> {
+pub fn get_process_argv(pid: i32) -> Vec<String> {
     match Command::new("ps")
         .args(["-p", &pid.to_string(), "-o", "command="])
         .output()

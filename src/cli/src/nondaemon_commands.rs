@@ -3,6 +3,9 @@ use console::Emoji;
 use std::fmt::Write;
 use std::process::Command;
 
+#[cfg(target_os = "linux")]
+use crate::utils::get_kernel_version;
+
 use anyhow::{bail, Context, Result};
 use std::result::Result::Ok;
 use tokio::time::sleep;
@@ -135,22 +138,7 @@ pub fn print_install_readiness() -> Result<()> {
         }
 
         // Check kernel version (should be v5.15)
-        let kernel_version = Command::new("uname")
-            .arg("-r")
-            .output()
-            .ok()
-            .and_then(|output| {
-                String::from_utf8(output.stdout).ok().and_then(|version| {
-                    let parts: Vec<&str> = version.trim().split('.').collect();
-                    if parts.len() >= 2 {
-                        let major = parts[0].parse::<u32>().ok()?;
-                        let minor = parts[1].parse::<u32>().ok()?;
-                        Some((major, minor))
-                    } else {
-                        None
-                    }
-                })
-            });
+        let kernel_version = get_kernel_version();
 
         match kernel_version {
             Some((5, 15)) => {
@@ -193,8 +181,13 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
         Ok(info) => info,
         Err(e) => {
             tracing::error!("Error getting info response: {e}");
-            const CHECK: Emoji<'_, '_> = Emoji("✅ ", "[OK] ");
-            const HELP: &str = "[HELP]";
+            const CHECK: Emoji<'_, '_> = Emoji("✨ ", "[OK] ");
+            const PLAY: Emoji<'_, '_> = Emoji("▶️ ", "▶ ");
+            const BOOK: Emoji<'_, '_> = Emoji("📖 ", "-> ");
+            const SUPPORT: Emoji<'_, '_> = Emoji("✉️ ", "-> ");
+            const WEB: Emoji<'_, '_> = Emoji("🌐 ", "-> ");
+            const WARNING: Emoji<'_, '_> = Emoji("⚠️ ", "⚠ ");
+            let width = 75;
 
             writeln!(
                 &mut output,
@@ -204,44 +197,58 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
             )?;
             writeln!(
                 &mut output,
-                "   Daemon status: {}",
+                "{} Daemon status: {}",
+                WARNING,
                 "Not started yet".yellow()
             )?;
 
             writeln!(
                 &mut output,
-                "\n   ╭────────────────────────────────────────────────────────────"
+                "\n   ╭{:─^width$}╮",
+                " Next Steps ",
+                width = width
             )?;
-
-            writeln!(&mut output, "   {:^60}", "=== Next Steps ===".bold())?;
-            writeln!(&mut output)?;
+            writeln!(&mut output, "   │{:width$}│", "", width = width)?;
 
             writeln!(
                 &mut output,
-                "   {:<24}{}",
-                "tracer init".cyan().bold(),
-                "# interactive setup".dimmed()
+                "   │ {} {:<width$} │",
+                PLAY,
+                "tracer init         Interactive Pipeline Setup",
+                width = width - 6
             )?;
+            writeln!(&mut output, "   │{:width$}│", "", width = width)?;
 
             writeln!(
                 &mut output,
-                "\n   Visualize pipeline data at: {}",
-                "https://sandbox.tracer.app".cyan().underline()
+                "   │ {} Visualize Data:     {:<width$}                        │",
+                WEB,
+                "https://sandbox.tracer.app".bright_blue().underline(),
+                width = width - 50
             )?;
+            writeln!(&mut output, "   │{:width$}│", "", width = width)?;
 
             writeln!(
                 &mut output,
-                "   {} Visit {} or email {}",
-                HELP.yellow(),
-                "https://github.com/Tracer-Cloud/tracer".cyan().underline(),
-                "support@tracer.cloud".cyan()
+                "   │ {} Documentation:      {:<width$}     │",
+                BOOK,
+                "https://github.com/Tracer-Cloud/tracer-client"
+                    .bright_blue()
+                    .underline(),
+                width = width - 30
             )?;
+            writeln!(&mut output, "   │{:width$}│", "", width = width)?;
 
             writeln!(
                 &mut output,
-                "\n   ╰────────────────────────────────────────────────────────────"
+                "   │ {} Support: {:<width$} │",
+                SUPPORT,
+                "           support@tracer.cloud".bright_blue(),
+                width = width - 15
             )?;
+            writeln!(&mut output, "   │{:width$}│", "", width = width)?;
 
+            writeln!(&mut output, "   ╰{:─^width$}╯", "", width = width)?;
             println!("{}", output);
             return Ok(());
         }
@@ -303,7 +310,7 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
         "\u{1b}]8;;{0}\u{1b}\\{0}\u{1b}]8;;\u{1b}\\",
         config.grafana_workspace_url
     );
-    let colored_url = clickable_url.cyan().underline().to_string();
+    let colored_url = clickable_url.bright_blue().underline().to_string();
 
     writeln!(
         &mut output,
