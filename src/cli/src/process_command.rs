@@ -21,6 +21,7 @@ use tracer_daemon::daemon::run;
 use tracer_daemon::structs::{Message, TagData};
 
 pub fn start_daemon() -> Outcome<()> {
+    println!("Start daemon 1")
     let daemon = Daemonize::new()
         .pid_file(PID_FILE)
         .working_directory(WORKING_DIR)
