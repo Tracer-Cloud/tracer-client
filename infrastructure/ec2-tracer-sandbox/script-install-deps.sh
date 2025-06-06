@@ -38,7 +38,11 @@ sudo apt install -y \
     zlib1g-dev \
     libclang-dev \
     openssl \
-    ca-certificates
+    ca-certificates \
+    clang \
+    libelf1 \
+    libelf-dev \
+    zlib1g-dev
 
 echo "Installing docker"
 curl -fsSL https://get.docker.com -o get-docker.sh

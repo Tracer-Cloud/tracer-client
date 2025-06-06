@@ -200,5 +200,5 @@ sudo chown -R "${USER_NAME}:${USER_NAME}" /workspace/
 echo "Cloning private test pipelines"
 cd ~ && git clone https://github.com/Tracer-Cloud/tracer-test-pipelines-bioinformatics.git --recurse-submodules
 
-cd ~/tracer-test-pipelines-bioinformatics && make && git fetch
+cd ~/tracer-test-pipelines-bioinformatics && git fetch
 echo "Setup complete."
