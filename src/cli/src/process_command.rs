@@ -27,9 +27,6 @@ pub fn start_daemon() -> Outcome<()> {
         .stdout(File::create(STDOUT_FILE).expect("Failed to create stdout file"))
         .stderr(File::create(STDERR_FILE).expect("Failed to create stderr file"))
         .umask(0o002)
-        .exit_action(|| {
-            println!("Daemon process started successfully");
-        })
         .privileged_action(|| {
             // Ensure the PID file is removed if the process exits
             let _ = std::fs::remove_file(PID_FILE);
