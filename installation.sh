@@ -50,7 +50,7 @@ SUID_SETUP_FAILED=false  # Flag for SUID setup status
 SOURCE_SUCCESS=false
 
 #---  VARIABLES  ---------------------------------------------------------------
-#          NAME:  Red|Gre|Yel|Bla|Blu|Gry|Cya|RCol
+#          NAME:  Red|Gre|Yel|Bla|Blu|Gry|Cya|Org|RCol
 #   DESCRIPTION:  Utility variables for pretty printing etc
 #-------------------------------------------------------------------------------
 # if tput is available use colours.
@@ -66,10 +66,12 @@ if tput setaf 1 >/dev/null 2>&1; then
         Gry=$(tput setaf 244)  # soft gray for modern terminals
         Blu=$(tput setaf 33)   # vivid blue
         Cya=$(tput setaf 51)   # vivid cyan for 256-color terminals
+        Org=$(tput setaf 208)  # vivid orange for 256-color terminals
     else
         Gry=$(tput setaf 7)    # fallback: white/light gray
         Blu=$(tput setaf 4)    # fallback: basic blue
         Cya=$(tput setaf 6)    # fallback: basic cyan
+        Org=$(tput setaf 3)    # fallback: yellow (closest to orange in basic colors)
     fi
 else
     Red=""
@@ -79,6 +81,7 @@ else
     Blu=""
     Gry=""
     Cya=""
+    Org=""
     RCol=""
     ExitTrap=""
 fi
@@ -437,7 +440,8 @@ function print_section() {
 
 function print_next_steps() {
     print_section "${EMOJI_NEXT_STEPS} Next Steps"
-    echo "For a better onboarding please follow the instructions at ${Cya} https://sandbox.tracer.cloud ${RCol}"
+    echo ""
+    echo "- ${Org}For a better onboarding${RCol} please follow the instructions at ${Cya}https://sandbox.tracer.cloud${RCol}"
     echo ""
     echo "${Gry}- Then initialize Tracer:${RCol}"
     echo "  ${Cya}tracer init${RCol}"
@@ -454,7 +458,7 @@ function print_next_steps() {
         echo ""
     fi
 
-    echo "${Gry}- Dashboards & Support:${RCol}"
+    echo "${Gry}- Support:${RCol}"
     echo "  ${Yel}Need help?${RCol} Visit ${Cya}https://github.com/Tracer-Cloud/tracer${RCol} or email ${Cya}support@tracer.cloud${RCol}"
     echo ""
 }
@@ -471,10 +475,9 @@ function print_install_complete() {
 #---  CLEANUP FUNCTIONS  ------------------------------------------------------
 function cleanup() {
     echo ""
-    print_section "Cleanup"
 
     if [ -d "$TRACER_TEMP_DIR" ]; then
-        rm -rf "$TRACER_TEMP_DIR" && echo "${EMOJI_CHECK} Cleaned up temporary files."
+        rm -rf "$TRACER_TEMP_DIR"
     fi
     print_install_complete
     $ExitTrap
