@@ -8,7 +8,7 @@ use std::result::Result::Ok;
 use tokio::time::sleep;
 use tracer_client::config_manager::{Config, ConfigLoader, INTERCEPTOR_STDOUT_FILE};
 use tracer_common::constants::{
-    FILE_CACHE_DIR, PID_FILE, REPO_NAME, REPO_OWNER, STDERR_FILE, STDOUT_FILE,
+    FILE_CACHE_DIR, LOG_FILE, PID_FILE, REPO_NAME, REPO_OWNER, STDERR_FILE, STDOUT_FILE,
 };
 use tracer_daemon::client::DaemonClient;
 use tracing::debug;
@@ -180,7 +180,7 @@ pub fn print_install_readiness() -> Result<()> {
     #[cfg(target_os = "macos")]
     {
         println!("Detected MacOS. eBPF is not supported on MacOS.");
-        println!("Activated process polling");
+        println!("Activated process polling \n");
     }
 
     Ok(())
@@ -266,7 +266,7 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
     if let Some(ref inner) = info.inner {
         writeln!(
             &mut output,
-            "│ Service name:             │ {}  ",
+            "│ Pipeline name:            │ {}  ",
             inner.pipeline_name
         )?;
         writeln!(
@@ -311,19 +311,6 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
         colored_url
     )?;
 
-    let config_sources = if config.config_sources.is_empty() {
-        vec!["No config file used".to_string()]
-    } else {
-        config.config_sources.clone()
-    };
-
-    if let Some((first, rest)) = config_sources.split_first() {
-        writeln!(&mut output, "│ Config Sources:           │ {}  ", first)?;
-        for source in rest {
-            writeln!(&mut output, "│                           │ {}  ", source)?;
-        }
-    }
-
     writeln!(
         &mut output,
         "│ Process polling interval: │ {} ms  ",
@@ -338,7 +325,7 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
 
     writeln!(
         &mut output,
-        "│ Log files:                │ {}  ",
+        "│ Tracer Agent Log files:   │ {}  ",
         STDOUT_FILE
     )?;
 
@@ -347,6 +334,8 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
         "│                           │ {}  ",
         STDERR_FILE
     )?;
+
+    writeln!(&mut output, "│                           │ {}  ", LOG_FILE)?;
 
     writeln!(&mut output, "└{:─^width$}┘", "", width = total_header_width)?;
 

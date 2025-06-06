@@ -96,7 +96,7 @@ pub fn process_cli() -> Result<()> {
                     // Write PID file
                     std::fs::write(PID_FILE, child.id().to_string())?;
 
-                    println!("Daemon started successfully.");
+                    println!("\nDaemon started successfully.");
 
                     // Wait a moment for daemon to start, then show info
                     tokio::runtime::Runtime::new()?.block_on(async {
@@ -112,7 +112,7 @@ pub fn process_cli() -> Result<()> {
                 #[cfg(target_os = "linux")]
                 match start_daemon() {
                     Outcome::Parent(Ok(_)) => {
-                        println!("Daemon started successfully.");
+                        println!("\nDaemon started successfully.");
                         tokio::runtime::Runtime::new()?.block_on(async {
                             let _ = print_install_readiness();
                             wait(&api_client).await?;

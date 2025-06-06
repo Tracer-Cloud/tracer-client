@@ -1,4 +1,5 @@
 use chrono::Utc;
+use std::process::Command;
 use sysinfo::ProcessStatus;
 use tracer_common::types::ebpf_trigger::ProcessStartTrigger;
 use tracer_common::types::event::attributes::process::{ProcessProperties, ShortProcessProperties};
@@ -32,4 +33,55 @@ pub fn create_short_lived_process_properties(
         tool_binary_path: process.file_name.clone(),
         start_timestamp: Utc::now().to_rfc3339(),
     }))
+}
+
+// Simple command line parser (handles basic cases)
+pub fn parse_command_line(cmd_line: &str) -> Vec<String> {
+    let mut args = Vec::new();
+    let mut current_arg = String::new();
+    let mut in_quotes = false;
+    let command_line_characters = cmd_line.chars().peekable();
+
+    for character in command_line_characters {
+        match character {
+            '"' => {
+                in_quotes = !in_quotes;
+            }
+            ' ' if !in_quotes => {
+                if !current_arg.is_empty() {
+                    args.push(current_arg.clone());
+                    current_arg.clear();
+                }
+            }
+            _ => {
+                current_arg.push(character);
+            }
+        }
+    }
+
+    if !current_arg.is_empty() {
+        args.push(current_arg);
+    }
+
+    args
+}
+
+// Helper function to get command line arguments using ps
+pub async fn get_process_argv(pid: i32) -> Vec<String> {
+    match Command::new("ps")
+        .args(["-p", &pid.to_string(), "-o", "command="])
+        .output()
+    {
+        Ok(output) if output.status.success() => {
+            if let Ok(command_line) = String::from_utf8(output.stdout) {
+                let command_line = command_line.trim();
+                if !command_line.is_empty() {
+                    // Simple parsing - split by spaces but handle quoted args
+                    return parse_command_line(command_line);
+                }
+            }
+        }
+        _ => {}
+    }
+    vec![]
 }

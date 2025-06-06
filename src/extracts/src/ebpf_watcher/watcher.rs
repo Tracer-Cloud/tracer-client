@@ -1,4 +1,5 @@
 use crate::ebpf_watcher::handler::process::process_manager::ProcessManager;
+use crate::ebpf_watcher::handler::process::process_utils::get_process_argv;
 use crate::ebpf_watcher::handler::trigger::trigger_processor::TriggerProcessor;
 use anyhow::{Error, Result};
 use chrono::Utc;
@@ -77,12 +78,14 @@ impl EbpfWatcher {
                     current_processes.insert(pid_u32);
 
                     if !known_processes.contains(&pid_u32) {
+                        let argv = get_process_argv(pid_u32 as i32).await;
+
                         // New process detected
                         let start_trigger = ProcessStartTrigger {
                             pid: pid_u32 as usize,
                             ppid: process.parent().map(|p| p.as_u32()).unwrap_or(0) as usize,
                             comm: process.name().to_string(),
-                            argv: vec![],
+                            argv,
                             file_name: process
                                 .exe()
                                 .and_then(|p| p.to_str())
