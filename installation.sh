@@ -41,9 +41,7 @@ fi
 #   DESCRIPTION:  Parameters used in the rest of this script
 #-------------------------------------------------------------------------------
 TRACER_HOME="$HOME/.tracerbio"
-LOGFILE_NAME="tracer-installer.log"
 
-LOGFILE="$TRACER_HOME/$LOGFILE_NAME"
 PACKAGE_NAME="" # set later
 BINDIRS=("$HOME/bin" "$HOME/.local/bin" "$TRACER_HOME/bin")
 BINDIR="" # set later
@@ -122,7 +120,9 @@ tsnow=""
 tsupd() { command -v date >/dev/null 2>&1 && tsnow=$(date +%F,%T%t); }
 printlog() {
     tsupd
-    echo -e "${tsnow} - $*" >>"$LOGFILE"
+    if [ -n "${LOGFILE:-}" ]; then
+        echo -e "${tsnow} - $*" >>"$LOGFILE"
+    fi
 }
 
 printmsg() {
@@ -437,19 +437,14 @@ function print_section() {
 
 function print_next_steps() {
     print_section "${EMOJI_NEXT_STEPS} Next Steps"
-    echo "${Gry}- To use tracer in your current terminal session, run:${RCol}"
-    if [ "$SOURCE_SUCCESS" = false ]; then
-        echo "  ${Cya}source ~/.bashrc${RCol} or ${Cya}source ~/.zshrc${RCol} or ${Cya}source ~/.profile${RCol}  ${Gry}# or start a new terminal session${RCol}"
-    else
-        echo "  ${Cya}source ~/.zshrc${RCol} or ${Cya}source ~/.bashrc${RCol}              ${Gry}# or start a new terminal session${RCol}"
-    fi
+    echo "For a better onboarding please follow the instructions at ${Cya} https://sandbox.tracer.cloud ${RCol}"
     echo ""
     echo "${Gry}- Then initialize Tracer:${RCol}"
     echo "  ${Cya}tracer init${RCol}"
     echo ""
 
     echo "${Gry}- [Optional] View Daemon Status:${RCol}"
-    echo "  ${Cya}tracer info${RCol}              ${Gry}# check current daemon and run status${RCol}"
+    echo "  ${Cya}tracer info${RCol}"
     echo ""
 
     if [[ "$SUID_SETUP_FAILED" == "true" ]]; then
@@ -460,25 +455,15 @@ function print_next_steps() {
     fi
 
     echo "${Gry}- Dashboards & Support:${RCol}"
-    echo "  Visualize pipeline data at: ${Cya}https://sandbox.tracer.cloud${RCol}"
     echo "  ${Yel}Need help?${RCol} Visit ${Cya}https://github.com/Tracer-Cloud/tracer${RCol} or email ${Cya}support@tracer.cloud${RCol}"
     echo ""
-}
-
-function print_demarkated_block() {
-  echo ""
-  echo ""
-  echo "╭──────────────────────────────────────────────────────"
-  "$@"  # Call the function passed as argument
-  echo "╰──────────────────────────────────────────────────────"
-  echo ""
 }
 
 function print_install_complete() {
   echo ""
   echo ""
-  echo "    ${EMOJI_CELEBRATE} Installation Complete!"
-  print_demarkated_block print_next_steps
+  echo "${EMOJI_CELEBRATE} Installation Complete!"
+  print_next_steps
 }
 
 
@@ -489,7 +474,7 @@ function cleanup() {
     print_section "Cleanup"
 
     if [ -d "$TRACER_TEMP_DIR" ]; then
-        rm -rf "$TRACER_TEMP_DIR" && echo "- ${EMOJI_CHECK} Cleaned up temporary files."
+        rm -rf "$TRACER_TEMP_DIR" && echo "${EMOJI_CHECK} Cleaned up temporary files."
     fi
     print_install_complete
     $ExitTrap
