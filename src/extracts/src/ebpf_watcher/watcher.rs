@@ -79,7 +79,7 @@ impl EbpfWatcher {
 
                     if !known_processes.contains(&pid_u32) {
                         
-                        let mut argv = vec![];
+                        let mut argv = process.cmd().to_vec();
                         
                         #[cfg(target_os = "macos")] {
                             argv = get_process_argv(pid_u32 as i32);
