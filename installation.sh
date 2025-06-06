@@ -486,6 +486,22 @@ function cleanup() {
 trap cleanup EXIT
 
 
+
+#---  CLEANUP FUNCTIONS  ------------------------------------------------------
+function cleanup() {
+    echo ""
+    print_section "Cleanup"
+
+    if [ -d "$TRACER_TEMP_DIR" ]; then
+        rm -rf "$TRACER_TEMP_DIR" && echo "- ${EMOJI_CHECK} Cleaned up temporary files."
+    fi
+    print_install_complete
+    $ExitTrap
+}
+
+trap cleanup EXIT
+
+
 #---  MAIN FUNCTION  ----------------------------------------------------------
 
 function main() {
