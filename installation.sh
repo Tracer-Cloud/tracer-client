@@ -221,6 +221,15 @@ function check_system_requirements() {
   echo ""
   print_section "Checking System Requirements"
   check_os
+  
+  # Check for root user on Linux
+  if [[ "$OS" == "Linux"* ]] && [[ "$(id -u)" != "0" ]]; then
+    echo "- ${EMOJI_CANCEL} This script must be run as root on Linux systems."
+    echo "  Please switch to root user first: ${Cya}sudo su${RCol}"
+    echo "  Then run the command to install tracer"
+    exit 1
+  fi
+  
   check_prereqs
 }
 
