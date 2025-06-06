@@ -78,7 +78,12 @@ impl EbpfWatcher {
                     current_processes.insert(pid_u32);
 
                     if !known_processes.contains(&pid_u32) {
-                        let argv = get_process_argv(pid_u32 as i32);
+                        
+                        let mut argv = vec![];
+                        
+                        #[cfg(target_os = "macos")] {
+                            argv = get_process_argv(pid_u32 as i32);
+                        }
 
                         // New process detected
                         let start_trigger = ProcessStartTrigger {
