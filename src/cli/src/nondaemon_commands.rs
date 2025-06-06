@@ -194,7 +194,7 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
         Err(e) => {
             tracing::error!("Error getting info response: {e}");
             const CHECK: Emoji<'_, '_> = Emoji("✅ ", "[OK] ");
-            const HELP: &str = "[HELP]";
+            let width = 75;
 
             writeln!(
                 &mut output,
@@ -210,38 +210,44 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
 
             writeln!(
                 &mut output,
-                "\n   ╭────────────────────────────────────────────────────────────"
+                "\n   ╭{:─^width$}╮",
+                " Next Steps ",
+                width = width
             )?;
-
-            writeln!(&mut output, "   {:^60}", "=== Next Steps ===".bold())?;
-            writeln!(&mut output)?;
+            writeln!(&mut output, "   │{:width$}│", "", width = width)?;
 
             writeln!(
                 &mut output,
-                "   {:<24}{}",
-                "tracer init".cyan().bold(),
-                "# interactive setup".dimmed()
+                "   │ {:<width$}          │",
+                "tracer init".cyan().bold().to_string()
+                    + "               Interactive Pipeline Setup",
+                width = width
             )?;
-
+            writeln!(&mut output, "   │{:width$}│", "", width = width)?;
             writeln!(
                 &mut output,
-                "\n   Visualize pipeline data at: {}",
-                "https://sandbox.tracer.app".cyan().underline()
+                "   │ Visualize Data:           {:<width$}                      │",
+                "https://sandbox.tracer.app".cyan().underline(),
+                width = width - 50 // adjust based on left side text
             )?;
-
+            writeln!(&mut output, "   │{:width$}│", "", width = width)?;
             writeln!(
                 &mut output,
-                "   {} Visit {} or email {}",
-                HELP.yellow(),
-                "https://github.com/Tracer-Cloud/tracer".cyan().underline(),
-                "support@tracer.cloud".cyan()
+                "   │ Documentation:            {}   │",
+                "https://github.com/Tracer-Cloud/tracer-client"
+                    .cyan()
+                    .underline()
             )?;
-
+            writeln!(&mut output, "   │{:width$}│", "", width = width)?;
             writeln!(
                 &mut output,
-                "\n   ╰────────────────────────────────────────────────────────────"
+                "   │ Support:  {} {:<width$} │",
+                " ".repeat(15),
+                "support@tracer.cloud".cyan(),
+                width = width - 28
             )?;
 
+            writeln!(&mut output, "   ╰{:─^width$}╯", "", width = width)?;
             println!("{}", output);
             return Ok(());
         }
