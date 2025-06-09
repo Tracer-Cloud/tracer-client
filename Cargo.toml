@@ -62,7 +62,7 @@ once_cell = "1.21.3"
 
 aws-config = { version = "1.6.3", features = ["behavior-version-latest"] }
 aws-sdk-pricing = "1.74.0"
-aws-sdk-s3 = "1.90.0"
+aws-sdk-s3 = "1.91.0"
 aws-credential-types = "1.2.2"
 aws-sdk-secretsmanager = "1.75.0"
 
