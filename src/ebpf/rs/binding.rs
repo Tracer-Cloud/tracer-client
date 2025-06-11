@@ -1,6 +1,6 @@
+use crate::ebpf_trigger::Trigger;
 use anyhow::Result;
 use tokio::sync::mpsc::UnboundedSender;
-use tracer_common::types::ebpf_trigger::Trigger;
 
 // Linux-specific imports
 #[cfg(target_os = "linux")]

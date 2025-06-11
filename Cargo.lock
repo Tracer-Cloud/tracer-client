@@ -4653,117 +4653,57 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8df9b6e13f2d32c91b9bd719c00d1958837bc7dec474d94952798cc8e69eeec3"
 
 [[package]]
-name = "tracer_aws"
+name = "tracer"
 version = "2025.5.15+1"
 dependencies = [
  "anyhow",
+ "assert_cmd",
  "aws-config",
  "aws-credential-types",
  "aws-sdk-pricing",
  "aws-sdk-s3",
  "aws-sdk-secretsmanager",
+ "axum",
+ "chrono",
+ "clap",
+ "colored",
  "config",
+ "console",
+ "daemonize",
+ "dialoguer",
+ "dirs",
  "dotenv",
  "ec2_instance_metadata",
+ "homedir",
+ "itertools 0.14.0",
+ "lazy_static",
  "log",
+ "mockall",
+ "octocrab",
+ "once_cell",
+ "percent-encoding",
+ "predicates",
+ "rand 0.9.1",
+ "regex",
+ "reqwest",
+ "rstest",
+ "sentry",
  "serde",
  "serde-query",
  "serde_json",
  "serial_test",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "tracer_cli"
-version = "2025.5.15+1"
-dependencies = [
- "anyhow",
- "assert_cmd",
- "clap",
- "colored",
- "console",
- "daemonize",
- "octocrab",
- "predicates",
- "sentry",
- "sqlx",
- "tempfile",
- "tokio",
- "tracer_aws",
- "tracer_client",
- "tracer_common",
- "tracer_daemon",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "tracer_client"
-version = "2025.5.15+1"
-dependencies = [
- "anyhow",
- "chrono",
- "config",
- "dirs",
- "homedir",
- "log",
- "once_cell",
- "percent-encoding",
- "rand 0.9.1",
- "reqwest",
- "serde",
- "serde_json",
  "sqlx",
  "sysinfo",
  "tempfile",
  "tokio",
+ "tokio-util",
  "toml",
- "tracer_aws",
- "tracer_common",
- "tracer_extracts",
+ "tracer_ebpf",
  "tracing",
- "uuid",
-]
-
-[[package]]
-name = "tracer_common"
-version = "2025.5.15+1"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "console",
- "dialoguer",
- "lazy_static",
- "regex",
- "serde",
- "serde_json",
- "tokio",
- "tracer_aws",
- "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
  "typed-builder",
  "uuid",
-]
-
-[[package]]
-name = "tracer_daemon"
-version = "2025.5.15+1"
-dependencies = [
- "anyhow",
- "axum",
- "chrono",
- "dotenv",
- "itertools 0.14.0",
- "reqwest",
- "serde",
- "tokio",
- "tokio-util",
- "tracer_client",
- "tracer_common",
- "tracing",
 ]
 
 [[package]]
@@ -4772,25 +4712,8 @@ version = "2025.5.15+1"
 dependencies = [
  "anyhow",
  "chrono",
+ "serde",
  "tokio",
- "tracer_common",
-]
-
-[[package]]
-name = "tracer_extracts"
-version = "2025.5.15+1"
-dependencies = [
- "anyhow",
- "chrono",
- "itertools 0.14.0",
- "mockall",
- "once_cell",
- "rstest",
- "sysinfo",
- "tokio",
- "tracer_common",
- "tracer_ebpf",
- "tracing",
 ]
 
 [[package]]

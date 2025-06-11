@@ -1,21 +1,11 @@
 [workspace]
 resolver = "2"
 members = [
-    "src/cli",
-    "src/cloud_providers/aws",
-    "src/daemon",
-    "src/client",
-    "src/extracts",
-    "src/common",
+    "src/tracer",
     "src/ebpf"
 ]
 default-members = [
-    "src/cli",
-    "src/cloud_providers/aws",
-    "src/daemon",
-    "src/client",
-    "src/extracts",
-    "src/common",
+    "src/tracer",
     "src/ebpf"
 ]
 
@@ -27,12 +17,7 @@ homepage = "http://tracer.cloud/"
 repository = "https://github.com/Tracer-Cloud/tracer-client/"
 
 [workspace.dependencies]
-tracer_aws = { path = "src/cloud_providers/aws" }
-tracer_client = { path = "src/client" }
-tracer_common = { path = "src/common" }
-tracer_extracts = { path = "src/extracts" }
-tracer_daemon = { path = "src/daemon" }
-tracer_cli = { path = "src/cli" }
+tracer = { path = "src/tracer" }
 
 
 anyhow = "1.0.98"

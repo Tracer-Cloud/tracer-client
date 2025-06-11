@@ -48,7 +48,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 
 COPY --from=builder /app/tracer.toml /root/.config/tracer/tracer.toml
-COPY --from=builder /app/target/release/tracer_cli /usr/local/bin/tracer
+COPY --from=builder /app/target/release/tracer /usr/local/bin/tracer
 
 # copy test files
 COPY --from=builder /app/test-files/scripts /app/test-files/scripts
