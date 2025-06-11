@@ -1,179 +1,200 @@
-use crate::ebpf_trigger::Trigger;
 use anyhow::Result;
-use tokio::sync::mpsc::UnboundedSender;
+use std::os::raw::{c_char, c_int, c_void};
+use std::slice;
+use std::sync::Arc;
+use std::thread;
 
-// Linux-specific imports
-#[cfg(target_os = "linux")]
-use crate::types::CEvent;
-#[cfg(target_os = "linux")]
-use std::ffi::c_void;
-#[cfg(target_os = "linux")]
-use std::sync::{mpsc as std_mpsc, Arc};
-#[cfg(target_os = "linux")]
-use std::time::Duration;
+#[path = "types.gen.rs"]
+mod types;
 
-// Define the FFI interface to the C function - only on Linux
+// Re-export types publicly
+pub use types::{Event, EventHeader, EventPayload, EventType};
+
+const TASK_COMM_LEN: usize = 16;
+
+// FFI declarations matching bootstrap-api.h exactly - keep the C naming convention
+#[repr(C)]
+struct HeaderCtx {
+    data: *mut EventHeaderUser,
+}
+
+#[repr(C)]
+struct PayloadCtx {
+    event_id: u64,
+    event_type: u32, // enum event_type as u32
+    data: *mut c_void,
+    size: usize,
+}
+
+// Match the C structure exactly - use same layout as bootstrap.gen.h
+#[repr(C, packed)]
+struct EventHeaderUser {
+    event_id: u64,
+    event_type: u32,
+    timestamp_ns: u64,
+    pid: u32,
+    ppid: u32,
+    upid: u64,
+    uppid: u64,
+    comm: [c_char; TASK_COMM_LEN],
+    payload: *mut c_void,
+}
+
+// FFI function - only on Linux like the working binding.rs
 #[cfg(target_os = "linux")]
-#[link(name = "bootstrap", kind = "static")]
 extern "C" {
-    // Corresponds to the initialize function in bootstrap_api.h
     fn initialize(
-        buffer: *mut c_void,
-        byte_count: usize,
-        callback: extern "C" fn(*mut c_void, usize) -> (),
-        callback_ctx: *mut c_void,
-    ) -> i32;
+        header_ctx: *mut HeaderCtx,
+        payload_ctx: *mut PayloadCtx,
+        callback: extern "C" fn(*mut HeaderCtx, *mut PayloadCtx),
+    ) -> c_int;
+
+    fn shutdown();
 }
 
-// Constants - only needed on Linux
-#[cfg(target_os = "linux")]
-const BUFFER_SIZE: usize = 4096;
-
-// Define a struct to hold our context - only needed on Linux
-#[cfg(target_os = "linux")]
-struct ProcessingContext {
-    events_tx: std_mpsc::Sender<Vec<Trigger>>,
-    initialize_tx: std_mpsc::Sender<()>,
+// Event listener trait
+pub trait EventListener: Send + Sync {
+    fn on_event(&self, event: Event);
 }
 
-// Define a struct to hold our buffer and context - only needed on Linux
-#[cfg(target_os = "linux")]
-struct BufferContext {
-    buffer: Vec<u8>,
-    shared_context: Arc<ProcessingContext>,
+// Global listener storage
+static mut GLOBAL_LISTENER: Option<Arc<dyn EventListener>> = None;
+// Join-handle for the background worker
+static mut SUB_THREAD: Option<thread::JoinHandle<()>> = None;
+
+// Convert C payload to Rust types based on event type
+unsafe fn convert_payload(event_type: u32, payload_ptr: *mut c_void, _size: usize) -> EventPayload {
+    if payload_ptr.is_null() {
+        return EventPayload::Empty;
+    }
+
+    // Convert using the generated conversion methods
+    EventPayload::from_c_payload(event_type, payload_ptr)
 }
 
-#[cfg(target_os = "linux")]
-pub fn start_processing_events(tx: UnboundedSender<Trigger>) -> Result<()> {
-    // Channel for sending events from the C callback to our Rust thread
-    let (events_tx, events_rx) = std_mpsc::channel::<Vec<Trigger>>();
+// Convert C structures to Rust Event
+unsafe fn convert_event(header_ctx: *mut HeaderCtx, payload_ctx: *mut PayloadCtx) -> Option<Event> {
+    if header_ctx.is_null() || payload_ctx.is_null() {
+        return None;
+    }
 
-    // Channel for signaling when to call initialize again
-    let (initialize_tx, initialize_rx) = std_mpsc::channel::<()>();
+    let header_ptr = (*header_ctx).data;
+    if header_ptr.is_null() {
+        return None;
+    }
 
-    // Create our shared context
-    let shared_context = Arc::new(ProcessingContext {
-        events_tx,
-        initialize_tx,
-    });
+    let header_data = &*header_ptr;
 
-    // Callback to be invoked by the C code, notifying Rust of writes to the shared buffer
-    extern "C" fn callback_func(context_ptr: *mut c_void, filled_bytes: usize) {
-        unsafe {
-            // Get our context
-            let context = &mut *(context_ptr as *mut BufferContext);
+    // Convert comm safely - handle potential non-null-terminated strings
+    let comm_bytes = slice::from_raw_parts(header_data.comm.as_ptr() as *const u8, TASK_COMM_LEN);
+    let comm_end = comm_bytes
+        .iter()
+        .position(|&b| b == 0)
+        .unwrap_or(TASK_COMM_LEN);
+    let comm_str = String::from_utf8_lossy(&comm_bytes[..comm_end]).into_owned();
 
-            // Parse events from the buffer
-            let buffer_slice = &context.buffer[..filled_bytes];
+    let header = EventHeader {
+        event_id: header_data.event_id,
+        event_type: EventType::from(header_data.event_type),
+        timestamp_ns: header_data.timestamp_ns,
+        pid: header_data.pid,
+        ppid: header_data.ppid,
+        upid: header_data.upid,
+        uppid: header_data.uppid,
+        comm: comm_str,
+    };
 
-            let event_size = std::mem::size_of::<CEvent>();
-            let event_count = filled_bytes / event_size;
+    // Convert payload
+    let payload = if (*payload_ctx).data.is_null() {
+        EventPayload::Empty
+    } else {
+        convert_payload(
+            header_data.event_type,
+            (*payload_ctx).data,
+            (*payload_ctx).size,
+        )
+    };
 
-            let mut events = Vec::with_capacity(event_count);
+    Some(Event { header, payload })
+}
 
-            for i in 0..event_count {
-                let offset = i * event_size;
-
-                // Check if we have enough bytes for a complete event
-                if offset + event_size > buffer_slice.len() {
-                    eprintln!("Buffer too small for event at offset {}", offset);
-                    continue;
-                }
-
-                // Get event slice and cast to CEvent
-                let event_slice = &buffer_slice[offset..offset + event_size];
-                let c_event = &*(event_slice.as_ptr() as *const CEvent);
-
-                // Convert directly from CEvent to Trigger
-                match c_event.try_into() {
-                    Ok(trigger) => events.push(trigger),
-                    Err(e) => {
-                        eprintln!("Error converting CEvent to Trigger: {:?}", e);
-                        continue;
-                    }
-                }
-            }
-
-            // Send the events to our channel
-            if !events.is_empty() {
-                if let Err(e) = context.shared_context.events_tx.send(events) {
-                    eprintln!("Failed to send events: {:?}", e);
-                }
-            }
-
-            // Signal that we should call initialize again
-            if let Err(e) = context.shared_context.initialize_tx.send(()) {
-                eprintln!("Failed to send initialize signal: {:?}", e);
+// External callback function - now properly calls the listener
+extern "C" fn event_callback(header_ctx: *mut HeaderCtx, payload_ctx: *mut PayloadCtx) {
+    unsafe {
+        if let Some(event) = convert_event(header_ctx, payload_ctx) {
+            if let Some(ref listener) = GLOBAL_LISTENER {
+                listener.on_event(event);
             }
         }
     }
+}
 
-    // Spawn a thread to handle calling initialize
-    let shared_context_clone = shared_context.clone();
-    std::thread::spawn(move || {
-        loop {
-            // Allocate a buffer for the C function to write to
-            let buffer = vec![0u8; BUFFER_SIZE];
+// Main subscription function
+#[cfg(target_os = "linux")]
+pub fn subscribe<L: EventListener + 'static>(listener: L) -> Result<()> {
+    const HEADER_BUFFER_SIZE: usize = 512;
+    const PAYLOAD_BUFFER_SIZE: usize = 64 * 1024;
 
-            // Create our buffer context
-            let buffer_context = Box::new(BufferContext {
-                buffer,
-                shared_context: shared_context_clone.clone(),
-            });
-            let buffer_context_ptr = Box::into_raw(buffer_context);
+    // Store listener globally **once**
+    unsafe {
+        if GLOBAL_LISTENER.is_some() {
+            anyhow::bail!("subscribe() called twice");
+        }
+        GLOBAL_LISTENER = Some(Arc::new(listener));
+    }
 
-            // Call the C function - this will block until an event occurs or error
+    // Spawn worker and return immediately
+    let handle = thread::Builder::new()
+        .name("ebpf-subscribe".into())
+        .spawn(move || {
+            // Everything lives on the worker stack
+            let mut header_buf = vec![0u8; HEADER_BUFFER_SIZE];
+            let mut payload_buf = vec![0u8; PAYLOAD_BUFFER_SIZE];
+
+            let mut header_ctx = HeaderCtx {
+                data: header_buf.as_mut_ptr() as *mut EventHeaderUser,
+            };
+            let mut payload_ctx = PayloadCtx {
+                event_id: 0,
+                event_type: 0,
+                data: payload_buf.as_mut_ptr() as *mut c_void,
+                size: PAYLOAD_BUFFER_SIZE,
+            };
+
+            // Blocks until `shutdown()` is called
             unsafe {
-                let result = initialize(
-                    (*buffer_context_ptr).buffer.as_mut_ptr() as *mut c_void,
-                    (*buffer_context_ptr).buffer.len(),
-                    callback_func,
-                    buffer_context_ptr as *mut c_void,
-                );
-
-                // Now that initialize() has returned, we can free the context
-                // This avoids the use-after-free issue in the callback
-                let _ = Box::from_raw(buffer_context_ptr);
-
-                if result != 0 {
-                    // If initialization failed, break the loop
-                    eprintln!("eBPF initialization failed with code: {}", result);
-                    break;
-                }
+                let _ = initialize(&mut header_ctx, &mut payload_ctx, event_callback);
             }
+        })?;
 
-            // Use a timeout on receive to avoid being stuck waiting forever
-            match initialize_rx.recv_timeout(Duration::from_secs(5)) {
-                Ok(_) => {}
-                Err(std_mpsc::RecvTimeoutError::Timeout) => {}
-                Err(std_mpsc::RecvTimeoutError::Disconnected) => {
-                    eprintln!("Initialize channel closed, stopping eBPF processing");
-                    break;
-                }
-            }
-        }
-    });
-
-    // Task to forward events from internal std channel to external Tokio channel
-    // Use a separate OS thread for this to ensure it works across runtimes
-    std::thread::spawn(move || {
-        while let Ok(events) = events_rx.recv() {
-            for event in events {
-                // Use unbounded_send which doesn't require async
-                if let Err(e) = tx.send(event) {
-                    eprintln!("Failed to send event, channel likely closed: {:?}", e);
-                    return;
-                }
-            }
-        }
-    });
+    unsafe {
+        SUB_THREAD = Some(handle);
+    }
 
     Ok(())
 }
 
 // No-op implementation for non-Linux platforms
 #[cfg(not(target_os = "linux"))]
-pub fn start_processing_events(_tx: UnboundedSender<Trigger>) -> Result<()> {
-    eprintln!("eBPF functionality is only supported on Linux");
+pub fn subscribe<L: EventListener + 'static>(_listener: L) -> Result<()> {
+    println!("eBPF tracing is only supported on Linux");
     Ok(())
+}
+
+/// Shutdown the tracer gracefully
+#[cfg(target_os = "linux")]
+pub fn unsubscribe() {
+    unsafe {
+        shutdown();
+        // Ensure the worker has finished
+        if let Some(handle) = (&mut SUB_THREAD).take() {
+            let _ = handle.join();
+        }
+        GLOBAL_LISTENER = None;
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn unsubscribe() {
+    // No-op for non-Linux platforms
 }
