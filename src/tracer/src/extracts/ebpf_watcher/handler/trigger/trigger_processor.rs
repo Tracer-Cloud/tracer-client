@@ -1,4 +1,4 @@
-use crate::extracts::ebpf_watcher::handler::process::process_manager::ProcessManager;
+use crate::extracts::process::manager::ProcessManager;
 use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::RwLock;
