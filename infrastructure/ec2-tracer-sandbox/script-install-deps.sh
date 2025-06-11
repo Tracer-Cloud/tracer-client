@@ -111,7 +111,7 @@ cd /root/tracer-client
 cargo build --release
 
 echo "Installing Tracer binary..."
-sudo cp /root/tracer-client/target/release/tracer_cli /usr/local/bin/tracer
+sudo cp /root/tracer-client/target/release/tracer /usr/local/bin/tracer
 sudo chmod +x /usr/local/bin/tracer
 
 echo "Setting Up test Environment $(date)"
