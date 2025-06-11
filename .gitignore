@@ -17,8 +17,6 @@ responses/*
 
 Settings.toml
 
-tracer
-
 tracer.tar.gz
 
 responses/*
