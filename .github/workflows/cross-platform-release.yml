@@ -109,6 +109,6 @@ jobs:
 
       - uses: taiki-e/upload-rust-binary-action@v1
         with:
-          bin: tracer_cli
+          bin: tracer
           target: ${{ matrix.target }}
           token: ${{ secrets.GITHUB_TOKEN }}

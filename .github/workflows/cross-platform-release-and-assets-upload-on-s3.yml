@@ -127,7 +127,7 @@ jobs:
       - name: Prepare binary for release
         run: |
           mkdir -p release-files/${{ matrix.arch }}
-          cp target/${{ matrix.target }}/release/tracer_cli release-files/${{ matrix.arch }}/tracer
+          cp target/${{ matrix.target }}/release/tracer release-files/${{ matrix.arch }}/tracer
           chmod +x release-files/${{ matrix.arch }}/tracer
           tar -czf release-files/tracer-${{ matrix.target }}.tar.gz -C release-files/${{ matrix.arch }} tracer
 
@@ -201,7 +201,7 @@ jobs:
       - name: Prepare binary for release
         run: |
           mkdir -p release-files/amazon-linux
-          cp target/release/tracer_cli release-files/amazon-linux/tracer
+          cp target/release/tracer release-files/amazon-linux/tracer
           chmod +x release-files/amazon-linux/tracer
           tar -czf release-files/tracer-x86_64-amazon-linux-gnu.tar.gz -C release-files/amazon-linux tracer
 

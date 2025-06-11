@@ -21,11 +21,11 @@ elif [[ "$1" == "production" ]]; then
     echo "Production configuration"
     # Production configuration // production binaries coming from Github 
     TRACER_VERSION="v2025.5.15+1"
-    TRACER_LINUX_URL_X86_64="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer_cli-x86_64-unknown-linux-gnu.tar.gz"
-    TRACER_LINUX_URL_ARM="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer_cli-aarch64-unknown-linux-gnu.tar.gz"
+    TRACER_LINUX_URL_X86_64="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-x86_64-unknown-linux-gnu.tar.gz"
+    TRACER_LINUX_URL_ARM="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-aarch64-unknown-linux-gnu.tar.gz"
     TRACER_AMAZON_LINUX_URL_X86_64="https://tracer-releases.s3.us-east-1.amazonaws.com/tracer-x86_64-amazon-linux-gnu.tar.gz"
-    TRACER_MACOS_AARCH_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer_cli-aarch64-apple-darwin.tar.gz"
-    TRACER_MACOS_X86_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer_cli-x86_64-apple-darwin.tar.gz"
+    TRACER_MACOS_AARCH_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-aarch64-apple-darwin.tar.gz"
+    TRACER_MACOS_X86_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-x86_64-apple-darwin.tar.gz"
 else
     echo "Custom branch configuration: $1"
     # Custom branch configuration // binaries coming from S3 github actions with branch name
@@ -224,7 +224,7 @@ function check_system_requirements() {
   echo ""
   print_section "Checking System Requirements"
   check_os
-  
+
   # Check for root user on Linux
   if [[ "$OS" == "Linux"* ]] && [[ "$(id -u)" != "0" ]]; then
     echo "- ${EMOJI_CANCEL} This script must be run as root on Linux systems."
@@ -232,7 +232,7 @@ function check_system_requirements() {
     echo "  Then run the command to install tracer"
     exit 1
   fi
-  
+
   check_prereqs
 }
 
