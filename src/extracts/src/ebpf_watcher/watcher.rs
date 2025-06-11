@@ -77,13 +77,11 @@ impl EbpfWatcher {
                     current_processes.insert(pid_u32);
 
                     if !known_processes.contains(&pid_u32) {
-
                         let mut argv = process.cmd().to_vec();
 
                         if argv.is_empty() {
                             argv = get_process_argv(pid_u32 as i32);
                         }
-
 
                         // New process detected
                         let start_trigger = ProcessStartTrigger {
