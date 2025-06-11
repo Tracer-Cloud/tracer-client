@@ -58,12 +58,17 @@ $(call allow-override,CXX,$(CROSS_COMPILE)c++)
 # ─────────────────────────────────────────────────────────────────────────────
 # Targets
 # ─────────────────────────────────────────────────────────────────────────────
-.PHONY: all clean
-all: libbootstrap.a example
+.PHONY: all clean codegen
+all: typegen libbootstrap.a example
 
 clean:
 	$(call msg,CLEAN)
 	$(Q)rm -rf $(OUTPUT) libbootstrap.a example
+
+# Code generation from TOML config
+typegen:
+	$(call msg,CODEGEN,typegen)
+	$(Q)cd ../typegen && cargo run
 
 # ­­­create directories
 $(OUTPUT) $(OUTPUT)/libbpf $(BPFTOOL_OUTPUT):

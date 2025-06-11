@@ -1,165 +1,191 @@
-# ebpf
+# eBPF Tracer
 
-NOTE: this README is badly outdated.
-
-> A minimal BPF implementation based on [`libbpf/libbpf-bootstrap`](https://github.com/libbpf/libbpf-bootstrap) (examples/c/bootstrap).
+> A high-performance eBPF implementation with hybrid buffering, automatic code generation, and comprehensive event tracking.
 
 ## Features
 
-- Tracks process starts and exits via tracepoints
-- BPF CO‑RE (“Compile Once – Run Everywhere”) for kernel portability
-- Demonstrates core eBPF concepts
-  - Tracepoints, maps, ring buffers, and configurable globals
-- Rust binding with shared memory, for integration into Tracer
+- **Tracepoint capture** comprehensive coverage for all Linux tracepoints, including syscalls
+- **2-layer buffering** for large and variable-length data handling (like stdout content)
+- **Automatic typegen** for event definitions from TOML configuration
+- **Standalone examples** in both C++ and Rust for easy testing and development
+- **BPF CO‑RE support** ("Compile Once – Run Everywhere") for kernel portability
+- **Rust FFI integration** with shared memory and event streaming
 
-## Vendored dependencies (git submodules)
+## Architecture
 
-| **Path**            | **Upstream**                                      |
-|---------------------|---------------------------------------------------|
-| `vendor/libbpf`     | [libbpf](https://github.com/libbpf/libbpf)        |
-| `vendor/bpftool`    | [bpftool](https://github.com/libbpf/bpftool)      |
-| `vendor/vmlinux.h`  | [vmlinux.h](https://github.com/libbpf/vmlinux.h)  |
+### The Rust-C Interface
 
-A **git submodule** is simply a pointer (a *gitlink*) to a specific commit in another repository.
-We put these gitlinks in the `vendor/` folder.
-Advantages over linking against system libraries include:
+eBPF is implemented within a standalone C library (c/ directory) that's linked to Rust (rs/ directory) via a FFI interface with shared memory. This fully decouples our Rust code from eBPF internals.
 
-* deterministic builds—everyone compiles against the same commits;
-* zero external build‑time dependencies (no need for system libbpf or bpftool packages);
-* easy upgrades: bump the submodule, commit, push.
+### Kernel-Userspace Interface
 
-## Quick start (development)
+The implementation uses a hybrid 2-layer buffering system:
+
+1. **Ring buffer** contains only metadata and payload flush signals
+2. **Per-CPU array maps** stores payload data, with types varying between events
+
+This design overcomes the traditional ring buffer size limitations of eBPF, allowing high-performance capture for large and variable-sized payloads like stdout content.
+
+### Adding new event types
+
+Go to `bootstrap.bpf.c`, and an entry to `TRACEPOINT_LIST`, and a corresponding payload fill function. Like so:
+
+```c
+// TRACEPOINT_LIST entry
+X(syscalls, sys_enter_openat, trace_event_raw_sys_enter)
+
+// Example payload fill function
+static __always_inline void
+payload_fill_syscalls_sys_enter_openat(struct trace_event_raw_sys_enter *ctx)
+{
+  struct payload_kernel_syscalls_sys_enter_openat *p = get_payload_buf_entry();
+  if (!p)
+    return;
+
+  p->dfd = BPF_CORE_READ(ctx, args[0]);
+  p->flags = BPF_CORE_READ(ctx, args[2]);
+  p->mode = BPF_CORE_READ(ctx, args[3]);
+
+  void *content_ptr = (void *)BPF_CORE_READ(ctx, args[1]);
+  read_into_attr(content_ptr, FILENAME_MAX_SIZE, F_READ_NUL_TERMINATED, &p->filename);
+}
+```
+
+Then add an entry to `typegen/events.toml` and build (`make` or `cargo build`):
+
+```toml
+[syscalls.sys_enter_openat]
+id = 1024
+comment = "File open, syscall entry"
+payload = [
+  { name = "dfd", type = "u32" },
+  { name = "filename", type = "char[]" },
+  { name = "flags", type = "u32" },
+  { name = "mode", type = "u32" },
+]
+```
+
+The typegen system generates:
+
+- C structs and enums (`c/bootstrap.gen.h`)
+- Rust types and conversion functions (`rs/types.gen.rs`)
+- Consistent event IDs and serialization logic
+
+## Quick Start
+
+### Prerequisites
 
 ```sh
 # Install build prerequisites (Ubuntu/Debian)
 sudo apt install clang libelf1 libelf-dev zlib1g-dev
 
-# Clone *and* pull submodules in one go
+# Clone with submodules
 git clone --recurse-submodules https://github.com/Tracer-Cloud/tracer-client
-cd src/ebpf
+cd tracer-client/src/ebpf
 
-# (Or, if you already cloned)
+# Or if already cloned
 git submodule update --init --recursive
 ```
 
-**Building**:
+### Building
 
-> Note: `cargo build` is configured to run `make` behind-the-scenes. This is only for people actively working on eBPF, rather than merely consuming the crate.
->
-> The first build will be slow, but subsequent builds will be fast, thanks to partial caching.
+The build system automatically handles C/C++, eBPF compilation, and typegen:
 
 ```sh
-cd c
-make
+# Build C library and example only (fast)
+cd ~/tracer-client/ebpf/c && make
 ```
 
 This produces:
 
-- `./example`: standalone binary, which just logs captured events when executed (useful for debugging).
-- `./libbootstrap.a`: linkable object used as input for Tracer binary compilation.
+- `c/libbootstrap.a` - Static library for integration
+- `c/example` - Standalone C++ example
 
-Run the example with:
+Or alternatively, you can run:
 
 ```sh
-sudo ./example
+# Build both C and Rust libraries and examples (slow)
+cd ~/tracer-client/ebpf && cargo build
 ```
 
-The output should look something like:
+In addition to the above, this also produces:
+
+- `target/debug/libtracer_ebpf` - eBPF library, consumed by Tracer
+- `target/debug/example` - Standalone Rust example
+
+### Running Standalone Examples
+
+The two examples behave identically. They log all captured eBPF events as JSON. This is a useful for general development, and also for gathering test data specifically.
+
+**C++ Example:**
 
 ```sh
-{"event_type":"process_exec","timestamp":"1970-01-07 06:48:44.807862128","pid":1258136,"ppid":1244910,"comm":"git","argc":9,"argv":["/usr/bin/git","-c","core.quotepath=false","-c","color.ui=false","rev-parse","--verify","--end-of-options","1252231^{commit}"]}
+sudo ./c/example
+```
+
+**Rust Example:**
+
+```sh
+sudo cargo run --bin example
+```
+
+Example output:
+
+```json
+{"event_type":"process_exec","timestamp":"1970-01-07 06:48:44.807862128","pid":1258136,"ppid":1244910,"comm":"git","argc":9,"argv":["/usr/bin/git","-c","core.quotepath=false"]}
 {"event_type":"process_exit","timestamp":"1970-01-07 06:48:44.809130125","pid":1258136,"ppid":1244910}
-{"event_type":"process_exec","timestamp":"1970-01-07 06:48:45.386948556","pid":1258137,"ppid":1206440,"comm":"sh","argc":3,"argv":["/bin/sh","-c","which ps"]}
-{"event_type":"process_exec","timestamp":"1970-01-07 06:48:45.387484766","pid":1258138,"ppid":1258137,"comm":"which","argc":3,"argv":["/bin/sh","/usr/bin/which","ps"]}
-{"event_type":"process_exit","timestamp":"1970-01-07 06:48:45.387959373","pid":1258138,"ppid":1258137}
-{"event_type":"process_exit","timestamp":"1970-01-07 06:48:45.388083524","pid":1258137,"ppid":1206440}
+{"event_type":"sys_enter_write","timestamp":"1970-01-07 06:48:45.123456789","pid":1258140,"fd":1,"count":12,"content":"Hello World\n"}
 ```
 
-**Updating vendored dependencies**:
+## Development
 
-```sh
-# Move to the submodule you want to update
-cd vendor/libbpf
-git fetch --tags
-git checkout v1.5.0      # or another tag/branch/commit
+### Debugging
 
-# Return to the main repo, and commit change
-cd ../..
-git add vendor/libbpf
-git commit -m "Bump libbpf to v1.5.0"
-```
-
-**Debugging**:
-
-Use `bpf_printk()` for logging from `.bpf.c` files:
+Use `bpf_printk()` for eBPF logs inside `bootstrap.bpf.c`:
 
 ```c
-bpf_printk("Test %s", my_value);
+bpf_printk("Debug: processing PID %d", pid);
 ```
 
-We haven't added log-forwarding yet, so to see these logs go to another terminal and run:
+View debug output:
 
 ```sh
 sudo cat /sys/kernel/debug/tracing/trace_pipe
 ```
 
-## Software design
+### Vendored Dependencies
 
-**The Rust-C interface**
+| **Path**           | **Upstream**                                     |
+| ------------------ | ------------------------------------------------ |
+| `vendor/libbpf`    | [libbpf](https://github.com/libbpf/libbpf)       |
+| `vendor/bpftool`   | [bpftool](https://github.com/libbpf/bpftool)     |
+| `vendor/vmlinux.h` | [vmlinux.h](https://github.com/libbpf/vmlinux.h) |
 
-eBPF is implemented within a standalone C library (`c/` directory) that's linked to Rust (`rs/` directory) via a FFI interface with shared memory. This fully decouples our Rust code from eBPF internals.
+**Updating dependencies:**
 
-Here, `binding.rs` allocates a buffer the C library can write to asynchronously. The library does so and notifies `binding.rs` of writes via a callback. The callback then sends the events onwards and allocates a new buffer, completing the cycle.
-
-**The kernel-userspace interface**
-
-TODO
-
-```txt
-/*
- * eBPF Tracer with Hybrid Buffering System
- *
- * This implementation uses a two-level buffering system:
- * 1. Per-CPU array maps store the actual data in 4KB page-sized entries
- * 2. Ringbuf contains only metadata (indices/offsets to the data in the per-CPU arrays)
- *
- * Key components:
- * - data_buffer: Per-CPU array that stores actual event data in 4KB pages
- * - buffer_states: Per-CPU state tracking (current page, offset, etc.)
- * - rb: Ringbuf for metadata only (event type, timestamp, process info, buffer location)
- *
- * Usage flow:
- * 1. buf_reserve(): Allocate buffer space for data chunks
- * 2. Write data directly to the reserved buffer space
- * 3. submit_event(): Submit metadata to ringbuf with references to the data
- *
- * This approach efficiently handles variable-length data like stdout capture
- * without the size limitations of using ringbuf directly.
- */
+```sh
+cd vendor/libbpf
+git fetch --tags && git checkout v1.5.0
+cd ../.. && git add vendor/libbpf && git commit -m "Bump libbpf to v1.5.0"
 ```
 
-## Future development
+### Code Structure
 
-To explore in the future:
-
-1. **Codegen**: Adding collection of new tracepoints should be as simple as adding an entry to the codegen config with the name of the tracepoint and attributes of interest.
-    - For example: 
-      ```json
-      {
-        "tracepoint": "syscall:sys_enter_openat",
-        "attributes": ["filename", "flags", "mode"]
-      }
-      ```
-    - The Rust types and C code would be generated by a build script.
-2. **Better working format**: Performance can be improved by 100x with some behaviour / interface adjustments.
-    - **Reduce memory churn**: Instead of allocating new memory for each incoming event, we should reuse buffers for previously-processed events.
-    - **Separate buffers by event type**: Vectors of tagged unions don't align with the performance potential of modern hardware. Routing events into separate buffers should happen early, probably in `bootstrap.c`.
-    - **Batch processing**: Processing in batches of 16/64/256/etc events would enable much faster transforms. These batches should have an SoA layout (ie, column-oriented), in alignment with the internal format of dataframe libraries like Polars.
-3. **Testing across multiple environments**: In theory, we _should_ have very good support across Linux versions with CO-RE. It would be great to validate that in practice. Testing on multiple OS / kernel versions would confirm correctness and help identify compatiability issues if any exist.
-
-
-## Programming Guide
-
-No vectors, strings.
-
-No true functions, loops, pointers, error handling or libraries (including standard libraries).
+```
+ebpf/
+├── c/                    # C/C++ eBPF implementation
+│   ├── bootstrap.bpf.c   # Kernel-space eBPF program
+│   ├── bootstrap.c       # User-space library
+│   ├── bootstrap.gen.h   # Generated types/structs
+│   ├── example.cpp       # Standalone C++ example
+│   └── Makefile          # Build system
+├── rs/                   # Rust FFI bindings
+│   ├── binding.rs        # C-Rust interface
+│   ├── example.rs        # Standalone Rust example
+│   ├── types.gen.rs      # Generated Rust types
+│   └── lib.rs            # Library entry point
+├── typegen/              # Code generation
+│   ├── events.toml       # Event definitions
+│   └── typegen.rs        # Code generator
+└── build.rs              # Cargo build script
+```
