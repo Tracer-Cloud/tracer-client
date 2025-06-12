@@ -20,7 +20,7 @@ jobs:
             runner: ubuntu-22.04
           - arch: aarch64
             target: aarch64-unknown-linux-gnu
-            runner: ubuntu-22.04-arm  # Native ARM runner
+            runner: ubuntu-22.04-arm # Native ARM runner
           - arch: macos-arm64
             target: aarch64-apple-darwin
             runner: macos-latest
@@ -34,8 +34,8 @@ jobs:
       - name: Check out repository with submodules
         uses: actions/checkout@v4.1.4
         with:
-          submodules: recursive  # This will fetch all submodules recursively
-          fetch-depth: 0  # Fetch all history for versioning
+          submodules: recursive # This will fetch all submodules recursively
+          fetch-depth: 0 # Fetch all history for versioning
 
       - name: Update version in Cargo.toml
         run: |
@@ -92,37 +92,49 @@ jobs:
       - name: Install build dependencies
         run: |
           rustup toolchain install nightly-2025-04-15 --component rust-src
-          
+
            if [[ "${{ matrix.runner }}" == *"ubuntu"* ]]; then
             # Install necessary eBPF dependencies for Linux
             sudo apt-get update
-            sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm libelf-dev
-          fi  
+            if [[ "${{ matrix.target }}" == "x86_64-unknown-linux-gnu" ]]; then
+              # Only install 32-bit compatibility libraries on x86_64 systems
+              sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm libelf-dev libc6-dev-i386
+            else
+              # For ARM64 and other architectures, skip the 32-bit compatibility libraries
+              sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm libelf-dev
+            fi
+          elif [[ "$(cat /etc/os-release | grep -i amazon)" != "" ]]; then
+            # Install necessary eBPF dependencies for Amazon Linux
+            sudo dnf install -y elfutils-libelf-devel
+          fi
 
       # Verify submodules are properly loaded
       - name: Verify submodule content
         run: |
           # Find all vmlinux.h files
           vmlinux_files=$(find vendor -name "vmlinux.h")
-          
+
           # Check if any vmlinux.h files exist
           if [ -z "$vmlinux_files" ]; then
             echo "ERROR: No vmlinux.h files found in vendor directory"
             exit 1
           fi
-          
+
           # Print out the found vmlinux.h files for debugging
           echo "Found vmlinux.h files:"
           echo "$vmlinux_files"
-          
+
           # Optional: Check for specific directories or files you expect
           if [ ! -d "vendor/bpftool" ] || [ ! -d "vendor/libbpf" ]; then
             echo "WARNING: Expected vendor subdirectories are missing"
           fi
-  
 
       - name: Build the binary
-        run: cargo build --release --target ${{ matrix.target }}
+        run: |
+          source $HOME/.cargo/env
+          export CFLAGS="-fPIC"
+          export CXXFLAGS="-fPIC"
+          cargo build --release
 
       - name: Prepare binary for release
         run: |
@@ -154,8 +166,7 @@ jobs:
         run: |
           yum update -y
           yum groupinstall -y "Development Tools"
-          yum  install -y kernel-devel kernel-headers clang llvm libbpf-devel
-
+          yum install -y kernel-devel kernel-headers clang llvm elfutils-libelf-devel zlib-devel
 
       - name: Install Rust
         run: |
@@ -168,8 +179,8 @@ jobs:
       - name: Check out repository with submodules
         uses: actions/checkout@v4.1.4
         with:
-          submodules: recursive  # This will fetch all submodules recursively
-          fetch-depth: 0  # Fetch all history for versioning
+          submodules: recursive # This will fetch all submodules recursively
+          fetch-depth: 0 # Fetch all history for versioning
 
       - name: Configure Git safe directory
         run: git config --global --add safe.directory $GITHUB_WORKSPACE
@@ -196,6 +207,8 @@ jobs:
       - name: Build the binary
         run: |
           source $HOME/.cargo/env
+          export CFLAGS="-fPIC"
+          export CXXFLAGS="-fPIC"
           cargo build --release
 
       - name: Prepare binary for release

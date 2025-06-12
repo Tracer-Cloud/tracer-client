@@ -88,6 +88,7 @@ unsafe fn convert_event(
     let header_data = &*header_ptr;
 
     // Convert comm safely - handle potential non-null-terminated strings
+    #[allow(clippy::unnecessary_cast)]
     let comm_bytes = slice::from_raw_parts(header_data.comm.as_ptr() as *const u8, TASK_COMM_LEN);
     let comm_end = comm_bytes
         .iter()
@@ -143,6 +144,7 @@ pub fn subscribe<L: EventListener + 'static>(listener: L) -> Result<()> {
 
     // Store listener globally **once**
     unsafe {
+        #[allow(static_mut_refs)]
         if GLOBAL_LISTENER.is_some() {
             anyhow::bail!("subscribe() called twice");
         }
@@ -197,7 +199,8 @@ pub fn unsubscribe() {
     unsafe {
         tracer_ebpf_shutdown();
         // Ensure the worker has finished
-        if let Some(handle) = (&mut SUB_THREAD).take() {
+        #[allow(static_mut_refs)]
+        if let Some(handle) = SUB_THREAD.take() {
             let _ = handle.join();
         }
         GLOBAL_LISTENER = None;

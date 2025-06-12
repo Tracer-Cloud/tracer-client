@@ -73,13 +73,11 @@ pub enum EventPayload {
 pub struct SchedSchedProcessExecPayload {
     pub argv: Vec<String>,
 }
-
 // Process termination (successful)
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct SchedSchedProcessExitPayload {
     pub exit_code: u32,
 }
-
 // File open, syscall entry
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct SyscallsSysEnterOpenatPayload {
@@ -88,20 +86,17 @@ pub struct SyscallsSysEnterOpenatPayload {
     pub flags: u32,
     pub mode: u32,
 }
-
 // File open, syscall return
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct SyscallsSysExitOpenatPayload {
     pub fd: u32,
 }
-
 // Files and pipes, read syscall entry
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct SyscallsSysEnterReadPayload {
     pub fd: u32,
     pub count: u64,
 }
-
 // Files and pipes, write syscall entry
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct SyscallsSysEnterWritePayload {
@@ -109,19 +104,16 @@ pub struct SyscallsSysEnterWritePayload {
     pub count: u64,
     pub content: String,
 }
-
 // Memory pressure, reclaim begins
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct VmscanMmVmscanDirectReclaimBeginPayload {
     pub order: u32,
 }
-
 // Memory pressure, OOM killer selects process
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct OomMarkVictimPayload {
     pub _unused: u32,
 }
-
 
 // C structures for payload conversion
 #[repr(C, packed)]
@@ -135,13 +127,11 @@ struct FlexBuf {
 struct CPayloadSchedSchedProcessExec {
     argv: FlexBuf,
 }
-
 // C struct for sched.sched_process_exit
 #[repr(C, packed)]
 struct CPayloadSchedSchedProcessExit {
     exit_code: u32,
 }
-
 // C struct for syscalls.sys_enter_openat
 #[repr(C, packed)]
 struct CPayloadSyscallsSysEnterOpenat {
@@ -150,20 +140,17 @@ struct CPayloadSyscallsSysEnterOpenat {
     flags: u32,
     mode: u32,
 }
-
 // C struct for syscalls.sys_exit_openat
 #[repr(C, packed)]
 struct CPayloadSyscallsSysExitOpenat {
     fd: u32,
 }
-
 // C struct for syscalls.sys_enter_read
 #[repr(C, packed)]
 struct CPayloadSyscallsSysEnterRead {
     fd: u32,
     count: u64,
 }
-
 // C struct for syscalls.sys_enter_write
 #[repr(C, packed)]
 struct CPayloadSyscallsSysEnterWrite {
@@ -171,38 +158,43 @@ struct CPayloadSyscallsSysEnterWrite {
     count: u64,
     content: FlexBuf,
 }
-
 // C struct for vmscan.mm_vmscan_direct_reclaim_begin
 #[repr(C, packed)]
 struct CPayloadVmscanMmVmscanDirectReclaimBegin {
     order: u32,
 }
-
 // C struct for oom.mark_victim
 #[repr(C, packed)]
 struct CPayloadOomMarkVictim {
     _unused: u32,
 }
-
-
 impl EventPayload {
+    /// Convert a C payload to Rust payload
+    ///
+    /// # Safety
+    ///
+    /// This function is unsafe because it:
+    /// - Dereferences raw pointers from `payload_ptr`
+    /// - Assumes the payload data matches the expected C struct layout for the given `event_type`
+    /// - Assumes that any embedded pointers in the payload structures are valid and point to properly formatted data
+    /// - The caller must ensure that `payload_ptr` is non-null and points to valid memory of the correct type for the given `event_type`
     pub unsafe fn from_c_payload(event_type: u32, payload_ptr: *mut c_void) -> Self {
         match event_type {
             0 => {
                 let c_payload = &*(payload_ptr as *const CPayloadSchedSchedProcessExec);
-                EventPayload::SchedSchedProcessExec(SchedSchedProcessExecPayload{
+                EventPayload::SchedSchedProcessExec(SchedSchedProcessExecPayload {
                     argv: flex_buf_to_string_array(&c_payload.argv),
                 })
             }
             1 => {
                 let c_payload = &*(payload_ptr as *const CPayloadSchedSchedProcessExit);
-                EventPayload::SchedSchedProcessExit(SchedSchedProcessExitPayload{
+                EventPayload::SchedSchedProcessExit(SchedSchedProcessExitPayload {
                     exit_code: c_payload.exit_code,
                 })
             }
             1024 => {
                 let c_payload = &*(payload_ptr as *const CPayloadSyscallsSysEnterOpenat);
-                EventPayload::SyscallsSysEnterOpenat(SyscallsSysEnterOpenatPayload{
+                EventPayload::SyscallsSysEnterOpenat(SyscallsSysEnterOpenatPayload {
                     dfd: c_payload.dfd,
                     filename: flex_buf_to_string(&c_payload.filename),
                     flags: c_payload.flags,
@@ -211,20 +203,20 @@ impl EventPayload {
             }
             1025 => {
                 let c_payload = &*(payload_ptr as *const CPayloadSyscallsSysExitOpenat);
-                EventPayload::SyscallsSysExitOpenat(SyscallsSysExitOpenatPayload{
+                EventPayload::SyscallsSysExitOpenat(SyscallsSysExitOpenatPayload {
                     fd: c_payload.fd,
                 })
             }
             1026 => {
                 let c_payload = &*(payload_ptr as *const CPayloadSyscallsSysEnterRead);
-                EventPayload::SyscallsSysEnterRead(SyscallsSysEnterReadPayload{
+                EventPayload::SyscallsSysEnterRead(SyscallsSysEnterReadPayload {
                     fd: c_payload.fd,
                     count: c_payload.count,
                 })
             }
             1028 => {
                 let c_payload = &*(payload_ptr as *const CPayloadSyscallsSysEnterWrite);
-                EventPayload::SyscallsSysEnterWrite(SyscallsSysEnterWritePayload{
+                EventPayload::SyscallsSysEnterWrite(SyscallsSysEnterWritePayload {
                     fd: c_payload.fd,
                     count: c_payload.count,
                     content: flex_buf_to_string(&c_payload.content),
@@ -232,13 +224,15 @@ impl EventPayload {
             }
             2048 => {
                 let c_payload = &*(payload_ptr as *const CPayloadVmscanMmVmscanDirectReclaimBegin);
-                EventPayload::VmscanMmVmscanDirectReclaimBegin(VmscanMmVmscanDirectReclaimBeginPayload{
-                    order: c_payload.order,
-                })
+                EventPayload::VmscanMmVmscanDirectReclaimBegin(
+                    VmscanMmVmscanDirectReclaimBeginPayload {
+                        order: c_payload.order,
+                    },
+                )
             }
             3072 => {
                 let c_payload = &*(payload_ptr as *const CPayloadOomMarkVictim);
-                EventPayload::OomMarkVictim(OomMarkVictimPayload{
+                EventPayload::OomMarkVictim(OomMarkVictimPayload {
                     _unused: c_payload._unused,
                 })
             }

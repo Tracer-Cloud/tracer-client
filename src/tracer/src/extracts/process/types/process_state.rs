@@ -26,7 +26,10 @@ impl ProcessState {
     }
 
     /// Removes a process trigger and returns it if it existed
-    pub fn remove_process(&mut self, pid: &usize) -> Option<EbpfEvent<SchedSchedProcessExecPayload>> {
+    pub fn remove_process(
+        &mut self,
+        pid: &usize,
+    ) -> Option<EbpfEvent<SchedSchedProcessExecPayload>> {
         self.processes.remove(pid)
     }
 
@@ -50,7 +53,9 @@ impl ProcessState {
 
     // Monitoring related methods
 
-    pub fn get_monitoring(&self) -> &HashMap<Target, HashSet<EbpfEvent<SchedSchedProcessExecPayload>>> {
+    pub fn get_monitoring(
+        &self,
+    ) -> &HashMap<Target, HashSet<EbpfEvent<SchedSchedProcessExecPayload>>> {
         &self.monitoring
     }
 

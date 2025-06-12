@@ -77,7 +77,7 @@ The typegen system generates:
 
 ```sh
 # Install build prerequisites (Ubuntu/Debian)
-sudo apt install clang libelf1 libelf-dev zlib1g-dev
+sudo apt install clang libelf1 libelf-dev zlib1g-dev libc6-dev-i386
 
 # Clone with submodules
 git clone --recurse-submodules https://github.com/Tracer-Cloud/tracer-client
@@ -192,3 +192,27 @@ ebpf/
 │   └── typegen.rs        # Code generator
 └── build.rs              # Cargo build script
 ```
+
+## Troubleshooting
+
+### CI/CD Build Failures
+
+**Error:** `fatal error: 'gnu/stubs-32.h' file not found`
+
+This occurs when the CI environment is missing 32-bit development headers on x86_64 systems. The fix depends on your system architecture:
+
+```sh
+# Ubuntu/Debian on x86_64
+sudo apt-get install -y libc6-dev-i386
+
+# Ubuntu/Debian on ARM64 (aarch64) - 32-bit libraries not needed
+sudo apt-get install -y libelf-dev
+
+# Amazon Linux 2 on x86_64
+sudo yum install -y glibc-devel.i686
+
+# Amazon Linux 2023 on x86_64 - 32-bit packages no longer available
+# If you need 32-bit support, consider using Amazon Linux 2 or containerized AL2
+```
+
+**Note:** ARM64 systems don't need 32-bit x86 compatibility libraries. The error typically only occurs on x86_64 systems where clang tries to include both 32-bit and 64-bit headers during eBPF compilation.

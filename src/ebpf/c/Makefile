@@ -14,14 +14,15 @@ LIBBPF_OBJ      := $(abspath $(OUTPUT)/libbpf.a)
 BPFTOOL_OUTPUT  ?= $(abspath $(OUTPUT)/bpftool)
 BPFTOOL         ?= $(BPFTOOL_OUTPUT)/bootstrap/bpftool
 
-# Arch detection → vmlinux.h include location
-ARCH            ?= $(shell uname -m | sed 's/x86_64/x86/' \
-                             | sed 's/arm.*/arm/' \
-                             | sed 's/aarch64/arm64/' \
-                             | sed 's/ppc64le/powerpc/' \
-                             | sed 's/mips.*/mips/' \
-                             | sed 's/riscv64/riscv/' \
-                             | sed 's/loongarch64/loongarch/')
+# Detect architecture for vmlinux.h
+ifeq ($(shell uname -m),x86_64)
+	ARCH := x86
+else ifeq ($(shell uname -m),aarch64)
+	ARCH := arm64
+else
+	ARCH := $(shell uname -m)
+endif
+
 VMLINUX         := ../../../vendor/vmlinux.h/include/$(ARCH)/vmlinux.h
 
 # Flags
@@ -30,8 +31,6 @@ CFLAGS          ?= -g -Wall
 CXXFLAGS        ?= -g -Wall
 override CFLAGS   += $(STACKPROTECT_FLAG) -D_GNU_SOURCE
 override CXXFLAGS += $(STACKPROTECT_FLAG) -D_GNU_SOURCE
-CLANG_BPF_SYS_INCLUDES ?= $(shell $(CLANG) -v -E - </dev/null 2>&1 \
-	| sed -n '/<...> search starts here:/,/End of search list./{ s| \(/.*\)|-idirafter \1|p }')
 
 ALL_LDFLAGS     := $(LDFLAGS) $(EXTRA_LDFLAGS)
 
@@ -96,8 +95,18 @@ $(BPFTOOL): | $(BPFTOOL_OUTPUT)
 # BPF object (kernel byte-code)
 $(OUTPUT)/bootstrap.bpf.o: bootstrap.bpf.c $(LIBBPF_OBJ) $(wildcard *.h) $(wildcard *.hpp) $(VMLINUX) | $(OUTPUT) $(BPFTOOL)
 	$(call msg,BPF,$@)
-	$(Q)$(CLANG) -g -O2 -target bpf -D__TARGET_ARCH_$(ARCH) \
-		$(STACKPROTECT_FLAG) $(CPPFLAGS) $(CLANG_BPF_SYS_INCLUDES) \
+	$(Q)$(CLANG) -g -O2 -target bpf -D__TARGET_ARCH_$(ARCH) -m64 \
+		-nostdinc -nostdlib \
+		-isystem $(shell $(CLANG) -print-file-name=include) \
+		-I$(dir $(VMLINUX)) \
+		-I../../../vendor/libbpf/include/uapi \
+		-I$(OUTPUT) \
+		$(STACKPROTECT_FLAG) \
+		-Wno-unused-value -Wno-pointer-sign \
+		-Wno-compare-distinct-pointer-types \
+		-Wno-gnu-variable-sized-type-not-at-end \
+		-Wno-address-of-packed-member -Wno-tautological-compare \
+		-Wno-unknown-warning-option \
 		-c $< -o $(patsubst %.bpf.o,%.tmp.bpf.o,$@)
 	$(Q)$(BPFTOOL) gen object $@ $(patsubst %.bpf.o,%.tmp.bpf.o,$@)
 

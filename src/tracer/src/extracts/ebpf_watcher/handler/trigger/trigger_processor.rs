@@ -2,7 +2,10 @@ use crate::extracts::process::manager::ProcessManager;
 use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracer_ebpf::{EbpfEvent, EventPayload, EventType, OomMarkVictimPayload, SchedSchedProcessExecPayload, SchedSchedProcessExitPayload};
+use tracer_ebpf::{
+    EbpfEvent, EventPayload, EventType, OomMarkVictimPayload, SchedSchedProcessExecPayload,
+    SchedSchedProcessExitPayload,
+};
 use tracing::debug;
 
 pub struct TriggerProcessor {

@@ -17,12 +17,19 @@
 #ifndef BOOTSTRAP_H
 #define BOOTSTRAP_H
 
-#include <string.h>
-
 typedef unsigned long long u64;
 typedef unsigned int u32;
 typedef unsigned short u16;
 typedef unsigned char u8;
+
+// Simple strcpy implementation for BPF (no string.h needed)
+static inline char *bpf_strcpy(char *dest, const char *src)
+{
+  char *d = dest;
+  while ((*d++ = *src++))
+    ;
+  return dest;
+}
 
 // Map configuration constants
 #define CONFIG_MAP_MAX_ENTRIES 64                    // 64 * 8 bytes for blacklist, config settings, etc
@@ -342,8 +349,8 @@ static inline struct kv_array payload_to_kv_array(enum event_type t, void *ptr)
   {
     struct payload_user_sched_sched_process_exec *p = (struct payload_user_sched_sched_process_exec *)ptr;
     static struct kv_entry entries[1];
-    strcpy(entries[0].type, "char[][]");
-    strcpy(entries[0].key, "argv");
+    bpf_strcpy(entries[0].type, "char[][]");
+    bpf_strcpy(entries[0].key, "argv");
     entries[0].value = &p->argv;
     result.length = 1;
     result.data = entries;
@@ -353,8 +360,8 @@ static inline struct kv_array payload_to_kv_array(enum event_type t, void *ptr)
   {
     struct payload_user_sched_sched_process_exit *p = (struct payload_user_sched_sched_process_exit *)ptr;
     static struct kv_entry entries[1];
-    strcpy(entries[0].type, "u32");
-    strcpy(entries[0].key, "exit_code");
+    bpf_strcpy(entries[0].type, "u32");
+    bpf_strcpy(entries[0].key, "exit_code");
     entries[0].value = &p->exit_code;
     result.length = 1;
     result.data = entries;
@@ -366,17 +373,17 @@ static inline struct kv_array payload_to_kv_array(enum event_type t, void *ptr)
   {
     struct payload_user_syscalls_sys_enter_openat *p = (struct payload_user_syscalls_sys_enter_openat *)ptr;
     static struct kv_entry entries[4];
-    strcpy(entries[0].type, "u32");
-    strcpy(entries[0].key, "dfd");
+    bpf_strcpy(entries[0].type, "u32");
+    bpf_strcpy(entries[0].key, "dfd");
     entries[0].value = &p->dfd;
-    strcpy(entries[1].type, "char[]");
-    strcpy(entries[1].key, "filename");
+    bpf_strcpy(entries[1].type, "char[]");
+    bpf_strcpy(entries[1].key, "filename");
     entries[1].value = &p->filename;
-    strcpy(entries[2].type, "u32");
-    strcpy(entries[2].key, "flags");
+    bpf_strcpy(entries[2].type, "u32");
+    bpf_strcpy(entries[2].key, "flags");
     entries[2].value = &p->flags;
-    strcpy(entries[3].type, "u32");
-    strcpy(entries[3].key, "mode");
+    bpf_strcpy(entries[3].type, "u32");
+    bpf_strcpy(entries[3].key, "mode");
     entries[3].value = &p->mode;
     result.length = 4;
     result.data = entries;
@@ -386,8 +393,8 @@ static inline struct kv_array payload_to_kv_array(enum event_type t, void *ptr)
   {
     struct payload_user_syscalls_sys_exit_openat *p = (struct payload_user_syscalls_sys_exit_openat *)ptr;
     static struct kv_entry entries[1];
-    strcpy(entries[0].type, "u32");
-    strcpy(entries[0].key, "fd");
+    bpf_strcpy(entries[0].type, "u32");
+    bpf_strcpy(entries[0].key, "fd");
     entries[0].value = &p->fd;
     result.length = 1;
     result.data = entries;
@@ -397,11 +404,11 @@ static inline struct kv_array payload_to_kv_array(enum event_type t, void *ptr)
   {
     struct payload_user_syscalls_sys_enter_read *p = (struct payload_user_syscalls_sys_enter_read *)ptr;
     static struct kv_entry entries[2];
-    strcpy(entries[0].type, "u32");
-    strcpy(entries[0].key, "fd");
+    bpf_strcpy(entries[0].type, "u32");
+    bpf_strcpy(entries[0].key, "fd");
     entries[0].value = &p->fd;
-    strcpy(entries[1].type, "u64");
-    strcpy(entries[1].key, "count");
+    bpf_strcpy(entries[1].type, "u64");
+    bpf_strcpy(entries[1].key, "count");
     entries[1].value = &p->count;
     result.length = 2;
     result.data = entries;
@@ -411,14 +418,14 @@ static inline struct kv_array payload_to_kv_array(enum event_type t, void *ptr)
   {
     struct payload_user_syscalls_sys_enter_write *p = (struct payload_user_syscalls_sys_enter_write *)ptr;
     static struct kv_entry entries[3];
-    strcpy(entries[0].type, "u32");
-    strcpy(entries[0].key, "fd");
+    bpf_strcpy(entries[0].type, "u32");
+    bpf_strcpy(entries[0].key, "fd");
     entries[0].value = &p->fd;
-    strcpy(entries[1].type, "u64");
-    strcpy(entries[1].key, "count");
+    bpf_strcpy(entries[1].type, "u64");
+    bpf_strcpy(entries[1].key, "count");
     entries[1].value = &p->count;
-    strcpy(entries[2].type, "char[]");
-    strcpy(entries[2].key, "content");
+    bpf_strcpy(entries[2].type, "char[]");
+    bpf_strcpy(entries[2].key, "content");
     entries[2].value = &p->content;
     result.length = 3;
     result.data = entries;
@@ -428,8 +435,8 @@ static inline struct kv_array payload_to_kv_array(enum event_type t, void *ptr)
   {
     struct payload_user_vmscan_mm_vmscan_direct_reclaim_begin *p = (struct payload_user_vmscan_mm_vmscan_direct_reclaim_begin *)ptr;
     static struct kv_entry entries[1];
-    strcpy(entries[0].type, "u32");
-    strcpy(entries[0].key, "order");
+    bpf_strcpy(entries[0].type, "u32");
+    bpf_strcpy(entries[0].key, "order");
     entries[0].value = &p->order;
     result.length = 1;
     result.data = entries;
@@ -439,8 +446,8 @@ static inline struct kv_array payload_to_kv_array(enum event_type t, void *ptr)
   {
     struct payload_user_oom_mark_victim *p = (struct payload_user_oom_mark_victim *)ptr;
     static struct kv_entry entries[1];
-    strcpy(entries[0].type, "u32");
-    strcpy(entries[0].key, "_unused");
+    bpf_strcpy(entries[0].type, "u32");
+    bpf_strcpy(entries[0].key, "_unused");
     entries[0].value = &p->_unused;
     result.length = 1;
     result.data = entries;

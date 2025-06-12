@@ -19,12 +19,19 @@
 #ifndef BOOTSTRAP_H
 #define BOOTSTRAP_H
 
-#include <string.h>
-
 typedef unsigned long long u64;
 typedef unsigned int u32;
 typedef unsigned short u16;
 typedef unsigned char u8;
+
+// Simple strcpy implementation for BPF (no string.h needed)
+static inline char *bpf_strcpy(char *dest, const char *src)
+{
+  char *d = dest;
+  while ((*d++ = *src++))
+    ;
+  return dest;
+}
 
 // Map configuration constants
 #define CONFIG_MAP_MAX_ENTRIES 64                    // 64 * 8 bytes for blacklist, config settings, etc
@@ -102,18 +109,32 @@ struct dar_array
 
 // Get pointers to dynamic payload attributes (ie, strings and arrays of compile-time-unknown size)
 // templ_start:payload_to_dynamic_allocation_roots
-static inline struct dar_array payload_to_dynamic_allocation_roots(enum event_type t, void *ptr)
+static inline void
+payload_to_dynamic_allocation_roots(enum event_type t,
+                                    void *src_ptr,
+                                    void *dst_ptr,
+                                    struct dar_array *src_result,
+                                    struct dar_array *dst_result)
 {
-  struct dar_array result = {0, nullptr};
-  return result;
+  *src_result = (struct dar_array){0, NULL};
+  *dst_result = (struct dar_array){0, NULL};
+  switch (t)
+  {
+  default:
+    break;
+  }
 }
 // templ_end:payload_to_dynamic_allocation_roots
 
 // For the statically measurable part of payloads only
 // templ_start:get_payload_size
-static inline u64 get_payload_fixed_size(enum event_type t)
+static inline size_t get_payload_fixed_size(enum event_type t)
 {
-  return 0;
+  switch (t)
+  {
+  default:
+    return 0;
+  }
 }
 // templ_end:get_payload_size
 
@@ -124,7 +145,11 @@ static inline u64 get_payload_fixed_size(enum event_type t)
 // templ_start:event_type_to_string
 static inline const char *event_type_to_string(enum event_type t)
 {
-  return "";
+  switch (t)
+  {
+  default:
+    return "unknown";
+  }
 }
 // templ_end:event_type_to_string
 
@@ -144,7 +169,12 @@ struct kv_array
 // templ_start:payload_to_kv_array
 static inline struct kv_array payload_to_kv_array(enum event_type t, void *ptr)
 {
-  struct kv_array result = {0, nullptr};
+  struct kv_array result = {0, NULL};
+  switch (t)
+  {
+  default:
+    break;
+  }
   return result;
 }
 // templ_end:payload_to_kv_array

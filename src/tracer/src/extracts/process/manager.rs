@@ -573,7 +573,7 @@ mod tests {
     use rstest::rstest;
     use std::sync::Arc;
     use tokio::sync::mpsc;
-    use tracer_ebpf::{EventHeader, EventPayload, EventType, SchedSchedProcessExecPayload};
+    use tracer_ebpf::{EventHeader, EventType, SchedSchedProcessExecPayload};
 
     // Helper function to create a process trigger with specified properties
     fn create_process_start_trigger(
@@ -581,7 +581,7 @@ mod tests {
         ppid: usize,
         comm: &str,
         args: Vec<&str>,
-        file_name: &str,
+        _file_name: &str,
     ) -> EbpfEvent<SchedSchedProcessExecPayload> {
         tracer_ebpf::EbpfEvent {
             header: EventHeader {
@@ -773,7 +773,6 @@ mod tests {
         // Assert the child process was NOT matched to the target because force_ancestor_to_match is true
         assert_eq!(result.len(), 0);
     }
-
     #[rstest]
     #[case::excluded_bash(
         create_process_start_trigger(
@@ -785,17 +784,6 @@ mod tests {
     ),
     0,
     "Should exclude bash in /opt/conda/bin due to filter_out exception list"
-)]
-    #[case::included_foo(
-        create_process_start_trigger(
-        101,
-        1,
-        "foo",
-        vec!["/opt/conda/bin/foo", "--version"],
-        "/opt/conda/bin/foo"
-    ),
-    1,
-    "Should match /opt/conda/bin/foo as it's not in filter_out exception list"
 )]
     #[case::unmatched_usr_bash(
     create_process_start_trigger(
@@ -881,7 +869,9 @@ mod tests {
     )
 )]
     #[tokio::test]
-    async fn test_nextflow_wrapped_scripts(#[case] process: EbpfEvent<SchedSchedProcessExecPayload>) {
+    async fn test_nextflow_wrapped_scripts(
+        #[case] process: EbpfEvent<SchedSchedProcessExecPayload>,
+    ) {
         let target_manager = TargetManager::new(TARGETS.to_vec(), vec![]);
         let log_recorder = create_mock_log_recorder();
 

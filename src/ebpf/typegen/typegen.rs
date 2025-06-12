@@ -2,7 +2,7 @@ use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
-use std::process;
+use std::process::{self, Command};
 
 #[derive(Debug, Deserialize)]
 struct EventField {
@@ -193,6 +193,28 @@ fn generate_rust_code(
         process::exit(1);
     }
 
+    // Auto-format the generated Rust file with rustfmt
+    let rustfmt_result = Command::new("rustfmt").arg(output_path).output();
+
+    match rustfmt_result {
+        Ok(output) => {
+            if !output.status.success() {
+                eprintln!(
+                    "Warning: rustfmt failed on {}: {}",
+                    output_path.display(),
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
+        }
+        Err(err) => {
+            eprintln!(
+                "Warning: Failed to run rustfmt on {}: {}",
+                output_path.display(),
+                err
+            );
+        }
+    }
+
     println!("Generated {}", output_path.display());
 }
 
@@ -235,7 +257,7 @@ fn generate_c_file_description() -> String {
 }
 
 fn generate_c_event_type_enum(sorted_events: &[(&String, &EventInfo)]) -> String {
-    let header = vec!["enum event_type", "{"].join("\n");
+    let header = ["enum event_type", "{"].join("\n");
 
     let mut enum_parts = Vec::new();
     for (category_tp, info) in sorted_events {
@@ -249,7 +271,7 @@ fn generate_c_event_type_enum(sorted_events: &[(&String, &EventInfo)]) -> String
         enum_parts.push(format!("  {} = {},", enum_name, info.id));
     }
 
-    let footer = vec!["};"].join("\n");
+    let footer = ["};"].join("\n");
 
     format!("{}\n{}\n{}", header, enum_parts.join("\n"), footer)
 }
@@ -300,7 +322,7 @@ fn generate_c_payload_structs(
 }
 
 fn generate_c_event_type_to_string(sorted_events: &[(&String, &EventInfo)]) -> String {
-    let header = vec![
+    let header = [
         "static inline const char* event_type_to_string(enum event_type t)",
         "{",
         "  switch (t)",
@@ -313,7 +335,7 @@ fn generate_c_event_type_to_string(sorted_events: &[(&String, &EventInfo)]) -> S
         let (category, tracepoint) = category_tp.split_once('.').unwrap();
 
         case_parts.push(
-            vec![
+            [
                 format!("  case event_type_{}_{}:", category, tracepoint),
                 format!("    return \"{}/{}\";", category, tracepoint),
             ]
@@ -321,7 +343,7 @@ fn generate_c_event_type_to_string(sorted_events: &[(&String, &EventInfo)]) -> S
         );
     }
 
-    let footer = vec!["  default:", "    return \"unknown\";", "  }", "}"].join("\n");
+    let footer = ["  default:", "    return \"unknown\";", "  }", "}"].join("\n");
 
     format!("{}\n{}\n{}", header, case_parts.join("\n"), footer)
 }
@@ -408,7 +430,7 @@ payload_to_dynamic_allocation_roots(enum event_type t,
 }
 
 fn generate_c_payload_to_kv_array(sorted_events: &[(&String, &EventInfo)]) -> String {
-    let header = vec![
+    let header = [
         "static inline struct kv_array payload_to_kv_array(enum event_type t, void *ptr)",
         "{",
         "  struct kv_array result = {0, NULL};",
@@ -439,8 +461,8 @@ fn generate_c_payload_to_kv_array(sorted_events: &[(&String, &EventInfo)]) -> St
                 let type_str = field.field_type.as_str();
 
                 case_lines.extend(vec![
-                    format!("    strcpy(entries[{}].type, \"{}\");", i, type_str),
-                    format!("    strcpy(entries[{}].key, \"{}\");", i, field.name),
+                    format!("    bpf_strcpy(entries[{}].type, \"{}\");", i, type_str),
+                    format!("    bpf_strcpy(entries[{}].key, \"{}\");", i, field.name),
                     format!("    entries[{}].value = &p->{};", i, field.name),
                 ]);
             }
@@ -456,7 +478,7 @@ fn generate_c_payload_to_kv_array(sorted_events: &[(&String, &EventInfo)]) -> St
         } else {
             // Handle empty payload events
             case_parts.push(
-                vec![
+                [
                     format!("  case event_type_{}_{}:", category, tracepoint),
                     "    break;".to_string(),
                 ]
@@ -465,13 +487,13 @@ fn generate_c_payload_to_kv_array(sorted_events: &[(&String, &EventInfo)]) -> St
         }
     }
 
-    let footer = vec!["  default:", "    break;", "  }", "  return result;", "}"].join("\n");
+    let footer = ["  default:", "    break;", "  }", "  return result;", "}"].join("\n");
 
     format!("{}\n{}\n{}", header, case_parts.join("\n"), footer)
 }
 
 fn generate_c_get_payload_size(sorted_events: &[(&String, &EventInfo)]) -> String {
-    let header = vec![
+    let header = [
         "static inline size_t get_payload_fixed_size(enum event_type t)",
         "{",
         "  switch (t)",
@@ -484,7 +506,7 @@ fn generate_c_get_payload_size(sorted_events: &[(&String, &EventInfo)]) -> Strin
         let (category, tracepoint) = category_tp.split_once('.').unwrap();
 
         case_parts.push(
-            vec![
+            [
                 format!("  case event_type_{}_{}:", category, tracepoint),
                 format!(
                     "    return sizeof(struct payload_kernel_{}_{});",
@@ -495,7 +517,7 @@ fn generate_c_get_payload_size(sorted_events: &[(&String, &EventInfo)]) -> Strin
         );
     }
 
-    let footer = vec!["  default:", "    return 0;", "  }", "}"].join("\n");
+    let footer = ["  default:", "    return 0;", "  }", "}"].join("\n");
 
     format!("{}\n{}\n{}", header, case_parts.join("\n"), footer)
 }
@@ -523,14 +545,12 @@ fn generate_rust_file_description() -> String {
 }
 
 fn generate_rust_event_type_enum(sorted_events: &[(&String, &EventInfo)]) -> String {
-    let header = vec![
-        "#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Hash)]",
-        "#[repr(u32)]",
-        "pub enum EventType {",
-    ]
-    .join("\n");
+    let mut lines = vec![
+        "#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Hash)]".to_string(),
+        "#[repr(u32)]".to_string(),
+        "pub enum EventType {".to_string(),
+    ];
 
-    let mut enum_parts = Vec::new();
     for (category_tp, info) in sorted_events {
         let parts: Vec<&str> = category_tp.split('.').collect();
         if parts.len() != 2 {
@@ -538,44 +558,34 @@ fn generate_rust_event_type_enum(sorted_events: &[(&String, &EventInfo)]) -> Str
             process::exit(1);
         }
         let (category, tracepoint) = (parts[0], parts[1]);
-
-        // Convert to PascalCase
         let enum_name = to_pascal_case(&format!("{}_{}", category, tracepoint));
-        enum_parts.push(format!("    {} = {},", enum_name, info.id));
+        lines.push(format!("{} = {},", enum_name, info.id));
     }
 
-    // Add the Unknown variant at the end
-    enum_parts.push("    Unknown(u32),".to_string());
-
-    let footer = "}";
-
-    format!("{}\n{}\n{}", header, enum_parts.join("\n"), footer)
+    lines.push("Unknown(u32),".to_string());
+    lines.push("}".to_string());
+    lines.join("\n")
 }
 
 fn generate_rust_event_payload_enum(sorted_events: &[(&String, &EventInfo)]) -> String {
-    let header = vec![
-        "#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]",
-        "pub enum EventPayload {",
-        "    Empty,",
-    ]
-    .join("\n");
+    let mut lines = vec![
+        "#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]".to_string(),
+        "pub enum EventPayload {".to_string(),
+        "Empty,".to_string(),
+    ];
 
-    let mut enum_parts = Vec::new();
     for (category_tp, info) in sorted_events {
         if !info.payload.is_empty() {
             let parts: Vec<&str> = category_tp.split('.').collect();
             let (category, tracepoint) = (parts[0], parts[1]);
-
-            // Convert to PascalCase
             let variant_name = to_pascal_case(&format!("{}_{}", category, tracepoint));
             let struct_name = format!("{}Payload", variant_name);
-            enum_parts.push(format!("    {}({}),", variant_name, struct_name));
+            lines.push(format!("{}({}),", variant_name, struct_name));
         }
     }
 
-    let footer = "}";
-
-    format!("{}\n{}\n{}", header, enum_parts.join("\n"), footer)
+    lines.push("}".to_string());
+    lines.join("\n")
 }
 
 fn generate_rust_payload_structs(
@@ -615,73 +625,53 @@ fn generate_rust_payload_structs(
             } else {
                 type_map.get(field.field_type.as_str()).unwrap_or(&"u64")
             };
-
-            lines.push(format!("    pub {}: {},", field.name, rust_type));
+            lines.push(format!("pub {}: {},", field.name, rust_type));
         }
 
         lines.push("}".to_string());
-        lines.push("".to_string());
     }
 
     lines.join("\n")
 }
 
 fn generate_rust_event_type_from_u32(sorted_events: &[(&String, &EventInfo)]) -> String {
-    let header = vec![
-        "impl From<u32> for EventType {",
-        "    fn from(value: u32) -> Self {",
-        "        match value {",
-    ]
-    .join("\n");
+    let mut lines = vec![
+        "impl From<u32> for EventType {".to_string(),
+        "fn from(value: u32) -> Self {".to_string(),
+        "match value {".to_string(),
+    ];
 
-    let mut case_parts = Vec::new();
     for (category_tp, info) in sorted_events {
         let parts: Vec<&str> = category_tp.split('.').collect();
         let (category, tracepoint) = (parts[0], parts[1]);
-
         let enum_name = to_pascal_case(&format!("{}_{}", category, tracepoint));
-        case_parts.push(format!(
-            "            {} => EventType::{},",
-            info.id, enum_name
-        ));
+        lines.push(format!("{} => EventType::{},", info.id, enum_name));
     }
 
-    let footer = vec![
-        "            unknown => EventType::Unknown(unknown),",
-        "        }",
-        "    }",
-        "}",
-    ]
-    .join("\n");
-
-    format!("{}\n{}\n{}", header, case_parts.join("\n"), footer)
+    lines.push("unknown => EventType::Unknown(unknown),".to_string());
+    lines.push("}}}".to_string());
+    lines.join("\n")
 }
 
 fn generate_rust_event_type_to_string(sorted_events: &[(&String, &EventInfo)]) -> String {
-    let header = vec![
-        "impl EventType {",
-        "    pub fn as_str(&self) -> &'static str {",
-        "        match self {",
-    ]
-    .join("\n");
+    let mut lines = vec![
+        "impl EventType {".to_string(),
+        "pub fn as_str(&self) -> &'static str {".to_string(),
+        "match self {".to_string(),
+    ];
 
-    let mut case_parts = Vec::new();
     for (category_tp, _) in sorted_events {
         let (category, tracepoint) = category_tp.split_once('.').unwrap();
-
         let enum_name = to_pascal_case(&format!("{}_{}", category, tracepoint));
-        case_parts.push(format!(
-            "            EventType::{} => \"{}/{}\",",
+        lines.push(format!(
+            "EventType::{} => \"{}/{}\",",
             enum_name, category, tracepoint
         ));
     }
 
-    // Add Unknown case
-    case_parts.push("            EventType::Unknown(_) => \"unknown\",".to_string());
-
-    let footer = vec!["        }", "    }", "}"].join("\n");
-
-    format!("{}\n{}\n{}", header, case_parts.join("\n"), footer)
+    lines.push("EventType::Unknown(_) => \"unknown\",".to_string());
+    lines.push("}}}".to_string());
+    lines.join("\n")
 }
 
 fn generate_rust_payload_conversion(
@@ -689,14 +679,9 @@ fn generate_rust_payload_conversion(
     type_map: &BTreeMap<&str, &str>,
     buffer_types: &[&str],
 ) -> String {
-    let header = vec![
-        "impl EventPayload {",
-        "    pub unsafe fn from_c_payload(event_type: u32, payload_ptr: *mut c_void) -> Self {",
-        "        match event_type {",
-    ]
-    .join("\n");
+    let mut lines = Vec::new();
 
-    let mut case_parts = Vec::new();
+    // Generate C struct definitions first
     for (category_tp, info) in sorted_events {
         if info.payload.is_empty() {
             continue;
@@ -704,79 +689,11 @@ fn generate_rust_payload_conversion(
 
         let parts: Vec<&str> = category_tp.split('.').collect();
         let (category, tracepoint) = (parts[0], parts[1]);
-
-        let variant_name = to_pascal_case(&format!("{}_{}", category, tracepoint));
-        let struct_name = format!("{}Payload", variant_name);
-
-        let mut case_lines = vec![
-            format!("            {} => {{", info.id),
-            format!(
-                "                let c_payload = &*(payload_ptr as *const CPayload{});",
-                variant_name
-            ),
-        ];
-
-        // Generate field conversions
-        let mut field_conversions = Vec::new();
-        for field in &info.payload {
-            let conversion = if buffer_types.contains(&field.field_type.as_str()) {
-                match field.field_type.as_str() {
-                    "char[]" => format!(
-                        "                    {}: flex_buf_to_string(&c_payload.{}),",
-                        field.name, field.name
-                    ),
-                    "char[][]" => format!(
-                        "                    {}: flex_buf_to_string_array(&c_payload.{}),",
-                        field.name, field.name
-                    ),
-                    _ => format!(
-                        "                    {}: flex_buf_to_string(&c_payload.{}),",
-                        field.name, field.name
-                    ),
-                }
-            } else {
-                format!(
-                    "                    {}: c_payload.{},",
-                    field.name, field.name
-                )
-            };
-            field_conversions.push(conversion);
-        }
-
-        case_lines.push(format!(
-            "                EventPayload::{}({}{{",
-            variant_name, struct_name
-        ));
-        case_lines.extend(field_conversions);
-        case_lines.push("                })".to_string());
-        case_lines.push("            }".to_string());
-
-        case_parts.push(case_lines.join("\n"));
-    }
-
-    let footer = vec![
-        "            _ => EventPayload::Empty,",
-        "        }",
-        "    }",
-        "}",
-    ]
-    .join("\n");
-
-    // Also generate C struct definitions for each payload
-    let mut c_struct_defs = Vec::new();
-    for (category_tp, info) in sorted_events {
-        if info.payload.is_empty() {
-            continue;
-        }
-
-        let parts: Vec<&str> = category_tp.split('.').collect();
-        let (category, tracepoint) = (parts[0], parts[1]);
-
         let variant_name = to_pascal_case(&format!("{}_{}", category, tracepoint));
 
-        c_struct_defs.push(format!("// C struct for {}", category_tp));
-        c_struct_defs.push("#[repr(C, packed)]".to_string());
-        c_struct_defs.push(format!("struct CPayload{} {{", variant_name));
+        lines.push(format!("// C struct for {}", category_tp));
+        lines.push("#[repr(C, packed)]".to_string());
+        lines.push(format!("struct CPayload{} {{", variant_name));
 
         for field in &info.payload {
             let field_type = if buffer_types.contains(&field.field_type.as_str()) {
@@ -784,20 +701,75 @@ fn generate_rust_payload_conversion(
             } else {
                 type_map.get(field.field_type.as_str()).unwrap_or(&"u64")
             };
-            c_struct_defs.push(format!("    {}: {},", field.name, field_type));
+            lines.push(format!("{}: {},", field.name, field_type));
         }
 
-        c_struct_defs.push("}".to_string());
-        c_struct_defs.push("".to_string());
+        lines.push("}".to_string());
     }
 
-    format!(
-        "{}\n\n{}\n{}\n{}",
-        c_struct_defs.join("\n"),
-        header,
-        case_parts.join("\n"),
-        footer
-    )
+    // Generate impl block
+    lines.push("impl EventPayload {".to_string());
+    lines.push("/// Convert a C payload to Rust payload".to_string());
+    lines.push("///".to_string());
+    lines.push("/// # Safety".to_string());
+    lines.push("///".to_string());
+    lines.push("/// This function is unsafe because it:".to_string());
+    lines.push("/// - Dereferences raw pointers from `payload_ptr`".to_string());
+    lines.push("/// - Assumes the payload data matches the expected C struct layout for the given `event_type`".to_string());
+    lines.push("/// - Assumes that any embedded pointers in the payload structures are valid and point to properly formatted data".to_string());
+    lines.push("/// - The caller must ensure that `payload_ptr` is non-null and points to valid memory of the correct type for the given `event_type`".to_string());
+    lines.push(
+        "pub unsafe fn from_c_payload(event_type: u32, payload_ptr: *mut c_void) -> Self {"
+            .to_string(),
+    );
+    lines.push("match event_type {".to_string());
+
+    for (category_tp, info) in sorted_events {
+        if info.payload.is_empty() {
+            continue;
+        }
+
+        let parts: Vec<&str> = category_tp.split('.').collect();
+        let (category, tracepoint) = (parts[0], parts[1]);
+        let variant_name = to_pascal_case(&format!("{}_{}", category, tracepoint));
+        let struct_name = format!("{}Payload", variant_name);
+
+        lines.push(format!("{} => {{", info.id));
+        lines.push(format!(
+            "let c_payload = &*(payload_ptr as *const CPayload{});",
+            variant_name
+        ));
+        lines.push(format!("EventPayload::{}({} {{", variant_name, struct_name));
+
+        for field in &info.payload {
+            let conversion = if buffer_types.contains(&field.field_type.as_str()) {
+                match field.field_type.as_str() {
+                    "char[]" => format!(
+                        "{}: flex_buf_to_string(&c_payload.{}),",
+                        field.name, field.name
+                    ),
+                    "char[][]" => format!(
+                        "{}: flex_buf_to_string_array(&c_payload.{}),",
+                        field.name, field.name
+                    ),
+                    _ => format!(
+                        "{}: flex_buf_to_string(&c_payload.{}),",
+                        field.name, field.name
+                    ),
+                }
+            } else {
+                format!("{}: c_payload.{},", field.name, field.name)
+            };
+            lines.push(conversion);
+        }
+
+        lines.push("})".to_string());
+        lines.push("}".to_string());
+    }
+
+    lines.push("_ => EventPayload::Empty,".to_string());
+    lines.push("}}}".to_string());
+    lines.join("\n")
 }
 
 fn to_pascal_case(s: &str) -> String {
