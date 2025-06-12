@@ -58,7 +58,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4.1.4
         with:
-          submodules: recursive  # This will fetch all submodules recursively
+          submodules: recursive # This will fetch all submodules recursively
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -73,11 +73,17 @@ jobs:
       - name: Install build dependencies
         run: |
           rustup toolchain install nightly-2025-04-15 --component rust-src
-          
+
           if [[ "${{ matrix.runner }}" == *"ubuntu"* ]]; then
             # Install necessary eBPF dependencies for Linux
             sudo apt-get update
-            sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm libelf-dev
+            if [[ "${{ matrix.target }}" == "x86_64-unknown-linux-gnu" ]]; then
+              # Only install 32-bit compatibility libraries on x86_64 systems
+              sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm libelf-dev libc6-dev-i386
+            else
+              # For ARM64 and other architectures, skip the 32-bit compatibility libraries
+              sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm libelf-dev
+            fi
           fi
 
       # Verify submodules are properly loaded
@@ -85,17 +91,17 @@ jobs:
         run: |
           # Find all vmlinux.h files
           vmlinux_files=$(find vendor -name "vmlinux.h")
-          
+
           # Check if any vmlinux.h files exist
           if [ -z "$vmlinux_files" ]; then
             echo "ERROR: No vmlinux.h files found in vendor directory"
             exit 1
           fi
-          
+
           # Print out the found vmlinux.h files for debugging
           echo "Found vmlinux.h files:"
           echo "$vmlinux_files"
-          
+
           # Optional: Check for specific directories or files you expect
           if [ ! -d "vendor/bpftool" ] || [ ! -d "vendor/libbpf" ]; then
             echo "WARNING: Expected vendor subdirectories are missing"

@@ -1,115 +1,217 @@
-# ebpf
+# eBPF Tracer
 
-> A minimal BPF implementation based on [`libbpf/libbpf-bootstrap`](https://github.com/libbpf/libbpf-bootstrap) (examples/c/bootstrap).
+> A high-performance eBPF implementation with hybrid buffering, automatic code generation, and comprehensive event tracking.
 
 ## Features
 
-- Tracks process starts and exits via tracepoints
-- BPF CO‑RE (“Compile Once – Run Everywhere”) for kernel portability
-- Demonstrates core eBPF concepts
-  - Tracepoints, maps, ring buffers, and configurable globals
-- Rust binding with shared memory, for integration into Tracer
+- **Tracepoint capture** comprehensive coverage for all Linux tracepoints, including syscalls
+- **2-layer buffering** for large and variable-length data handling (like stdout content)
+- **Automatic typegen** for event definitions from TOML configuration
+- **Standalone examples** in both C++ and Rust for easy testing and development
+- **BPF CO‑RE support** ("Compile Once – Run Everywhere") for kernel portability
+- **Rust FFI integration** with shared memory and event streaming
 
-## Vendored dependencies (git submodules)
+## Architecture
 
-| **Path**            | **Upstream**                                      |
-|---------------------|---------------------------------------------------|
-| `vendor/libbpf`     | [libbpf](https://github.com/libbpf/libbpf)        |
-| `vendor/bpftool`    | [bpftool](https://github.com/libbpf/bpftool)      |
-| `vendor/vmlinux.h`  | [vmlinux.h](https://github.com/libbpf/vmlinux.h)  |
+### The Rust-C Interface
 
-A **git submodule** is simply a pointer (a *gitlink*) to a specific commit in another repository.
-We put these gitlinks in the `vendor/` folder.
-Advantages over linking against system libraries include:
+eBPF is implemented within a standalone C library (c/ directory) that's linked to Rust (rs/ directory) via a FFI interface with shared memory. This fully decouples our Rust code from eBPF internals.
 
-* deterministic builds—everyone compiles against the same commits;
-* zero external build‑time dependencies (no need for system libbpf or bpftool packages);
-* easy upgrades: bump the submodule, commit, push.
+### Kernel-Userspace Interface
 
-## Quick start (development)
+The implementation uses a hybrid 2-layer buffering system:
+
+1. **Ring buffer** contains only metadata and payload flush signals
+2. **Per-CPU array maps** stores payload data, with types varying between events
+
+This design overcomes the traditional ring buffer size limitations of eBPF, allowing high-performance capture for large and variable-sized payloads like stdout content.
+
+### Adding new event types
+
+Go to `bootstrap.bpf.c`, and an entry to `TRACEPOINT_LIST`, and a corresponding payload fill function. Like so:
+
+```c
+// TRACEPOINT_LIST entry
+X(syscalls, sys_enter_openat, trace_event_raw_sys_enter)
+
+// Example payload fill function
+static __always_inline void
+payload_fill_syscalls_sys_enter_openat(struct trace_event_raw_sys_enter *ctx)
+{
+  struct payload_kernel_syscalls_sys_enter_openat *p = get_payload_buf_entry();
+  if (!p)
+    return;
+
+  p->dfd = BPF_CORE_READ(ctx, args[0]);
+  p->flags = BPF_CORE_READ(ctx, args[2]);
+  p->mode = BPF_CORE_READ(ctx, args[3]);
+
+  void *content_ptr = (void *)BPF_CORE_READ(ctx, args[1]);
+  read_into_attr(content_ptr, FILENAME_MAX_SIZE, F_READ_NUL_TERMINATED, &p->filename);
+}
+```
+
+Then add an entry to `typegen/events.toml` and build (`make` or `cargo build`):
+
+```toml
+[syscalls.sys_enter_openat]
+id = 1024
+comment = "File open, syscall entry"
+payload = [
+  { name = "dfd", type = "u32" },
+  { name = "filename", type = "char[]" },
+  { name = "flags", type = "u32" },
+  { name = "mode", type = "u32" },
+]
+```
+
+The typegen system generates:
+
+- C structs and enums (`c/bootstrap.gen.h`)
+- Rust types and conversion functions (`rs/types.gen.rs`)
+- Consistent event IDs and serialization logic
+
+## Quick Start
+
+### Prerequisites
 
 ```sh
 # Install build prerequisites (Ubuntu/Debian)
-sudo apt install clang libelf1 libelf-dev zlib1g-dev
+sudo apt install clang libelf1 libelf-dev zlib1g-dev libc6-dev-i386
 
-# Clone *and* pull submodules in one go
+# Clone with submodules
 git clone --recurse-submodules https://github.com/Tracer-Cloud/tracer-client
-cd src/ebpf
+cd tracer-client/src/ebpf
 
-# (Or, if you already cloned)
+# Or if already cloned
 git submodule update --init --recursive
 ```
 
-**Building**:
+### Building
 
-> Note: `cargo build` is configured to run `make` behind-the-scenes. This is only for people actively working on eBPF, rather than merely consuming the crate.
->
-> The first build will be slow, but subsequent builds will be fast, thanks to partial caching.
+The build system automatically handles C/C++, eBPF compilation, and typegen:
 
 ```sh
-cd c
-make
+# Build C library and example only (fast)
+cd ~/tracer-client/ebpf/c && make
 ```
 
 This produces:
 
-- `./example`: standalone binary, which just logs captured events when executed (useful for debugging).
-- `./libbootstrap.a`: linkable object used as input for Tracer binary compilation.
+- `c/libbootstrap.a` - Static library for integration
+- `c/example` - Standalone C++ example
 
-Run the example with:
+Or alternatively, you can run:
 
 ```sh
-sudo ./example
+# Build both C and Rust libraries and examples (slow)
+cd ~/tracer-client/ebpf && cargo build
+
+# Build everything (even slower)
+cd ~/tracer-client && cargo build
 ```
 
-The output should look something like:
+In addition to the above, this also produces:
+
+- `target/debug/libtracer_ebpf` - eBPF library, consumed by Tracer
+- `target/debug/example` - Standalone Rust example
+
+### Running Standalone Examples
+
+The two examples behave identically. They log all captured eBPF events as JSON. This is a useful for general development, and also for gathering test data specifically.
+
+**C++ Example:**
 
 ```sh
-{"event_type":"process_exec","timestamp":"1970-01-07 06:48:44.807862128","pid":1258136,"ppid":1244910,"comm":"git","argc":9,"argv":["/usr/bin/git","-c","core.quotepath=false","-c","color.ui=false","rev-parse","--verify","--end-of-options","1252231^{commit}"]}
-{"event_type":"process_exit","timestamp":"1970-01-07 06:48:44.809130125","pid":1258136,"ppid":1244910}
-{"event_type":"process_exec","timestamp":"1970-01-07 06:48:45.386948556","pid":1258137,"ppid":1206440,"comm":"sh","argc":3,"argv":["/bin/sh","-c","which ps"]}
-{"event_type":"process_exec","timestamp":"1970-01-07 06:48:45.387484766","pid":1258138,"ppid":1258137,"comm":"which","argc":3,"argv":["/bin/sh","/usr/bin/which","ps"]}
-{"event_type":"process_exit","timestamp":"1970-01-07 06:48:45.387959373","pid":1258138,"ppid":1258137}
-{"event_type":"process_exit","timestamp":"1970-01-07 06:48:45.388083524","pid":1258137,"ppid":1206440}
+sudo ./c/example
 ```
 
-**Updating vendored dependencies**:
+**Rust Example:**
 
 ```sh
-# Move to the submodule you want to update
+sudo cargo run --bin example
+```
+
+Example output:
+
+```json
+{"event_id":7515065279460734721,"event_type":"syscalls/sys_enter_write","timestamp_ns":1749737488328669213,"pid":2060594,"ppid":2060565,"upid":2265647914722316300,"uppid":2265616027062207665,"comm":"ls","payload":{"fd":1,"count":69,"content":"Makefile bootstrap-filter.h bootstrap.c bootstrap.templ.h example.cpp\n"}}
+{"event_id":7515065279460734722,"event_type":"syscalls/sys_enter_write","timestamp_ns":1749737488328701935,"pid":2060594,"ppid":2060565,"upid":2265647914722316300,"uppid":2265616027062207665,"comm":"ls","payload":{"fd":1,"count":71,"content":"bootstrap-api.h bootstrap.bpf.c bootstrap.gen.h example libbootstrap.a\n"}}
+```
+
+## Development
+
+### Debugging
+
+Use `bpf_printk()` for eBPF logs inside `bootstrap.bpf.c`:
+
+```c
+bpf_printk("Debug: processing PID %d", pid);
+```
+
+View debug output:
+
+```sh
+sudo cat /sys/kernel/debug/tracing/trace_pipe
+```
+
+### Vendored Dependencies
+
+| **Path**           | **Upstream**                                     |
+| ------------------ | ------------------------------------------------ |
+| `vendor/libbpf`    | [libbpf](https://github.com/libbpf/libbpf)       |
+| `vendor/bpftool`   | [bpftool](https://github.com/libbpf/bpftool)     |
+| `vendor/vmlinux.h` | [vmlinux.h](https://github.com/libbpf/vmlinux.h) |
+
+**Updating dependencies:**
+
+```sh
 cd vendor/libbpf
-git fetch --tags
-git checkout v1.5.0      # or another tag/branch/commit
-
-# Return to the main repo, and commit change
-cd ../..
-git add vendor/libbpf
-git commit -m "Bump libbpf to v1.5.0"
+git fetch --tags && git checkout v1.5.0
+cd ../.. && git add vendor/libbpf && git commit -m "Bump libbpf to v1.5.0"
 ```
 
-## Software design
+### Code Structure
 
-**The Rust-C interface**
+```
+ebpf/
+├── c/                    # C/C++ eBPF implementation
+│   ├── bootstrap.bpf.c   # Kernel-space eBPF program
+│   ├── bootstrap.c       # User-space library
+│   ├── bootstrap.gen.h   # Generated types/structs
+│   ├── example.cpp       # Standalone C++ example
+│   └── Makefile          # Build system
+├── rs/                   # Rust FFI bindings
+│   ├── binding.rs        # C-Rust interface
+│   ├── example.rs        # Standalone Rust example
+│   ├── types.gen.rs      # Generated Rust types
+│   └── lib.rs            # Library entry point
+├── typegen/              # Code generation
+│   ├── events.toml       # Event definitions
+│   └── typegen.rs        # Code generator
+└── build.rs              # Cargo build script
+```
 
-eBPF is implemented within a standalone C library (`c/` directory) that's linked to Rust (`rs/` directory) via a FFI interface with shared memory. This fully decouples our Rust code from eBPF internals.
+## Troubleshooting
 
-Here, `binding.rs` allocates a buffer the C library can write to asynchronously. The library does so and notifies `binding.rs` of writes via a callback. The callback then sends the events onwards and allocates a new buffer, completing the cycle.
+### CI/CD Build Failures
 
-## Future development
+**Error:** `fatal error: 'gnu/stubs-32.h' file not found`
 
-To explore in the future:
+This occurs when the CI environment is missing 32-bit development headers on x86_64 systems. The fix depends on your system architecture:
 
-1. **Codegen**: Adding collection of new tracepoints should be as simple as adding an entry to the codegen config with the name of the tracepoint and attributes of interest.
-    - For example: 
-      ```json
-      {
-        "tracepoint": "syscall:sys_enter_openat",
-        "attributes": ["filename", "flags", "mode"]
-      }
-      ```
-    - The Rust types and C code would be generated by a build script.
-2. **Better working format**: Performance can be improved by 100x with some behaviour / interface adjustments.
-    - **Reduce memory churn**: Instead of allocating new memory for each incoming event, we should reuse buffers for previously-processed events.
-    - **Separate buffers by event type**: Vectors of tagged unions don't align with the performance potential of modern hardware. Routing events into separate buffers should happen early, probably in `bootstrap.c`.
-    - **Batch processing**: Processing in batches of 16/64/256/etc events would enable much faster transforms. These batches should have an SoA layout (ie, column-oriented), in alignment with the internal format of dataframe libraries like Polars.
-3. **Testing across multiple environments**: In theory, we _should_ have very good support across Linux versions with CO-RE. It would be great to validate that in practice. Testing on multiple OS / kernel versions would confirm correctness and help identify compatiability issues if any exist.
+```sh
+# Ubuntu/Debian on x86_64
+sudo apt-get install -y libc6-dev-i386
+
+# Ubuntu/Debian on ARM64 (aarch64) - 32-bit libraries not needed
+sudo apt-get install -y libelf-dev
+
+# Amazon Linux 2 on x86_64
+sudo yum install -y glibc-devel.i686
+
+# Amazon Linux 2023 on x86_64 - 32-bit packages no longer available
+# If you need 32-bit support, consider using Amazon Linux 2 or containerized AL2
+```
+
+**Note:** ARM64 systems don't need 32-bit x86 compatibility libraries. The error typically only occurs on x86_64 systems where clang tries to include both 32-bit and 64-bit headers during eBPF compilation.

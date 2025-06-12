@@ -1,6 +1,5 @@
-use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
-
-use super::{Target, TargetMatchable};
+use crate::common::target_process::{Target, TargetMatchable};
+use tracer_ebpf::{EbpfEvent, SchedSchedProcessExecPayload};
 
 #[derive(Clone, Debug)]
 pub struct TargetManager {
@@ -14,20 +13,23 @@ impl TargetManager {
     }
 
     /// Returns the matching target if it's not blacklisted
-    pub fn get_target_match(&self, process: &ProcessStartTrigger) -> Option<&Target> {
+    pub fn get_target_match(
+        &self,
+        event: &EbpfEvent<SchedSchedProcessExecPayload>,
+    ) -> Option<&Target> {
         // Skip blacklisted processes
-        if self.blacklist.iter().any(|b| b.matches_process(process)) {
+        if self.blacklist.iter().any(|b| b.matches_process(event)) {
             tracing::error!(
-                "blocking process: {} | path: {} | argv: {:?}",
-                process.comm,
-                process.file_name,
-                process.argv
+                "blocking process: {} | pid: {} | argv: {:?}",
+                event.header.comm,
+                event.header.pid,
+                event.payload.argv
             );
             return None;
         }
 
         // Return first matching target
-        self.targets.iter().find(|t| t.matches_process(process))
+        self.targets.iter().find(|t| t.matches_process(event))
     }
 }
 
@@ -37,16 +39,27 @@ mod tests {
     use crate::common::target_process::manager::TargetManager;
     use crate::common::target_process::target_matching::{CommandContainsStruct, TargetMatch};
     use crate::common::target_process::Target;
-    use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
+    use tracer_ebpf::{EbpfEvent, EventHeader, EventType, SchedSchedProcessExecPayload};
 
-    fn dummy_process(name: &str, cmd: &str, path: &str) -> ProcessStartTrigger {
-        ProcessStartTrigger {
-            pid: 1,
-            ppid: 0,
-            comm: name.to_string(),
-            argv: cmd.split_whitespace().map(String::from).collect(),
-            file_name: path.to_string(),
-            started_at: chrono::Utc::now(),
+    fn dummy_process_exec_event(
+        name: &str,
+        cmd: &str,
+        _path: &str,
+    ) -> EbpfEvent<SchedSchedProcessExecPayload> {
+        let argv: Vec<String> = cmd.split_whitespace().map(String::from).collect();
+
+        EbpfEvent::<SchedSchedProcessExecPayload> {
+            header: EventHeader {
+                event_id: 1,
+                event_type: EventType::SchedSchedProcessExec,
+                timestamp_ns: 0,
+                pid: 1,
+                ppid: 0,
+                upid: 1,
+                uppid: 0,
+                comm: name.to_string(),
+            },
+            payload: SchedSchedProcessExecPayload { argv },
         }
     }
 
@@ -61,7 +74,8 @@ mod tests {
         let targets = vec![Target::new(TargetMatch::ProcessName("fastqc".to_string()))];
 
         let mgr = TargetManager::new(targets, blacklist);
-        let proc = dummy_process("fastqc", "spack activate && fastqc", "/usr/bin/fastqc");
+        let proc =
+            dummy_process_exec_event("fastqc", "spack activate && fastqc", "/usr/bin/fastqc");
 
         assert!(mgr.get_target_match(&proc).is_none());
     }
@@ -72,7 +86,7 @@ mod tests {
             vec![Target::new(TargetMatch::ProcessName("fastqc".to_string()))],
             vec![],
         );
-        let process = dummy_process("fastqc", "fastqc file.fq", "/usr/bin/fastqc");
+        let process = dummy_process_exec_event("fastqc", "fastqc file.fq", "/usr/bin/fastqc");
         assert!(mgr.get_target_match(&process).is_some());
     }
 }

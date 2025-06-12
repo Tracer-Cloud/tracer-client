@@ -142,7 +142,7 @@ impl TracerClient {
         {
             let kernel_version = Self::get_kernel_version();
             match kernel_version {
-                Some((5, 15)) => {
+                Some((major, minor)) if major > 5 || (major == 5 && minor >= 15) => {
                     println!("Starting eBPF monitoring");
                     self.ebpf_watcher.start_ebpf().await
                 }
