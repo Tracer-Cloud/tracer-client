@@ -135,9 +135,8 @@ sudo cargo run --bin example
 Example output:
 
 ```json
-{"event_type":"process_exec","timestamp":"1970-01-07 06:48:44.807862128","pid":1258136,"ppid":1244910,"comm":"git","argc":9,"argv":["/usr/bin/git","-c","core.quotepath=false"]}
-{"event_type":"process_exit","timestamp":"1970-01-07 06:48:44.809130125","pid":1258136,"ppid":1244910}
-{"event_type":"sys_enter_write","timestamp":"1970-01-07 06:48:45.123456789","pid":1258140,"fd":1,"count":12,"content":"Hello World\n"}
+{"event_id":7515065279460734721,"event_type":"syscalls/sys_enter_write","timestamp_ns":1749737488328669213,"pid":2060594,"ppid":2060565,"upid":2265647914722316300,"uppid":2265616027062207665,"comm":"ls","payload":{"fd":1,"count":69,"content":"Makefile bootstrap-filter.h bootstrap.c bootstrap.templ.h example.cpp\n"}}
+{"event_id":7515065279460734722,"event_type":"syscalls/sys_enter_write","timestamp_ns":1749737488328701935,"pid":2060594,"ppid":2060565,"upid":2265647914722316300,"uppid":2265616027062207665,"comm":"ls","payload":{"fd":1,"count":71,"content":"bootstrap-api.h bootstrap.bpf.c bootstrap.gen.h example libbootstrap.a\n"}}
 ```
 
 ## Development
