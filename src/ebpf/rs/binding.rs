@@ -39,16 +39,16 @@ struct EventHeaderUser {
     payload: *mut c_void,
 }
 
-// FFI function - only on Linux like the working binding.rs
+// FFI function - only on Linux
 #[cfg(target_os = "linux")]
 extern "C" {
-    fn initialize(
+    fn tracer_ebpf_initialize(
         header_ctx: *mut HeaderCtx,
         payload_ctx: *mut PayloadCtx,
         callback: extern "C" fn(*mut HeaderCtx, *mut PayloadCtx),
     ) -> c_int;
 
-    fn shutdown();
+    fn tracer_ebpf_shutdown();
 }
 
 // Event listener trait
@@ -123,6 +123,10 @@ unsafe fn convert_event(
 // External callback function - now properly calls the listener
 extern "C" fn event_callback(header_ctx: *mut HeaderCtx, payload_ctx: *mut PayloadCtx) {
     unsafe {
+        if header_ctx.is_null() || payload_ctx.is_null() {
+            return;
+        }
+
         if let Some(event) = convert_event(header_ctx, payload_ctx) {
             if let Some(ref listener) = GLOBAL_LISTENER {
                 listener.on_event(event);
@@ -163,9 +167,13 @@ pub fn subscribe<L: EventListener + 'static>(listener: L) -> Result<()> {
                 size: PAYLOAD_BUFFER_SIZE,
             };
 
-            // Blocks until `shutdown()` is called
+            // Blocks until `tracer_ebpf_shutdown()` is called
             unsafe {
-                let _ = initialize(&mut header_ctx, &mut payload_ctx, event_callback);
+                let result =
+                    tracer_ebpf_initialize(&mut header_ctx, &mut payload_ctx, event_callback);
+                if result != 0 {
+                    eprintln!("eBPF initialize failed with code: {}", result);
+                }
             }
         })?;
 
@@ -187,7 +195,7 @@ pub fn subscribe<L: EventListener + 'static>(_listener: L) -> Result<()> {
 #[cfg(target_os = "linux")]
 pub fn unsubscribe() {
     unsafe {
-        shutdown();
+        tracer_ebpf_shutdown();
         // Ensure the worker has finished
         if let Some(handle) = (&mut SUB_THREAD).take() {
             let _ = handle.join();

@@ -170,7 +170,7 @@ static void event_callback(header_ctx *header_ctx, payload_ctx *payload_ctx)
 }
 
 /* Forward SIGINT/SIGTERM to the C API so bootstrap.c breaks its poll loop */
-static void sig_handler(int) { shutdown(); }
+static void sig_handler(int) { tracer_ebpf_shutdown(); }
 
 // ----------------------------------------------
 // main()
@@ -206,14 +206,14 @@ int main()
   std::signal(SIGINT, sig_handler);
   std::signal(SIGTERM, sig_handler);
 
-  int err = initialize(&header_context, &payload_context, event_callback);
+  int err = tracer_ebpf_initialize(&header_context, &payload_context, event_callback);
 
   std::free(header_buf);
   std::free(payload_buf);
 
   if (err)
   {
-    std::fprintf(stderr, "initialize() failed: %d\n", err);
+    std::fprintf(stderr, "tracer_ebpf_initialize() failed: %d\n", err);
     return EXIT_FAILURE;
   }
 

@@ -106,6 +106,9 @@ Or alternatively, you can run:
 ```sh
 # Build both C and Rust libraries and examples (slow)
 cd ~/tracer-client/ebpf && cargo build
+
+# Build everything (even slower)
+cd ~/tracer-client && cargo build
 ```
 
 In addition to the above, this also produces:

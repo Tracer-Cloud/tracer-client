@@ -22,8 +22,11 @@ struct EbpfEventListener {
 
 impl EventListener for EbpfEventListener {
     fn on_event(&self, event: EbpfEvent<EventPayload>) {
-        if let Err(e) = self.event_sender.send(event) {
-            error!("Failed to send event: {}", e);
+        match self.event_sender.send(event) {
+            Ok(_) => {}
+            Err(e) => {
+                error!("Failed to send event: {}", e);
+            }
         }
     }
 }
@@ -73,22 +76,26 @@ impl EbpfWatcher {
     }
 
     pub async fn start_ebpf(self: &Arc<Self>) -> Result<()> {
-        Arc::clone(self)
+        // Only initialize eBPF once - OnceCell ensures this
+        let self_clone = Arc::clone(self);
+        let result = self_clone
             .ebpf
-            .get_or_try_init(|| Arc::clone(self).initialize_ebpf())?;
-        Ok(())
+            .get_or_try_init(|| Arc::clone(&self_clone).initialize_ebpf());
+
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
+        }
     }
 
     pub async fn start_process_polling(
         self: &Arc<Self>,
         process_polling_interval_ms: u64,
     ) -> Result<()> {
-        println!("Starting process polling");
         let watcher = Arc::clone(self);
         let interval = std::time::Duration::from_millis(process_polling_interval_ms);
 
         tokio::spawn(async move {
-            println!("Starting process polling loop");
             let mut system = sysinfo::System::new_all();
             let mut known_processes: HashSet<u32> = HashSet::new();
 
@@ -178,89 +185,26 @@ impl EbpfWatcher {
     }
 
     fn initialize_ebpf(self: Arc<Self>) -> Result<(), Error> {
-        // Use unbounded channel for cross-runtime compatibility
-        let (tx, rx) = mpsc::unbounded_channel::<EbpfEvent<EventPayload>>();
-
-        // Create event listener
-        let listener = EbpfEventListener { event_sender: tx };
+        // Create event listener that uses the existing channel
+        let listener = EbpfEventListener {
+            event_sender: self.event_sender.clone(),
+        };
 
         // Start the eBPF event processing
         subscribe(listener)?;
 
-        // Start the event processing loop
-        let watcher = Arc::clone(&self);
-        let task = tokio::spawn(async move {
-            if let Err(e) = watcher.process_event_loop_inner(rx).await {
-                error!("process_event_loop failed: {:?}", e);
+        // Keep eBPF alive in a background thread, matching example.rs approach
+        std::thread::spawn(|| {
+            let should_exit = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+
+            // No signal handler setup since this is integrated into a larger system
+            // The eBPF will be shut down when the process exits
+
+            // Main loop - keep the eBPF system alive
+            while !should_exit.load(std::sync::atomic::Ordering::Relaxed) {
+                std::thread::sleep(std::time::Duration::from_millis(1000));
             }
         });
-
-        // Store the task handle in the state
-        match tokio::runtime::Handle::try_current() {
-            Ok(_) => {
-                tokio::spawn(async move {
-                    let mut process_manager = self.process_manager.write().await;
-                    process_manager.set_ebpf_task(task).await;
-                });
-            }
-            Err(_) => {
-                // Not in a tokio runtime, can't store the task handle
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Main loop that processes events from eBPF
-    async fn process_event_loop_inner(
-        self: &Arc<Self>,
-        mut rx: mpsc::UnboundedReceiver<EbpfEvent<EventPayload>>,
-    ) -> Result<()> {
-        let mut buffer: Vec<EbpfEvent<EventPayload>> = Vec::with_capacity(100);
-        let mut last_flush = std::time::Instant::now();
-        const FLUSH_INTERVAL: Duration = Duration::from_millis(100);
-
-        loop {
-            tokio::select! {
-                // Receive events
-                event = rx.recv() => {
-                    match event {
-                        Some(event) => {
-                            buffer.push(event);
-
-                            // Flush if buffer is full or enough time has passed
-                            if buffer.len() >= 100 || last_flush.elapsed() >= FLUSH_INTERVAL {
-                                if let Err(e) = Self::process_events(&self.trigger_processor, std::mem::take(&mut buffer)).await {
-                                    error!("Failed to process events: {}", e);
-                                }
-                                last_flush = std::time::Instant::now();
-                            }
-                        }
-                        None => {
-                            debug!("Event channel closed, stopping event processing loop");
-                            break;
-                        }
-                    }
-                }
-
-                // Periodic flush
-                _ = sleep(FLUSH_INTERVAL) => {
-                    if !buffer.is_empty() && last_flush.elapsed() >= FLUSH_INTERVAL {
-                        if let Err(e) = Self::process_events(&self.trigger_processor, std::mem::take(&mut buffer)).await {
-                            error!("Failed to process events: {}", e);
-                        }
-                        last_flush = std::time::Instant::now();
-                    }
-                }
-            }
-        }
-
-        // Process any remaining events
-        if !buffer.is_empty() {
-            if let Err(e) = Self::process_events(&self.trigger_processor, buffer).await {
-                error!("Failed to process final events: {}", e);
-            }
-        }
 
         Ok(())
     }
@@ -270,7 +214,7 @@ impl EbpfWatcher {
         trigger_processor: Arc<TriggerProcessor>,
         mut rx: mpsc::UnboundedReceiver<EbpfEvent<EventPayload>>,
     ) -> Result<()> {
-        let mut buffer: Vec<EbpfEvent<EventPayload>> = Vec::with_capacity(100);
+        let mut buffer: Vec<EbpfEvent<EventPayload>> = Vec::with_capacity(64);
         let mut last_flush = std::time::Instant::now();
         const FLUSH_INTERVAL: Duration = Duration::from_millis(100);
 
@@ -283,7 +227,7 @@ impl EbpfWatcher {
                             buffer.push(event);
 
                             // Flush if buffer is full or enough time has passed
-                            if buffer.len() >= 100 || last_flush.elapsed() >= FLUSH_INTERVAL {
+                            if buffer.len() >= 64 || last_flush.elapsed() >= FLUSH_INTERVAL {
                                 if let Err(e) = Self::process_events(&trigger_processor, std::mem::take(&mut buffer)).await {
                                     error!("Failed to process events: {}", e);
                                 }

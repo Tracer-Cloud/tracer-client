@@ -53,14 +53,16 @@ extern "C"
    * @param callback Function to call when event data is ready
    * @return 0 on success, non-zero on error
    */
-  int initialize(header_ctx *header_ctx, payload_ctx *payload_ctx,
-                 event_callback_t callback);
+  int tracer_ebpf_initialize(header_ctx *header_ctx, payload_ctx *payload_ctx,
+                             event_callback_t callback);
 
   /**
-   * Signal the tracer to shutdown gracefully.
-   * This will cause the initialize() function to return.
+   * Gracefully stop the tracer.
+   *
+   * This function signals the tracer to stop and blocks until it has
+   * gracefully exited.
    */
-  void shutdown(void);
+  void tracer_ebpf_shutdown(void);
 
 #ifdef __cplusplus
 }

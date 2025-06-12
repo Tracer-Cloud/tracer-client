@@ -100,7 +100,7 @@ static int libbpf_log(enum libbpf_print_level lvl,
 /* set via shutdown() – no more in-library signal handlers */
 static volatile sig_atomic_t exiting = 0;
 
-void shutdown(void)
+void tracer_ebpf_shutdown(void)
 {
     exiting = 1;
 }
@@ -228,9 +228,9 @@ struct cfg_item
     const char *name;
 };
 
-int initialize(header_ctx *hdr,
-               payload_ctx *pl,
-               event_callback_t cb)
+int tracer_ebpf_initialize(header_ctx *hdr,
+                           payload_ctx *pl,
+                           event_callback_t cb)
 {
     if (!hdr || !hdr->data || !pl || !pl->data || !cb)
         return -EINVAL;

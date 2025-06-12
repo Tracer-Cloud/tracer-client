@@ -50,23 +50,16 @@ fn main() {
     // Tell cargo where to find the freshly built static libs
     println!("cargo:rustc-link-search=native={}", out_dir.display());
 
-    // Link to the static libraries
-    let bootstrap = out_dir.join("libbootstrap.a");
-    let bpf = out_dir.join("libbpf.a");
+    // --- new, propagates to dependents -------------------------
+    // our own static libs (order matters: bootstrap uses libbpf)
+    println!("cargo:rustc-link-lib=static=bootstrap");
+    println!("cargo:rustc-link-lib=static=bpf");
 
-    // Group required for cross-ref resolution
-    println!("cargo:rustc-link-arg=-Wl,--start-group");
-    println!("cargo:rustc-link-arg={}", bootstrap.display());
-    println!("cargo:rustc-link-arg={}", bpf.display());
-    println!("cargo:rustc-link-arg=-Wl,--end-group");
+    // system libs (dynamic is fine)
+    println!("cargo:rustc-link-lib=elf");
+    println!("cargo:rustc-link-lib=z");
 
-    // Link required system libraries: libbpf depends on libelf and zlib
-    println!("cargo:rustc-link-arg=-lelf");
-    println!("cargo:rustc-link-arg=-lz");
-
-    // Link system libraries specific to AArch64: libgcc & libatomic
-    println!("cargo:rustc-link-arg=-Wl,-Bstatic");
-    println!("cargo:rustc-link-arg=-latomic");
-    println!("cargo:rustc-link-arg=-lgcc");
-    println!("cargo:rustc-link-arg=-Wl,-Bdynamic");
+    // aarch64 needs these two
+    println!("cargo:rustc-link-lib=atomic");
+    println!("cargo:rustc-link-lib=gcc");
 }
