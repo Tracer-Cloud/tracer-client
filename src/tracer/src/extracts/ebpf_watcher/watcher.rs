@@ -7,6 +7,9 @@ use crate::extracts::process::process_utils::get_process_argv;
 use anyhow::{Error, Result};
 use chrono::Utc;
 use std::collections::HashSet;
+use std::fs::{self, OpenOptions};
+use std::io::Write;
+use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
 use tracer_ebpf::binding::start_processing_events;
@@ -214,6 +217,14 @@ impl EbpfWatcher {
 
         debug!("ProcessWatcher: processing {} triggers", triggers.len());
 
+        // Create the directory if it doesn't exist
+        let log_dir = Path::new("/tmp/tracer");
+        if !log_dir.exists() {
+            if let Err(e) = fs::create_dir_all(log_dir) {
+                error!("Failed to create log directory: {}", e);
+            }
+        }
+
         for trigger in triggers.into_iter() {
             match trigger {
                 Trigger::ProcessStart(process_started) => {
@@ -221,6 +232,24 @@ impl EbpfWatcher {
                         "ProcessWatcher: received START trigger pid={}, cmd={}",
                         process_started.pid, process_started.comm
                     );
+                    
+                    // Log the process to file
+                    let log_line = format!("{} | {} | {} | {}\n",
+                        process_started.comm,
+                        process_started.argv.join(" "),
+                        process_started.pid,
+                        process_started.started_at.to_rfc3339()
+                    );
+
+                    if let Err(e) = OpenOptions::new()
+                        .create(true)
+                        .append(true)
+                        .open("/tmp/tracer/processes.txt")
+                        .and_then(|mut file| file.write_all(log_line.as_bytes()))
+                    {
+                        error!("Failed to write process log: {}", e);
+                    }
+
                     process_start_triggers.push(process_started);
                 }
                 Trigger::ProcessEnd(process_end) => {
