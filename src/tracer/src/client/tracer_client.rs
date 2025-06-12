@@ -23,7 +23,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use sysinfo::System;
 use tokio::sync::{mpsc, RwLock};
-use tracing::info;
+use tracing::{error, info};
 
 pub struct TracerClient {
     system: Arc<RwLock<System>>, // todo: use arc swap
@@ -143,17 +143,29 @@ impl TracerClient {
             let kernel_version = Self::get_kernel_version();
             match kernel_version {
                 Some((5, 15)) => {
-                    println!("Starting eBPF monitoring");
-                    self.ebpf_watcher.start_ebpf().await
+                    info!("Starting eBPF monitoring on Linux kernel 5.15");
+                    match self.ebpf_watcher.start_ebpf().await {
+                        Ok(_) => {
+                            info!("eBPF monitoring started successfully");
+                            Ok(())
+                        }
+                        Err(e) => {
+                            error!("Failed to start eBPF monitoring: {}. Falling back to process polling.", e);
+                            info!("Starting process polling monitoring (eBPF fallback)");
+                            self.ebpf_watcher
+                                .start_process_polling(self.config.process_polling_interval_ms)
+                                .await
+                        }
+                    }
                 }
-                Some((_major, _minor)) => {
-                    println!("Starting process polling monitoring");
+                Some((major, minor)) => {
+                    info!("Starting process polling monitoring on Linux kernel {}.{} (eBPF not supported)", major, minor);
                     self.ebpf_watcher
                         .start_process_polling(self.config.process_polling_interval_ms)
                         .await
                 }
                 None => {
-                    println!("Starting process polling monitoring");
+                    info!("Starting process polling monitoring on Linux (kernel version detection failed)");
                     self.ebpf_watcher
                         .start_process_polling(self.config.process_polling_interval_ms)
                         .await
@@ -163,6 +175,7 @@ impl TracerClient {
 
         #[cfg(not(target_os = "linux"))]
         {
+            info!("Starting process polling monitoring on non-Linux platform (macOS)");
             self.ebpf_watcher
                 .start_process_polling(self.config.process_polling_interval_ms)
                 .await
@@ -181,6 +194,7 @@ impl TracerClient {
     }
 
     pub async fn start_new_run(&self, timestamp: Option<DateTime<Utc>>) -> Result<()> {
+        println!("Starting new run");
         self.start_monitoring().await?;
 
         if self.pipeline.read().await.run.is_some() {
@@ -308,12 +322,14 @@ impl TracerClient {
             .ok()
             .and_then(|output| {
                 String::from_utf8(output.stdout).ok().and_then(|version| {
+                    info!("Detected kernel version: {}", version.trim());
                     let parts: Vec<&str> = version.trim().split('.').collect();
                     if parts.len() >= 2 {
                         let major = parts[0].parse::<u32>().ok()?;
                         let minor = parts[1].parse::<u32>().ok()?;
                         Some((major, minor))
                     } else {
+                        error!("Failed to parse kernel version: {}", version.trim());
                         None
                     }
                 })
