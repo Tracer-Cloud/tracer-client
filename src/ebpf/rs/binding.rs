@@ -7,8 +7,7 @@ use std::thread;
 #[path = "types.gen.rs"]
 mod types;
 
-// Re-export types publicly
-pub use types::{Event, EventHeader, EventPayload, EventType};
+pub use types::*;
 
 const TASK_COMM_LEN: usize = 16;
 
@@ -54,7 +53,7 @@ extern "C" {
 
 // Event listener trait
 pub trait EventListener: Send + Sync {
-    fn on_event(&self, event: Event);
+    fn on_event(&self, event: EbpfEvent<EventPayload>);
 }
 
 // Global listener storage
@@ -73,7 +72,10 @@ unsafe fn convert_payload(event_type: u32, payload_ptr: *mut c_void, _size: usiz
 }
 
 // Convert C structures to Rust Event
-unsafe fn convert_event(header_ctx: *mut HeaderCtx, payload_ctx: *mut PayloadCtx) -> Option<Event> {
+unsafe fn convert_event(
+    header_ctx: *mut HeaderCtx,
+    payload_ctx: *mut PayloadCtx,
+) -> Option<EbpfEvent<EventPayload>> {
     if header_ctx.is_null() || payload_ctx.is_null() {
         return None;
     }
@@ -115,7 +117,7 @@ unsafe fn convert_event(header_ctx: *mut HeaderCtx, payload_ctx: *mut PayloadCtx
         )
     };
 
-    Some(Event { header, payload })
+    Some(EbpfEvent { header, payload })
 }
 
 // External callback function - now properly calls the listener

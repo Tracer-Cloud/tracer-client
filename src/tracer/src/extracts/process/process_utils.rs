@@ -2,7 +2,7 @@ use crate::common::types::event::attributes::process::{ProcessProperties, ShortP
 use chrono::Utc;
 use std::process::Command;
 use sysinfo::ProcessStatus;
-use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
+use tracer_ebpf::{EbpfEvent, SchedSchedProcessExecPayload};
 
 pub fn process_status_to_string(status: &ProcessStatus) -> String {
     match status {
@@ -23,14 +23,21 @@ pub fn process_status_to_string(status: &ProcessStatus) -> String {
 
 /// Creates properties for a short-lived process that wasn't found in the system
 pub fn create_short_lived_process_properties(
-    process: &ProcessStartTrigger,
+    event: &EbpfEvent<SchedSchedProcessExecPayload>,
     display_name: String,
 ) -> ProcessProperties {
+    let file_name = event
+        .payload
+        .argv
+        .first()
+        .unwrap_or(&"unknown".to_string())
+        .clone();
+
     ProcessProperties::ShortLived(Box::new(ShortProcessProperties {
         tool_name: display_name,
-        tool_pid: process.pid.to_string(),
-        tool_parent_pid: process.ppid.to_string(),
-        tool_binary_path: process.file_name.clone(),
+        tool_pid: event.header.pid.to_string(),
+        tool_parent_pid: event.header.ppid.to_string(),
+        tool_binary_path: file_name,
         start_timestamp: Utc::now().to_rfc3339(),
     }))
 }

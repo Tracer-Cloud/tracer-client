@@ -193,11 +193,11 @@ struct payload_kernel_vmscan_mm_vmscan_direct_reclaim_begin
 // Memory pressure, OOM killer selects process
 struct payload_user_oom_mark_victim
 {
-  char _unused; // Empty payload
+  u32 _unused;
 } __attribute__((packed));
 struct payload_kernel_oom_mark_victim
 {
-  char _unused; // Empty payload
+  u32 _unused;
 } __attribute__((packed));
 
 
@@ -436,7 +436,16 @@ static inline struct kv_array payload_to_kv_array(enum event_type t, void *ptr)
     break;
   }
   case event_type_oom_mark_victim:
+  {
+    struct payload_user_oom_mark_victim *p = (struct payload_user_oom_mark_victim *)ptr;
+    static struct kv_entry entries[1];
+    strcpy(entries[0].type, "u32");
+    strcpy(entries[0].key, "_unused");
+    entries[0].value = &p->_unused;
+    result.length = 1;
+    result.data = entries;
     break;
+  }
   default:
     break;
   }

@@ -524,7 +524,7 @@ fn generate_rust_file_description() -> String {
 
 fn generate_rust_event_type_enum(sorted_events: &[(&String, &EventInfo)]) -> String {
     let header = vec![
-        "#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]",
+        "#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Hash)]",
         "#[repr(u32)]",
         "pub enum EventType {",
     ]
@@ -545,7 +545,6 @@ fn generate_rust_event_type_enum(sorted_events: &[(&String, &EventInfo)]) -> Str
     }
 
     // Add the Unknown variant at the end
-    enum_parts.push("    // Add unknown variant for robustness".to_string());
     enum_parts.push("    Unknown(u32),".to_string());
 
     let footer = "}";
@@ -555,7 +554,7 @@ fn generate_rust_event_type_enum(sorted_events: &[(&String, &EventInfo)]) -> Str
 
 fn generate_rust_event_payload_enum(sorted_events: &[(&String, &EventInfo)]) -> String {
     let header = vec![
-        "#[derive(Debug, Clone, Serialize, Deserialize)]",
+        "#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]",
         "pub enum EventPayload {",
         "    Empty,",
     ]
@@ -601,7 +600,9 @@ fn generate_rust_payload_structs(
         let variant_name = to_pascal_case(&format!("{}_{}", category, tracepoint));
         let struct_name = format!("{}Payload", variant_name);
 
-        lines.push("#[derive(Debug, Clone, Serialize, Deserialize)]".to_string());
+        lines.push(
+            "#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]".to_string(),
+        );
         lines.push(format!("pub struct {} {{", struct_name));
 
         for field in &info.payload {
@@ -743,7 +744,7 @@ fn generate_rust_payload_conversion(
         }
 
         case_lines.push(format!(
-            "                EventPayload::{}({} {{",
+            "                EventPayload::{}({}{{",
             variant_name, struct_name
         ));
         case_lines.extend(field_conversions);

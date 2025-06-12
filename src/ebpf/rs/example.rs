@@ -2,20 +2,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
+use tracer_ebpf::{subscribe, unsubscribe, EbpfEvent, EventListener, EventPayload};
 
-mod binding;
+struct MyListener;
 
-use binding::{subscribe, unsubscribe, Event, EventListener};
-
-struct EventPrinter;
-
-impl EventListener for EventPrinter {
-    fn on_event(&self, event: Event) {
-        // Use the custom serialization we implemented to match example.cpp format
-        match serde_json::to_string(&event) {
-            Ok(json) => println!("{}", json),
-            Err(e) => eprintln!("Failed to serialize event: {}", e),
-        }
+impl EventListener for MyListener {
+    fn on_event(&self, event: EbpfEvent<EventPayload>) {
+        println!("Received event: {:?}", event);
     }
 }
 
@@ -29,7 +22,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         unsubscribe(); // Signal the C library to exit
     })?;
 
-    let listener = EventPrinter;
+    let listener = MyListener;
 
     // Fire-and-forget - the call returns immediately
     subscribe(listener)?;

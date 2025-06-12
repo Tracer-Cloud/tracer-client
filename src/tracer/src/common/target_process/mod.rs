@@ -3,10 +3,11 @@ pub mod manager;
 pub mod nf_process_match;
 pub mod target_matching;
 pub mod targets_list;
+
 use serde::{Deserialize, Serialize};
 use target_matching::{matches_target, TargetMatch};
 use targets_list::DEFAULT_DISPLAY_PROCESS_RULES;
-use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
+use tracer_ebpf::{EbpfEvent, SchedSchedProcessExecPayload};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Hash, Eq)]
 pub enum DisplayName {
@@ -97,11 +98,13 @@ pub struct Target {
 pub trait TargetMatchable {
     fn matches(&self, process_name: &str, command: &str, bin_path: &str) -> bool;
 
-    fn matches_process(&self, process: &ProcessStartTrigger) -> bool {
+    fn matches_process(&self, event: &EbpfEvent<SchedSchedProcessExecPayload>) -> bool {
+        let argv = event.payload.argv.join(" ");
+
         self.matches(
-            process.comm.as_str(),
-            process.argv.join(" ").as_str(),
-            process.file_name.as_str(),
+            event.header.comm.as_str(),
+            argv.as_str(),
+            "", // bin_path not available in new event system
         )
     }
 }

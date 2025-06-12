@@ -1,6 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-use tracer_ebpf::ebpf_trigger::ExitReason;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ExitReason {
+    Normal(i32),
+    Signal(i32),
+    OutOfMemoryKilled,
+    Unknown,
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct InputFile {

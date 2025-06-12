@@ -50,4 +50,4 @@ payload = [{ name = "order", type = "u32" }]
 [oom.mark_victim]
 id = 3072
 comment = "Memory pressure, OOM killer selects process"
-payload = []
+payload = [{ name = "_unused", type = "u32" }]

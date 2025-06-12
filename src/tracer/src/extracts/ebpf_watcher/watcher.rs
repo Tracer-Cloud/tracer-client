@@ -5,21 +5,35 @@ use crate::extracts::ebpf_watcher::handler::trigger::trigger_processor::TriggerP
 use crate::extracts::process::manager::ProcessManager;
 use crate::extracts::process::process_utils::get_process_argv;
 use anyhow::{Error, Result};
-use chrono::Utc;
 use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
-use tracer_ebpf::binding::start_processing_events;
-use tracer_ebpf::ebpf_trigger::{
-    OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger, Trigger,
+use tokio::time::{sleep, Duration};
+use tracer_ebpf::{
+    subscribe, EbpfEvent, EventListener, EventPayload, EventType, SchedSchedProcessExecPayload,
+    SchedSchedProcessExitPayload,
 };
 use tracing::{debug, error};
+
+/// Event listener that forwards events to the trigger processor
+struct EbpfEventListener {
+    event_sender: mpsc::UnboundedSender<EbpfEvent<EventPayload>>,
+}
+
+impl EventListener for EbpfEventListener {
+    fn on_event(&self, event: EbpfEvent<EventPayload>) {
+        if let Err(e) = self.event_sender.send(event) {
+            error!("Failed to send event: {}", e);
+        }
+    }
+}
 
 /// Watches system processes and records events related to them
 pub struct EbpfWatcher {
     ebpf: once_cell::sync::OnceCell<()>, // not tokio, because ebpf initialisation is sync
     process_manager: Arc<RwLock<ProcessManager>>,
-    trigger_processor: TriggerProcessor,
+    trigger_processor: Arc<TriggerProcessor>,
+    event_sender: mpsc::UnboundedSender<EbpfEvent<EventPayload>>,
     // here will go the file manager for dataset recognition operations
 }
 
@@ -31,11 +45,22 @@ impl EbpfWatcher {
             log_recorder.clone(),
         )));
 
-        EbpfWatcher {
+        let (tx, rx) = mpsc::unbounded_channel::<EbpfEvent<EventPayload>>();
+
+        let watcher = EbpfWatcher {
             ebpf: once_cell::sync::OnceCell::new(),
-            trigger_processor: TriggerProcessor::new(Arc::clone(&process_manager)),
+            trigger_processor: Arc::new(TriggerProcessor::new(Arc::clone(&process_manager))),
             process_manager,
-        }
+            event_sender: tx,
+        };
+
+        // Spawn the event processing task
+        tokio::spawn(Self::process_event_loop(
+            Arc::clone(&watcher.trigger_processor),
+            rx,
+        ));
+
+        watcher
     }
 
     pub async fn update_targets(self: &Arc<Self>, targets: Vec<Target>) -> Result<()> {
@@ -83,21 +108,31 @@ impl EbpfWatcher {
                             argv = get_process_argv(pid_u32 as i32);
                         }
 
-                        // New process detected
-                        let start_trigger = ProcessStartTrigger {
-                            pid: pid_u32 as usize,
-                            ppid: process.parent().map(|p| p.as_u32()).unwrap_or(0) as usize,
-                            comm: process.name().to_string(),
-                            argv,
-                            file_name: "".to_string(),
-                            started_at: Utc::now(),
+                        // Create a synthetic process exec event for polling-detected processes
+                        let exec_event = EbpfEvent::<EventPayload> {
+                            header: tracer_ebpf::EventHeader {
+                                event_id: 0,
+                                event_type: EventType::SchedSchedProcessExec,
+                                timestamp_ns: chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+                                    as u64,
+                                pid: pid_u32,
+                                ppid: process.parent().map(|p| p.as_u32()).unwrap_or(0),
+                                upid: pid_u32 as u64,
+                                uppid: process.parent().map(|p| p.as_u32()).unwrap_or(0) as u64,
+                                comm: process.name().to_string(),
+                            },
+                            payload: EventPayload::SchedSchedProcessExec(
+                                SchedSchedProcessExecPayload { argv },
+                            ),
                         };
 
-                        if let Err(e) = watcher
-                            .process_triggers(vec![Trigger::ProcessStart(start_trigger)])
-                            .await
+                        if let Err(e) = EbpfWatcher::process_events(
+                            &watcher.trigger_processor,
+                            vec![exec_event],
+                        )
+                        .await
                         {
-                            error!("Failed to process start trigger: {}", e);
+                            error!("Failed to process synthetic exec event: {}", e);
                         }
                     }
                 }
@@ -105,17 +140,31 @@ impl EbpfWatcher {
                 // Check for ended processes
                 for &old_pid in &known_processes {
                     if !current_processes.contains(&old_pid) {
-                        // Process ended
-                        let end_trigger = ProcessEndTrigger {
-                            pid: old_pid as usize,
-                            finished_at: Default::default(),
-                            exit_reason: None,
+                        // Create a synthetic process exit event
+                        let exit_event = EbpfEvent::<EventPayload> {
+                            header: tracer_ebpf::EventHeader {
+                                event_id: 0,
+                                event_type: EventType::SchedSchedProcessExit,
+                                timestamp_ns: chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+                                    as u64,
+                                pid: old_pid,
+                                ppid: 0,
+                                upid: old_pid as u64,
+                                uppid: 0,
+                                comm: String::new(),
+                            },
+                            payload: EventPayload::SchedSchedProcessExit(
+                                SchedSchedProcessExitPayload { exit_code: 0 },
+                            ),
                         };
-                        if let Err(e) = watcher
-                            .process_triggers(vec![Trigger::ProcessEnd(end_trigger)])
-                            .await
+
+                        if let Err(e) = EbpfWatcher::process_events(
+                            &watcher.trigger_processor,
+                            vec![exit_event],
+                        )
+                        .await
                         {
-                            error!("Failed to process end trigger: {}", e);
+                            error!("Failed to process synthetic exit event: {}", e);
                         }
                     }
                 }
@@ -130,20 +179,23 @@ impl EbpfWatcher {
 
     fn initialize_ebpf(self: Arc<Self>) -> Result<(), Error> {
         // Use unbounded channel for cross-runtime compatibility
-        let (tx, rx) = mpsc::unbounded_channel::<Trigger>();
+        let (tx, rx) = mpsc::unbounded_channel::<EbpfEvent<EventPayload>>();
+
+        // Create event listener
+        let listener = EbpfEventListener { event_sender: tx };
 
         // Start the eBPF event processing
-        start_processing_events(tx)?;
+        subscribe(listener)?;
 
         // Start the event processing loop
         let watcher = Arc::clone(&self);
         let task = tokio::spawn(async move {
-            if let Err(e) = watcher.process_trigger_loop(rx).await {
-                error!("process_trigger_loop failed: {:?}", e);
+            if let Err(e) = watcher.process_event_loop_inner(rx).await {
+                error!("process_event_loop failed: {:?}", e);
             }
         });
 
-        // Store the task handle in the stateAdd commentMore actions
+        // Store the task handle in the state
         match tokio::runtime::Handle::try_current() {
             Ok(_) => {
                 tokio::spawn(async move {
@@ -159,98 +211,121 @@ impl EbpfWatcher {
         Ok(())
     }
 
-    /// Main loop that processes triggers from eBPF
-    async fn process_trigger_loop(
+    /// Main loop that processes events from eBPF
+    async fn process_event_loop_inner(
         self: &Arc<Self>,
-        mut rx: mpsc::UnboundedReceiver<Trigger>,
+        mut rx: mpsc::UnboundedReceiver<EbpfEvent<EventPayload>>,
     ) -> Result<()> {
-        let mut buffer: Vec<Trigger> = Vec::with_capacity(100);
+        let mut buffer: Vec<EbpfEvent<EventPayload>> = Vec::with_capacity(100);
+        let mut last_flush = std::time::Instant::now();
+        const FLUSH_INTERVAL: Duration = Duration::from_millis(100);
 
         loop {
-            buffer.clear();
-            debug!("Ready to receive triggers");
+            tokio::select! {
+                // Receive events
+                event = rx.recv() => {
+                    match event {
+                        Some(event) => {
+                            buffer.push(event);
 
-            // Since UnboundedReceiver doesn't have recv_many, we need to use a different approach
-            // Try to receive a single event with timeout to avoid blocking forever
-            match tokio::time::timeout(std::time::Duration::from_secs(5), rx.recv()).await {
-                Ok(Some(event)) => {
-                    buffer.push(event);
-
-                    // Try to receive more events non-blockingly (up to 99 more)
-                    while let Ok(Some(event)) =
-                        tokio::time::timeout(std::time::Duration::from_millis(10), rx.recv()).await
-                    {
-                        buffer.push(event);
-                        if buffer.len() >= 100 {
+                            // Flush if buffer is full or enough time has passed
+                            if buffer.len() >= 100 || last_flush.elapsed() >= FLUSH_INTERVAL {
+                                if let Err(e) = Self::process_events(&self.trigger_processor, std::mem::take(&mut buffer)).await {
+                                    error!("Failed to process events: {}", e);
+                                }
+                                last_flush = std::time::Instant::now();
+                            }
+                        }
+                        None => {
+                            debug!("Event channel closed, stopping event processing loop");
                             break;
                         }
                     }
+                }
 
-                    // Process all events
-                    let triggers = std::mem::take(&mut buffer);
-                    println!("Received {:?}", triggers);
-
-                    if let Err(e) = self.process_triggers(triggers).await {
-                        error!("Failed to process triggers: {}", e);
+                // Periodic flush
+                _ = sleep(FLUSH_INTERVAL) => {
+                    if !buffer.is_empty() && last_flush.elapsed() >= FLUSH_INTERVAL {
+                        if let Err(e) = Self::process_events(&self.trigger_processor, std::mem::take(&mut buffer)).await {
+                            error!("Failed to process events: {}", e);
+                        }
+                        last_flush = std::time::Instant::now();
                     }
                 }
-                Ok(None) => {
-                    error!("Event channel closed, exiting process loop");
-                    return Ok(());
-                }
-                Err(_) => {
-                    // Timeout occurred, just continue the loop
-                    continue;
-                }
             }
         }
+
+        // Process any remaining events
+        if !buffer.is_empty() {
+            if let Err(e) = Self::process_events(&self.trigger_processor, buffer).await {
+                error!("Failed to process final events: {}", e);
+            }
+        }
+
+        Ok(())
     }
 
-    /// Processes a batch of triggers, separating start, finish, and OOM events
-    pub async fn process_triggers(self: &Arc<Self>, triggers: Vec<Trigger>) -> Result<()> {
-        let mut process_start_triggers: Vec<ProcessStartTrigger> = vec![];
-        let mut process_end_triggers: Vec<ProcessEndTrigger> = vec![];
-        let mut out_of_memory_triggers: Vec<OutOfMemoryTrigger> = vec![];
+    /// Static method for processing a batch of events
+    pub async fn process_event_loop(
+        trigger_processor: Arc<TriggerProcessor>,
+        mut rx: mpsc::UnboundedReceiver<EbpfEvent<EventPayload>>,
+    ) -> Result<()> {
+        let mut buffer: Vec<EbpfEvent<EventPayload>> = Vec::with_capacity(100);
+        let mut last_flush = std::time::Instant::now();
+        const FLUSH_INTERVAL: Duration = Duration::from_millis(100);
 
-        debug!("ProcessWatcher: processing {} triggers", triggers.len());
+        loop {
+            tokio::select! {
+                // Receive events
+                event = rx.recv() => {
+                    match event {
+                        Some(event) => {
+                            buffer.push(event);
 
-        for trigger in triggers.into_iter() {
-            match trigger {
-                Trigger::ProcessStart(process_started) => {
-                    debug!(
-                        "ProcessWatcher: received START trigger pid={}, cmd={}",
-                        process_started.pid, process_started.comm
-                    );
-                    process_start_triggers.push(process_started);
+                            // Flush if buffer is full or enough time has passed
+                            if buffer.len() >= 100 || last_flush.elapsed() >= FLUSH_INTERVAL {
+                                if let Err(e) = Self::process_events(&trigger_processor, std::mem::take(&mut buffer)).await {
+                                    error!("Failed to process events: {}", e);
+                                }
+                                last_flush = std::time::Instant::now();
+                            }
+                        }
+                        None => {
+                            debug!("Event channel closed, stopping event processing loop");
+                            break;
+                        }
+                    }
                 }
-                Trigger::ProcessEnd(process_end) => {
-                    debug!(
-                        "ProcessWatcher: received FINISH trigger pid={}",
-                        process_end.pid
-                    );
-                    process_end_triggers.push(process_end);
-                }
-                Trigger::OutOfMemory(out_of_memory) => {
-                    debug!("OOM trigger pid={}", out_of_memory.pid);
-                    out_of_memory_triggers.push(out_of_memory);
+
+                // Periodic flush
+                _ = sleep(FLUSH_INTERVAL) => {
+                    if !buffer.is_empty() && last_flush.elapsed() >= FLUSH_INTERVAL {
+                        if let Err(e) = Self::process_events(&trigger_processor, std::mem::take(&mut buffer)).await {
+                            error!("Failed to process events: {}", e);
+                        }
+                        last_flush = std::time::Instant::now();
+                    }
                 }
             }
         }
 
-        // Process out of memory triggers
-        self.trigger_processor
-            .process_out_of_memory_triggers(out_of_memory_triggers)
-            .await;
+        // Process any remaining events
+        if !buffer.is_empty() {
+            if let Err(e) = Self::process_events(&trigger_processor, buffer).await {
+                error!("Failed to process final events: {}", e);
+            }
+        }
 
-        // Process end triggers
-        self.trigger_processor
-            .process_process_end_triggers(process_end_triggers)
-            .await?;
+        Ok(())
+    }
 
-        // Process start triggers
-        self.trigger_processor
-            .process_process_start_triggers(process_start_triggers)
-            .await?;
+    /// Processes a batch of events using the trigger processor
+    pub async fn process_events(
+        trigger_processor: &Arc<TriggerProcessor>,
+        events: Vec<EbpfEvent<EventPayload>>,
+    ) -> Result<()> {
+        // Process events in the correct order
+        trigger_processor.process_events(events).await?;
 
         Ok(())
     }

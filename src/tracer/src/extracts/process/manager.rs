@@ -8,17 +8,24 @@ use crate::extracts::process::extract_process_data::ExtractProcessData;
 use crate::extracts::process::process_utils::create_short_lived_process_properties;
 use crate::extracts::process::types::process_result::ProcessResult;
 use crate::extracts::process::types::process_state::ProcessState;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use sysinfo::{Pid, ProcessRefreshKind, System};
 use tokio::sync::{RwLock, RwLockWriteGuard};
 use tokio::task::JoinHandle;
-use tracer_ebpf::ebpf_trigger::{
-    ExitReason, OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger,
+use tracer_ebpf::{
+    EbpfEvent, OomMarkVictimPayload, SchedSchedProcessExecPayload, SchedSchedProcessExitPayload,
 };
 use tracing::{debug, error};
+
+// Helper types for OOM handling
+#[derive(Debug, Clone)]
+pub enum ExitReason {
+    OutOfMemoryKilled,
+    Normal(u32), // exit code
+}
 
 pub struct ProcessManager {
     state: Arc<RwLock<ProcessState>>,
@@ -56,39 +63,42 @@ impl ProcessManager {
         Ok(())
     }
 
-    /// Enriches finish triggers with OOM reason if they were OOM victims
+    /// Enriches finish events with OOM reason if they were OOM victims
     pub async fn handle_out_of_memory_terminations(
         &self,
-        finish_triggers: &mut [ProcessEndTrigger],
+        finish_events: &mut [EbpfEvent<SchedSchedProcessExitPayload>],
     ) {
         let mut state = self.state.write().await;
 
-        for finish in finish_triggers.iter_mut() {
-            if state.remove_out_of_memory_victim(&finish.pid).is_some() {
-                finish.exit_reason = Some(ExitReason::OutOfMemoryKilled);
-                debug!("Marked PID {} as OOM-killed", finish.pid);
+        for event in finish_events.iter_mut() {
+            let pid = event.header.pid as usize;
+            if state.remove_out_of_memory_victim(&pid).is_some() {
+                // Note: We can't modify the event payload directly since it's immutable
+                // The OOM information will be tracked separately in the state
+                debug!("Marked PID {} as OOM-killed", pid);
             }
         }
     }
 
     pub async fn handle_out_of_memory_signals(
         &self,
-        triggers: Vec<OutOfMemoryTrigger>,
-    ) -> HashMap<usize, OutOfMemoryTrigger> {
+        events: Vec<EbpfEvent<OomMarkVictimPayload>>,
+    ) -> HashMap<usize, EbpfEvent<OomMarkVictimPayload>> {
         let mut victims = HashMap::new();
         let mut state = self.state.write().await;
 
-        for oom in triggers {
+        for event in events {
+            let pid = event.header.pid as usize;
             let processes = state.get_processes();
-            let is_related =
-                processes.contains_key(&oom.pid) || processes.values().any(|p| p.ppid == oom.pid);
+            let is_related = processes.contains_key(&pid)
+                || processes.values().any(|p| p.header.ppid as usize == pid);
 
             if is_related {
-                debug!("Tracking OOM for relevant pid {}", oom.pid);
-                victims.insert(oom.pid, oom.clone());
-                state.insert_out_of_memory_victim(oom.pid, oom);
+                debug!("Tracking OOM for relevant pid {}", pid);
+                victims.insert(pid, event.clone());
+                state.insert_out_of_memory_victim(pid, event);
             } else {
-                debug!("Ignoring unrelated OOM for pid {}", oom.pid);
+                debug!("Ignoring unrelated OOM for pid {}", pid);
             }
         }
 
@@ -97,27 +107,30 @@ impl ProcessManager {
 
     async fn remove_processes_from_state(
         &self,
-        triggers: &[ProcessEndTrigger],
+        events: &[EbpfEvent<SchedSchedProcessExitPayload>],
     ) -> anyhow::Result<()> {
         let mut state = self.state.write().await;
-        for trigger in triggers.iter() {
-            state.remove_process(&trigger.pid);
+        for event in events.iter() {
+            let pid = event.header.pid as usize;
+            state.remove_process(&pid);
         }
         Ok(())
     }
 
     pub async fn handle_process_terminations(
         &self,
-        triggers: Vec<ProcessEndTrigger>,
+        events: Vec<EbpfEvent<SchedSchedProcessExitPayload>>,
     ) -> anyhow::Result<()> {
-        debug!("Processing {} process terminations", triggers.len());
+        debug!("Processing {} process terminations", events.len());
 
         // Remove terminated processes from the state
-        self.remove_processes_from_state(&triggers).await?;
+        self.remove_processes_from_state(&events).await?;
 
-        // Map PIDs to finish triggers for easy lookup
-        let mut pid_to_finish: HashMap<_, _> =
-            triggers.into_iter().map(|proc| (proc.pid, proc)).collect();
+        // Map PIDs to finish events for easy lookup
+        let mut pid_to_finish: HashMap<_, _> = events
+            .into_iter()
+            .map(|event| (event.header.pid as usize, event))
+            .collect();
 
         // Find all processes that we were monitoring that have terminated
         let terminated_processes: HashSet<_> = {
@@ -130,7 +143,7 @@ impl ProcessManager {
                     // Partition processes into terminated and still running
                     let (terminated, still_running): (Vec<_>, Vec<_>) = procs
                         .drain()
-                        .partition(|proc| pid_to_finish.contains_key(&proc.pid));
+                        .partition(|proc| pid_to_finish.contains_key(&(proc.header.pid as usize)));
 
                     // Update monitoring with still running processes
                     *procs = still_running.into_iter().collect();
@@ -138,7 +151,7 @@ impl ProcessManager {
                     // Return terminated processes
                     terminated
                 })
-                .collect()
+                .collect::<HashSet<_>>()
         };
 
         debug!(
@@ -149,13 +162,14 @@ impl ProcessManager {
         );
 
         // Log completion events for each terminated process
-        for start_trigger in terminated_processes {
-            let Some(finish_trigger) = pid_to_finish.remove(&start_trigger.pid) else {
-                error!("Process doesn't exist: start_trigger={:?}", start_trigger);
+        for start_event in terminated_processes {
+            let pid = start_event.header.pid as usize;
+            let Some(finish_event) = pid_to_finish.remove(&pid) else {
+                error!("Process doesn't exist: start_event={:?}", start_event);
                 continue;
             };
 
-            self.log_process_completion(&start_trigger, &finish_trigger)
+            self.log_process_completion(&start_event, &finish_event)
                 .await?;
         }
 
@@ -164,25 +178,46 @@ impl ProcessManager {
 
     async fn log_process_completion(
         &self,
-        start_trigger: &ProcessStartTrigger,
-        finish_trigger: &ProcessEndTrigger,
+        start_event: &EbpfEvent<SchedSchedProcessExecPayload>,
+        finish_event: &EbpfEvent<SchedSchedProcessExitPayload>,
     ) -> anyhow::Result<()> {
-        let duration_sec = (finish_trigger.finished_at - start_trigger.started_at)
+        let start_time = DateTime::from_timestamp_nanos(start_event.header.timestamp_ns as i64);
+        let finish_time = DateTime::from_timestamp_nanos(finish_event.header.timestamp_ns as i64);
+        let duration_sec = (finish_time - start_time)
             .num_seconds()
             .try_into()
             .unwrap_or(0);
 
+        let pid = start_event.header.pid as usize;
+        let comm = &start_event.header.comm;
+
+        // Check if this process was OOM killed
+        let exit_reason = {
+            let state = self.state.read().await;
+            if state.get_out_of_memory_victims().contains_key(&pid) {
+                Some(
+                    crate::common::types::event::attributes::process::ExitReason::OutOfMemoryKilled,
+                )
+            } else {
+                Some(
+                    crate::common::types::event::attributes::process::ExitReason::Normal(
+                        finish_event.payload.exit_code as i32,
+                    ),
+                )
+            }
+        };
+
         let properties = CompletedProcess {
-            tool_name: start_trigger.comm.clone(),
-            tool_pid: start_trigger.pid.to_string(),
+            tool_name: comm.to_string(),
+            tool_pid: pid.to_string(),
             duration_sec,
-            exit_reason: finish_trigger.exit_reason.clone(),
+            exit_reason,
         };
 
         self.log_recorder
             .log(
                 TracerProcessStatus::FinishedToolExecution,
-                format!("[{}] {} exited", Utc::now(), &start_trigger.comm),
+                format!("[{}] {} exited", Utc::now(), comm),
                 Some(EventAttributes::CompletedProcess(properties)),
                 None,
             )
@@ -193,12 +228,12 @@ impl ProcessManager {
 
     pub async fn handle_process_starts(
         &self,
-        triggers: Vec<ProcessStartTrigger>,
+        events: Vec<EbpfEvent<SchedSchedProcessExecPayload>>,
     ) -> anyhow::Result<()> {
-        debug!("Processing {} process starts", triggers.len());
+        debug!("Processing {} process starts", events.len());
 
         // Find processes we're interested in based on targets
-        let interested_in = self.filter_processes_of_interest(triggers).await?;
+        let interested_in = self.filter_processes_of_interest(events).await?;
 
         debug!(
             "After filtering, interested in {} processes",
@@ -212,16 +247,16 @@ impl ProcessManager {
         // Get the set of PIDs to refresh system data for
         let pids_to_refresh = interested_in
             .values()
-            .flat_map(|procs| procs.iter().map(|p| p.pid))
+            .flat_map(|events| events.iter().map(|e| e.header.pid as usize))
             .collect();
 
         // Refresh system data for these processes
         self.refresh_system(&pids_to_refresh).await?;
 
         // Process each new process
-        for (target, triggers) in interested_in.iter() {
-            for process in triggers.iter() {
-                self.handle_new_process(target, process).await?;
+        for (target, events) in interested_in.iter() {
+            for event in events.iter() {
+                self.handle_new_process(target, event).await?;
             }
         }
 
@@ -234,13 +269,14 @@ impl ProcessManager {
 
     async fn filter_processes_of_interest(
         &self,
-        triggers: Vec<ProcessStartTrigger>,
-    ) -> anyhow::Result<HashMap<Target, HashSet<ProcessStartTrigger>>> {
-        // Store all triggers in the state
+        events: Vec<EbpfEvent<SchedSchedProcessExecPayload>>,
+    ) -> anyhow::Result<HashMap<Target, HashSet<EbpfEvent<SchedSchedProcessExecPayload>>>> {
+        // Store all events in the state
         {
             let mut state = self.state.write().await;
-            for trigger in triggers.iter() {
-                state.insert_process(trigger.pid, trigger.clone());
+            for event in events.iter() {
+                let pid = event.header.pid as usize;
+                state.insert_process(pid, event.clone());
             }
         }
 
@@ -249,24 +285,25 @@ impl ProcessManager {
         let already_monitored_pids = state.get_monitored_processes_pids();
 
         // Find processes that match our targets
-        let matched_processes = self.find_matching_processes(triggers).await?;
+        let matched_processes = self.find_matching_processes(events).await?;
 
         // Filter out already monitored processes and include parent processes
         let interested_in: HashMap<_, _> = matched_processes
             .into_iter()
-            .map(|(target, processes)| {
-                let processes = processes
+            .map(|(target, events)| {
+                let events = events
                     .into_iter()
-                    .flat_map(|proc| {
+                    .flat_map(|event| {
                         // Get the process and its parents
-                        let mut parents = state.get_process_hierarchy(proc);
+                        let mut parents = state.get_process_hierarchy(&event);
                         // Filter out already monitored processes
-                        parents.retain(|p| !already_monitored_pids.contains(&p.pid));
+                        parents
+                            .retain(|e| !already_monitored_pids.contains(&(e.header.pid as usize)));
                         parents
                     })
                     .collect::<HashSet<_>>();
 
-                (target, processes)
+                (target, events)
             })
             .collect();
 
@@ -303,18 +340,18 @@ impl ProcessManager {
 
     pub async fn find_matching_processes(
         &self,
-        triggers: Vec<ProcessStartTrigger>,
-    ) -> anyhow::Result<HashMap<Target, HashSet<ProcessStartTrigger>>> {
+        events: Vec<EbpfEvent<SchedSchedProcessExecPayload>>,
+    ) -> anyhow::Result<HashMap<Target, HashSet<EbpfEvent<SchedSchedProcessExecPayload>>>> {
         let state = self.state.read().await;
         let mut matched_processes = HashMap::new();
 
-        for trigger in triggers {
-            if let Some(matched_target) = Self::get_matched_target(&state, &trigger) {
+        for event in events {
+            if let Some(matched_target) = Self::get_matched_target(&state, &event) {
                 let matched_target = matched_target.clone(); // todo: remove clone, or move targets to arcs?
                 matched_processes
                     .entry(matched_target)
                     .or_insert(HashSet::new())
-                    .insert(trigger);
+                    .insert(event);
             }
         }
 
@@ -323,9 +360,9 @@ impl ProcessManager {
 
     fn get_matched_target<'a>(
         state: &'a ProcessState,
-        process: &ProcessStartTrigger,
+        event: &EbpfEvent<SchedSchedProcessExecPayload>,
     ) -> Option<&'a Target> {
-        if let Some(target) = state.get_target_manager().get_target_match(process) {
+        if let Some(target) = state.get_target_manager().get_target_match(event) {
             return Some(target);
         }
 
@@ -343,7 +380,7 @@ impl ProcessManager {
         // Here it's tempting to check if the parent is just in the monitoring list. However, we can't do that because
         // parent may be matching but not yet set to be monitoring (e.g., because it just arrived or even is in the same batch)
 
-        let parents = state.get_process_parents(process);
+        let parents = state.get_process_parents(event);
         for parent in parents {
             for target in eligible_targets_for_parents.iter() {
                 if target.matches_process(parent) {
@@ -358,29 +395,30 @@ impl ProcessManager {
     async fn handle_new_process(
         &self,
         target: &Target,
-        process: &ProcessStartTrigger,
+        event: &EbpfEvent<SchedSchedProcessExecPayload>,
     ) -> anyhow::Result<ProcessResult> {
-        debug!("Processing pid={}", process.pid);
+        debug!("Processing pid={}", event.header.pid);
 
-        let display_name = target
-            .get_display_name_object()
-            .get_display_name(&process.file_name, process.argv.as_slice());
+        let display_name = target.get_display_name_object().get_display_name(
+            &event.payload.argv.first().cloned().unwrap_or_default(),
+            &event.payload.argv,
+        );
 
         let properties = {
             let system = self.system.read().await;
 
-            match system.process(process.pid.into()) {
+            match system.process(Pid::from(event.header.pid as usize)) {
                 Some(system_process) => {
                     ExtractProcessData::gather_process_data(
                         system_process,
                         display_name.clone(),
-                        process.started_at,
+                        DateTime::from_timestamp_nanos(event.header.timestamp_ns as i64),
                     )
                     .await
                 }
                 None => {
-                    debug!("Process({}) wasn't found", process.pid);
-                    create_short_lived_process_properties(process, display_name.clone())
+                    debug!("Process({}) wasn't found", event.header.pid);
+                    create_short_lived_process_properties(event, display_name.clone())
                 }
             }
         };
@@ -401,25 +439,26 @@ impl ProcessManager {
     async fn update_running_process(
         &self,
         target: &Target,
-        process: &ProcessStartTrigger,
+        event: &EbpfEvent<SchedSchedProcessExecPayload>,
     ) -> anyhow::Result<ProcessResult> {
-        let display_name = target
-            .get_display_name_object()
-            .get_display_name(&process.file_name, process.argv.as_slice());
+        let display_name = target.get_display_name_object().get_display_name(
+            &event.payload.argv.first().cloned().unwrap_or_default(),
+            &event.payload.argv,
+        );
 
         let properties = {
             let system = self.system.read().await;
 
-            let Some(system_process) = system.process(process.pid.into()) else {
+            let Some(system_process) = system.process(Pid::from(event.header.pid as usize)) else {
                 // Process no longer exists
                 return Ok(ProcessResult::NotFound);
             };
 
             debug!(
                 "Loaded process. PID: ebpf={}, system={:?}; Start Time: ebpf={}, system={:?};",
-                process.pid,
+                event.header.pid,
                 system_process.pid(),
-                process.started_at.timestamp(),
+                DateTime::from_timestamp_nanos(event.header.timestamp_ns as i64).timestamp(),
                 system_process.start_time()
             );
 
@@ -427,12 +466,12 @@ impl ProcessManager {
             ExtractProcessData::gather_process_data(
                 system_process,
                 display_name.clone(),
-                process.started_at,
+                DateTime::from_timestamp_nanos(event.header.timestamp_ns as i64),
             )
             .await
         };
 
-        debug!("Process data completed. PID={}", process.pid);
+        debug!("Process data completed. PID={}", event.header.pid);
 
         self.log_recorder
             .log(
@@ -466,7 +505,7 @@ impl ProcessManager {
             state
                 .get_monitoring()
                 .iter()
-                .flat_map(|(_, processes)| processes.iter().map(|p| p.pid))
+                .flat_map(|(_, processes)| processes.iter().map(|p| p.header.pid as usize))
                 .collect::<HashSet<_>>()
         };
 
@@ -486,7 +525,7 @@ impl ProcessManager {
             .await
             .get_monitoring()
             .iter()
-            .flat_map(|(_, processes)| processes.iter().map(|p| p.comm.clone()))
+            .flat_map(|(_, processes)| processes.iter().map(|p| p.header.comm.to_string()))
             .take(n)
             .collect()
     }
@@ -505,14 +544,14 @@ impl ProcessManager {
     /// Updates all monitored processes with fresh data
     #[tracing::instrument(skip(self))]
     async fn update_all_processes(&self) -> anyhow::Result<()> {
-        for (target, procs) in self.state.read().await.get_monitoring().iter() {
-            for proc in procs.iter() {
-                let result = self.update_running_process(target, proc).await?;
+        for (target, events) in self.state.read().await.get_monitoring().iter() {
+            for event in events.iter() {
+                let result = self.update_running_process(target, event).await?;
 
                 match result {
                     ProcessResult::NotFound => {
                         // TODO: Mark process as completed
-                        debug!("Process {} was not found during update", proc.pid);
+                        debug!("Process {} was not found during update", event.header.pid);
                     }
                     ProcessResult::Found => {}
                 }
@@ -534,6 +573,8 @@ mod tests {
     use rstest::rstest;
     use std::sync::Arc;
     use tokio::sync::mpsc;
+    use tracer_ebpf::{EventHeader, EventPayload, EventType, SchedSchedProcessExecPayload};
+
     // Helper function to create a process trigger with specified properties
     fn create_process_start_trigger(
         pid: usize,
@@ -541,16 +582,24 @@ mod tests {
         comm: &str,
         args: Vec<&str>,
         file_name: &str,
-    ) -> ProcessStartTrigger {
-        ProcessStartTrigger {
-            pid,
-            ppid,
-            comm: comm.to_string(),
-            argv: args.iter().map(|s| s.to_string()).collect(),
-            file_name: file_name.to_string(),
-            started_at: DateTime::parse_from_rfc3339("2025-05-07T00:00:00Z")
-                .unwrap()
-                .into(),
+    ) -> EbpfEvent<SchedSchedProcessExecPayload> {
+        tracer_ebpf::EbpfEvent {
+            header: EventHeader {
+                event_id: 1,
+                event_type: EventType::SchedSchedProcessExec,
+                timestamp_ns: DateTime::parse_from_rfc3339("2025-05-07T00:00:00Z")
+                    .unwrap()
+                    .timestamp_nanos_opt()
+                    .unwrap_or(0) as u64,
+                pid: pid as u32,
+                ppid: ppid as u32,
+                upid: pid as u64,
+                uppid: ppid as u64,
+                comm: comm.to_string(),
+            },
+            payload: SchedSchedProcessExecPayload {
+                argv: args.iter().map(|s| s.to_string()).collect(),
+            },
         }
     }
 
@@ -649,7 +698,7 @@ mod tests {
 
         // Create the initial state with the parent process already in it
         let mut processes = HashMap::new();
-        processes.insert(parent_process.pid, parent_process);
+        processes.insert(parent_process.header.pid as usize, parent_process);
 
         // Set up the watcher with these processes and target
         let target_manager = TargetManager::new(vec![target.clone()], vec![]);
@@ -704,7 +753,7 @@ mod tests {
 
         // Create the initial state with the parent process already in it
         let mut processes = HashMap::new();
-        processes.insert(parent_process.pid, parent_process);
+        processes.insert(parent_process.header.pid as usize, parent_process);
 
         // Set up the watcher with these processes and target
         let target_manager = TargetManager::new(vec![target], vec![]);
@@ -791,7 +840,7 @@ mod tests {
 )]
     #[tokio::test]
     async fn test_match_cases(
-        #[case] process: ProcessStartTrigger,
+        #[case] process: EbpfEvent<SchedSchedProcessExecPayload>,
         #[case] expected_count: usize,
         #[case] msg: &str,
     ) {
@@ -832,7 +881,7 @@ mod tests {
     )
 )]
     #[tokio::test]
-    async fn test_nextflow_wrapped_scripts(#[case] process: ProcessStartTrigger) {
+    async fn test_nextflow_wrapped_scripts(#[case] process: EbpfEvent<SchedSchedProcessExecPayload>) {
         let target_manager = TargetManager::new(TARGETS.to_vec(), vec![]);
         let log_recorder = create_mock_log_recorder();
 

@@ -17,21 +17,20 @@
 // templ_end:file_description
 
 use serde::{Deserialize, Serialize};
+use std::hash::Hash;
 use std::os::raw::c_void;
 use std::slice;
 
 // templ_start:event_type
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Hash)]
 #[repr(u32)]
 pub enum EventType {
     // Generated variants will be inserted here
-    // Add unknown variant for robustness
-    Unknown(u32),
 }
 // templ_end:event_type
 
 // High-level event header (converted from C)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct EventHeader {
     pub event_id: u64,
     pub event_type: EventType,
@@ -43,44 +42,16 @@ pub struct EventHeader {
     pub comm: String,
 }
 
-// Combined event structure with header and typed payload
-#[derive(Debug, Clone, Deserialize)]
-pub struct Event {
+// Parameterized event structure with header and typed payload
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
+pub struct EbpfEvent<T> {
     pub header: EventHeader,
-    pub payload: EventPayload,
+    pub payload: T,
 }
 
-// Custom serialization for Event to match example.cpp JSON format
-impl Serialize for Event {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::ser::SerializeMap;
-
-        let mut map = serializer.serialize_map(None)?;
-
-        // Serialize header fields directly
-        map.serialize_entry("event_id", &self.header.event_id)?;
-        map.serialize_entry("event_type", &self.header.event_type.as_str())?;
-        map.serialize_entry("timestamp_ns", &self.header.timestamp_ns)?;
-        map.serialize_entry("pid", &self.header.pid)?;
-        map.serialize_entry("ppid", &self.header.ppid)?;
-        map.serialize_entry("upid", &self.header.upid)?;
-        map.serialize_entry("uppid", &self.header.uppid)?;
-        map.serialize_entry("comm", &self.header.comm)?;
-
-        // Only add payload if it's not empty
-        if !matches!(self.payload, EventPayload::Empty) {
-            map.serialize_entry("payload", &self.payload)?;
-        }
-
-        map.end()
-    }
-}
-
+// Generic event enum for cases where we need to handle any event type
 // templ_start:event_payload
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub enum EventPayload {
     Empty,
 }
