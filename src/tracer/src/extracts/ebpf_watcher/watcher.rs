@@ -58,7 +58,10 @@ impl EbpfWatcher {
         self: &Arc<Self>,
         process_polling_interval_ms: u64,
     ) -> Result<()> {
-        info!("Initializing process polling with interval {}ms", process_polling_interval_ms);
+        info!(
+            "Initializing process polling with interval {}ms",
+            process_polling_interval_ms
+        );
         let watcher = Arc::clone(self);
         let interval = std::time::Duration::from_millis(process_polling_interval_ms);
 
@@ -71,7 +74,11 @@ impl EbpfWatcher {
             loop {
                 iteration += 1;
                 if iteration % 100 == 0 {
-                    info!("Process polling iteration {} - monitoring {} processes", iteration, known_processes.len());
+                    info!(
+                        "Process polling iteration {} - monitoring {} processes",
+                        iteration,
+                        known_processes.len()
+                    );
                 }
 
                 system.refresh_processes();
@@ -89,8 +96,9 @@ impl EbpfWatcher {
                             argv = get_process_argv(pid_u32 as i32);
                         }
 
-                        info!("New process detected - PID: {}, Name: {}, Parent PID: {}", 
-                            pid_u32, 
+                        info!(
+                            "New process detected - PID: {}, Name: {}, Parent PID: {}",
+                            pid_u32,
                             process.name(),
                             process.parent().map(|p| p.as_u32()).unwrap_or(0)
                         );

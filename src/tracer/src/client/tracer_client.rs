@@ -164,7 +164,10 @@ impl TracerClient {
                     self.ebpf_watcher
                         .start_process_polling(self.config.process_polling_interval_ms)
                         .await
-                        .context(format!("Failed to start process polling on kernel {}.{}", major, minor))
+                        .context(format!(
+                            "Failed to start process polling on kernel {}.{}",
+                            major, minor
+                        ))
                 }
                 None => {
                     error!("Failed to detect kernel version, falling back to process polling");
@@ -179,7 +182,8 @@ impl TracerClient {
         #[cfg(not(target_os = "linux"))]
         {
             info!("Starting process polling monitoring on non-Linux platform");
-            match self.ebpf_watcher
+            match self
+                .ebpf_watcher
                 .start_process_polling(self.config.process_polling_interval_ms)
                 .await
             {
@@ -189,7 +193,8 @@ impl TracerClient {
                 }
                 Err(e) => {
                     error!("Failed to start process polling monitoring: {}", e);
-                    Err(e).context("Failed to start process polling monitoring on non-Linux platform")
+                    Err(e)
+                        .context("Failed to start process polling monitoring on non-Linux platform")
                 }
             }
         }

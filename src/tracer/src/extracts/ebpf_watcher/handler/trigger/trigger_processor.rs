@@ -20,7 +20,10 @@ impl TriggerProcessor {
         out_of_memory_triggers: Vec<OutOfMemoryTrigger>,
     ) {
         if !out_of_memory_triggers.is_empty() {
-            info!("Processing {} out of memory triggers", out_of_memory_triggers.len());
+            info!(
+                "Processing {} out of memory triggers",
+                out_of_memory_triggers.len()
+            );
             for trigger in &out_of_memory_triggers {
                 debug!("Processing OOM trigger for PID: {}", trigger.pid);
             }
@@ -37,7 +40,10 @@ impl TriggerProcessor {
         mut process_end_triggers: Vec<ProcessEndTrigger>,
     ) -> Result<()> {
         if !process_end_triggers.is_empty() {
-            info!("Processing {} process end triggers", process_end_triggers.len());
+            info!(
+                "Processing {} process end triggers",
+                process_end_triggers.len()
+            );
             for trigger in &process_end_triggers {
                 debug!("Processing end trigger for PID: {}", trigger.pid);
             }
@@ -63,7 +69,10 @@ impl TriggerProcessor {
         process_start_triggers: Vec<ProcessStartTrigger>,
     ) -> Result<()> {
         if !process_start_triggers.is_empty() {
-            info!("Processing {} process start triggers", process_start_triggers.len());
+            info!(
+                "Processing {} process start triggers",
+                process_start_triggers.len()
+            );
             for trigger in &process_start_triggers {
                 debug!(
                     "Processing start trigger - PID: {}, Name: {}, Parent PID: {}",
