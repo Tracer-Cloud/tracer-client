@@ -16,7 +16,7 @@ use tracer_ebpf::binding::start_processing_events;
 use tracer_ebpf::ebpf_trigger::{
     OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger, Trigger,
 };
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 use crate::extracts::container::extract_container_data;
 
 /// Watches system processes and records events related to them
@@ -62,7 +62,10 @@ impl EbpfWatcher {
         self: &Arc<Self>,
         process_polling_interval_ms: u64,
     ) -> Result<()> {
-        println!("Starting process polling");
+        info!(
+            "Initializing process polling with interval {}ms",
+            process_polling_interval_ms
+        );
         let watcher = Arc::clone(self);
         let interval = std::time::Duration::from_millis(process_polling_interval_ms);
 
@@ -109,6 +112,7 @@ impl EbpfWatcher {
                 // Check for ended processes
                 for &old_pid in &known_processes {
                     if !current_processes.contains(&old_pid) {
+                        info!("Process ended - PID: {}", old_pid);
                         // Process ended
                         let end_trigger = ProcessEndTrigger {
                             pid: old_pid as usize,
@@ -119,7 +123,7 @@ impl EbpfWatcher {
                             .process_triggers(vec![Trigger::ProcessEnd(end_trigger)])
                             .await
                         {
-                            error!("Failed to process end trigger: {}", e);
+                            error!("Failed to process end trigger for PID {}: {}", old_pid, e);
                         }
                     }
                 }
@@ -128,10 +132,10 @@ impl EbpfWatcher {
                 tokio::time::sleep(interval).await;
             }
         });
-        
+
         tokio::spawn(async move {
             loop {
-                
+
                 tokio::time::sleep(interval).await;
             }
         });
@@ -140,30 +144,43 @@ impl EbpfWatcher {
     }
 
     fn initialize_ebpf(self: Arc<Self>) -> Result<(), Error> {
+        info!("Initializing eBPF monitoring");
         // Use unbounded channel for cross-runtime compatibility
         let (tx, rx) = mpsc::unbounded_channel::<Trigger>();
 
         // Start the eBPF event processing
-        start_processing_events(tx)?;
+        info!("Starting eBPF event processing");
+        match start_processing_events(tx) {
+            Ok(_) => {
+                info!("eBPF event processing started successfully");
+            }
+            Err(e) => {
+                error!("Failed to start eBPF event processing: {}", e);
+                return Err(e);
+            }
+        }
 
         // Start the event processing loop
         let watcher = Arc::clone(&self);
         let task = tokio::spawn(async move {
+            info!("Starting eBPF event processing loop");
             if let Err(e) = watcher.process_trigger_loop(rx).await {
-                error!("process_trigger_loop failed: {:?}", e);
+                error!("eBPF process trigger loop failed: {:?}", e);
             }
         });
 
-        // Store the task handle in the stateAdd commentMore actions
+        // Store the task handle in the state
         match tokio::runtime::Handle::try_current() {
             Ok(_) => {
                 tokio::spawn(async move {
                     let mut process_manager = self.process_manager.write().await;
                     process_manager.set_ebpf_task(task).await;
                 });
+                info!("eBPF monitoring task initialized successfully");
             }
             Err(_) => {
-                // Not in a tokio runtime, can't store the task handle
+                error!("Failed to initialize eBPF monitoring task - not in a tokio runtime");
+                return Err(Error::msg("Failed to initialize eBPF monitoring task"));
             }
         }
 
