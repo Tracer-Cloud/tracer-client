@@ -1,10 +1,10 @@
-use crate::client::config_manager::Config;
 use crate::client::exporters::db::AuroraClient;
 use crate::client::exporters::log_forward::LogForward;
 use crate::client::exporters::log_writer::LogWriterEnum;
 use crate::client::TracerClient;
 use crate::common::types::cli::params::FinalizedInitArgs;
 use crate::daemon::server::DaemonServer;
+use crate::{client::config_manager::Config, utils::emit_analytic_event};
 use anyhow::{Context, Result};
 use std::net::SocketAddr;
 use tracing::info;
@@ -45,6 +45,10 @@ pub async fn run(cli_config_args: FinalizedInitArgs, config: Config) -> Result<(
         .context("Failed to create TracerClient")?;
 
     info!("Pipeline Name: {:?}", client.get_pipeline_name());
+    tokio::spawn(emit_analytic_event(
+        crate::common::types::analytics::AnalyticsEventType::DaemonStartSuccessful,
+        None,
+    ));
     DaemonServer::bind(client, addr).await?.run().await
 }
 
