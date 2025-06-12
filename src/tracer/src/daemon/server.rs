@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::sync::{Mutex, RwLock};
+use std::io::{self, Write};
 
 use crate::client::config_manager;
 use crate::client::TracerClient;
@@ -19,13 +20,86 @@ pub struct DaemonServer {
 }
 
 impl DaemonServer {
-    pub async fn bind(client: TracerClient, addr: SocketAddr) -> anyhow::Result<Self> {
-        let listener = TcpListener::bind(addr).await?;
+    async fn free_port(port: u16) -> anyhow::Result<bool> {
+        println!(
+            "\nPort {} is already in use. Would you like me to help you free up this port?",
+            port
+        );
+        println!("I can run these commands to find and kill the process:");
+        println!("  sudo lsof -nP -iTCP:{} -sTCP:LISTEN", port);
+        println!("  sudo kill -9 <PID>");
+        println!("\nWould you like me to proceed? [y/N]");
+        io::stdout().flush()?;
 
-        Ok(Self {
-            client: Arc::new(Mutex::new(client)),
-            listener,
-        })
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input)?;
+
+        if !input.trim().eq_ignore_ascii_case("y") {
+            return Ok(false);
+        }
+
+        // Run lsof to find the process
+        let output = std::process::Command::new("sudo")
+            .args([
+                "lsof",
+                "-nP",
+                &format!("-iTCP:{}", port),
+                "-sTCP:LISTEN",
+            ])
+            .output()?;
+
+        if !output.status.success() {
+            anyhow::bail!(
+                "Failed to find process using port {}. Please check the port manually.",
+                port
+            );
+        }
+
+        let output_str = String::from_utf8_lossy(&output.stdout);
+        println!("\nProcess using port {}:\n{}", port, output_str);
+
+        // Extract PID from lsof output (assuming it's in the second column)
+        if let Some(pid) = output_str
+            .lines()
+            .nth(1)
+            .and_then(|line| line.split_whitespace().nth(1))
+        {
+            println!("\nKilling process with PID {}...", pid);
+            let kill_output = std::process::Command::new("sudo")
+                .args(["kill", "-9", pid])
+                .output()?;
+
+            if !kill_output.status.success() {
+                anyhow::bail!("Failed to kill process. Please try manually.");
+            }
+
+            println!("Process killed successfully.");
+            Ok(true)
+        } else {
+            anyhow::bail!(
+                "Could not find PID in lsof output. Please check the port manually."
+            );
+        }
+    }
+
+    pub async fn bind(client: TracerClient, addr: SocketAddr) -> anyhow::Result<Self> {
+        match TcpListener::bind(addr).await {
+            Ok(listener) => Ok(Self {
+                client: Arc::new(Mutex::new(client)),
+                listener,
+            }),
+            Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
+                if Self::free_port(addr.port()).await? {
+                    // Try binding again with Box::pin to handle recursion
+                    return Box::pin(Self::bind(client, addr)).await;
+                }
+                anyhow::bail!(
+                    "Port {} is still in use. Please free up this port before continuing.",
+                    addr.port()
+                );
+            }
+            Err(e) => anyhow::bail!("Failed to bind to address {}: {}", addr, e),
+        }
     }
 
     pub fn get_listener(&self) -> &TcpListener {
