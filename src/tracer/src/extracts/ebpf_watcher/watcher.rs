@@ -17,6 +17,7 @@ use tracer_ebpf::ebpf_trigger::{
     OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger, Trigger,
 };
 use tracing::{debug, error};
+use crate::extracts::container::extract_container_data;
 
 /// Watches system processes and records events related to them
 pub struct EbpfWatcher {
@@ -127,6 +128,13 @@ impl EbpfWatcher {
                 tokio::time::sleep(interval).await;
             }
         });
+        
+        tokio::spawn(async move {
+            loop {
+                
+                tokio::time::sleep(interval).await;
+            }
+        });
 
         Ok(())
     }
@@ -232,9 +240,10 @@ impl EbpfWatcher {
                         "ProcessWatcher: received START trigger pid={}, cmd={}",
                         process_started.pid, process_started.comm
                     );
-                    
+
                     // Log the process to file
-                    let log_line = format!("{} | {} | {} | {}\n",
+                    let log_line = format!(
+                        "{} | {} | {} | {}\n",
                         process_started.comm,
                         process_started.argv.join(" "),
                         process_started.pid,
