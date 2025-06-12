@@ -155,6 +155,7 @@ impl TracerClient {
                             self.ebpf_watcher
                                 .start_process_polling(self.config.process_polling_interval_ms)
                                 .await
+                                .context("Failed to start process polling after eBPF failure")
                         }
                     }
                 }
@@ -163,22 +164,34 @@ impl TracerClient {
                     self.ebpf_watcher
                         .start_process_polling(self.config.process_polling_interval_ms)
                         .await
+                        .context(format!("Failed to start process polling on kernel {}.{}", major, minor))
                 }
                 None => {
-                    info!("Starting process polling monitoring on Linux (kernel version detection failed)");
+                    error!("Failed to detect kernel version, falling back to process polling");
                     self.ebpf_watcher
                         .start_process_polling(self.config.process_polling_interval_ms)
                         .await
+                        .context("Failed to start process polling after kernel version detection failure")
                 }
             }
         }
 
         #[cfg(not(target_os = "linux"))]
         {
-            info!("Starting process polling monitoring on non-Linux platform (macOS)");
-            self.ebpf_watcher
+            info!("Starting process polling monitoring on non-Linux platform");
+            match self.ebpf_watcher
                 .start_process_polling(self.config.process_polling_interval_ms)
                 .await
+            {
+                Ok(_) => {
+                    info!("Process polling monitoring started successfully");
+                    Ok(())
+                }
+                Err(e) => {
+                    error!("Failed to start process polling monitoring: {}", e);
+                    Err(e).context("Failed to start process polling monitoring on non-Linux platform")
+                }
+            }
         }
     }
 
