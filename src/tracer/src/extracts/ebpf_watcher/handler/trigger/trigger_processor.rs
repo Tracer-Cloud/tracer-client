@@ -3,7 +3,7 @@ use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracer_ebpf::ebpf_trigger::{OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger};
-use tracing::debug;
+use tracing::{debug, info};
 
 pub struct TriggerProcessor {
     process_manager: Arc<RwLock<ProcessManager>>,
@@ -11,6 +11,7 @@ pub struct TriggerProcessor {
 
 impl TriggerProcessor {
     pub fn new(process_manager: Arc<RwLock<ProcessManager>>) -> Self {
+        info!("Initializing TriggerProcessor");
         Self { process_manager }
     }
 
@@ -19,7 +20,13 @@ impl TriggerProcessor {
         out_of_memory_triggers: Vec<OutOfMemoryTrigger>,
     ) {
         if !out_of_memory_triggers.is_empty() {
-            debug!("Processing {} oom processes", out_of_memory_triggers.len());
+            info!(
+                "Processing {} out of memory triggers",
+                out_of_memory_triggers.len()
+            );
+            for trigger in &out_of_memory_triggers {
+                debug!("Processing OOM trigger for PID: {}", trigger.pid);
+            }
             self.process_manager
                 .write()
                 .await
@@ -33,10 +40,13 @@ impl TriggerProcessor {
         mut process_end_triggers: Vec<ProcessEndTrigger>,
     ) -> Result<()> {
         if !process_end_triggers.is_empty() {
-            debug!(
-                "Processing {} finishing processes",
+            info!(
+                "Processing {} process end triggers",
                 process_end_triggers.len()
             );
+            for trigger in &process_end_triggers {
+                debug!("Processing end trigger for PID: {}", trigger.pid);
+            }
 
             self.process_manager
                 .write()
@@ -59,10 +69,16 @@ impl TriggerProcessor {
         process_start_triggers: Vec<ProcessStartTrigger>,
     ) -> Result<()> {
         if !process_start_triggers.is_empty() {
-            debug!(
-                "Processing {} creating processes",
+            info!(
+                "Processing {} process start triggers",
                 process_start_triggers.len()
             );
+            for trigger in &process_start_triggers {
+                debug!(
+                    "Processing start trigger - PID: {}, Name: {}, Parent PID: {}",
+                    trigger.pid, trigger.comm, trigger.ppid
+                );
+            }
             self.process_manager
                 .write()
                 .await
