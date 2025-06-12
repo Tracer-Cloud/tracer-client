@@ -212,7 +212,6 @@ impl TracerClient {
     }
 
     pub async fn start_new_run(&self, timestamp: Option<DateTime<Utc>>) -> Result<()> {
-        println!("Starting new run");
         self.start_monitoring().await?;
 
         if self.pipeline.read().await.run.is_some() {

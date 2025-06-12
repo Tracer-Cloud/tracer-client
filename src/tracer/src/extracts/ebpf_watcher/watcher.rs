@@ -66,21 +66,11 @@ impl EbpfWatcher {
         let interval = std::time::Duration::from_millis(process_polling_interval_ms);
 
         tokio::spawn(async move {
-            info!("Starting process polling loop");
+            println!("Starting process polling loop");
             let mut system = sysinfo::System::new_all();
             let mut known_processes: HashSet<u32> = HashSet::new();
-            let mut iteration = 0;
 
             loop {
-                iteration += 1;
-                if iteration % 100 == 0 {
-                    info!(
-                        "Process polling iteration {} - monitoring {} processes",
-                        iteration,
-                        known_processes.len()
-                    );
-                }
-
                 system.refresh_processes();
                 let mut current_processes = HashSet::new();
 
@@ -96,13 +86,6 @@ impl EbpfWatcher {
                             argv = get_process_argv(pid_u32 as i32);
                         }
 
-                        info!(
-                            "New process detected - PID: {}, Name: {}, Parent PID: {}",
-                            pid_u32,
-                            process.name(),
-                            process.parent().map(|p| p.as_u32()).unwrap_or(0)
-                        );
-
                         // New process detected
                         let start_trigger = ProcessStartTrigger {
                             pid: pid_u32 as usize,
@@ -117,7 +100,7 @@ impl EbpfWatcher {
                             .process_triggers(vec![Trigger::ProcessStart(start_trigger)])
                             .await
                         {
-                            error!("Failed to process start trigger for PID {}: {}", pid_u32, e);
+                            error!("Failed to process start trigger: {}", e);
                         }
                     }
                 }
