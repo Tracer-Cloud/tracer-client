@@ -104,16 +104,28 @@ async fn handle_port_conflict(port: u16) -> anyhow::Result<bool> {
 
         println!("✅ Process killed successfully.");
 
-        // Verify the port is now free
-        if std::net::TcpListener::bind(format!("127.0.0.1:{}", port)).is_ok() {
-            println!("✅ Port {} is now free and available for use.", port);
-            Ok(true)
-        } else {
-            anyhow::bail!(
-                "Port {} is still in use after killing the process. Please check manually.",
-                port
+        // Add retry mechanism with delays to ensure port is released
+        const MAX_RETRIES: u32 = 2;
+        const RETRY_DELAY_MS: u64 = 1000;
+
+        for attempt in 1..=MAX_RETRIES {
+            println!(
+                "Waiting for port to be released (attempt {}/{})...",
+                attempt, MAX_RETRIES
             );
+            tokio::time::sleep(tokio::time::Duration::from_millis(RETRY_DELAY_MS)).await;
+
+            if std::net::TcpListener::bind(format!("127.0.0.1:{}", port)).is_ok() {
+                println!("✅ Port {} is now free and available for use.", port);
+                return Ok(true);
+            }
         }
+
+        anyhow::bail!(
+            "Port {} is still in use after {} attempts. Please check manually or try again in a few seconds.",
+            port,
+            MAX_RETRIES
+        );
     } else {
         anyhow::bail!(
             "Could not find PID in lsof output. Please check the port manually using:\n  sudo lsof -nP -iTCP:{} -sTCP:LISTEN",
