@@ -281,11 +281,13 @@ impl EbpfWatcher {
     }
 
     pub async fn get_n_monitored_processes(&self, n: usize) -> HashSet<String> {
-        self.process_manager
+        let processes = self.process_manager
             .write()
             .await
             .get_n_monitored_processes(n)
-            .await
+            .await;
+        info!("Monitored processes: {:?}", processes);
+        processes
     }
 
     pub async fn get_number_of_monitored_processes(&self) -> usize {

@@ -481,14 +481,19 @@ impl ProcessManager {
 
     /// Returns N process names of monitored processes
     pub async fn get_n_monitored_processes(&self, n: usize) -> HashSet<String> {
-        self.state
+        let processes: HashSet<String> = self.state
             .read()
             .await
             .get_monitoring()
             .iter()
-            .flat_map(|(_, processes)| processes.iter().map(|p| p.comm.clone()))
+            .flat_map(|(target, processes)| {
+                debug!("Target: {:?}, Processes: {:?}", target, processes);
+                processes.iter().map(|p| p.comm.clone())
+            })
             .take(n)
-            .collect()
+            .collect();
+        debug!("Returning {} monitored processes", processes.len());
+        processes
     }
 
     /// Returns the total number of processes being monitored
