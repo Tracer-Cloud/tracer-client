@@ -481,7 +481,8 @@ impl ProcessManager {
 
     /// Returns N process names of monitored processes
     pub async fn get_n_monitored_processes(&self, n: usize) -> HashSet<String> {
-        let processes: HashSet<String> = self.state
+        let processes: HashSet<String> = self
+            .state
             .read()
             .await
             .get_monitoring()
