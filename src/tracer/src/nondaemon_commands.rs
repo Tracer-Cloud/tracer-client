@@ -344,6 +344,50 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
 
     writeln!(&mut output, "│                           │ {}  ", LOG_FILE)?;
 
+    // Add process.txt and http log locations
+    writeln!(
+        &mut output,
+        "│ Process Log:             │ {}  ",
+        "process.txt"
+    )?;
+
+    writeln!(&mut output, "│ HTTP Log:                │ {}  ", "http.log")?;
+
+    // Add monitoring system info
+    #[cfg(target_os = "linux")]
+    {
+        let monitoring_system = if let Some(ref inner) = info.inner {
+            if inner.ebpf_task.is_some() {
+                "eBPF"
+            } else {
+                "Process Polling"
+            }
+        } else {
+            "Process Polling" // Default to process polling if we can't determine
+        };
+        writeln!(
+            &mut output,
+            "│ Monitoring System:       │ {}  ",
+            monitoring_system
+        )?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        writeln!(
+            &mut output,
+            "│ Monitoring System:       │ {}  ",
+            "Process Polling"
+        )?;
+    }
+
+    // Add environment info
+    let is_dev = config.log_forward_endpoint_dev.is_some();
+    writeln!(
+        &mut output,
+        "│ Environment:             │ {}  ",
+        if is_dev { "Development" } else { "Production" }
+    )?;
+
     writeln!(&mut output, "└{:─^width$}┘", "", width = total_header_width)?;
 
     println!("{}", output);
