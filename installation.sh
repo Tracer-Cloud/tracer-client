@@ -4,9 +4,8 @@
 # ENV=${1:-production}
 
 BINARY_NAME="tracer"
-USER_ID="$2"
+USER_ID="${TRACER_USER_ID:-}"
 
-export TRACER_USER_ID="$USER_ID"
 # echo "Arg: $1"
 
 # Set environment-specific variables based on the environment parameter
@@ -502,26 +501,13 @@ function send_analytics_event() {
 
 
 
-#---  CLEANUP FUNCTIONS  ------------------------------------------------------
-function cleanup() {
-    send_analytics_event "$EVENT_INSTALL_COMPLETED"
-    echo ""
-
-    if [ -d "$TRACER_TEMP_DIR" ]; then
-        rm -rf "$TRACER_TEMP_DIR"
-    fi
-    print_install_complete
-    $ExitTrap
-}
-
-trap cleanup EXIT
-
-
 
 #---  CLEANUP FUNCTIONS  ------------------------------------------------------
 function cleanup() {
     echo ""
     print_section "Cleanup"
+    send_analytics_event "$EVENT_INSTALL_COMPLETED"
+
 
     if [ -d "$TRACER_TEMP_DIR" ]; then
         rm -rf "$TRACER_TEMP_DIR" && echo "- ${EMOJI_CHECK} Cleaned up temporary files."
@@ -536,9 +522,9 @@ trap cleanup EXIT
 #---  MAIN FUNCTION  ----------------------------------------------------------
 
 function main() {
-  send_analytics_event "$EVENT_INSTALL_STARTED" "{\"os\": \"$(uname -s)\", \"arch\": \"$(uname -m)\"}"
   print_header
   check_system_requirements
+  send_analytics_event "$EVENT_INSTALL_STARTED" "{\"os\": \"$(uname -s)\", \"arch\": \"$(uname -m)\"}"
   install_tracer_binary
 }
 

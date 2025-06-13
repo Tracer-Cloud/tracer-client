@@ -46,7 +46,7 @@ pub async fn run(cli_config_args: FinalizedInitArgs, config: Config) -> Result<(
 
     info!("Pipeline Name: {:?}", client.get_pipeline_name());
     tokio::spawn(emit_analytic_event(
-        crate::common::types::analytics::AnalyticsEventType::DaemonStartSuccessful,
+        crate::common::types::analytics::AnalyticsEventType::DaemonStartedSuccessfully,
         None,
     ));
     DaemonServer::bind(client, addr).await?.run().await

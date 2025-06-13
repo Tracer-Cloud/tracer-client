@@ -4,17 +4,16 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AnalyticsEventType {
-    DaemonStartAttempt,
-    DaemonStartSuccessful,
+    DaemonStartAttempted,
+    DaemonStartedSuccessfully,
     PipelineInitiated,
-    // Add more events as needed
 }
 
 impl AnalyticsEventType {
     pub fn as_str(&self) -> &'static str {
         match self {
-            AnalyticsEventType::DaemonStartAttempt => "daemon_start_attempt",
-            AnalyticsEventType::DaemonStartSuccessful => "daemon_start_successful",
+            AnalyticsEventType::DaemonStartAttempted => "daemon_start_attempted",
+            AnalyticsEventType::DaemonStartedSuccessfully => "daemon_started_successfully",
             AnalyticsEventType::PipelineInitiated => "pipeline_initiated",
         }
     }
