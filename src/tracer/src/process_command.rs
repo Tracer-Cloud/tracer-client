@@ -42,7 +42,7 @@ async fn handle_port_conflict(port: u16) -> anyhow::Result<bool> {
     println!("\n⚠️  Checking port {} for conflicts...", port);
 
     // First check if the port is actually in use
-    if let Ok(_) = std::net::TcpListener::bind(format!("127.0.0.1:{}", port)) {
+    if std::net::TcpListener::bind(format!("127.0.0.1:{}", port)).is_ok() {
         println!("✅ Port {} is free and available for use.", port);
         return Ok(true);
     }
@@ -105,7 +105,7 @@ async fn handle_port_conflict(port: u16) -> anyhow::Result<bool> {
         println!("✅ Process killed successfully.");
 
         // Verify the port is now free
-        if let Ok(_) = std::net::TcpListener::bind(format!("127.0.0.1:{}", port)) {
+        if std::net::TcpListener::bind(format!("127.0.0.1:{}", port)).is_ok() {
             println!("✅ Port {} is now free and available for use.", port);
             Ok(true)
         } else {
