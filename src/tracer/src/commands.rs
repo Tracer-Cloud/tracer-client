@@ -1,7 +1,7 @@
 use crate::common::types::cli::params::TracerCliInitArgs;
 use clap::{Parser, Subcommand};
 
-#[derive(Parser)]
+#[derive(Parser, Clone)]
 #[clap(
     name = "tracer",
     about = "A tool for monitoring bioinformatics applications",
@@ -14,7 +14,7 @@ pub struct Cli {
     pub command: Commands,
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand, Debug, Clone)]
 pub enum Commands {
     /// Setup the configuration for the service, rewriting the config.toml file
     Setup {

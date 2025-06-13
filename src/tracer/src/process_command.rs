@@ -146,6 +146,7 @@ pub fn process_cli() -> Result<()> {
     });
 
     let api_client = DaemonClient::new(format!("http://{}", config.server));
+    let command = cli.command.clone();
 
     match cli.command {
         Commands::Init(args) => {
@@ -228,6 +229,9 @@ pub fn process_cli() -> Result<()> {
                     Outcome::Parent(Err(e)) => {
                         println!("Failed to start daemon. Maybe the daemon is already running? If it's not, run `tracer cleanup` to clean up the previous daemon files.");
                         println!("{:}", e);
+                        // Try to clean up port if there's an error
+                        let _ =
+                            tokio::runtime::Runtime::new()?.block_on(handle_port_conflict(8722));
                         return Ok(());
                     }
                     Outcome::Child(Err(e)) => {
@@ -274,6 +278,12 @@ pub fn process_cli() -> Result<()> {
                     println!("Failed to send command to the daemon. Maybe the daemon is not running? If it's not, run `tracer init` to start the daemon.");
                     let message = format!("Error Processing cli command: \n {e:?}.");
                     Logger::new().log_blocking(&message, None);
+
+                    // If it's a terminate command and there's an error, try to clean up the port
+                    if let Commands::Terminate = command {
+                        let _ =
+                            tokio::runtime::Runtime::new()?.block_on(handle_port_conflict(8722));
+                    }
                 }
             }
 
