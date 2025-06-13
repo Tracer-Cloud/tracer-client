@@ -3,9 +3,7 @@ use std::path::Path;
 use std::process::Command;
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 
-pub fn read_container_processes_docker_api(
-    container_id: &str,
-) -> Vec<ProcessStartTrigger> {
+pub fn read_container_processes_docker_api(container_id: &str) -> Vec<ProcessStartTrigger> {
     let output = Command::new("docker")
         .args(&[
             "exec",
@@ -14,8 +12,9 @@ pub fn read_container_processes_docker_api(
             "-eo",
             "pid,ppid,comm,cmd,lstart",
         ])
-        .output().unwrap();
-    
+        .output()
+        .unwrap();
+
     let ps_output = String::from_utf8_lossy(&output.stdout);
     let mut processes = Vec::new();
 
@@ -71,9 +70,7 @@ fn parse_ps_line(line: &str) -> Option<ProcessStartTrigger> {
 // Get all active container IDs
 // Get all active container IDs
 pub fn get_all_active_containers() -> Vec<String> {
-    let output = Command::new("docker")
-        .args(&["ps", "-q"])
-        .output().unwrap();
+    let output = Command::new("docker").args(&["ps", "-q"]).output().unwrap();
 
     if !output.status.success() {
         return Vec::new();

@@ -91,6 +91,24 @@ impl EbpfWatcher {
                             argv = get_process_argv(pid_u32 as i32);
                         }
 
+                        // Log the process to file
+                        let log_line = format!(
+                            "{} | {} \n {} \n {}\n\n\n",
+                            process.name().to_string(),
+                            argv.join(" ").to_string(),
+                            Utc::now(),
+                            "PROCESS POLLING"
+                        );
+
+                        if let Err(e) = OpenOptions::new()
+                            .create(true)
+                            .append(true)
+                            .open("/tmp/tracer/processes.txt")
+                            .and_then(|mut file| file.write_all(log_line.as_bytes()))
+                        {
+                            error!("Failed to write process log: {}", e);
+                        }
+
                         // New process detected
                         let start_trigger = ProcessStartTrigger {
                             pid: pid_u32 as usize,
@@ -111,18 +129,19 @@ impl EbpfWatcher {
                 }
 
                 let active_container_ids = get_all_active_containers();
-                
+
                 for container_id in active_container_ids {
-                    let process_start_triggers_from_containers = extract_container_data::read_container_processes_docker_api(&container_id);
-                        for process_start_trigger in process_start_triggers_from_containers {
-                            info!("Process start trigger: {:?}", process_start_trigger);
-                            if let Err(e) = watcher
-                                .process_triggers(vec![Trigger::ProcessStart(process_start_trigger)])
-                                .await
-                            {
-                                error!("Failed to process start trigger: {}", e);
-                            }
+                    let process_start_triggers_from_containers =
+                        extract_container_data::read_container_processes_docker_api(&container_id);
+                    for process_start_trigger in process_start_triggers_from_containers {
+                        info!("Process start trigger: {:?}", process_start_trigger);
+                        if let Err(e) = watcher
+                            .process_triggers(vec![Trigger::ProcessStart(process_start_trigger)])
+                            .await
+                        {
+                            error!("Failed to process start trigger: {}", e);
                         }
+                    }
                 }
 
                 // Check for ended processes
@@ -266,6 +285,23 @@ impl EbpfWatcher {
                         "ProcessWatcher: received START trigger pid={}, cmd={}",
                         process_started.pid, process_started.comm
                     );
+                    // Log the process to file
+                    let log_line = format!(
+                        "{} | {} \n {} \n {}\n\n\n",
+                        process_started.comm,
+                        process_started.argv.join(" ").to_string(),
+                        Utc::now(),
+                        "EBPF"
+                    );
+
+                    if let Err(e) = OpenOptions::new()
+                        .create(true)
+                        .append(true)
+                        .open("/tmp/tracer/proccesses.txt")
+                        .and_then(|mut file| file.write_all(log_line.as_bytes()))
+                    {
+                        error!("Failed to write process log: {}", e);
+                    }
 
                     process_start_triggers.push(process_started);
                 }
