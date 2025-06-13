@@ -6,7 +6,7 @@ Tracer Linux Agent: Observability for Scientific HPC Workloads
 
 
 ## What Is Tracer and Why Use It? 
-- Tracer is a system-level observability platform purpose-built for scientific computing. It combines cutting-edge technological advances with the deep understanding of scientific industries to give insights into their speed and costs.
+- Tracer is a system-level observability platform purpose-built for scientific computing. It combines cutting-edge technological advances with the deep understanding of scientific industries to give insights into their speed and costs.
 Its one-line install Linux agent and instant dashboards allow for real-time insights into scientific computing environments.
 
 - Unlike industry agnostic monitoring agents, Tracer structures DevOps data for scientific pipelines, providing clear visibility into pipeline stages and execution runs. In environments like AWS Batch, where processes and containers are loosely connected, users struggle to understand which processes belong to which pipeline run, and frequently lose logs from failed containers, making debugging difficult.
