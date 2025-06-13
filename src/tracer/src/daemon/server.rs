@@ -20,12 +20,19 @@ pub struct DaemonServer {
 
 impl DaemonServer {
     pub async fn bind(client: TracerClient, addr: SocketAddr) -> anyhow::Result<Self> {
-        let listener = TcpListener::bind(addr).await?;
-
-        Ok(Self {
-            client: Arc::new(Mutex::new(client)),
-            listener,
-        })
+        match TcpListener::bind(addr).await {
+            Ok(listener) => Ok(Self {
+                client: Arc::new(Mutex::new(client)),
+                listener,
+            }),
+            Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
+                anyhow::bail!(
+                    "❌ Failed to start Tracer daemon: Port {} is still in use.\n\nPlease run 'tracer cleanup-port' to resolve the port conflict before starting the daemon.",
+                    addr.port()
+                );
+            }
+            Err(e) => anyhow::bail!("Failed to bind to address {}: {}", addr, e),
+        }
     }
 
     pub fn get_listener(&self) -> &TcpListener {

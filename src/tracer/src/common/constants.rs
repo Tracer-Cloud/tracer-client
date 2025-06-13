@@ -8,5 +8,7 @@ pub const DEBUG_LOG: &str = "/tmp/tracer/debug.log";
 
 pub const SYSLOG_FILE: &str = "/var/log/syslog";
 
-pub const REPO_OWNER: &str = "davincios";
-pub const REPO_NAME: &str = "tracer-daemon";
+pub const REPO_OWNER: &str = "Tracer-Cloud";
+pub const REPO_NAME: &str = "tracer-client";
+
+pub const DEFAULT_DAEMON_PORT: u16 = 8722;
