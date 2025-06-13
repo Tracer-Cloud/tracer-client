@@ -1,7 +1,7 @@
 use crate::common::types::cli::params::TracerCliInitArgs;
 use clap::{Parser, Subcommand};
 
-#[derive(Parser)]
+#[derive(Parser, Clone)]
 #[clap(
     name = "tracer",
     about = "A tool for monitoring bioinformatics applications",
@@ -14,7 +14,7 @@ pub struct Cli {
     pub command: Commands,
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand, Debug, Clone)]
 pub enum Commands {
     /// Setup the configuration for the service, rewriting the config.toml file
     Setup {
@@ -76,4 +76,11 @@ pub enum Commands {
 
     /// Shows the current version of the daemon
     Version,
+
+    /// Clean up port conflicts by finding and killing processes using the Tracer port
+    CleanupPort {
+        /// Port number to check and clean up (default: 8722)
+        #[clap(long, short)]
+        port: Option<u16>,
+    },
 }
