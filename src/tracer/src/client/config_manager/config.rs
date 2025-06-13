@@ -26,7 +26,6 @@ const SENTRY_DSN: &str = "https://35e0843e6748d2c93dfd56716f2eecfe@o450928167138
 const GRAFANA_WORKSPACE_URL: &str = "https://tracerbio.grafana.net/goto/mYJ52c-HR?orgId=1";
 const AWS_REGION: &str = "us-east-2";
 
-pub const TRACER_ANALYTICS_FUNNEL_CONSTANT: &str = "A0qsd0wekwerP9zXcLmQxTnV";
 pub const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

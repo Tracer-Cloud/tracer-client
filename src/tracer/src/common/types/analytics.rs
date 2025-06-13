@@ -22,6 +22,7 @@ impl AnalyticsEventType {
 
 #[derive(serde::Serialize)]
 pub struct AnalyticsPayload<'a> {
+    #[serde(rename = "userId")]
     pub user_id: &'a str,
     pub event_name: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -6,6 +6,7 @@
 BINARY_NAME="tracer"
 USER_ID="$2"
 
+export TRACER_USER_ID="$USER_ID"
 # echo "Arg: $1"
 
 # Set environment-specific variables based on the environment parameter
@@ -476,8 +477,6 @@ function print_install_complete() {
 
 EVENT_INSTALL_STARTED="install_script_started"
 EVENT_INSTALL_COMPLETED="install_script_completed"
-ANALYTICS_CONSTANT="A0qsd0wekwerP9zXcLmQxTnV"
-
 function send_analytics_event() {
     local event_name="$1"
     local metadata="$2"
@@ -490,9 +489,8 @@ function send_analytics_event() {
     local response
     response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://sandbox.tracer.cloud/api/analytics" \
         -H "Content-Type: application/json" \
-        -H "x-api-key: ${ANALYTICS_CONSTANT}" \
         -d '{
-            "user_id": "'"${USER_ID}"'",
+            "userId": "'"${USER_ID}"'",
             "event_name": "'"${event_name}"'",
             "metadata": '"${metadata:-null}"'
         }')
