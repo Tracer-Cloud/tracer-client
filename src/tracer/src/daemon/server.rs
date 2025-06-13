@@ -1,10 +1,10 @@
 use std::future::IntoFuture;
+use std::io::{self, Write};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::sync::{Mutex, RwLock};
-use std::io::{self, Write};
 
 use crate::client::config_manager;
 use crate::client::TracerClient;
@@ -22,35 +22,35 @@ pub struct DaemonServer {
 impl DaemonServer {
     async fn free_port(port: u16) -> anyhow::Result<bool> {
         println!(
-            "\nPort {} is already in use. Would you like me to help you free up this port?",
+            "\n⚠️  Port conflict detected: Port {} is already in use by another Tracer instance.",
             port
         );
-        println!("I can run these commands to find and kill the process:");
-        println!("  sudo lsof -nP -iTCP:{} -sTCP:LISTEN", port);
-        println!("  sudo kill -9 <PID>");
-        println!("\nWould you like me to proceed? [y/N]");
+        println!("\nThis usually means another Tracer daemon is already running.");
+        println!("\nTo resolve this, you can:");
+        println!("1. Let me help you find and kill the existing process (recommended)");
+        println!("2. Manually find and kill the process using these commands:");
+        println!("   sudo lsof -nP -iTCP:{} -sTCP:LISTEN", port);
+        println!("   sudo kill -9 <PID>");
+        println!("\nWould you like me to help you find and kill the existing process? [y/N]");
         io::stdout().flush()?;
 
         let mut input = String::new();
         std::io::stdin().read_line(&mut input)?;
 
         if !input.trim().eq_ignore_ascii_case("y") {
+            println!("\nPlease manually resolve the port conflict and try again.");
             return Ok(false);
         }
 
         // Run lsof to find the process
         let output = std::process::Command::new("sudo")
-            .args([
-                "lsof",
-                "-nP",
-                &format!("-iTCP:{}", port),
-                "-sTCP:LISTEN",
-            ])
+            .args(["lsof", "-nP", &format!("-iTCP:{}", port), "-sTCP:LISTEN"])
             .output()?;
 
         if !output.status.success() {
             anyhow::bail!(
-                "Failed to find process using port {}. Please check the port manually.",
+                "Failed to find process using port {}. Please check the port manually using:\n  sudo lsof -nP -iTCP:{} -sTCP:LISTEN",
+                port,
                 port
             );
         }
@@ -70,14 +70,18 @@ impl DaemonServer {
                 .output()?;
 
             if !kill_output.status.success() {
-                anyhow::bail!("Failed to kill process. Please try manually.");
+                anyhow::bail!(
+                    "Failed to kill process. Please try manually using:\n  sudo kill -9 {}",
+                    pid
+                );
             }
 
-            println!("Process killed successfully.");
+            println!("✅ Process killed successfully.");
             Ok(true)
         } else {
             anyhow::bail!(
-                "Could not find PID in lsof output. Please check the port manually."
+                "Could not find PID in lsof output. Please check the port manually using:\n  sudo lsof -nP -iTCP:{} -sTCP:LISTEN",
+                port
             );
         }
     }
@@ -89,12 +93,8 @@ impl DaemonServer {
                 listener,
             }),
             Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
-                if Self::free_port(addr.port()).await? {
-                    // Try binding again with Box::pin to handle recursion
-                    return Box::pin(Self::bind(client, addr)).await;
-                }
                 anyhow::bail!(
-                    "Port {} is still in use. Please free up this port before continuing.",
+                    "❌ Failed to start Tracer daemon: Port {} is still in use.\n\nPlease run 'tracer cleanup-port' to resolve the port conflict before starting the daemon.",
                     addr.port()
                 );
             }

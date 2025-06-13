@@ -76,4 +76,11 @@ pub enum Commands {
 
     /// Shows the current version of the daemon
     Version,
+
+    /// Clean up port conflicts by finding and killing processes using the Tracer port
+    CleanupPort {
+        /// Port number to check and clean up (default: 8722)
+        #[clap(long, short)]
+        port: Option<u16>,
+    },
 }

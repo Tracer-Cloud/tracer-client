@@ -17,6 +17,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use daemonize::{Daemonize, Outcome};
 use std::fs::File;
+use std::io::{self, Write};
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use std::process::{Command, Stdio};
 
@@ -33,6 +34,90 @@ pub fn start_daemon() -> Outcome<()> {
         });
 
     daemon.execute()
+}
+
+async fn handle_port_conflict(port: u16) -> anyhow::Result<bool> {
+    println!("\n⚠️  Checking port {} for conflicts...", port);
+
+    // First check if the port is actually in use
+    if let Ok(_) = std::net::TcpListener::bind(format!("127.0.0.1:{}", port)) {
+        println!("✅ Port {} is free and available for use.", port);
+        return Ok(true);
+    }
+
+    println!(
+        "\n⚠️  Port conflict detected: Port {} is already in use by another Tracer instance.",
+        port
+    );
+    println!("\nThis usually means another Tracer daemon is already running.");
+    println!("\nTo resolve this, you can:");
+    println!("1. Let me help you find and kill the existing process (recommended)");
+    println!("2. Manually find and kill the process using these commands:");
+    println!("   sudo lsof -nP -iTCP:{} -sTCP:LISTEN", port);
+    println!("   sudo kill -9 <PID>");
+    println!("\nWould you like me to help you find and kill the existing process? [y/N]");
+    io::stdout().flush()?;
+
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input)?;
+
+    if !input.trim().eq_ignore_ascii_case("y") {
+        println!("\nPlease manually resolve the port conflict and try again.");
+        return Ok(false);
+    }
+
+    // Run lsof to find the process
+    let output = std::process::Command::new("sudo")
+        .args(["lsof", "-nP", &format!("-iTCP:{}", port), "-sTCP:LISTEN"])
+        .output()?;
+
+    if !output.status.success() {
+        anyhow::bail!(
+            "Failed to find process using port {}. Please check the port manually using:\n  sudo lsof -nP -iTCP:{} -sTCP:LISTEN",
+            port,
+            port
+        );
+    }
+
+    let output_str = String::from_utf8_lossy(&output.stdout);
+    println!("\nProcess using port {}:\n{}", port, output_str);
+
+    // Extract PID from lsof output (assuming it's in the second column)
+    if let Some(pid) = output_str
+        .lines()
+        .nth(1)
+        .and_then(|line| line.split_whitespace().nth(1))
+    {
+        println!("\nKilling process with PID {}...", pid);
+        let kill_output = std::process::Command::new("sudo")
+            .args(["kill", "-9", pid])
+            .output()?;
+
+        if !kill_output.status.success() {
+            anyhow::bail!(
+                "Failed to kill process. Please try manually using:\n  sudo kill -9 {}",
+                pid
+            );
+        }
+
+        println!("✅ Process killed successfully.");
+
+        // Verify the port is now free
+        if let Ok(_) = std::net::TcpListener::bind(format!("127.0.0.1:{}", port)) {
+            println!("✅ Port {} is now free and available for use.", port);
+            Ok(true)
+        } else {
+            anyhow::bail!(
+                "Port {} is still in use after killing the process. Please check manually.",
+                port
+            );
+        }
+    } else {
+        anyhow::bail!(
+            "Could not find PID in lsof output. Please check the port manually using:\n  sudo lsof -nP -iTCP:{} -sTCP:LISTEN",
+            port
+        );
+    }
 }
 
 pub fn process_cli() -> Result<()> {
@@ -69,6 +154,18 @@ pub fn process_cli() -> Result<()> {
 
             // Create necessary files for logging and daemonizing
             create_necessary_files().expect("Error while creating necessary files");
+
+            // Check for port conflict before starting daemon
+            let port = 8722; // Default Tracer port
+            if let Err(e) = std::net::TcpListener::bind(format!("127.0.0.1:{}", port)) {
+                if e.kind() == std::io::ErrorKind::AddrInUse {
+                    println!("Checking for port conflicts...");
+                    if !tokio::runtime::Runtime::new()?.block_on(handle_port_conflict(port))? {
+                        return Ok(());
+                    }
+                }
+            }
+
             println!("Starting daemon...");
             let args = init_command_interactive_mode(args);
 
@@ -226,6 +323,10 @@ pub async fn run_async_command(
         }
         Commands::Info => {
             print_config_info(api_client, config).await?;
+        }
+        Commands::CleanupPort { port } => {
+            let port = port.unwrap_or(8722); // Default Tracer port
+            handle_port_conflict(port).await?;
         }
         _ => {
             println!("Command not implemented yet");
