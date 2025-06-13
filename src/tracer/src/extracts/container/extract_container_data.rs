@@ -5,7 +5,7 @@ use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 
 pub fn read_container_processes_docker_api(container_id: &str) -> Vec<ProcessStartTrigger> {
     let output = Command::new("docker")
-        .args(&[
+        .args([
             "exec",
             container_id,
             "ps",
@@ -29,7 +29,7 @@ pub fn read_container_processes_docker_api(container_id: &str) -> Vec<ProcessSta
 }
 
 fn parse_ps_line(line: &str) -> Option<ProcessStartTrigger> {
-    let parts: Vec<&str> = line.trim().split_whitespace().collect();
+    let parts: Vec<&str> = line.split_whitespace().collect();
     if parts.len() < 5 {
         return None;
     }
@@ -70,7 +70,7 @@ fn parse_ps_line(line: &str) -> Option<ProcessStartTrigger> {
 // Get all active container IDs
 // Get all active container IDs
 pub fn get_all_active_containers() -> Vec<String> {
-    let output = Command::new("docker").args(&["ps", "-q"]).output().unwrap();
+    let output = Command::new("docker").args(["ps", "-q"]).output().unwrap();
 
     if !output.status.success() {
         return Vec::new();

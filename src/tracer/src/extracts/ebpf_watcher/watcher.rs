@@ -53,6 +53,7 @@ impl EbpfWatcher {
     }
 
     pub async fn start_ebpf(self: &Arc<Self>) -> Result<()> {
+        println!("Starting ebpf");
         Arc::clone(self)
             .ebpf
             .get_or_try_init(|| Arc::clone(self).initialize_ebpf())?;
@@ -94,8 +95,8 @@ impl EbpfWatcher {
                         // Log the process to file
                         let log_line = format!(
                             "{} | {} \n {} \n {}\n\n\n",
-                            process.name().to_string(),
-                            argv.join(" ").to_string(),
+                            process.name(),
+                            argv.join(" "),
                             Utc::now(),
                             "PROCESS POLLING"
                         );
@@ -289,7 +290,7 @@ impl EbpfWatcher {
                     let log_line = format!(
                         "{} | {} \n {} \n {}\n\n\n",
                         process_started.comm,
-                        process_started.argv.join(" ").to_string(),
+                        process_started.argv.join(" "),
                         Utc::now(),
                         "EBPF"
                     );
@@ -297,7 +298,7 @@ impl EbpfWatcher {
                     if let Err(e) = OpenOptions::new()
                         .create(true)
                         .append(true)
-                        .open("/tmp/tracer/proccesses.txt")
+                        .open("/tmp/tracer/processes.txt")
                         .and_then(|mut file| file.write_all(log_line.as_bytes()))
                     {
                         error!("Failed to write process log: {}", e);
