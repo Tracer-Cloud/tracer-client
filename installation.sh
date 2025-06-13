@@ -4,6 +4,7 @@
 # ENV=${1:-production}
 
 BINARY_NAME="tracer"
+USER_ID="${TRACER_USER_ID:-}"
 
 # echo "Arg: $1"
 
@@ -471,19 +472,33 @@ function print_install_complete() {
 }
 
 
+# --- ANALYTICS EVENT --------
 
-#---  CLEANUP FUNCTIONS  ------------------------------------------------------
-function cleanup() {
-    echo ""
+EVENT_INSTALL_STARTED="install_script_started"
+EVENT_INSTALL_COMPLETED="install_script_completed"
+function send_analytics_event() {
+    local event_name="$1"
+    local metadata="$2"
 
-    if [ -d "$TRACER_TEMP_DIR" ]; then
-        rm -rf "$TRACER_TEMP_DIR"
+    if [[ -z "$USER_ID" ]]; then
+        echo "- ${EMOJI_CANCEL} No user ID provided. Skipping analytics event: $event_name"
+        return
     fi
-    print_install_complete
-    $ExitTrap
+
+    local response
+    response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://sandbox.tracer.cloud/api/analytics" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "userId": "'"${USER_ID}"'",
+            "event_name": "'"${event_name}"'",
+            "metadata": '"${metadata:-null}"'
+        }')
+
+    if [[ "$response" != "200" ]]; then
+        echo "- ${EMOJI_CANCEL} Failed to send analytics event: $event_name (HTTP $response)"
+    fi
 }
 
-trap cleanup EXIT
 
 
 
@@ -491,6 +506,8 @@ trap cleanup EXIT
 function cleanup() {
     echo ""
     print_section "Cleanup"
+    send_analytics_event "$EVENT_INSTALL_COMPLETED"
+
 
     if [ -d "$TRACER_TEMP_DIR" ]; then
         rm -rf "$TRACER_TEMP_DIR" && echo "- ${EMOJI_CHECK} Cleaned up temporary files."
@@ -507,6 +524,7 @@ trap cleanup EXIT
 function main() {
   print_header
   check_system_requirements
+  send_analytics_event "$EVENT_INSTALL_STARTED" "{\"os\": \"$(uname -s)\", \"arch\": \"$(uname -m)\"}"
   install_tracer_binary
 }
 

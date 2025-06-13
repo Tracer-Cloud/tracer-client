@@ -1,4 +1,8 @@
+use crate::client::config_manager::TRACER_ANALYTICS_ENDPOINT;
+use crate::common::types::analytics::{AnalyticsEventType, AnalyticsPayload};
 use anyhow::Context;
+use reqwest::Client;
+use std::collections::HashMap;
 use std::path::Path;
 use std::process::Command;
 
@@ -47,4 +51,38 @@ pub fn get_kernel_version() -> Option<(u32, u32)> {
         });
 
     kernel_version
+}
+
+pub async fn emit_analytic_event(
+    event: AnalyticsEventType,
+    metadata: Option<HashMap<String, String>>,
+) -> anyhow::Result<()> {
+    let user_id = match std::env::var("TRACER_USER_ID") {
+        Ok(val) if !val.trim().is_empty() => val,
+        _ => return Ok(()), // silently skip if missing
+    };
+
+    let payload = AnalyticsPayload {
+        user_id: &user_id,
+        event_name: event.as_str(),
+        metadata,
+    };
+
+    let client = Client::new();
+    let res = client
+        .post(TRACER_ANALYTICS_ENDPOINT)
+        .header("Content-Type", "application/json")
+        .json(&payload)
+        .send()
+        .await?;
+
+    if !res.status().is_success() {
+        tracing::error!(
+            "Failed to send analytics event {:?} (status: {})",
+            event,
+            res.status()
+        );
+    }
+
+    Ok(())
 }
