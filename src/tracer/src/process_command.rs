@@ -14,6 +14,8 @@ use crate::nondaemon_commands::{
     clean_up_after_daemon, print_config_info, print_install_readiness, setup_config, update_tracer,
     wait,
 };
+use crate::utils::emit_analytic_event;
+
 use crate::utils::{check_sudo_privileges, ensure_file_can_be_created};
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -218,6 +220,10 @@ pub fn process_cli() -> Result<()> {
 
                     // Wait a moment for daemon to start, then show info
                     tokio::runtime::Runtime::new()?.block_on(async {
+                        tokio::spawn(emit_analytic_event(
+                            crate::common::types::analytics::AnalyticsEventType::DaemonStartAttempted,
+                            None,
+                        ));
                         let _ = print_install_readiness();
                         wait(&api_client).await?;
 
@@ -231,7 +237,12 @@ pub fn process_cli() -> Result<()> {
                 match start_daemon() {
                     Outcome::Parent(Ok(_)) => {
                         println!("\nDaemon started successfully.");
+
                         tokio::runtime::Runtime::new()?.block_on(async {
+                            tokio::spawn(emit_analytic_event(
+                                crate::common::types::analytics::AnalyticsEventType::DaemonStartAttempted,
+                                None,
+                            ));
                             let _ = print_install_readiness();
                             wait(&api_client).await?;
 
