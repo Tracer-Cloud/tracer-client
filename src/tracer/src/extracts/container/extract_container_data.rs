@@ -1,16 +1,21 @@
-use std::process::Command;
 use chrono::Utc;
+use std::path::Path;
+use std::process::Command;
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 
-pub fn read_container_processes_docker_api(container_id: &str) -> Result<Vec<ProcessStartTrigger>, Box<dyn std::error::Error>> {
+pub fn read_container_processes_docker_api(
+    container_id: &str,
+) -> Vec<ProcessStartTrigger> {
     let output = Command::new("docker")
-        .args(&["exec", container_id, "ps", "-eo", "pid,ppid,comm,cmd,lstart"])
-        .output()?;
-
-    if !output.status.success() {
-        return Err(format!("Docker exec failed: {}", String::from_utf8_lossy(&output.stderr)).into());
-    }
-
+        .args(&[
+            "exec",
+            container_id,
+            "ps",
+            "-eo",
+            "pid,ppid,comm,cmd,lstart",
+        ])
+        .output().unwrap();
+    
     let ps_output = String::from_utf8_lossy(&output.stdout);
     let mut processes = Vec::new();
 
@@ -21,7 +26,7 @@ pub fn read_container_processes_docker_api(container_id: &str) -> Result<Vec<Pro
         }
     }
 
-    Ok(processes)
+    processes
 }
 
 fn parse_ps_line(line: &str) -> Option<ProcessStartTrigger> {
@@ -36,7 +41,8 @@ fn parse_ps_line(line: &str) -> Option<ProcessStartTrigger> {
 
     // The command line arguments start from index 3
     let cmd_start = 3;
-    let argv: Vec<String> = parts[cmd_start..].iter()
+    let argv: Vec<String> = parts[cmd_start..]
+        .iter()
         .take_while(|&&part| !part.starts_with("20")) // Stop before timestamp
         .map(|s| s.to_string())
         .collect();
@@ -60,4 +66,24 @@ fn parse_ps_line(line: &str) -> Option<ProcessStartTrigger> {
         file_name,
         started_at: Utc::now(), // ps lstart parsing would be more complex
     })
+}
+
+// Get all active container IDs
+// Get all active container IDs
+pub fn get_all_active_containers() -> Vec<String> {
+    let output = Command::new("docker")
+        .args(&["ps", "-q"])
+        .output().unwrap();
+
+    if !output.status.success() {
+        return Vec::new();
+    }
+
+    let container_ids: Vec<String> = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(|line| line.trim().to_string()) // Convert &str to String
+        .filter(|line| !line.is_empty())
+        .collect();
+
+    container_ids
 }

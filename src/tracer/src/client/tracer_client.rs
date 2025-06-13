@@ -142,23 +142,23 @@ impl TracerClient {
         {
             let kernel_version = Self::get_kernel_version();
             match kernel_version {
-                Some((5, 15)) => {
-                    info!("Starting eBPF monitoring on Linux kernel 5.15");
-                    match self.ebpf_watcher.start_ebpf().await {
-                        Ok(_) => {
-                            info!("eBPF monitoring started successfully");
-                            Ok(())
-                        }
-                        Err(e) => {
-                            error!("Failed to start eBPF monitoring: {}. Falling back to process polling.", e);
-                            info!("Starting process polling monitoring (eBPF fallback)");
-                            self.ebpf_watcher
-                                .start_process_polling(self.config.process_polling_interval_ms)
-                                .await
-                                .context("Failed to start process polling after eBPF failure")
-                        }
-                    }
-                }
+                // Some((5, 15)) => {
+                //     info!("Starting eBPF monitoring on Linux kernel 5.15");
+                //     match self.ebpf_watcher.start_ebpf().await {
+                //         Ok(_) => {
+                //             info!("eBPF monitoring started successfully");
+                //             Ok(())
+                //         }
+                //         Err(e) => {
+                //             error!("Failed to start eBPF monitoring: {}. Falling back to process polling.", e);
+                //             info!("Starting process polling monitoring (eBPF fallback)");
+                //             self.ebpf_watcher
+                //                 .start_process_polling(self.config.process_polling_interval_ms)
+                //                 .await
+                //                 .context("Failed to start process polling after eBPF failure")
+                //         }
+                //     }
+                // }
                 Some((major, minor)) => {
                     info!("Starting process polling monitoring on Linux kernel {}.{} (eBPF not supported)", major, minor);
                     self.ebpf_watcher

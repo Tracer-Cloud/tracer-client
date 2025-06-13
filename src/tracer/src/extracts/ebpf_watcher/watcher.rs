@@ -1,6 +1,8 @@
 use crate::common::recorder::LogRecorder;
 use crate::common::target_process::manager::TargetManager;
 use crate::common::target_process::Target;
+use crate::extracts::container::extract_container_data;
+use crate::extracts::container::extract_container_data::get_all_active_containers;
 use crate::extracts::ebpf_watcher::handler::trigger::trigger_processor::TriggerProcessor;
 use crate::extracts::process::manager::ProcessManager;
 use crate::extracts::process::process_utils::get_process_argv;
@@ -17,7 +19,6 @@ use tracer_ebpf::ebpf_trigger::{
     OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger, Trigger,
 };
 use tracing::{debug, error, info};
-use crate::extracts::container::extract_container_data;
 
 /// Watches system processes and records events related to them
 pub struct EbpfWatcher {
@@ -109,6 +110,21 @@ impl EbpfWatcher {
                     }
                 }
 
+                let active_container_ids = get_all_active_containers();
+                
+                for container_id in active_container_ids {
+                    let process_start_triggers_from_containers = extract_container_data::read_container_processes_docker_api(&container_id);
+                        for process_start_trigger in process_start_triggers_from_containers {
+                            info!("Process start trigger: {:?}", process_start_trigger);
+                            if let Err(e) = watcher
+                                .process_triggers(vec![Trigger::ProcessStart(process_start_trigger)])
+                                .await
+                            {
+                                error!("Failed to process start trigger: {}", e);
+                            }
+                        }
+                }
+
                 // Check for ended processes
                 for &old_pid in &known_processes {
                     if !current_processes.contains(&old_pid) {
@@ -129,13 +145,6 @@ impl EbpfWatcher {
                 }
 
                 known_processes = current_processes;
-                tokio::time::sleep(interval).await;
-            }
-        });
-
-        tokio::spawn(async move {
-            loop {
-
                 tokio::time::sleep(interval).await;
             }
         });
@@ -257,24 +266,6 @@ impl EbpfWatcher {
                         "ProcessWatcher: received START trigger pid={}, cmd={}",
                         process_started.pid, process_started.comm
                     );
-
-                    // Log the process to file
-                    let log_line = format!(
-                        "{} | {} | {} | {}\n",
-                        process_started.comm,
-                        process_started.argv.join(" "),
-                        process_started.pid,
-                        process_started.started_at.to_rfc3339()
-                    );
-
-                    if let Err(e) = OpenOptions::new()
-                        .create(true)
-                        .append(true)
-                        .open("/tmp/tracer/processes.txt")
-                        .and_then(|mut file| file.write_all(log_line.as_bytes()))
-                    {
-                        error!("Failed to write process log: {}", e);
-                    }
 
                     process_start_triggers.push(process_started);
                 }
