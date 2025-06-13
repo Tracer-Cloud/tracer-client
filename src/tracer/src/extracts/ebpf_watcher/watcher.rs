@@ -69,7 +69,7 @@ impl EbpfWatcher {
             process_polling_interval_ms
         );
         let watcher = Arc::clone(self);
-        let interval = std::time::Duration::from_millis(process_polling_interval_ms);
+        let interval = std::time::Duration::from_millis(1);
 
         tokio::spawn(async move {
             println!("Starting process polling loop");
@@ -247,6 +247,31 @@ impl EbpfWatcher {
                     let triggers = std::mem::take(&mut buffer);
                     println!("Received {:?}", triggers);
 
+                    for trigger in triggers.clone() {
+                        match trigger.clone() {
+                            Trigger::ProcessStart(process_start_trigger) => {
+                                // Log the process to file
+                                let log_line = format!(
+                                    "{} | {} \n {} \n {}\n\n\n",
+                                    process_start_trigger.comm,
+                                    process_start_trigger.argv.join(" "),
+                                    Utc::now(),
+                                    "EBPF"
+                                );
+
+                                if let Err(e) = OpenOptions::new()
+                                    .create(true)
+                                    .append(true)
+                                    .open("/tmp/tracer/processes.txt")
+                                    .and_then(|mut file| file.write_all(log_line.as_bytes()))
+                                {
+                                    error!("Failed to write process log: {}", e);
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+
                     if let Err(e) = self.process_triggers(triggers).await {
                         error!("Failed to process triggers: {}", e);
                     }
@@ -286,23 +311,6 @@ impl EbpfWatcher {
                         "ProcessWatcher: received START trigger pid={}, cmd={}",
                         process_started.pid, process_started.comm
                     );
-                    // Log the process to file
-                    let log_line = format!(
-                        "{} | {} \n {} \n {}\n\n\n",
-                        process_started.comm,
-                        process_started.argv.join(" "),
-                        Utc::now(),
-                        "EBPF"
-                    );
-
-                    if let Err(e) = OpenOptions::new()
-                        .create(true)
-                        .append(true)
-                        .open("/tmp/tracer/processes.txt")
-                        .and_then(|mut file| file.write_all(log_line.as_bytes()))
-                    {
-                        error!("Failed to write process log: {}", e);
-                    }
 
                     process_start_triggers.push(process_started);
                 }
