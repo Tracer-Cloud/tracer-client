@@ -23,7 +23,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use sysinfo::System;
 use tokio::sync::{mpsc, RwLock};
-use tracing::info;
+use tracing::{error, info};
 
 pub struct TracerClient {
     system: Arc<RwLock<System>>, // todo: use arc swap
@@ -143,29 +143,60 @@ impl TracerClient {
             let kernel_version = Self::get_kernel_version();
             match kernel_version {
                 Some((5, 15)) => {
-                    println!("Starting eBPF monitoring");
-                    self.ebpf_watcher.start_ebpf().await
+                    info!("Starting eBPF monitoring on Linux kernel 5.15");
+                    match self.ebpf_watcher.start_ebpf().await {
+                        Ok(_) => {
+                            info!("eBPF monitoring started successfully");
+                            Ok(())
+                        }
+                        Err(e) => {
+                            error!("Failed to start eBPF monitoring: {}. Falling back to process polling.", e);
+                            info!("Starting process polling monitoring (eBPF fallback)");
+                            self.ebpf_watcher
+                                .start_process_polling(self.config.process_polling_interval_ms)
+                                .await
+                                .context("Failed to start process polling after eBPF failure")
+                        }
+                    }
                 }
-                Some((_major, _minor)) => {
-                    println!("Starting process polling monitoring");
+                Some((major, minor)) => {
+                    info!("Starting process polling monitoring on Linux kernel {}.{} (eBPF not supported)", major, minor);
                     self.ebpf_watcher
                         .start_process_polling(self.config.process_polling_interval_ms)
                         .await
+                        .context(format!(
+                            "Failed to start process polling on kernel {}.{}",
+                            major, minor
+                        ))
                 }
                 None => {
-                    println!("Starting process polling monitoring");
+                    error!("Failed to detect kernel version, falling back to process polling");
                     self.ebpf_watcher
                         .start_process_polling(self.config.process_polling_interval_ms)
                         .await
+                        .context("Failed to start process polling after kernel version detection failure")
                 }
             }
         }
 
         #[cfg(not(target_os = "linux"))]
         {
-            self.ebpf_watcher
+            info!("Starting process polling monitoring on non-Linux platform");
+            match self
+                .ebpf_watcher
                 .start_process_polling(self.config.process_polling_interval_ms)
                 .await
+            {
+                Ok(_) => {
+                    info!("Process polling monitoring started successfully");
+                    Ok(())
+                }
+                Err(e) => {
+                    error!("Failed to start process polling monitoring: {}", e);
+                    Err(e)
+                        .context("Failed to start process polling monitoring on non-Linux platform")
+                }
+            }
         }
     }
 
@@ -308,12 +339,14 @@ impl TracerClient {
             .ok()
             .and_then(|output| {
                 String::from_utf8(output.stdout).ok().and_then(|version| {
+                    info!("Detected kernel version: {}", version.trim());
                     let parts: Vec<&str> = version.trim().split('.').collect();
                     if parts.len() >= 2 {
                         let major = parts[0].parse::<u32>().ok()?;
                         let minor = parts[1].parse::<u32>().ok()?;
                         Some((major, minor))
                     } else {
+                        error!("Failed to parse kernel version: {}", version.trim());
                         None
                     }
                 })
