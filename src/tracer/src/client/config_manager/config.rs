@@ -9,6 +9,7 @@ use crate::client::config_manager::bashrc_intercept::{
 
 use crate::cloud_providers::aws::config::AwsConfig;
 use crate::cloud_providers::aws::types::aws_region::AwsRegion;
+use crate::common::constants::DEFAULT_DAEMON_PORT;
 use crate::common::target_process::target_matching::TargetMatch;
 use crate::common::target_process::targets_list;
 use crate::common::target_process::Target;
@@ -92,7 +93,7 @@ impl ConfigLoader {
             .set_default("aws_init_type", AwsConfig::Profile(aws_default_profile))?
             .set_default("aws_region", AWS_REGION)?
             .set_default("database_name", "tracer_db")?
-            .set_default("server", "127.0.0.1:8722")?
+            .set_default("server", format!("127.0.0.1:{}", DEFAULT_DAEMON_PORT))?
             .set_default::<&str, Vec<&str>>("targets", vec![])?
             .set_default("log_forward_endpoint_dev", LOG_FORWARD_ENDPOINT_DEV)?
             .set_default("log_forward_endpoint_prod", LOG_FORWARD_ENDPOINT_PROD)?

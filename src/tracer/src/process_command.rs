@@ -1,6 +1,8 @@
 use crate::client::config_manager::{Config, ConfigLoader};
 use crate::commands::{Cli, Commands};
-use crate::common::constants::{PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR};
+use crate::common::constants::{
+    DEFAULT_DAEMON_PORT, PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR,
+};
 use crate::common::debug_log::Logger;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::daemon_run::run;
@@ -157,7 +159,7 @@ pub fn process_cli() -> Result<()> {
             create_necessary_files().expect("Error while creating necessary files");
 
             // Check for port conflict before starting daemon
-            let port = 8722; // Default Tracer port
+            let port = DEFAULT_DAEMON_PORT; // Default Tracer port
             if let Err(e) = std::net::TcpListener::bind(format!("127.0.0.1:{}", port)) {
                 if e.kind() == std::io::ErrorKind::AddrInUse {
                     println!("Checking for port conflicts...");
@@ -230,8 +232,8 @@ pub fn process_cli() -> Result<()> {
                         println!("Failed to start daemon. Maybe the daemon is already running? If it's not, run `tracer cleanup` to clean up the previous daemon files.");
                         println!("{:}", e);
                         // Try to clean up port if there's an error
-                        let _ =
-                            tokio::runtime::Runtime::new()?.block_on(handle_port_conflict(8722));
+                        let _ = tokio::runtime::Runtime::new()?
+                            .block_on(handle_port_conflict(DEFAULT_DAEMON_PORT));
                         return Ok(());
                     }
                     Outcome::Child(Err(e)) => {
@@ -281,8 +283,8 @@ pub fn process_cli() -> Result<()> {
 
                     // If it's a terminate command and there's an error, try to clean up the port
                     if let Commands::Terminate = command {
-                        let _ =
-                            tokio::runtime::Runtime::new()?.block_on(handle_port_conflict(8722));
+                        let _ = tokio::runtime::Runtime::new()?
+                            .block_on(handle_port_conflict(DEFAULT_DAEMON_PORT));
                     }
                 }
             }
@@ -335,7 +337,7 @@ pub async fn run_async_command(
             print_config_info(api_client, config).await?;
         }
         Commands::CleanupPort { port } => {
-            let port = port.unwrap_or(8722); // Default Tracer port
+            let port = port.unwrap_or(DEFAULT_DAEMON_PORT); // Default Tracer port
             handle_port_conflict(port).await?;
         }
         _ => {
