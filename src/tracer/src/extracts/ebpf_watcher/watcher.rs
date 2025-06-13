@@ -1,12 +1,17 @@
 use crate::common::recorder::LogRecorder;
 use crate::common::target_process::manager::TargetManager;
 use crate::common::target_process::Target;
+use crate::extracts::container::extract_container_data;
+use crate::extracts::container::extract_container_data::get_all_active_containers;
 use crate::extracts::ebpf_watcher::handler::trigger::trigger_processor::TriggerProcessor;
 use crate::extracts::process::manager::ProcessManager;
 use crate::extracts::process::process_utils::get_process_argv;
 use anyhow::{Error, Result};
 use chrono::Utc;
 use std::collections::HashSet;
+use std::fs::{self, OpenOptions};
+use std::io::Write;
+use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
 use tracer_ebpf::binding::start_processing_events;
@@ -48,6 +53,7 @@ impl EbpfWatcher {
     }
 
     pub async fn start_ebpf(self: &Arc<Self>) -> Result<()> {
+        println!("Starting ebpf");
         Arc::clone(self)
             .ebpf
             .get_or_try_init(|| Arc::clone(self).initialize_ebpf())?;
@@ -63,7 +69,7 @@ impl EbpfWatcher {
             process_polling_interval_ms
         );
         let watcher = Arc::clone(self);
-        let interval = std::time::Duration::from_millis(process_polling_interval_ms);
+        let interval = std::time::Duration::from_millis(1);
 
         tokio::spawn(async move {
             println!("Starting process polling loop");
@@ -86,6 +92,24 @@ impl EbpfWatcher {
                             argv = get_process_argv(pid_u32 as i32);
                         }
 
+                        // Log the process to file
+                        let log_line = format!(
+                            "{} | {} \n {} \n {}\n\n\n",
+                            process.name(),
+                            argv.join(" "),
+                            Utc::now(),
+                            "PROCESS POLLING"
+                        );
+
+                        if let Err(e) = OpenOptions::new()
+                            .create(true)
+                            .append(true)
+                            .open("/tmp/tracer/processes.txt")
+                            .and_then(|mut file| file.write_all(log_line.as_bytes()))
+                        {
+                            error!("Failed to write process log: {}", e);
+                        }
+
                         // New process detected
                         let start_trigger = ProcessStartTrigger {
                             pid: pid_u32 as usize,
@@ -98,6 +122,22 @@ impl EbpfWatcher {
 
                         if let Err(e) = watcher
                             .process_triggers(vec![Trigger::ProcessStart(start_trigger)])
+                            .await
+                        {
+                            error!("Failed to process start trigger: {}", e);
+                        }
+                    }
+                }
+
+                let active_container_ids = get_all_active_containers();
+
+                for container_id in active_container_ids {
+                    let process_start_triggers_from_containers =
+                        extract_container_data::read_container_processes_docker_api(&container_id);
+                    for process_start_trigger in process_start_triggers_from_containers {
+                        info!("Process start trigger: {:?}", process_start_trigger);
+                        if let Err(e) = watcher
+                            .process_triggers(vec![Trigger::ProcessStart(process_start_trigger)])
                             .await
                         {
                             error!("Failed to process start trigger: {}", e);
@@ -207,6 +247,31 @@ impl EbpfWatcher {
                     let triggers = std::mem::take(&mut buffer);
                     println!("Received {:?}", triggers);
 
+                    for trigger in triggers.clone() {
+                        match trigger.clone() {
+                            Trigger::ProcessStart(process_start_trigger) => {
+                                // Log the process to file
+                                let log_line = format!(
+                                    "{} | {} \n {} \n {}\n\n\n",
+                                    process_start_trigger.comm,
+                                    process_start_trigger.argv.join(" "),
+                                    Utc::now(),
+                                    "EBPF"
+                                );
+
+                                if let Err(e) = OpenOptions::new()
+                                    .create(true)
+                                    .append(true)
+                                    .open("/tmp/tracer/processes.txt")
+                                    .and_then(|mut file| file.write_all(log_line.as_bytes()))
+                                {
+                                    error!("Failed to write process log: {}", e);
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+
                     if let Err(e) = self.process_triggers(triggers).await {
                         error!("Failed to process triggers: {}", e);
                     }
@@ -231,6 +296,14 @@ impl EbpfWatcher {
 
         debug!("ProcessWatcher: processing {} triggers", triggers.len());
 
+        // Create the directory if it doesn't exist
+        let log_dir = Path::new("/tmp/tracer");
+        if !log_dir.exists() {
+            if let Err(e) = fs::create_dir_all(log_dir) {
+                error!("Failed to create log directory: {}", e);
+            }
+        }
+
         for trigger in triggers.into_iter() {
             match trigger {
                 Trigger::ProcessStart(process_started) => {
@@ -238,6 +311,7 @@ impl EbpfWatcher {
                         "ProcessWatcher: received START trigger pid={}, cmd={}",
                         process_started.pid, process_started.comm
                     );
+
                     process_start_triggers.push(process_started);
                 }
                 Trigger::ProcessEnd(process_end) => {
