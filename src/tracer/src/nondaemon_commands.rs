@@ -346,17 +346,17 @@ fn print_pipeline_info(
     formatter.add_field("Pipeline Name", &inner.pipeline_name, "bold")?;
     formatter.add_field(
         "Pipeline Type",
-        &inner.tags.pipeline_type.as_deref().unwrap_or("Not Set"),
+        inner.tags.pipeline_type.as_deref().unwrap_or("Not Set"),
         "cyan",
     )?;
     formatter.add_field(
         "Environment",
-        &inner.tags.environment.as_deref().unwrap_or("Not Set"),
+        inner.tags.environment.as_deref().unwrap_or("Not Set"),
         "yellow",
     )?;
     formatter.add_field(
         "User",
-        &inner.tags.user_operator.as_deref().unwrap_or("Not Set"),
+        inner.tags.user_operator.as_deref().unwrap_or("Not Set"),
         "magenta",
     )?;
 
