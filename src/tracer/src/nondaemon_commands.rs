@@ -284,75 +284,8 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
         Ok(info) => info,
         Err(e) => {
             tracing::error!("Error getting info response: {e}");
-            const CHECK: Emoji<'_, '_> = Emoji("✨ ", "[OK] ");
-            const PLAY: Emoji<'_, '_> = Emoji("▶️ ", "▶ ");
-            const BOOK: Emoji<'_, '_> = Emoji("📖 ", "-> ");
-            const SUPPORT: Emoji<'_, '_> = Emoji("✉️ ", "-> ");
-            const WEB: Emoji<'_, '_> = Emoji("🌐 ", "-> ");
-            const WARNING: Emoji<'_, '_> = Emoji("⚠️ ", "⚠ ");
-            let width = 75;
-
-            writeln!(
-                &mut output,
-                "\n{} {}",
-                CHECK,
-                "Tracer CLI installed.".bold()
-            )?;
-            writeln!(
-                &mut output,
-                "{} Daemon status: {}",
-                WARNING,
-                "Not started yet".yellow()
-            )?;
-
-            writeln!(
-                &mut output,
-                "\n   ╭{:─^width$}╮",
-                " Next Steps ",
-                width = width
-            )?;
-            writeln!(&mut output, "   │{:width$}│", "", width = width)?;
-
-            writeln!(
-                &mut output,
-                "   │ {} {:<width$} │",
-                PLAY,
-                "tracer init         Interactive Pipeline Setup",
-                width = width - 6
-            )?;
-            writeln!(&mut output, "   │{:width$}│", "", width = width)?;
-
-            writeln!(
-                &mut output,
-                "   │ {} Visualize Data:     {:<width$}                        │",
-                WEB,
-                "https://sandbox.tracer.cloud".bright_blue().underline(),
-                width = width - 50
-            )?;
-            writeln!(&mut output, "   │{:width$}│", "", width = width)?;
-
-            writeln!(
-                &mut output,
-                "   │ {} Documentation:      {:<width$}     │",
-                BOOK,
-                "https://github.com/Tracer-Cloud/tracer-client"
-                    .bright_blue()
-                    .underline(),
-                width = width - 30
-            )?;
-            writeln!(&mut output, "   │{:width$}│", "", width = width)?;
-
-            writeln!(
-                &mut output,
-                "   │ {} Support: {:<width$} │",
-                SUPPORT,
-                "           support@tracer.cloud".bright_blue(),
-                width = width - 15
-            )?;
-            writeln!(&mut output, "   │{:width$}│", "", width = width)?;
-
-            writeln!(&mut output, "   ╰{:─^width$}╯", "", width = width)?;
-            println!("{}", output);
+            print_error_state(&mut formatter)?;
+            println!("{}", formatter.output);
             return Ok(());
         }
     };
