@@ -1,7 +1,7 @@
 // File: src/target/mod.rs
-pub mod manager;
 pub mod nf_process_match;
 pub mod target_matching;
+pub mod target_process_manager;
 pub mod targets_list;
 use serde::{Deserialize, Serialize};
 use target_matching::{matches_target, TargetMatch};

@@ -1,8 +1,8 @@
 use crate::common::recorder::LogRecorder;
-use crate::common::target_process::manager::TargetManager;
+use crate::common::target_process::target_process_manager::TargetManager;
 use crate::common::target_process::Target;
 use crate::extracts::ebpf_watcher::handler::trigger::trigger_processor::TriggerProcessor;
-use crate::extracts::process::manager::ProcessManager;
+use crate::extracts::process::process_manager::ProcessManager;
 use crate::extracts::process::process_utils::get_process_argv;
 use anyhow::{Error, Result};
 use chrono::Utc;

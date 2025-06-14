@@ -1,5 +1,5 @@
 use crate::common::recorder::LogRecorder;
-use crate::common::target_process::manager::TargetManager;
+use crate::common::target_process::target_process_manager::TargetManager;
 use crate::common::target_process::{Target, TargetMatchable};
 use crate::common::types::event::attributes::process::CompletedProcess;
 use crate::common::types::event::attributes::EventAttributes;
