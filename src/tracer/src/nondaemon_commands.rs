@@ -16,6 +16,110 @@ use std::result::Result::Ok;
 use tokio::time::sleep;
 use tracing::debug;
 
+const STATUS_ACTIVE: Emoji<'_, '_> = Emoji("● ", "● ");
+const STATUS_INACTIVE: Emoji<'_, '_> = Emoji("○ ", "○ ");
+const STATUS_WARNING: Emoji<'_, '_> = Emoji("⚠ ", "⚠ ");
+const STATUS_INFO: Emoji<'_, '_> = Emoji("ℹ ", "ℹ ");
+
+struct InfoFormatter {
+    output: String,
+    width: usize,
+}
+
+impl InfoFormatter {
+    fn new(width: usize) -> Self {
+        Self {
+            output: String::new(),
+            width,
+        }
+    }
+
+    fn add_header(&mut self, title: &str) -> Result<()> {
+        writeln!(
+            &mut self.output,
+            "\n┌{:─^width$}┐",
+            format!(" {} ", title),
+            width = self.width - 2
+        )?;
+        Ok(())
+    }
+
+    fn add_footer(&mut self) -> Result<()> {
+        writeln!(
+            &mut self.output,
+            "└{:─^width$}┘",
+            "",
+            width = self.width - 2
+        )?;
+        Ok(())
+    }
+
+    fn add_section_header(&mut self, title: &str) -> Result<()> {
+        writeln!(
+            &mut self.output,
+            "├{:─^width$}┤",
+            format!(" {} ", title),
+            width = self.width - 2
+        )?;
+        Ok(())
+    }
+
+    fn add_field(&mut self, label: &str, value: &str, color: &str) -> Result<()> {
+        let colored_value = match color {
+            "green" => value.green(),
+            "yellow" => value.yellow(),
+            "cyan" => value.cyan(),
+            "magenta" => value.magenta(),
+            "blue" => value.blue(),
+            "red" => value.red(),
+            "bold" => value.bold(),
+            _ => value.normal(),
+        };
+
+        // Calculate available space for value
+        let label_width = 20;
+        let padding = 4;
+        let max_value_width = self.width - label_width - padding;
+
+        // Format the value with proper truncation
+        let formatted_value = if colored_value.len() > max_value_width {
+            format!("{}...", &colored_value[..max_value_width - 3])
+        } else {
+            colored_value.to_string()
+        };
+
+        writeln!(
+            &mut self.output,
+            "│ {:<label_width$} │ {}  ",
+            label, formatted_value
+        )?;
+        Ok(())
+    }
+
+    fn add_status_field(&mut self, label: &str, value: &str, status: &str) -> Result<()> {
+        let (emoji, color) = match status {
+            "active" => (STATUS_ACTIVE, "green"),
+            "inactive" => (STATUS_INACTIVE, "red"),
+            "warning" => (STATUS_WARNING, "yellow"),
+            _ => (STATUS_INFO, "blue"),
+        };
+
+        writeln!(
+            &mut self.output,
+            "│ {:<20} │ {} {}  ",
+            label,
+            emoji,
+            value.color(color)
+        )?;
+        Ok(())
+    }
+
+    fn add_empty_line(&mut self) -> Result<()> {
+        writeln!(&mut self.output, "│{:width$}│", "", width = self.width - 2)?;
+        Ok(())
+    }
+}
+
 pub fn clean_up_after_daemon() -> Result<()> {
     std::fs::remove_file(PID_FILE).context("Failed to remove pid file")?;
     std::fs::remove_file(STDOUT_FILE).context("Failed to remove stdout file")?;
@@ -175,180 +279,131 @@ pub fn print_install_readiness() -> Result<()> {
 }
 
 pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Result<()> {
-    let mut output = String::new();
-
+    let mut formatter = InfoFormatter::new(90);
     let info = match api_client.send_info_request().await {
         Ok(info) => info,
         Err(e) => {
             tracing::error!("Error getting info response: {e}");
-            const CHECK: Emoji<'_, '_> = Emoji("✨ ", "[OK] ");
-            const PLAY: Emoji<'_, '_> = Emoji("▶️ ", "▶ ");
-            const BOOK: Emoji<'_, '_> = Emoji("📖 ", "-> ");
-            const SUPPORT: Emoji<'_, '_> = Emoji("✉️ ", "-> ");
-            const WEB: Emoji<'_, '_> = Emoji("🌐 ", "-> ");
-            const WARNING: Emoji<'_, '_> = Emoji("⚠️ ", "⚠ ");
-            let width = 75;
-
-            writeln!(
-                &mut output,
-                "\n{} {}",
-                CHECK,
-                "Tracer CLI installed.".bold()
-            )?;
-            writeln!(
-                &mut output,
-                "{} Daemon status: {}",
-                WARNING,
-                "Not started yet".yellow()
-            )?;
-
-            writeln!(
-                &mut output,
-                "\n   ╭{:─^width$}╮",
-                " Next Steps ",
-                width = width
-            )?;
-            writeln!(&mut output, "   │{:width$}│", "", width = width)?;
-
-            writeln!(
-                &mut output,
-                "   │ {} {:<width$} │",
-                PLAY,
-                "tracer init         Interactive Pipeline Setup",
-                width = width - 6
-            )?;
-            writeln!(&mut output, "   │{:width$}│", "", width = width)?;
-
-            writeln!(
-                &mut output,
-                "   │ {} Visualize Data:     {:<width$}                        │",
-                WEB,
-                "https://sandbox.tracer.cloud".bright_blue().underline(),
-                width = width - 50
-            )?;
-            writeln!(&mut output, "   │{:width$}│", "", width = width)?;
-
-            writeln!(
-                &mut output,
-                "   │ {} Documentation:      {:<width$}     │",
-                BOOK,
-                "https://github.com/Tracer-Cloud/tracer-client"
-                    .bright_blue()
-                    .underline(),
-                width = width - 30
-            )?;
-            writeln!(&mut output, "   │{:width$}│", "", width = width)?;
-
-            writeln!(
-                &mut output,
-                "   │ {} Support: {:<width$} │",
-                SUPPORT,
-                "           support@tracer.cloud".bright_blue(),
-                width = width - 15
-            )?;
-            writeln!(&mut output, "   │{:width$}│", "", width = width)?;
-
-            writeln!(&mut output, "   ╰{:─^width$}╯", "", width = width)?;
-            println!("{}", output);
+            print_error_state(&mut formatter)?;
+            println!("{}", formatter.output);
             return Ok(());
         }
     };
 
-    // Fixed width for the left column and separator
-    let total_header_width = 80;
+    formatter.add_header("TRACER INFO")?;
+    formatter.add_empty_line()?;
 
-    writeln!(
-        &mut output,
-        "\n┌{:─^width$}┐",
-        " TRACER INFO ",
-        width = total_header_width
-    )?;
+    print_daemon_status(&mut formatter)?;
 
-    writeln!(
-        &mut output,
-        "│ Daemon status:            │ {}  ",
-        "Running".green()
-    )?;
-
-    if let Some(ref inner) = info.inner {
-        writeln!(
-            &mut output,
-            "│ Pipeline name:            │ {}  ",
-            inner.pipeline_name
-        )?;
-        writeln!(
-            &mut output,
-            "│ Run name:                 │ {}  ",
-            inner.run_name
-        )?;
-        writeln!(
-            &mut output,
-            "│ Run ID:                   │ {}  ",
-            inner.run_id
-        )?;
-        writeln!(
-            &mut output,
-            "│ Total Run Time:           │ {}  ",
-            inner.formatted_runtime()
-        )?;
+    if let Some(inner) = &info.inner {
+        print_pipeline_info(&mut formatter, inner, &info)?;
     }
 
-    writeln!(
-        &mut output,
-        "│ Recognized Processes:     │ {}:{}  ",
-        info.watched_processes_count,
-        info.watched_processes_preview()
-    )?;
-
-    writeln!(
-        &mut output,
-        "│ Daemon version:           │ {}  ",
-        env!("CARGO_PKG_VERSION")
-    )?;
-
-    let clickable_url = format!(
-        "\u{1b}]8;;{0}\u{1b}\\{0}\u{1b}]8;;\u{1b}\\",
-        config.grafana_workspace_url
-    );
-    let colored_url = clickable_url.bright_blue().underline().to_string();
-
-    writeln!(
-        &mut output,
-        "│ Grafana Workspace URL:    │ {}  ",
-        colored_url
-    )?;
-
-    writeln!(
-        &mut output,
-        "│ Process polling interval: │ {} ms  ",
-        config.process_polling_interval_ms
-    )?;
-
-    writeln!(
-        &mut output,
-        "│ Batch submission interval:│ {} ms  ",
-        config.batch_submission_interval_ms
-    )?;
-
-    writeln!(
-        &mut output,
-        "│ Tracer Agent Log files:   │ {}  ",
-        STDOUT_FILE
-    )?;
-
-    writeln!(
-        &mut output,
-        "│                           │ {}  ",
-        STDERR_FILE
-    )?;
-
-    writeln!(&mut output, "│                           │ {}  ", LOG_FILE)?;
-
-    writeln!(&mut output, "└{:─^width$}┘", "", width = total_header_width)?;
-
-    println!("{}", output);
+    print_config_and_logs(&mut formatter, config)?;
+    formatter.add_footer()?;
+    println!("{}", formatter.output);
     Ok(())
 }
+
+fn print_error_state(formatter: &mut InfoFormatter) -> Result<()> {
+    formatter.add_header("TRACER CLI STATUS")?;
+    formatter.add_empty_line()?;
+    formatter.add_status_field("Daemon Status", "Not Started", "warning")?;
+    formatter.add_empty_line()?;
+    formatter.add_section_header("NEXT STEPS")?;
+    formatter.add_empty_line()?;
+    formatter.add_field("Interactive Setup", "tracer init", "bold")?;
+    formatter.add_field("Visualize Data", "https://sandbox.tracer.app", "blue")?;
+    formatter.add_field(
+        "Documentation",
+        "https://github.com/Tracer-Cloud/tracer-client",
+        "blue",
+    )?;
+    formatter.add_field("Support", "support@tracer.cloud", "blue")?;
+    formatter.add_empty_line()?;
+    formatter.add_footer()?;
+    Ok(())
+}
+
+fn print_daemon_status(formatter: &mut InfoFormatter) -> Result<()> {
+    formatter.add_section_header("DAEMON STATUS")?;
+    formatter.add_empty_line()?;
+    formatter.add_status_field("Status", "Running", "active")?;
+    formatter.add_field("Version", env!("CARGO_PKG_VERSION"), "bold")?;
+    formatter.add_empty_line()?;
+    Ok(())
+}
+
+fn print_pipeline_info(
+    formatter: &mut InfoFormatter,
+    inner: &crate::daemon::structs::InnerInfoResponse,
+    info: &crate::daemon::structs::InfoResponse,
+) -> Result<()> {
+    formatter.add_section_header("RUN DETAILS")?;
+    formatter.add_empty_line()?;
+
+    // Pipeline section
+    formatter.add_field("Pipeline Name", &inner.pipeline_name, "bold")?;
+    formatter.add_field(
+        "Pipeline Type",
+        inner.tags.pipeline_type.as_deref().unwrap_or("Not Set"),
+        "cyan",
+    )?;
+    formatter.add_field(
+        "Environment",
+        inner.tags.environment.as_deref().unwrap_or("Not Set"),
+        "yellow",
+    )?;
+    formatter.add_field(
+        "User",
+        inner.tags.user_operator.as_deref().unwrap_or("Not Set"),
+        "magenta",
+    )?;
+
+    // Run section
+    formatter.add_field("Run Name", &inner.run_name, "bold")?;
+    formatter.add_field("Run ID", &inner.run_id, "cyan")?;
+    formatter.add_field("Runtime", &inner.formatted_runtime(), "yellow")?;
+    formatter.add_field(
+        "Monitored Processes",
+        &format!(
+            "{}: {}",
+            info.watched_processes_count.to_string().bold(),
+            info.watched_processes_preview().cyan()
+        ),
+        "normal",
+    )?;
+    formatter.add_empty_line()?;
+    Ok(())
+}
+
+fn print_config_and_logs(formatter: &mut InfoFormatter, config: &Config) -> Result<()> {
+    formatter.add_section_header("CONFIGURATION & LOGS")?;
+    formatter.add_empty_line()?;
+
+    let grafana_url = if config.grafana_workspace_url.is_empty() {
+        "Not configured".to_string()
+    } else {
+        config.grafana_workspace_url.clone()
+    };
+
+    formatter.add_field("Grafana Workspace", &format!("{} ", grafana_url), "blue")?;
+    formatter.add_field(
+        "Process Polling",
+        &format!("{} ms ", config.process_polling_interval_ms),
+        "yellow",
+    )?;
+    formatter.add_field(
+        "Batch Submission",
+        &format!("{} ms ", config.batch_submission_interval_ms),
+        "yellow",
+    )?;
+    formatter.add_field("Standard Output", &format!("{} ", STDOUT_FILE), "cyan")?;
+    formatter.add_field("Standard Error", &format!("{} ", STDERR_FILE), "cyan")?;
+    formatter.add_field("Log File", &format!("{} ", LOG_FILE), "cyan")?;
+    Ok(())
+}
+
 pub async fn setup_config(
     api_key: &Option<String>,
     process_polling_interval_ms: &Option<u64>,
