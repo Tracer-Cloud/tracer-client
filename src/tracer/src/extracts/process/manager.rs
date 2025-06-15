@@ -314,7 +314,7 @@ impl ProcessManager {
             if let Some(matched_target) = state.get_target_manager().get_target_match(&trigger) {
 
                 let log_line = format!(
-                    "{} | {} \n {}\n\n\n",
+                    "{} | {} | {}\n\n\n",
                     trigger.clone().comm,
                     trigger.clone().argv.join(" "),
                     "MATCHED",
@@ -335,7 +335,7 @@ impl ProcessManager {
                     .insert(trigger);
             } else {
                 let log_line = format!(
-                    "{} | {} \n {}\n\n\n",
+                    "{} | {} | {}\n\n\n",
                     trigger.clone().comm,
                     trigger.clone().argv.join(" "),
                     "NOT MATCHED",
@@ -407,6 +407,7 @@ impl ProcessManager {
                         system_process,
                         display_name.clone(),
                         process.started_at,
+                        process.clone().argv
                     )
                     .await
                 }
@@ -416,7 +417,7 @@ impl ProcessManager {
                 }
             }
         };
-
+        
         self.log_recorder
             .log(
                 TracerProcessStatus::ToolExecution,
@@ -460,6 +461,7 @@ impl ProcessManager {
                 system_process,
                 display_name.clone(),
                 process.started_at,
+                process.clone().argv
             )
             .await
         };

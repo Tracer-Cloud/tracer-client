@@ -94,7 +94,7 @@ impl EbpfWatcher {
 
                         // Log the process to file
                         let log_line = format!(
-                            "{} | {} \n {} \n {}\n\n\n",
+                            "{} | {} | {} | {}\n\n\n",
                             process.name(),
                             argv.join(" "),
                             Utc::now(),
