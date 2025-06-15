@@ -138,52 +138,52 @@ impl TracerClient {
     ///
     /// On non-Linux platforms, polling is used by default.
     pub async fn start_monitoring(&self) -> Result<()> {
-        #[cfg(target_os = "linux")]
-        {
-            let kernel_version = Self::get_kernel_version();
-            match kernel_version {
-                Some((major, minor)) if major > 5 || (major == 5 && minor >= 15) => {
-                    info!(
-                        "Starting eBPF monitoring on Linux kernel {}.{}",
-                        major, minor
-                    );
-                    match self.ebpf_watcher.start_ebpf().await {
-                        Ok(_) => {
-                            info!("eBPF monitoring started successfully");
-                            Ok(())
-                        }
-                        Err(e) => {
-                            error!("Failed to start eBPF monitoring: {}. Falling back to process polling.", e);
-                            info!("Starting process polling monitoring (eBPF fallback)");
-                            self.ebpf_watcher
-                                .start_process_polling(self.config.process_polling_interval_ms)
-                                .await
-                                .context("Failed to start process polling after eBPF failure")
-                        }
-                    }
-                }
-                Some((major, minor)) => {
-                    info!("Starting process polling monitoring on Linux kernel {}.{} (eBPF not supported)", major, minor);
-                    self.ebpf_watcher
-                        .start_process_polling(self.config.process_polling_interval_ms)
-                        .await
-                        .context(format!(
-                            "Failed to start process polling on kernel {}.{}",
-                            major, minor
-                        ))
-                }
-                None => {
-                    error!("Failed to detect kernel version, falling back to process polling");
-                    self.ebpf_watcher
-                        .start_process_polling(self.config.process_polling_interval_ms)
-                        .await
-                        .context("Failed to start process polling after kernel version detection failure")
-                }
-            }
-        }
+        // #[cfg(target_os = "linux")]
+        // {
+        //     let kernel_version = Self::get_kernel_version();
+        //     match kernel_version {
+        //         Some((major, minor)) if major > 5 || (major == 5 && minor >= 15) => {
+        //             info!(
+        //                 "Starting eBPF monitoring on Linux kernel {}.{}",
+        //                 major, minor
+        //             );
+        //             match self.ebpf_watcher.start_ebpf().await {
+        //                 Ok(_) => {
+        //                     info!("eBPF monitoring started successfully");
+        //                     Ok(())
+        //                 }
+        //                 Err(e) => {
+        //                     error!("Failed to start eBPF monitoring: {}. Falling back to process polling.", e);
+        //                     info!("Starting process polling monitoring (eBPF fallback)");
+        //                     self.ebpf_watcher
+        //                         .start_process_polling(self.config.process_polling_interval_ms)
+        //                         .await
+        //                         .context("Failed to start process polling after eBPF failure")
+        //                 }
+        //             }
+        //         }
+        //         Some((major, minor)) => {
+        //             info!("Starting process polling monitoring on Linux kernel {}.{} (eBPF not supported)", major, minor);
+        //             self.ebpf_watcher
+        //                 .start_process_polling(self.config.process_polling_interval_ms)
+        //                 .await
+        //                 .context(format!(
+        //                     "Failed to start process polling on kernel {}.{}",
+        //                     major, minor
+        //                 ))
+        //         }
+        //         None => {
+        //             error!("Failed to detect kernel version, falling back to process polling");
+        //             self.ebpf_watcher
+        //                 .start_process_polling(self.config.process_polling_interval_ms)
+        //                 .await
+        //                 .context("Failed to start process polling after kernel version detection failure")
+        //         }
+        //     }
+        // }
 
-        #[cfg(not(target_os = "linux"))]
-        {
+        // #[cfg(not(target_os = "linux"))]
+        // {
             info!("Starting process polling monitoring on non-Linux platform");
             match self
                 .ebpf_watcher
@@ -200,7 +200,7 @@ impl TracerClient {
                         .context("Failed to start process polling monitoring on non-Linux platform")
                 }
             }
-        }
+        // }
     }
 
     pub async fn poll_metrics_data(&self) -> Result<()> {
