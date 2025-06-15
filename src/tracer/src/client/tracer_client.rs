@@ -3,14 +3,14 @@ use std::process::Command;
 use crate::client::config_manager::Config;
 
 use crate::cloud_providers::aws::pricing::PricingSource;
-use crate::common::target_process::manager::TargetManager;
+use crate::common::target_process::target_process_manager::TargetManager;
 use crate::common::target_process::targets_list::DEFAULT_EXCLUDED_PROCESS_RULES;
 use crate::common::types::cli::params::FinalizedInitArgs;
 use anyhow::{Context, Result};
 
 use crate::client::events::{send_alert_event, send_log_event, send_start_run_event};
+use crate::client::exporters::client_export_manager::ExporterManager;
 use crate::client::exporters::log_writer::LogWriterEnum;
-use crate::client::exporters::manager::ExporterManager;
 use crate::common::recorder::LogRecorder;
 use crate::common::types::current_run::{PipelineMetadata, Run};
 use crate::common::types::event::attributes::EventAttributes;
