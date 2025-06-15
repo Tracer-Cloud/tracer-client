@@ -852,6 +852,10 @@ pub static ref TARGETS: Vec<Target> = [
         process_name: None,
         command_content: "dupradar".to_string(),
     })).set_display_name(DisplayName::Name("dupRadar".to_string())),
+        Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+            process_name: Some("cat".to_string()),
+            command_content: "fastq".to_string(),
+        })),
 ]
 .to_vec();
 
