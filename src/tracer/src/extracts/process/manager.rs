@@ -11,6 +11,8 @@ use crate::extracts::process::types::process_state::ProcessState;
 use chrono::Utc;
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::sync::Arc;
 use sysinfo::{Pid, ProcessRefreshKind, System};
 use tokio::sync::{RwLock, RwLockWriteGuard};
@@ -310,11 +312,43 @@ impl ProcessManager {
 
         for trigger in triggers {
             if let Some(matched_target) = Self::get_matched_target(&state, &trigger) {
+
+                let log_line = format!(
+                    "{} | {} \n {}\n\n\n",
+                    trigger.clone().comm,
+                    trigger.clone().argv.join(" "),
+                    "MATCHED",
+                );
+                
+                if let Err(e) = OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open("/tmp/tracer/matches.txt")
+                    .and_then(|mut file| file.write_all(log_line.as_bytes()))
+                {
+                    error!("Failed to write match log: {}", e);
+                }
                 let matched_target = matched_target.clone(); // todo: remove clone, or move targets to arcs?
                 matched_processes
                     .entry(matched_target)
                     .or_insert(HashSet::new())
                     .insert(trigger);
+            } else {
+                let log_line = format!(
+                    "{} | {} \n {}\n\n\n",
+                    trigger.clone().comm,
+                    trigger.clone().argv.join(" "),
+                    "NOT MATCHED",
+                );
+
+                if let Err(e) = OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open("/tmp/tracer/matches.txt")
+                    .and_then(|mut file| file.write_all(log_line.as_bytes()))
+                {
+                    error!("Failed to write match log: {}", e);
+                }
             }
         }
 
