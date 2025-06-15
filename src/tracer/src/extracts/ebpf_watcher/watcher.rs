@@ -1,8 +1,6 @@
 use crate::common::recorder::LogRecorder;
 use crate::common::target_process::target_process_manager::TargetManager;
 use crate::common::target_process::Target;
-use crate::extracts::container::extract_container_data;
-use crate::extracts::container::extract_container_data::get_all_active_containers;
 use crate::extracts::ebpf_watcher::handler::trigger::trigger_processor::TriggerProcessor;
 use crate::extracts::process::process_manager::ProcessManager;
 use crate::extracts::process::process_utils::get_process_argv;
@@ -122,22 +120,6 @@ impl EbpfWatcher {
 
                         if let Err(e) = watcher
                             .process_triggers(vec![Trigger::ProcessStart(start_trigger)])
-                            .await
-                        {
-                            error!("Failed to process start trigger: {}", e);
-                        }
-                    }
-                }
-
-                let active_container_ids = get_all_active_containers();
-
-                for container_id in active_container_ids {
-                    let process_start_triggers_from_containers =
-                        extract_container_data::read_container_processes_docker_api(&container_id);
-                    for process_start_trigger in process_start_triggers_from_containers {
-                        info!("Process start trigger: {:?}", process_start_trigger);
-                        if let Err(e) = watcher
-                            .process_triggers(vec![Trigger::ProcessStart(process_start_trigger)])
                             .await
                         {
                             error!("Failed to process start trigger: {}", e);
