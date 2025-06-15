@@ -855,6 +855,10 @@ pub static ref TARGETS: Vec<Target> = [
     Target::new(TargetMatch::CommandContains(CommandContainsStruct {
         process_name: Some("cat".to_string()),
         command_content: "fastq".to_string(),
+    })).set_display_name(DisplayName::Name("cat fastq".to_string())),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: Some("bbsplit.sh".to_string()),
+        command_content: "bbsplit.sh".to_string(),
     })),
 ]
 .to_vec();
