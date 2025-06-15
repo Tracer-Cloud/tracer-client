@@ -16,10 +16,10 @@ use std::result::Result::Ok;
 use tokio::time::sleep;
 use tracing::debug;
 
-const STATUS_ACTIVE: Emoji<'_, '_> = Emoji("● ", "● ");
-const STATUS_INACTIVE: Emoji<'_, '_> = Emoji("○ ", "○ ");
-const STATUS_WARNING: Emoji<'_, '_> = Emoji("⚠ ", "⚠ ");
-const STATUS_INFO: Emoji<'_, '_> = Emoji("ℹ ", "ℹ ");
+const STATUS_ACTIVE: Emoji<'_, '_> = Emoji("🟢 ", "🟢 ");
+const STATUS_INACTIVE: Emoji<'_, '_> = Emoji("🔴 ", "🔴 ");
+const STATUS_WARNING: Emoji<'_, '_> = Emoji("🟡 ", "🟡 ");
+const STATUS_INFO: Emoji<'_, '_> = Emoji("ℹ️ ", "ℹ️ ");
 
 struct InfoFormatter {
     output: String,
@@ -308,7 +308,8 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
 fn print_error_state(formatter: &mut InfoFormatter) -> Result<()> {
     formatter.add_header("TRACER CLI STATUS")?;
     formatter.add_empty_line()?;
-    formatter.add_status_field("Daemon Status", "Not Started", "warning")?;
+    formatter.add_status_field("Daemon Status", "Not Started", "inactive")?;
+    formatter.add_field("Version", env!("CARGO_PKG_VERSION"), "bold")?;
     formatter.add_empty_line()?;
     formatter.add_section_header("NEXT STEPS")?;
     formatter.add_empty_line()?;
