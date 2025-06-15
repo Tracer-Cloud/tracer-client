@@ -289,7 +289,7 @@ mod tests {
             &mock_process,
             display_name.clone(),
             process_start_time,
-            Vec::new()
+            Vec::new(),
         )
         .await;
 
@@ -359,7 +359,7 @@ mod tests {
             &mock_process,
             display_name.clone(),
             process_start_time,
-            Vec::new()
+            Vec::new(),
         )
         .await;
 
@@ -418,7 +418,7 @@ mod tests {
             &mock_process,
             display_name,
             process_start_time,
-            Vec::new()
+            Vec::new(),
         )
         .await;
 
