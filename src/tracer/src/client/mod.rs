@@ -1,4 +1,3 @@
-pub mod config_manager;
 pub mod events;
 pub mod exporters;
 

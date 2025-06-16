@@ -4,7 +4,7 @@ use crate::client::exporters::log_writer::LogWriterEnum;
 use crate::client::TracerClient;
 use crate::common::types::cli::params::FinalizedInitArgs;
 use crate::daemon::server::DaemonServer;
-use crate::{client::config_manager::Config, utils::emit_analytic_event};
+use crate::{config::Config, utils::emit_analytic_event};
 use anyhow::{Context, Result};
 use std::net::SocketAddr;
 use tracing::info;
@@ -60,7 +60,7 @@ pub async fn monitor_processes(tracer_client: &mut TracerClient) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use crate::client::config_manager::{Config, ConfigLoader};
+    use crate::config::{Config, ConfigLoader};
     use crate::client::exporters::log_forward::LogForward;
     use crate::client::exporters::log_writer::LogWriterEnum;
     use crate::client::TracerClient;

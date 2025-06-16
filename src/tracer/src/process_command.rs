@@ -1,4 +1,4 @@
-use crate::client::config_manager::{Config, ConfigLoader};
+use crate::config::{Config, ConfigLoader};
 use crate::commands::{Cli, Commands};
 use crate::common::constants::{
     DEFAULT_DAEMON_PORT, PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR,

@@ -6,7 +6,7 @@ use std::process::Command;
 #[cfg(target_os = "linux")]
 use crate::utils::get_kernel_version;
 
-use crate::client::config_manager::{Config, ConfigLoader, INTERCEPTOR_STDOUT_FILE};
+use crate::config::{Config, ConfigLoader, INTERCEPTOR_STDOUT_FILE};
 use crate::common::constants::{
     FILE_CACHE_DIR, LOG_FILE, PID_FILE, REPO_NAME, REPO_OWNER, STDERR_FILE, STDOUT_FILE,
 };

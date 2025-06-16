@@ -3,7 +3,7 @@ use std::env;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::client::config_manager::bashrc_intercept::{
+use crate::config::bashrc_intercept::{
     modify_bashrc_file, rewrite_interceptor_bashrc_file,
 };
 

@@ -5,7 +5,7 @@ use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::sync::{Mutex, RwLock};
 
-use crate::client::config_manager;
+use crate::config;
 use crate::client::TracerClient;
 use crate::daemon::app::get_app;
 use crate::daemon::daemon_run::monitor_processes;
@@ -42,7 +42,7 @@ impl DaemonServer {
     pub async fn run(self) -> anyhow::Result<()> {
         let tracer_client = self.client.clone();
 
-        let config: Arc<RwLock<config_manager::Config>> =
+        let config: Arc<RwLock<config::Config>> =
             Arc::new(RwLock::new(tracer_client.lock().await.config.clone()));
 
         // todo: config shouldn't be here: it should only exist as a RW field in the client
