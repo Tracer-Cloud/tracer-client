@@ -2,9 +2,14 @@
 use console::Emoji;
 
 mod api;
+mod dependency;
+mod environment;
 mod kernel;
 mod root;
+
 use api::APICheck;
+use dependency::DependencyCheck;
+use environment::EnvironmentCheck;
 use kernel::KernelCheck;
 use root::RootCheck;
 
@@ -28,6 +33,8 @@ impl CheckManager {
             Box::new(APICheck::new()),
             Box::new(RootCheck::new()),
             Box::new(KernelCheck::new()),
+            Box::new(DependencyCheck::new()),
+            Box::new(EnvironmentCheck::new()),
         ];
 
         Self { checks }
@@ -41,13 +48,28 @@ impl CheckManager {
         const PASS: Emoji<'_, '_> = Emoji("✅ ", "[OK] ");
         const FAIL: Emoji<'_, '_> = Emoji("❌ ", "[X] ");
 
+        let mut all_passed = true;
+
         for check in &self.checks {
             let result = check.check().await;
+
             if result {
                 println!("{PASS}{}", check.success_message());
             } else {
                 eprintln!("{FAIL}{}", check.error_message());
+                all_passed = false;
             }
+        }
+
+        // Final status summary
+        println!(); // spacer
+
+        if all_passed {
+            println!("✅ Environment ready for installation");
+        } else {
+            println!(
+                "❌ Some requirements failed. Tracer may be limited or fail to start properly."
+            );
         }
     }
 }
