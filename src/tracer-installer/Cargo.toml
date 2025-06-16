@@ -13,5 +13,8 @@ reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
+console = { workspace = true }
+colored = { workspace = true }
 
 async-trait = "0.1.88"
+nix = { version = "0.30.1", features = ["user"]}
