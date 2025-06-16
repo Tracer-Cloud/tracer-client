@@ -60,17 +60,17 @@ pub async fn monitor_processes(tracer_client: &mut TracerClient) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::{Config, ConfigLoader};
     use crate::client::exporters::log_forward::LogForward;
     use crate::client::exporters::log_writer::LogWriterEnum;
     use crate::client::TracerClient;
     use crate::common::types::cli::interactive::InteractiveInitArgs;
     use crate::common::types::cli::params::TracerCliInitArgs;
+    use crate::config::Config;
     use crate::daemon::daemon_run::monitor_processes;
     use dotenv::dotenv;
 
     fn load_test_config() -> Config {
-        ConfigLoader::load_default_config().unwrap()
+        Config::default()
     }
 
     pub fn setup_env_vars(region: &str) {

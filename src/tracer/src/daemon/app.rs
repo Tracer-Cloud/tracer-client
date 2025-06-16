@@ -3,7 +3,7 @@ use tokio::sync::{Mutex, RwLock};
 use tokio_util::sync::CancellationToken;
 
 use crate::client::TracerClient;
-use crate::config::{Config, ConfigLoader};
+use crate::config::Config;
 use crate::daemon::structs::{InfoResponse, InnerInfoResponse, Message, RunData, TagData};
 use axum::response::IntoResponse;
 use axum::routing::post;
@@ -112,8 +112,7 @@ async fn refresh_config(
     State(state): State<AppState>,
 ) -> axum::response::Result<impl IntoResponse> {
     // todo: IO in load condig has to be async
-    let config_file =
-        ConfigLoader::load_default_config().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let config_file = Config::default();
 
     {
         let mut guard = state.tracer_client.lock().await;

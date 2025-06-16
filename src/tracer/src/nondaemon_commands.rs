@@ -9,7 +9,7 @@ use crate::utils::get_kernel_version;
 use crate::common::constants::{
     FILE_CACHE_DIR, LOG_FILE, PID_FILE, REPO_NAME, REPO_OWNER, STDERR_FILE, STDOUT_FILE,
 };
-use crate::config::{Config, ConfigLoader};
+use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use anyhow::{bail, Context, Result};
 use std::result::Result::Ok;
@@ -353,7 +353,7 @@ pub async fn setup_config(
     process_polling_interval_ms: &Option<u64>,
     batch_submission_interval_ms: &Option<u64>,
 ) -> Result<()> {
-    let mut current_config = ConfigLoader::load_default_config()?;
+    let mut current_config = Config::default();
     if let Some(api_key) = api_key {
         current_config.api_key.clone_from(api_key);
     }
@@ -383,7 +383,7 @@ pub async fn update_tracer() -> Result<()> {
         return Ok(());
     }
 
-    let config = ConfigLoader::load_default_config()?;
+    let config = Config::default();
 
     println!("Updating Tracer to version {}", release.tag_name);
 
