@@ -19,7 +19,7 @@ RUN cargo chef cook --release --recipe-path recipe.json
 # Add build dependencies
 RUN apt update && apt install -y bpftool linux-headers-generic pkg-config
 RUN rustup toolchain install nightly-2025-04-15 --component rust-src
-RUN cargo install bpf-linker && cargo install bindgen-cli && cargo install --git https://github.com/aya-rs/aya -- aya-tool
+RUN cargo install bpf-linker && cargo install bindgen-cli
 
 COPY . /app/
 
