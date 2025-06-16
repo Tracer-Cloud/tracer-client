@@ -791,7 +791,6 @@ pub static ref TARGETS: Vec<Target> = [
         process_name: None,
         command_content: "bracken".to_string(),
     })).set_display_name(DisplayName::Name("bracken".to_string())),
-
     Target::new(TargetMatch::CommandContains(CommandContainsStruct {
         process_name: None,
         command_content: "kraken2".to_string(),
@@ -867,78 +866,78 @@ pub static ref TARGETS: Vec<Target> = [
 ]
 .to_vec();
 
-// pub static ref DEFAULT_EXCLUDED_PROCESS_RULES : Vec<Target>  = vec![
+pub static ref DEFAULT_EXCLUDED_PROCESS_RULES : Vec<Target>  = vec![
     // Target::new(TargetMatch::ProcessName("java".to_string())),
     // Target::new(TargetMatch::ProcessName("bash".to_string())),
     // Target::new(TargetMatch::ProcessName("/bin/bash".to_string())),
-    // Target::new(TargetMatch::ProcessName("/usr/bin/bash".to_string())),
-    // Target::new(TargetMatch::ProcessName("make".to_string())),
-    // Target::new(TargetMatch::CommandContains(CommandContainsStruct {
-    //     process_name: None,
-    //     command_content: "spack".to_string(),
-    // })),
-    // Target::new(TargetMatch::CommandContains(CommandContainsStruct {
-    //     process_name: None,
-    //     command_content: "nextflow".to_string(),
-    // })),
-    // Target::new(TargetMatch::CommandContains(CommandContainsStruct {
-    //     process_name: None,
-    //     command_content: "nf-core".to_string(),
-    // })),
-    // Target::new(TargetMatch::CommandContains(CommandContainsStruct {
-    //     process_name: None,
-    //     command_content: ".command.sh".to_string(),
-    // })),
-    // Target::new(TargetMatch::CommandContains(CommandContainsStruct {
-    //     process_name: None,
-    //     command_content: ".command.run".to_string(),
-    // })),
-    // Target::new(TargetMatch::CommandContains(CommandContainsStruct {
-    //     process_name: Some("bash".into()),
-    //     command_content: ".command.sh".to_string(),
-    // })),
-    // Target::new(TargetMatch::CommandContains(CommandContainsStruct {
-    //     process_name: Some("bash".into()),
-    //     command_content: ".command.run".to_string(),
-    // })),
-    // Target::new(TargetMatch::CommandContains(CommandContainsStruct {
-    //     process_name: Some("/bin/bash".into()),
-    //     command_content: ".command.sh".to_string(),
-    // })),
-    // Target::new(TargetMatch::CommandContains(CommandContainsStruct {
-    //     process_name: Some("/bin/bash".into()),
-    //     command_content: ".command.run".to_string(),
-    // })),
-    // Target::new(TargetMatch::CommandContains(CommandContainsStruct {
-    //     process_name: Some("/bin/bash".into()),
-    //     command_content: "nextflow_work".to_string(),
-    // })),
-    // Target::new(TargetMatch::CommandContains(CommandContainsStruct {
-    //     process_name: Some("bash".into()),
-    //     command_content: "nextflow_work".to_string(),
-    // })),
-    // Target::new(TargetMatch::CommandContains(CommandContainsStruct {
-    //     process_name: Some("/opt/conda/bin/java".into()),
-    //     command_content: "nextflow".to_string(),
-    // })),
-    // Target::new(TargetMatch::CommandContains(CommandContainsStruct {
-    //     process_name: Some("/opt/conda/bin/java".into()),
-    //     command_content: "nextflow-config".to_string(),
-    // })),
-    // Target::new(TargetMatch::CommandContains(CommandContainsStruct {
-    //     process_name: Some("java".into()),
-    //     command_content: "nextflow".to_string(),
-    // })),
-    // Target::new(TargetMatch::CommandContains(CommandContainsStruct {
-    //     process_name: Some("java".into()),
-    //     command_content: "nextflow-config".to_string(),
-    // })),
-    // Target::new(TargetMatch::BinPathLastComponent("mkdir".to_string()),),
+    Target::new(TargetMatch::ProcessName("/usr/bin/bash".to_string())),
+    Target::new(TargetMatch::ProcessName("make".to_string())),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "spack".to_string(),
+    })),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "nextflow".to_string(),
+    })),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "nf-core".to_string(),
+    })),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: ".command.sh".to_string(),
+    })),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: ".command.run".to_string(),
+    })),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: Some("bash".into()),
+        command_content: ".command.sh".to_string(),
+    })),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: Some("bash".into()),
+        command_content: ".command.run".to_string(),
+    })),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: Some("/bin/bash".into()),
+        command_content: ".command.sh".to_string(),
+    })),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: Some("/bin/bash".into()),
+        command_content: ".command.run".to_string(),
+    })),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: Some("/bin/bash".into()),
+        command_content: "nextflow_work".to_string(),
+    })),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: Some("bash".into()),
+        command_content: "nextflow_work".to_string(),
+    })),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: Some("/opt/conda/bin/java".into()),
+        command_content: "nextflow".to_string(),
+    })),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: Some("/opt/conda/bin/java".into()),
+        command_content: "nextflow-config".to_string(),
+    })),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: Some("java".into()),
+        command_content: "nextflow".to_string(),
+    })),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: Some("java".into()),
+        command_content: "nextflow-config".to_string(),
+    })),
+    Target::new(TargetMatch::BinPathLastComponent("mkdir".to_string()),),
     // Target::new(TargetMatch::BinPathLastComponent("python".to_string())),
     // Target::new(TargetMatch::BinPathLastComponent("python3".to_string())),
-    // Target::new(TargetMatch::BinPathLastComponent("rm".to_string())),
-    // Target::new(TargetMatch::BinPathLastComponent("ln".to_string())),
-// ].to_vec();
+    Target::new(TargetMatch::BinPathLastComponent("rm".to_string())),
+    Target::new(TargetMatch::BinPathLastComponent("ln".to_string())),
+].to_vec();
 
 
 }

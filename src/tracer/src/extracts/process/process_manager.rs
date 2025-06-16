@@ -4,14 +4,13 @@ use crate::common::target_process::Target;
 use crate::common::types::event::attributes::process::CompletedProcess;
 use crate::common::types::event::attributes::EventAttributes;
 use crate::common::types::event::ProcessStatus as TracerProcessStatus;
+use crate::common::utils::log_matched_process;
 use crate::extracts::process::extract_process_data::ExtractProcessData;
 use crate::extracts::process::process_utils::create_short_lived_process_properties;
 use crate::extracts::process::types::process_result::ProcessResult;
 use crate::extracts::process::types::process_state::ProcessState;
 use chrono::Utc;
 use std::collections::{HashMap, HashSet};
-use std::fs::OpenOptions;
-use std::io::Write;
 use std::sync::Arc;
 use sysinfo::{Pid, ProcessRefreshKind, System};
 use tokio::sync::{RwLock, RwLockWriteGuard};
@@ -311,43 +310,15 @@ impl ProcessManager {
 
         for trigger in triggers {
             if let Some(matched_target) = state.get_target_manager().get_target_match(&trigger) {
-                let log_line = format!(
-                    "{} | {} | {}\n\n\n",
-                    trigger.clone().comm,
-                    trigger.clone().argv.join(" "),
-                    "MATCHED",
-                );
-
-                if let Err(e) = OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open("/tmp/tracer/matches.txt")
-                    .and_then(|mut file| file.write_all(log_line.as_bytes()))
-                {
-                    error!("Failed to write match log: {}", e);
-                }
-
                 let matched_target = matched_target.clone(); // todo: remove clone, or move targets to arcs?
                 matched_processes
                     .entry(matched_target)
                     .or_insert(HashSet::new())
-                    .insert(trigger);
-            } else {
-                let log_line = format!(
-                    "{} | {} | {}\n\n\n",
-                    trigger.clone().comm,
-                    trigger.clone().argv.join(" "),
-                    "NOT MATCHED",
-                );
+                    .insert(trigger.clone());
 
-                if let Err(e) = OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open("/tmp/tracer/matches.txt")
-                    .and_then(|mut file| file.write_all(log_line.as_bytes()))
-                {
-                    error!("Failed to write match log: {}", e);
-                }
+                log_matched_process(&trigger, true);
+            } else {
+                log_matched_process(&trigger, false);
             }
         }
 

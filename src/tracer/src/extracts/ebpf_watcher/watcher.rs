@@ -7,8 +7,7 @@ use crate::extracts::process::process_utils::get_process_argv;
 use anyhow::{Error, Result};
 use chrono::Utc;
 use std::collections::HashSet;
-use std::fs::{self, OpenOptions};
-use std::io::Write;
+use std::fs::{self};
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
@@ -88,24 +87,6 @@ impl EbpfWatcher {
 
                         if argv.is_empty() {
                             argv = get_process_argv(pid_u32 as i32);
-                        }
-
-                        // Log the process to file
-                        let log_line = format!(
-                            "{} | {} | {} | {}\n\n\n",
-                            process.name(),
-                            argv.join(" "),
-                            Utc::now(),
-                            "PROCESS POLLING"
-                        );
-
-                        if let Err(e) = OpenOptions::new()
-                            .create(true)
-                            .append(true)
-                            .open("/tmp/tracer/processes.txt")
-                            .and_then(|mut file| file.write_all(log_line.as_bytes()))
-                        {
-                            error!("Failed to write process log: {}", e);
                         }
 
                         // New process detected
@@ -228,27 +209,6 @@ impl EbpfWatcher {
                     // Process all events
                     let triggers = std::mem::take(&mut buffer);
                     println!("Received {:?}", triggers);
-
-                    for trigger in triggers.clone() {
-                        if let Trigger::ProcessStart(process_start_trigger) = trigger.clone() {
-                            // Log the process to file
-                            let log_line = format!(
-                                "{} | {} \n {} \n {}\n\n\n",
-                                process_start_trigger.comm,
-                                process_start_trigger.argv.join(" "),
-                                Utc::now(),
-                                "EBPF"
-                            );
-                            if let Err(e) = OpenOptions::new()
-                                .create(true)
-                                .append(true)
-                                .open("/tmp/tracer/processes.txt")
-                                .and_then(|mut file| file.write_all(log_line.as_bytes()))
-                            {
-                                error!("Failed to write process log: {}", e);
-                            }
-                        }
-                    }
 
                     if let Err(e) = self.process_triggers(triggers).await {
                         error!("Failed to process triggers: {}", e);
