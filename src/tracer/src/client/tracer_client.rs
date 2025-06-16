@@ -9,6 +9,7 @@ use crate::common::types::cli::params::FinalizedInitArgs;
 use anyhow::{Context, Result};
 
 use crate::client::events::{send_alert_event, send_log_event, send_start_run_event};
+use crate::client::exporters::client_export_manager::ExporterManager;
 use crate::client::exporters::log_writer::LogWriterEnum;
 use crate::client::exporters::client_export_manager::ExporterManager;
 use crate::common::recorder::LogRecorder;

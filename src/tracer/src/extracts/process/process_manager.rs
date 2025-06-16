@@ -327,6 +327,7 @@ impl ProcessManager {
                 {
                     error!("Failed to write match log: {}", e);
                 }
+
                 let matched_target = matched_target.clone(); // todo: remove clone, or move targets to arcs?
                 matched_processes
                     .entry(matched_target)
@@ -358,6 +359,7 @@ impl ProcessManager {
         state: &'a ProcessState,
         process: &ProcessStartTrigger,
     ) -> Option<&'a Target> {
+
         state.get_target_manager().get_target_match(process)
 
         // let eligible_targets_for_parents = state
@@ -370,6 +372,22 @@ impl ProcessManager {
         // if eligible_targets_for_parents.is_empty() {
         //     return None;
         // }
+
+//         if let Some(target) = state.get_target_manager().get_target_match(process) {
+//             return Some(target);
+//         }
+
+//         let eligible_targets_for_parents = state
+//             .get_target_manager()
+//             .targets
+//             .iter()
+//             .filter(|target| !target.should_force_ancestor_to_match())
+//             .collect_vec();
+
+//         if eligible_targets_for_parents.is_empty() {
+//             return None;
+//         }
+
 
         // Here it's tempting to check if the parent is just in the monitoring list. However, we can't do that because
         // parent may be matching but not yet set to be monitoring (e.g., because it just arrived or even is in the same batch)
@@ -384,6 +402,17 @@ impl ProcessManager {
         // }
 
         // None
+
+//         let parents = state.get_process_parents(process);
+//         for parent in parents {
+//             for target in eligible_targets_for_parents.iter() {
+//                 if target.matches_process(parent) {
+//                     return Some(target);
+//                 }
+//             }
+//         }
+
+//         None
     }
 
     async fn handle_new_process(
