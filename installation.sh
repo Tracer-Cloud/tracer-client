@@ -577,6 +577,7 @@ function main() {
   print_section "Setting Tracer User ID"
   persist_tracer_user_id > /dev/null
   install_tracer_binary
+  
 }
 
 main "$@"
