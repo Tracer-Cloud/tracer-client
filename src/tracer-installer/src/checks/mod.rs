@@ -1,5 +1,12 @@
+//use colored::Colorize;
+use console::Emoji;
+
 mod api;
+mod kernel;
+mod root;
 use api::APICheck;
+use kernel::KernelCheck;
+use root::RootCheck;
 
 /// Trait defining functions a Requirement check must implement before being called
 /// as a preflight step or readiness check for installing the tracer binary
@@ -17,7 +24,11 @@ pub struct CheckManager {
 
 impl CheckManager {
     pub fn new() -> Self {
-        let checks: Vec<Box<dyn InstallCheck>> = vec![Box::new(APICheck::new())];
+        let checks: Vec<Box<dyn InstallCheck>> = vec![
+            Box::new(APICheck::new()),
+            Box::new(RootCheck::new()),
+            Box::new(KernelCheck::new()),
+        ];
 
         Self { checks }
     }
@@ -27,12 +38,15 @@ impl CheckManager {
     }
 
     pub async fn run_all(&self) {
+        const PASS: Emoji<'_, '_> = Emoji("✅ ", "[OK] ");
+        const FAIL: Emoji<'_, '_> = Emoji("❌ ", "[X] ");
+
         for check in &self.checks {
             let result = check.check().await;
             if result {
-                println!("{}", check.success_message());
+                println!("{PASS}{}", check.success_message());
             } else {
-                eprintln!("{}", check.error_message());
+                eprintln!("{FAIL}{}", check.error_message());
             }
         }
     }
