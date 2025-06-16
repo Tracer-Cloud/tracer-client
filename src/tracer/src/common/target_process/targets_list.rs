@@ -824,31 +824,31 @@ pub static ref TARGETS: Vec<Target> = [
         process_name: None,
         command_content: "dupradar".to_string(),
     })).set_display_name(DisplayName::Name("dupRadar".to_string())),
-            Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
         process_name: None,
         command_content: "deseq".to_string(),
     })).set_display_name(DisplayName::Name("DESeq2".to_string())),
-            Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
         process_name: None,
         command_content: "preseq".to_string(),
     })).set_display_name(DisplayName::Name("Preseq".to_string())),
-            Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
         process_name: None,
         command_content: "rseqc".to_string(),
     })).set_display_name(DisplayName::Name("RSeQC".to_string())),
-            Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
         process_name: None,
         command_content: "bigwig".to_string(),
     })).set_display_name(DisplayName::Name("bedGraphToBigWig".to_string())),
-            Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
         process_name: None,
         command_content: "kallisto".to_string(),
     })).set_display_name(DisplayName::Name("kallisto".to_string())),
-            Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
         process_name: None,
         command_content: "rsem".to_string(),
     })).set_display_name(DisplayName::Name("RSEM".to_string())),
-            Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
         process_name: None,
         command_content: "dupradar".to_string(),
     })).set_display_name(DisplayName::Name("dupRadar".to_string())),
@@ -859,6 +859,10 @@ pub static ref TARGETS: Vec<Target> = [
     Target::new(TargetMatch::CommandContains(CommandContainsStruct {
         process_name: Some("bbsplit.sh".to_string()),
         command_content: "bbsplit.sh".to_string(),
+    })).set_display_name(DisplayName::Name("BBSplit".to_string())),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "sortmerna".to_string(),
     })),
 ]
 .to_vec();
