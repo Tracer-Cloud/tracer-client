@@ -4706,6 +4706,14 @@ dependencies = [
 [[package]]
 name = "tracer-installer"
 version = "2025.5.15+1"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+]
 
 [[package]]
 name = "tracer_ebpf"
