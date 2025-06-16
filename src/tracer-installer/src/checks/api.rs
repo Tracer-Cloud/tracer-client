@@ -22,10 +22,10 @@ impl InstallCheck for APICheck {
         "API Connectivity"
     }
     fn error_message(&self) -> String {
-        format!("{} Not Successful", self.name())
+        "Not Successful".into()
     }
     fn success_message(&self) -> String {
-        format!("{} Successful", self.name())
+        "Successful".into()
     }
 
     async fn check(&self) -> bool {

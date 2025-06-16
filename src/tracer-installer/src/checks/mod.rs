@@ -51,25 +51,25 @@ impl CheckManager {
         let mut all_passed = true;
 
         for check in &self.checks {
-            let result = check.check().await;
-
-            if result {
-                println!("{PASS}{}", check.success_message());
+            let passed = check.check().await;
+            let label = format!("{:<25}", check.name()); // left-pad to 25 chars
+            let status = if passed { PASS } else { FAIL };
+            let message = if passed {
+                check.success_message()
             } else {
-                eprintln!("{FAIL}{}", check.error_message());
                 all_passed = false;
-            }
+                check.error_message()
+            };
+
+            println!("{status} {label} {message}");
         }
 
-        // Final status summary
         println!(); // spacer
 
         if all_passed {
             println!("✅ Environment ready for installation");
         } else {
-            println!(
-                "❌ Some requirements failed. Tracer may be limited or fail to start properly."
-            );
+            println!("❌ Some requirements failed. Tracer may be limited.");
         }
     }
 }

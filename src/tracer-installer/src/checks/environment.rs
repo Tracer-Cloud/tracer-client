@@ -11,7 +11,7 @@ pub fn detect_environment_type() -> String {
     }
 
     // 2. GitHub Actions
-    if env::var("GITHUB_ACTIONS").map_or(false, |v| v == "true") {
+    if env::var("GITHUB_ACTIONS").is_ok_and(|v| v == "true") {
         return "GitHub Actions".into();
     }
 
@@ -55,11 +55,11 @@ impl InstallCheck for EnvironmentCheck {
     }
 
     fn success_message(&self) -> String {
-        format!("{}: {}", self.name(), self.detected)
+        self.detected.to_string()
     }
 
     fn error_message(&self) -> String {
-        format!("{}: Unknown", self.name())
+        "Unknown".into()
     }
 
     async fn check(&self) -> bool {
