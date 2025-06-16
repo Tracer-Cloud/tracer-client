@@ -1,0 +1,9 @@
+[package]
+name = "tracer-installer"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
