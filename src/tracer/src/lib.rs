@@ -8,6 +8,7 @@ pub mod cloud_providers;
 pub mod commands;
 pub mod common;
 pub mod config;
+pub mod constants;
 pub mod daemon;
 pub mod extracts;
 pub mod logging;

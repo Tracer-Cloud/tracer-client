@@ -3,9 +3,7 @@ use std::env;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::config::bashrc_intercept::{
-    modify_bashrc_file, rewrite_interceptor_bashrc_file,
-};
+use crate::config::bashrc_intercept::{modify_bashrc_file, rewrite_interceptor_bashrc_file};
 
 use crate::cloud_providers::aws::config::AwsConfig;
 use crate::cloud_providers::aws::types::aws_region::AwsRegion;
@@ -13,21 +11,12 @@ use crate::common::constants::DEFAULT_DAEMON_PORT;
 use crate::common::target_process::target_matching::TargetMatch;
 use crate::common::target_process::targets_list;
 use crate::common::target_process::Target;
+use crate::constants::{
+    AWS_REGION, BATCH_SUBMISSION_INTERVAL_MS, DEFAULT_API_KEY, FILE_SIZE_NOT_CHANGING_PERIOD_MS,
+    GRAFANA_WORKSPACE_URL, LOG_FORWARD_ENDPOINT_DEV, LOG_FORWARD_ENDPOINT_PROD, NEW_RUN_PAUSE_MS,
+    PROCESS_METRICS_SEND_INTERVAL_MS, PROCESS_POLLING_INTERVAL_MS, SENTRY_DSN,
+};
 use config::Config as RConfig;
-
-const DEFAULT_API_KEY: &str = "EAjg7eHtsGnP3fTURcPz1";
-const PROCESS_POLLING_INTERVAL_MS: u64 = 5;
-const BATCH_SUBMISSION_INTERVAL_MS: u64 = 5000;
-const NEW_RUN_PAUSE_MS: u64 = 10 * 60 * 1000;
-const PROCESS_METRICS_SEND_INTERVAL_MS: u64 = 500;
-const FILE_SIZE_NOT_CHANGING_PERIOD_MS: u64 = 1000 * 60;
-const LOG_FORWARD_ENDPOINT_DEV: &str = "https://sandbox.tracer.cloud/api/logs-forward/dev";
-const LOG_FORWARD_ENDPOINT_PROD: &str = "https://sandbox.tracer.cloud/api/logs-forward/prod";
-const SENTRY_DSN: &str = "https://35e0843e6748d2c93dfd56716f2eecfe@o4509281671380992.ingest.us.sentry.io/4509281680949248";
-const GRAFANA_WORKSPACE_URL: &str = "https://tracerbio.grafana.net/goto/mYJ52c-HR?orgId=1";
-const AWS_REGION: &str = "us-east-2";
-
-pub const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Config {

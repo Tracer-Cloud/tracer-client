@@ -1,4 +1,4 @@
-use crate::config::TRACER_ANALYTICS_ENDPOINT;
+use crate::constants::TRACER_ANALYTICS_ENDPOINT;
 use crate::common::types::analytics::{AnalyticsEventType, AnalyticsPayload};
 use anyhow::Context;
 use reqwest::Client;
