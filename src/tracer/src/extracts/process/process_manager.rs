@@ -191,44 +191,73 @@ impl ProcessManager {
         Ok(())
     }
 
+    /// Handles newly started processes by filtering, gathering data, and setting up monitoring
+    ///
+    /// This function:
+    /// 1. Filters processes to find those matching our target criteria
+    /// 2. Refreshes system data for matched processes
+    /// 3. Extracts and logs data for each process
+    /// 4. Updates the monitoring state to track these processes
     pub async fn handle_process_starts(
         &self,
         triggers: Vec<ProcessStartTrigger>,
     ) -> anyhow::Result<()> {
-        debug!("Processing {} process starts", triggers.len());
+        let trigger_count = triggers.len();
+        debug!("Processing {} process starts", trigger_count);
 
         // Find processes we're interested in based on targets
-        let interested_in = self.filter_processes_of_interest(triggers).await?;
+        let filtered_target_processes = self.filter_processes_of_interest(triggers).await?;
+        let matched_count = filtered_target_processes.len();
+        
+        debug!("After filtering, matched {} processes out of {}", matched_count, trigger_count);
 
-        debug!(
-            "After filtering, interested in {} processes",
-            interested_in.len()
-        );
-
-        if interested_in.is_empty() {
+        if filtered_target_processes.is_empty() {
             return Ok(());
         }
 
-        // Get the set of PIDs to refresh system data for
-        let pids_to_refresh = interested_in
-            .values()
-            .flat_map(|procs| procs.iter().map(|p| p.pid))
-            .collect();
-
+        // Collect all PIDs that need system data refreshed
+        let pids_to_refresh = self.collect_pids_to_refresh(&filtered_target_processes);
+        
         // Refresh system data for these processes
         self.refresh_system(&pids_to_refresh).await?;
 
-        // Process each new process
-        for (target, triggers) in interested_in.iter() {
-            for process in triggers.iter() {
+        // Process each matched process
+        self.process_matched_processes(&filtered_target_processes).await?;
+
+        // Update monitoring state with new processes
+        self.update_monitoring_state(filtered_target_processes).await?;
+
+        Ok(())
+    }
+
+    /// Collects all PIDs from the filtered target processes map
+    fn collect_pids_to_refresh(&self, filtered_target_processes: &HashMap<Target, HashSet<ProcessStartTrigger>>) -> HashSet<usize> {
+        filtered_target_processes
+            .values()
+            .flat_map(|procs| procs.iter().map(|p| p.pid))
+            .collect()
+    }
+
+    /// Processes each matched process by extracting and logging its data
+    async fn process_matched_processes(
+        &self, 
+        filtered_target_processes: &HashMap<Target, HashSet<ProcessStartTrigger>>
+    ) -> anyhow::Result<()> {
+        for (target, processes) in filtered_target_processes.iter() {
+            for process in processes.iter() {
                 self.handle_new_process(target, process).await?;
             }
         }
+        Ok(())
+    }
 
-        // Update monitoring state with new processes
+    /// Updates the monitoring state with new processes
+    async fn update_monitoring_state(
+        &self,
+        filtered_target_processes: HashMap<Target, HashSet<ProcessStartTrigger>>
+    ) -> anyhow::Result<()> {
         let mut state = self.state.write().await;
-        state.update_monitoring(interested_in);
-
+        state.update_monitoring(filtered_target_processes);
         Ok(())
     }
 
