@@ -6,10 +6,10 @@ use std::process::Command;
 #[cfg(target_os = "linux")]
 use crate::utils::get_kernel_version;
 
-use crate::config::{Config, ConfigLoader, INTERCEPTOR_STDOUT_FILE};
 use crate::common::constants::{
     FILE_CACHE_DIR, LOG_FILE, PID_FILE, REPO_NAME, REPO_OWNER, STDERR_FILE, STDOUT_FILE,
 };
+use crate::config::{Config, ConfigLoader};
 use crate::daemon::client::DaemonClient;
 use anyhow::{bail, Context, Result};
 use std::result::Result::Ok;
@@ -20,7 +20,6 @@ pub fn clean_up_after_daemon() -> Result<()> {
     std::fs::remove_file(PID_FILE).context("Failed to remove pid file")?;
     std::fs::remove_file(STDOUT_FILE).context("Failed to remove stdout file")?;
     std::fs::remove_file(STDERR_FILE).context("Failed to remove stderr file")?;
-    let _ = std::fs::remove_file(INTERCEPTOR_STDOUT_FILE).context("Failed to remove stdout file");
     std::fs::remove_dir_all(FILE_CACHE_DIR).context("Failed to remove cache directory")?;
     Ok(())
 }

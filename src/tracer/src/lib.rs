@@ -4,7 +4,6 @@ use crate::common::types::cli::{
 };
 
 pub mod client;
-pub mod cli_setup;
 pub mod cloud_providers;
 pub mod commands;
 pub mod common;

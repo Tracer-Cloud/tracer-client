@@ -1,9 +1,9 @@
-use crate::config::{Config, ConfigLoader};
 use crate::commands::{Cli, Commands};
 use crate::common::constants::{
     DEFAULT_DAEMON_PORT, PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR,
 };
 use crate::common::debug_log::Logger;
+use crate::config::{Config, ConfigLoader};
 use crate::daemon::client::DaemonClient;
 use crate::daemon::daemon_run::run;
 use crate::daemon::structs::{Message, TagData};
@@ -24,7 +24,6 @@ use std::fs::File;
 use std::io::{self, Write};
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use std::process::{Command, Stdio};
-use crate::cli_setup::setup_aliases;
 
 pub fn start_daemon() -> Outcome<()> {
     let daemon = Daemonize::new()
@@ -288,7 +287,6 @@ pub fn process_cli() -> Result<()> {
             }
             result
         }
-        Commands::ApplyBashrc => setup_aliases(),
         _ => {
             match tokio::runtime::Runtime::new()?.block_on(run_async_command(
                 cli.command,
