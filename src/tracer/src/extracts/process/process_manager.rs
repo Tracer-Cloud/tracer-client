@@ -1,6 +1,6 @@
 use crate::common::recorder::LogRecorder;
 use crate::common::target_process::target_process_manager::TargetManager;
-use crate::common::target_process::{Target, TargetMatchable};
+use crate::common::target_process::Target;
 use crate::common::types::event::attributes::process::CompletedProcess;
 use crate::common::types::event::attributes::EventAttributes;
 use crate::common::types::event::ProcessStatus as TracerProcessStatus;
@@ -9,7 +9,6 @@ use crate::extracts::process::process_utils::create_short_lived_process_properti
 use crate::extracts::process::types::process_result::ProcessResult;
 use crate::extracts::process::types::process_state::ProcessState;
 use chrono::Utc;
-use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -353,66 +352,6 @@ impl ProcessManager {
         }
 
         Ok(matched_processes)
-    }
-
-    fn get_matched_target<'a>(
-        state: &'a ProcessState,
-        process: &ProcessStartTrigger,
-    ) -> Option<&'a Target> {
-
-        state.get_target_manager().get_target_match(process)
-
-        // let eligible_targets_for_parents = state
-        //     .get_target_manager()
-        //     .targets
-        //     .iter()
-        //     .filter(|target| !target.should_force_ancestor_to_match())
-        //     .collect_vec();
-
-        // if eligible_targets_for_parents.is_empty() {
-        //     return None;
-        // }
-
-//         if let Some(target) = state.get_target_manager().get_target_match(process) {
-//             return Some(target);
-//         }
-
-//         let eligible_targets_for_parents = state
-//             .get_target_manager()
-//             .targets
-//             .iter()
-//             .filter(|target| !target.should_force_ancestor_to_match())
-//             .collect_vec();
-
-//         if eligible_targets_for_parents.is_empty() {
-//             return None;
-//         }
-
-
-        // Here it's tempting to check if the parent is just in the monitoring list. However, we can't do that because
-        // parent may be matching but not yet set to be monitoring (e.g., because it just arrived or even is in the same batch)
-
-        // let parents = state.get_process_parents(process);
-        // for parent in parents {
-        //     for target in eligible_targets_for_parents.iter() {
-        //         if target.matches_process(parent) {
-        //             return Some(target);
-        //         }
-        //     }
-        // }
-
-        // None
-
-//         let parents = state.get_process_parents(process);
-//         for parent in parents {
-//             for target in eligible_targets_for_parents.iter() {
-//                 if target.matches_process(parent) {
-//                     return Some(target);
-//                 }
-//             }
-//         }
-
-//         None
     }
 
     async fn handle_new_process(

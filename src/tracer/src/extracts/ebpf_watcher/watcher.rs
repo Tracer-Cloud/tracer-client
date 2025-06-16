@@ -230,27 +230,23 @@ impl EbpfWatcher {
                     println!("Received {:?}", triggers);
 
                     for trigger in triggers.clone() {
-                        match trigger.clone() {
-                            Trigger::ProcessStart(process_start_trigger) => {
-                                // Log the process to file
-                                let log_line = format!(
-                                    "{} | {} \n {} \n {}\n\n\n",
-                                    process_start_trigger.comm,
-                                    process_start_trigger.argv.join(" "),
-                                    Utc::now(),
-                                    "EBPF"
-                                );
-
-                                if let Err(e) = OpenOptions::new()
-                                    .create(true)
-                                    .append(true)
-                                    .open("/tmp/tracer/processes.txt")
-                                    .and_then(|mut file| file.write_all(log_line.as_bytes()))
-                                {
-                                    error!("Failed to write process log: {}", e);
-                                }
+                        if let Trigger::ProcessStart(process_start_trigger) = trigger.clone() {
+                            // Log the process to file
+                            let log_line = format!(
+                                "{} | {} \n {} \n {}\n\n\n",
+                                process_start_trigger.comm,
+                                process_start_trigger.argv.join(" "),
+                                Utc::now(),
+                                "EBPF"
+                            );
+                            if let Err(e) = OpenOptions::new()
+                                .create(true)
+                                .append(true)
+                                .open("/tmp/tracer/processes.txt")
+                                .and_then(|mut file| file.write_all(log_line.as_bytes()))
+                            {
+                                error!("Failed to write process log: {}", e);
                             }
-                            _ => {}
                         }
                     }
 

@@ -4,7 +4,7 @@ use crate::client::config_manager::Config;
 
 use crate::cloud_providers::aws::pricing::PricingSource;
 use crate::common::target_process::target_process_manager::TargetManager;
-use crate::common::target_process::targets_list::DEFAULT_EXCLUDED_PROCESS_RULES;
+// use crate::common::target_process::targets_list::DEFAULT_EXCLUDED_PROCESS_RULES;
 use crate::common::types::cli::params::FinalizedInitArgs;
 use anyhow::{Context, Result};
 
@@ -110,7 +110,7 @@ impl TracerClient {
     fn init_ebpf_watcher(config: &Config, log_recorder: &LogRecorder) -> Arc<EbpfWatcher> {
         let target_manager = TargetManager::new(
             config.targets.clone(),
-            DEFAULT_EXCLUDED_PROCESS_RULES.to_vec(),
+            Vec::new(),
         );
         Arc::new(EbpfWatcher::new(target_manager, log_recorder.clone()))
     }

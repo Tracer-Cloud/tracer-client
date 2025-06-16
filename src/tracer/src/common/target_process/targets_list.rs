@@ -863,7 +863,7 @@ pub static ref TARGETS: Vec<Target> = [
 ]
 .to_vec();
 
-pub static ref DEFAULT_EXCLUDED_PROCESS_RULES : Vec<Target>  = vec![
+// pub static ref DEFAULT_EXCLUDED_PROCESS_RULES : Vec<Target>  = vec![
     // Target::new(TargetMatch::ProcessName("java".to_string())),
     // Target::new(TargetMatch::ProcessName("bash".to_string())),
     // Target::new(TargetMatch::ProcessName("/bin/bash".to_string())),
@@ -934,7 +934,7 @@ pub static ref DEFAULT_EXCLUDED_PROCESS_RULES : Vec<Target>  = vec![
     // Target::new(TargetMatch::BinPathLastComponent("python3".to_string())),
     // Target::new(TargetMatch::BinPathLastComponent("rm".to_string())),
     // Target::new(TargetMatch::BinPathLastComponent("ln".to_string())),
-].to_vec();
+// ].to_vec();
 
 
 }
