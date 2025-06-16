@@ -4703,6 +4703,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "tracer-installer"
+version = "2025.5.15+1"
+
+[[package]]
 name = "tracer_ebpf"
 version = "2025.5.15+1"
 dependencies = [
