@@ -61,17 +61,23 @@ impl InstallCheck for KernelCheck {
         if !Self::is_supported_os() {
             let os_name = Self::get_os_name().unwrap_or_else(|| "Unknown".to_string());
             return format!(
-                "Kernel eBPF Support Failed: {} detected. eBPF requires Linux kernel ≥ 4.4.",
+                "{} Failed: {} detected. Requires Linux kernel ≥ 4.4.",
+                self.name(),
                 os_name
             );
         }
 
         match Self::get_kernel_version() {
-            Some((major, minor)) => format!(
-                "Linux kernel v{}.{} detected. Tracer recommends kernel v5.15 or newer for eBPF support.",
-                major, minor
-            ),
-            None => "Unable to determine Linux kernel version.".to_string(),
+            Some((major, minor)) => {
+                format!(
+                    "{} Failed: Detected Linux v{}.{} (min required: v5.15)",
+                    self.name(),
+                    major,
+                    minor
+                )
+            }
+
+            None => "Linux version unknown. Requires kernel ≥ v5.15.".to_string(),
         }
     }
 
