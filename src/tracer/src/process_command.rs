@@ -24,6 +24,7 @@ use std::fs::File;
 use std::io::{self, Write};
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use std::process::{Command, Stdio};
+use crate::cli_setup::setup_aliases;
 
 pub fn start_daemon() -> Outcome<()> {
     let daemon = Daemonize::new()
@@ -287,7 +288,7 @@ pub fn process_cli() -> Result<()> {
             }
             result
         }
-        Commands::ApplyBashrc => ConfigLoader::setup_aliases(),
+        Commands::ApplyBashrc => setup_aliases(),
         _ => {
             match tokio::runtime::Runtime::new()?.block_on(run_async_command(
                 cli.command,

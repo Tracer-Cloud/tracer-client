@@ -1,14 +1,9 @@
-use std::env;
-
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-
-use crate::config::bashrc_intercept::{modify_bashrc_file, rewrite_interceptor_bashrc_file};
 
 use crate::cloud_providers::aws::config::AwsConfig;
 use crate::cloud_providers::aws::types::aws_region::AwsRegion;
 use crate::common::constants::DEFAULT_DAEMON_PORT;
-use crate::common::target_process::target_matching::TargetMatch;
 use crate::common::target_process::targets_list;
 use crate::common::target_process::Target;
 use crate::constants::{
@@ -48,8 +43,8 @@ pub struct Config {
 pub struct ConfigLoader;
 
 impl ConfigLoader {
-    pub fn load_default_config() -> Result<Config> {
-        let aws_default_profile = match dirs::home_dir() {
+    fn get_aws_default_profile() -> String {
+        match dirs::home_dir() {
             None => "default",
             Some(path) => {
                 if std::fs::read_to_string(path.join(".types/credentials"))
@@ -61,9 +56,10 @@ impl ConfigLoader {
                     "default"
                 }
             }
-        }
-        .to_string();
-
+        }.to_string()
+    }
+    
+    pub fn load_default_config() -> Result<Config> {
         // removing use of toml file
         let mut builder = RConfig::builder();
 
@@ -81,7 +77,7 @@ impl ConfigLoader {
                 "process_metrics_send_interval_ms",
                 PROCESS_METRICS_SEND_INTERVAL_MS,
             )?
-            .set_default("aws_init_type", AwsConfig::Profile(aws_default_profile))?
+            .set_default("aws_init_type", AwsConfig::Profile(Self::get_aws_default_profile()))?
             .set_default("aws_region", AWS_REGION)?
             .set_default("database_name", "tracer_db")?
             .set_default("server", format!("127.0.0.1:{}", DEFAULT_DAEMON_PORT))?
@@ -107,38 +103,5 @@ impl ConfigLoader {
         }
 
         Ok(config)
-    }
-
-    pub fn setup_aliases() -> Result<()> {
-        let config = ConfigLoader::load_default_config()?;
-        rewrite_interceptor_bashrc_file(
-            env::current_exe()?,
-            config
-                .targets
-                .iter()
-                .filter(|target| {
-                    matches!(
-                        &target.match_type,
-                        TargetMatch::ShortLivedProcessExecutable(_)
-                    )
-                })
-                .collect(),
-        )?;
-
-        modify_bashrc_file(".bashrc")?;
-
-        println!("Command interceptors setup successfully.");
-        Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_default_config() {
-        let config = ConfigLoader::load_default_config().unwrap();
-        assert!(!config.targets.is_empty());
     }
 }

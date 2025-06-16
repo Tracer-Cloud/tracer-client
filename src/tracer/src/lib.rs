@@ -4,6 +4,7 @@ use crate::common::types::cli::{
 };
 
 pub mod client;
+pub mod cli_setup;
 pub mod cloud_providers;
 pub mod commands;
 pub mod common;
@@ -15,6 +16,7 @@ pub mod logging;
 pub mod nondaemon_commands;
 pub mod process_command;
 pub mod utils;
+
 /// Runs tracer init in interactive mode
 pub fn init_command_interactive_mode(cli_args: TracerCliInitArgs) -> FinalizedInitArgs {
     InteractiveInitArgs::from_partial(cli_args)
