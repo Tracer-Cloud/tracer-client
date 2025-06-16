@@ -108,10 +108,7 @@ impl TracerClient {
     }
 
     fn init_ebpf_watcher(config: &Config, log_recorder: &LogRecorder) -> Arc<EbpfWatcher> {
-        let target_manager = TargetManager::new(
-            config.targets.clone(),
-            Vec::new(),
-        );
+        let target_manager = TargetManager::new(config.targets.clone(), Vec::new());
         Arc::new(EbpfWatcher::new(target_manager, log_recorder.clone()))
     }
 
@@ -161,6 +158,18 @@ impl TracerClient {
                                 .context("Failed to start process polling after eBPF failure")
                         }
                     }
+                }
+                Some((major, minor)) => {
+                    warn!(
+                        "Kernel version {}.{} is too old for eBPF support (requires 5.15+), falling back to process polling",
+                        major, minor
+                    );
+                    self.ebpf_watcher
+                        .start_process_polling(self.config.process_polling_interval_ms)
+                        .await
+                        .context(
+                            "Failed to start process polling due to unsupported kernel version",
+                        )
                 }
                 None => {
                     error!("Failed to detect kernel version, falling back to process polling");
