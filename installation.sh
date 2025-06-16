@@ -4,6 +4,7 @@
 # ENV=${1:-production}
 
 BINARY_NAME="tracer"
+USER_ID="${TRACER_USER_ID:-}"
 
 # echo "Arg: $1"
 
@@ -140,6 +141,39 @@ printindmsg() {
 printsucc() {
     printf "${Gre}%s${RCol}\n" "$*"
     printlog "$*"
+}
+
+
+#---  ANALYTICS PREP -----------------------------------------------------------
+
+persist_tracer_user_id() {
+
+    if [[ -z "$USER_ID" ]]; then
+        echo "- ${EMOJI_CANCEL} No user ID provided. Skipping user ID persistence..."
+        return
+    fi
+
+    local RC_FILES=(
+        "$HOME/.bashrc"
+        "$HOME/.bash_profile"
+        "$HOME/.zshrc"
+        "$HOME/.profile"
+    )
+
+    for file in "${RC_FILES[@]}"; do
+        if [ -f "$file" ]; then
+            if grep -q "export TRACER_USER_ID=" "$file"; then
+                sed -i.bak "s|export TRACER_USER_ID=.*|export TRACER_USER_ID=\"$USER_ID\"|" "$file"
+                printmsg "Updated TRACER_USER_ID in ${Blu}$file${RCol}"
+            else
+                echo "export TRACER_USER_ID=\"$USER_ID\"" >> "$file"
+                printmsg "Added TRACER_USER_ID to ${Blu}$file${RCol}"
+            fi
+        fi
+    done
+
+    export TRACER_USER_ID="$USER_ID"
+    printsucc "Set TRACER_USER_ID in current session and existing shell configs"
 }
 
 #---  SYSTEM CHECKS  -----------------------------------------------------------
@@ -309,13 +343,17 @@ function download_tracer() {
     # Set up SUID bit for macOS
     if [[ "$OS" == "Darwin"* ]]; then
         echo "- ${EMOJI_BOX} Setting up elevated privileges..."
-        if ! sudo -n chown root "$BINDIR/tracer" || ! sudo -n chmod u+s "$BINDIR/tracer"; then
-            SUID_SETUP_FAILED=true
-            echo "- ${EMOJI_CANCEL} Failed to set up SUID bit. You may need to run the following commands manually:"
-            echo "  sudo chown root $BINDIR/tracer"
-            echo "  sudo chmod u+s $BINDIR/tracer"
-        else
+        # Try setting SUID bit silently (non-interactive)
+        sudo -n chown root "$BINDIR/tracer" 2>/dev/null && sudo -n chmod u+s "$BINDIR/tracer" 2>/dev/null
+
+        if [ $? -eq 0 ]; then
             echo "- ${EMOJI_CHECK} Set up SUID bit for elevated privileges"
+        else
+            SUID_SETUP_FAILED=true
+            echo "- ${EMOJI_CANCEL} Skipped SUID setup (non-interactive sudo failed)."
+            echo "  If needed, run the following manually:"
+            echo "  ${Cya}sudo chown root $BINDIR/tracer${RCol}"
+            echo "  ${Cya}sudo chmod u+s $BINDIR/tracer${RCol}"
         fi
     fi
 }
@@ -364,6 +402,7 @@ update_rc() {
     # Try to determine the user's current shell
     CURRENT_SHELL=$(basename "$SHELL")
     
+    print_section "adding path to export tracer"
     # Add to all shell config files
     for rc_file in "${RC_FILES[@]}"; do
         add_path_to_file "$rc_file"
@@ -471,19 +510,33 @@ function print_install_complete() {
 }
 
 
+# --- ANALYTICS EVENT --------
 
-#---  CLEANUP FUNCTIONS  ------------------------------------------------------
-function cleanup() {
-    echo ""
+EVENT_INSTALL_STARTED="install_script_started"
+EVENT_INSTALL_COMPLETED="install_script_completed"
+function send_analytics_event() {
+    local event_name="$1"
+    local metadata="$2"
 
-    if [ -d "$TRACER_TEMP_DIR" ]; then
-        rm -rf "$TRACER_TEMP_DIR"
+    if [[ -z "$USER_ID" ]]; then
+        echo "- ${EMOJI_CANCEL} No user ID provided. Skipping analytics event: $event_name"
+        return
     fi
-    print_install_complete
-    $ExitTrap
+
+    local response
+    response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://sandbox.tracer.cloud/api/analytics" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "userId": "'"${USER_ID}"'",
+            "event_name": "'"${event_name}"'",
+            "metadata": '"${metadata:-null}"'
+        }')
+
+    if [[ "$response" != "200" ]]; then
+        echo "- ${EMOJI_CANCEL} Failed to send analytics event: $event_name (HTTP $response)"
+    fi
 }
 
-trap cleanup EXIT
 
 
 
@@ -491,6 +544,8 @@ trap cleanup EXIT
 function cleanup() {
     echo ""
     print_section "Cleanup"
+    send_analytics_event "$EVENT_INSTALL_COMPLETED"
+
 
     if [ -d "$TRACER_TEMP_DIR" ]; then
         rm -rf "$TRACER_TEMP_DIR" && echo "- ${EMOJI_CHECK} Cleaned up temporary files."
@@ -507,7 +562,11 @@ trap cleanup EXIT
 function main() {
   print_header
   check_system_requirements
+  send_analytics_event "$EVENT_INSTALL_STARTED" "{\"os\": \"$(uname -s)\", \"arch\": \"$(uname -m)\"}"
+  print_section "Setting Tracer User ID"
+  persist_tracer_user_id > /dev/null
   install_tracer_binary
+  
 }
 
 main "$@"

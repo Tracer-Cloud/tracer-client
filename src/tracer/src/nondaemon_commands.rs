@@ -223,7 +223,7 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
                 &mut output,
                 "   │ {} Visualize Data:     {:<width$}                        │",
                 WEB,
-                "https://sandbox.tracer.app".bright_blue().underline(),
+                "https://sandbox.tracer.cloud".bright_blue().underline(),
                 width = width - 50
             )?;
             writeln!(&mut output, "   │{:width$}│", "", width = width)?;
