@@ -863,7 +863,7 @@ pub static ref TARGETS: Vec<Target> = [
     Target::new(TargetMatch::CommandContains(CommandContainsStruct {
         process_name: None,
         command_content: "sortmerna".to_string(),
-    })),
+    })).set_display_name(DisplayName::Name("SortMeRNA".to_string())),
 ]
 .to_vec();
 
