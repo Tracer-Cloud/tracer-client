@@ -13,13 +13,13 @@ impl RootCheck {
 #[async_trait::async_trait]
 impl InstallCheck for RootCheck {
     fn name(&self) -> &'static str {
-        "Root Priviledges"
+        "Root Priviledges Access"
     }
     fn error_message(&self) -> String {
-        format!("{} Access", self.name())
+        "Not Running As Root".into()
     }
     fn success_message(&self) -> String {
-        format!("{} Access", self.name())
+        "Running As Root".into()
     }
 
     async fn check(&self) -> bool {

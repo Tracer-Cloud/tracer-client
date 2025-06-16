@@ -24,7 +24,7 @@ impl KernelCheck {
             .ok()
             .and_then(|output| {
                 String::from_utf8(output.stdout).ok().and_then(|version| {
-                    let parts: Vec<&str> = version.trim().split(|c| c == '.' || c == '-').collect();
+                    let parts: Vec<&str> = version.trim().split(&['.', '-']).collect();
                     if parts.len() >= 2 {
                         let major = parts[0].parse::<u32>().ok()?;
                         let minor = parts[1].parse::<u32>().ok()?;
@@ -60,20 +60,14 @@ impl InstallCheck for KernelCheck {
     fn error_message(&self) -> String {
         if !Self::is_supported_os() {
             let os_name = Self::get_os_name().unwrap_or_else(|| "Unknown".to_string());
-            return format!(
-                "{} Failed: {} detected. Requires Linux kernel ≥ 4.4.",
-                self.name(),
-                os_name
-            );
+            return format!("Failed: {} detected. Requires Linux kernel ≥ 4.4.", os_name);
         }
 
         match Self::get_kernel_version() {
             Some((major, minor)) => {
                 format!(
-                    "{} Failed: Detected Linux v{}.{} (min required: v5.15)",
-                    self.name(),
-                    major,
-                    minor
+                    "Failed: Detected Linux v{}.{} (min required: v5.15)",
+                    major, minor
                 )
             }
 
