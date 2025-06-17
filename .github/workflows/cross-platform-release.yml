@@ -76,7 +76,15 @@ jobs:
           if [[ "${{ matrix.runner }}" == *"ubuntu"* ]]; then
             # Install necessary eBPF dependencies for Linux
             sudo apt-get update
-            sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm libelf-dev
+            sudo apt-get install -y \
+              linux-headers-$(uname -r) \
+              libbpf-dev \
+              clang \
+              llvm \
+              libelf-dev \
+              elfutils \
+              libdw-dev \
+              pkg-config
           fi
 
       # Verify submodules are properly loaded
