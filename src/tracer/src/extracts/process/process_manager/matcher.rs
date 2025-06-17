@@ -1,4 +1,5 @@
 use crate::common::target_process::Target;
+use crate::common::utils::log_matched_process;
 use crate::extracts::process::types::process_state::ProcessState;
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
@@ -24,11 +25,15 @@ impl Filter {
 
         for trigger in triggers {
             if let Some(matched_target) = state.get_target_manager().get_target_match(&trigger) {
+                log_matched_process(&trigger, true);
+
                 let matched_target = matched_target.clone();
                 matched_processes
                     .entry(matched_target)
                     .or_insert(HashSet::new())
                     .insert(trigger);
+            } else {
+                log_matched_process(&trigger, false);
             }
         }
 
