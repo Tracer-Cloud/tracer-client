@@ -63,7 +63,7 @@ impl EbpfWatcher {
             process_polling_interval_ms
         );
         let watcher = Arc::clone(self);
-        let interval = std::time::Duration::from_millis(1);
+        let interval = std::time::Duration::from_millis(process_polling_interval_ms);
 
         tokio::spawn(async move {
             println!("Starting process polling loop");
