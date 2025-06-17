@@ -27,8 +27,9 @@ impl TriggerProcessor {
             for trigger in &out_of_memory_triggers {
                 debug!("Processing OOM trigger for PID: {}", trigger.pid);
             }
-            let process_manager = self.process_manager.write().await;
-            process_manager
+            self.process_manager
+                .write()
+                .await
                 .handle_out_of_memory_signals(out_of_memory_triggers)
                 .await;
         }
@@ -47,12 +48,15 @@ impl TriggerProcessor {
                 debug!("Processing end trigger for PID: {}", trigger.pid);
             }
 
-            let process_manager = self.process_manager.write().await;
-            process_manager
+            self.process_manager
+                .write()
+                .await
                 .handle_out_of_memory_terminations(&mut process_end_triggers)
                 .await;
 
-            process_manager
+            self.process_manager
+                .write()
+                .await
                 .handle_process_terminations(process_end_triggers)
                 .await?;
         }
@@ -75,8 +79,9 @@ impl TriggerProcessor {
                     trigger.pid, trigger.comm, trigger.ppid
                 );
             }
-            let process_manager = self.process_manager.write().await;
-            process_manager
+            self.process_manager
+                .write()
+                .await
                 .handle_process_starts(process_start_triggers)
                 .await?;
         }
