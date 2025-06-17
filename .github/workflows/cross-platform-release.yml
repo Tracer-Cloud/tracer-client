@@ -135,3 +135,73 @@ jobs:
           gh release upload ${{ github.ref_name }} release-files/tracer-${{ matrix.target }}.tar.gz --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
+  build-and-release-amazon-linux:
+    needs: create-release
+    permissions: write-all
+    runs-on: ubuntu-latest
+    container:
+      image: amazonlinux:2023
+
+    steps:
+      - name: Install dependencies
+        run: |
+          yum update -y
+          yum groupinstall -y "Development Tools"
+          yum  install -y kernel-devel kernel-headers clang llvm libbpf-devel
+
+
+      - name: Install Rust
+        run: |
+          curl https://sh.rustup.rs -sSf | sh -s -- -y
+          echo 'source $HOME/.cargo/env' >> ~/.bashrc
+          source $HOME/.cargo/env
+          rustup target add x86_64-unknown-linux-gnu
+          rustup toolchain install nightly-2025-04-15 --component rust-src
+
+      - name: Check out repository with submodules
+        uses: actions/checkout@v4.1.4
+        with:
+          submodules: recursive  # This will fetch all submodules recursively
+          fetch-depth: 0  # Fetch all history for versioning
+
+      - name: Configure Git safe directory
+        run: git config --global --add safe.directory $GITHUB_WORKSPACE
+
+      - name: Update version in Cargo.toml
+        run: |
+          # Get current date in YYYY.MM.DD format
+          DATE=$(date +'%Y.%-m.%-d')
+          # Get short commit hash
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          # Get time in HH.MM format
+          TIME=$(date +'%H.%M')
+          # Create new version string
+          NEW_VERSION="${DATE}+${TIME}.${COMMIT_HASH}"
+          # Update version in Cargo.toml (compatible with both macOS and Linux)
+          if [[ "${{ matrix.runner }}" == *"macos"* ]]; then
+            sed -i '' "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
+          else
+            sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
+          fi
+          # Print the new version for verification
+          echo "Updated version to: ${NEW_VERSION}"
+
+      - name: Build the binary
+        run: |
+          source $HOME/.cargo/env
+          cargo build --release
+
+      - name: Prepare binary for release
+        run: |
+          mkdir -p release-files/amazon-linux
+          cp target/release/tracer release-files/amazon-linux/tracer
+          chmod +x release-files/amazon-linux/tracer
+          tar -czf release-files/tracer-x86_64-amazon-linux-gnu.tar.gz -C release-files/amazon-linux tracer
+      
+      - name: Upload to release
+        run: |
+          gh release upload ${{ github.ref_name }} release-files/tracer-x86_64-amazon-linux-gnu.tar.gz --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
