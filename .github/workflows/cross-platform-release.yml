@@ -24,15 +24,15 @@ jobs:
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
-            os: ubuntu-22.04
+            runner: ubuntu-22.04
           - target: aarch64-unknown-linux-gnu
-            os: ubuntu-22.04-arm
+            runner: ubuntu-22.04-arm
           - target: x86_64-apple-darwin
-            os: macos-latest
+            runner: macos-latest
           - target: aarch64-apple-darwin
-            os: macos-latest
+            runner: macos-latest
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Check out repository with submodules
         uses: actions/checkout@v4.1.4
@@ -52,7 +52,7 @@ jobs:
           NEW_VERSION="${DATE}+${TIME}"
           
           # Update version in Cargo.toml (compatible with both macOS and Linux)
-          if [[ "${{ runner.os }}" == "macOS" ]]; then
+          if [[ "${{ matrix.runner }}" == *"macos"* ]]; then
             sed -i '' "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
           else
             sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
@@ -101,12 +101,6 @@ jobs:
           if [ ! -d "vendor/bpftool" ] || [ ! -d "vendor/libbpf" ]; then
             echo "WARNING: Expected vendor subdirectories are missing"
           fi
-
-      - name: Install cross-compilation tools
-        uses: taiki-e/setup-cross-toolchain-action@v1
-        with:
-          target: ${{ matrix.target }}
-        if: startsWith(matrix.os, 'ubuntu')
 
       - name: Build binary
         run: cargo build --release --target ${{ matrix.target }}
