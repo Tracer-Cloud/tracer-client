@@ -32,8 +32,12 @@ async fn main() {
                 }
             };
 
-            let installer = Installer { platform, version };
-            if let Err(err) = installer.run(user_id).await {
+            let installer = Installer {
+                platform,
+                version,
+                user_id,
+            };
+            if let Err(err) = installer.run().await {
                 eprintln!("Error Running Installer: {err}");
                 std::process::exit(1);
             }
