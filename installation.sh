@@ -5,6 +5,7 @@
 
 BINARY_NAME="tracer"
 USER_ID="${TRACER_USER_ID:-}"
+SESSION_ID="${TRACER_SESSION_ID:-}"
 
 # Set your github username and repo name
 repo="Tracer-Cloud/tracer-client"
@@ -554,7 +555,7 @@ function send_analytics_event() {
 function cleanup() {
     echo ""
     print_section "Cleanup"
-    send_analytics_event "$EVENT_INSTALL_COMPLETED"
+    send_analytics_event "$EVENT_INSTALL_COMPLETED" "{\"os\": \"$(uname -s)\", \"arch\": \"$(uname -m)\", \"session_id\": \"${SESSION_ID}\"}"
 
 
     if [ -d "$TRACER_TEMP_DIR" ]; then
@@ -572,7 +573,7 @@ trap cleanup EXIT
 function main() {
   print_header
   check_system_requirements
-  send_analytics_event "$EVENT_INSTALL_STARTED" "{\"os\": \"$(uname -s)\", \"arch\": \"$(uname -m)\"}"
+  send_analytics_event "$EVENT_INSTALL_STARTED" "{\"os\": \"$(uname -s)\", \"arch\": \"$(uname -m)\", \"session_id\": \"${SESSION_ID}\"}"
   print_section "Setting Tracer User ID"
   persist_tracer_user_id > /dev/null
   install_tracer_binary
