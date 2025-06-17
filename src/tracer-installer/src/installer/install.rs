@@ -6,7 +6,12 @@ use std::fs::File as StdFile;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use tar::Archive;
-use tokio::{fs::File, io::AsyncWriteExt};
+use tokio::{
+    fs::File,
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+};
+
+use tokio::fs::{self, OpenOptions};
 
 use crate::installer::url_builder::TracerUrlFinder;
 
@@ -36,6 +41,10 @@ impl Installer {
 
         self.extract_tarball(&archive_path, &extract_path)?;
         let installed_path = self.install_to_final_dir(&extract_path)?;
+
+        Self::patch_rc_files_async(Some("12434"))
+            .await
+            .expect("failed to write to rc files");
 
         println!("🚀 Done! Tracer is ready at {}", installed_path.display());
 
@@ -95,5 +104,64 @@ impl Installer {
         println!("✅ Tracer installed to: {}", final_path.display());
 
         Ok(final_path)
+    }
+
+    pub async fn patch_rc_files_async(user_id: Option<&str>) -> Result<()> {
+        let home = dirs::home_dir().context("Could not find home directory")?;
+
+        let export_path = r#"export PATH="$HOME/.tracerbio/bin:$PATH""#;
+        let export_user = user_id.map(|id| format!(r#"export TRACER_USER_ID="{}""#, id));
+
+        let rc_files = [".bashrc", ".bash_profile", ".zshrc", ".profile"];
+
+        for rc in rc_files {
+            let path = home.join(rc);
+            if !path.exists() {
+                continue;
+            }
+
+            let file = fs::File::open(&path).await?;
+            let reader = BufReader::new(file);
+            let mut lines = Vec::new();
+            let mut lines_stream = reader.lines();
+
+            while let Some(line) = lines_stream.next_line().await? {
+                lines.push(line);
+            }
+
+            // Clean from bottom-up
+            lines.reverse();
+            lines.retain(|line| {
+                !line.contains(".tracerbio/bin") && !line.contains("TRACER_USER_ID=")
+            });
+            lines.reverse();
+
+            // Overwrite the file with cleaned lines
+            let mut cleaned_file = OpenOptions::new()
+                .write(true)
+                .truncate(true)
+                .open(&path)
+                .await?;
+            for line in &lines {
+                cleaned_file.write_all(line.as_bytes()).await?;
+                cleaned_file.write_all(b"\n").await?;
+            }
+
+            // Append new entries
+            let mut append_file = OpenOptions::new().append(true).open(&path).await?;
+            append_file
+                .write_all(b"\n# Added by Tracer installer\n")
+                .await?;
+            append_file.write_all(export_path.as_bytes()).await?;
+            append_file.write_all(b"\n").await?;
+            if let Some(user_line) = &export_user {
+                append_file.write_all(user_line.as_bytes()).await?;
+                append_file.write_all(b"\n").await?;
+            }
+
+            println!("Updated shell profile: {}", path.display());
+        }
+
+        Ok(())
     }
 }
