@@ -105,9 +105,14 @@ jobs:
       - name: Build binary
         run: cargo build --release --target ${{ matrix.target }}
 
+      - name: Create archive
+        run: |
+          mkdir -p dist
+          tar -czf dist/tracer-${{ matrix.target }}.tar.gz -C target/${{ matrix.target }}/release tracer
+
       - name: Install GitHub CLI
         run: |
-          if [[ "${{ runner.os }}" == "macOS" ]]; then
+          if [[ "${{ matrix.runner }}" == *"macos"* ]]; then
             brew install gh
           else
             type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
@@ -120,6 +125,6 @@ jobs:
 
       - name: Upload to release
         run: |
-          gh release upload ${{ github.ref_name }} target/${{ matrix.target }}/release/tracer --clobber
+          gh release upload ${{ github.ref_name }} dist/tracer-${{ matrix.target }}.tar.gz --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
