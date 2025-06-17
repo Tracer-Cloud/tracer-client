@@ -36,8 +36,9 @@ jobs:
 
           # Create new version string
           NEW_VERSION="${DATE}+${TIME}"
+          
           # Update version in Cargo.toml (compatible with both macOS and Linux)
-          if [[ "${{ matrix.runner }}" == *"macos"* ]]; then
+          if [[ "${{ runner.os }}" == "macOS" ]]; then
             sed -i '' "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
           else
             sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
