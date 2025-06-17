@@ -1,6 +1,5 @@
-use std::process::Command;
-// src/tracer_client.rs
 use crate::config::Config;
+use std::process::Command;
 
 use crate::cloud_providers::aws::pricing::PricingSource;
 use crate::common::target_process::target_process_manager::TargetManager;
@@ -23,7 +22,10 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use sysinfo::System;
 use tokio::sync::{mpsc, RwLock};
-use tracing::{error, info, warn};
+use tracing::{error, info};
+
+#[cfg(target_os = "linux")]
+use tracing::warn;
 
 pub struct TracerClient {
     system: Arc<RwLock<System>>, // todo: use arc swap

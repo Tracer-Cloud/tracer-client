@@ -49,10 +49,10 @@ curl -sSL https://install.tracer.cloud/ | sudo bash && source ~/.bashrc && sourc
 curl -sSL https://install.tracer.cloud/installation-script-development.sh | sudo bash && source ~/.bashrc && source ~/.zshrc
 ```
 
-To get the binary corresponding to the dev branch you just have to put `-s dev` after the bash command like in the following example
+To get the binary corresponding to the `main` branch you just have to put `-s main` after the bash command like in the following example
 
 ```bash
-curl -sSL https://install.tracer.cloud/installation-script-development.sh | sudo bash -s dev && source ~/.bashrc
+curl -sSL https://install.tracer.cloud/installation-script-development.sh | sudo bash -s main && source ~/.bashrc
 ```
 
 To get your pr binary use `bash -s <branch-name>` like in the following example
