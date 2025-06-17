@@ -17,11 +17,12 @@ use tracer_ebpf::ebpf_trigger::{
 };
 
 /// Main coordinator for process management operations
+/// Uses functional programming principles with direct component access
 pub struct ProcessManager {
-    state_manager: StateManager,
-    logger: ProcessLogger,
-    matcher: Filter,
-    system_refresher: SystemRefresher,
+    pub state_manager: StateManager,
+    pub logger: ProcessLogger,
+    pub matcher: Filter,
+    pub system_refresher: SystemRefresher,
 }
 
 impl ProcessManager {
@@ -40,7 +41,7 @@ impl ProcessManager {
     }
 
     /// Sets the eBPF task handle
-    pub async fn set_ebpf_task(&mut self, task: JoinHandle<()>) {
+    pub async fn set_ebpf_task(&self, task: JoinHandle<()>) {
         self.state_manager.set_ebpf_task(task).await;
     }
 
@@ -111,7 +112,7 @@ impl ProcessManager {
         self.state_manager.get_number_of_monitored_processes().await
     }
 
-    /// Finds matching processes (delegates to Filter for consistency)
+    /// Finds matching processes (functional approach with explicit data flow)
     pub async fn find_matching_processes(
         &self,
         triggers: Vec<ProcessStartTrigger>,
@@ -171,7 +172,6 @@ mod tests {
         let target = Target::new(TargetMatch::ProcessName("test_process".to_string()));
         let target_manager = TargetManager::new(vec![target.clone()], vec![]);
         let log_recorder = create_mock_log_recorder();
-
         let process_manager = ProcessManager::new(target_manager, log_recorder);
 
         // Create a process that directly matches the target
@@ -183,9 +183,8 @@ mod tests {
             "/usr/bin/test_process",
         );
 
-        // Test the function
-        let result = process_manager
-            .find_matching_processes(vec![process])
+        // Test the function using functional approach
+        let result = process_manager.find_matching_processes(vec![process])
             .await
             .unwrap();
 
@@ -196,11 +195,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_find_matching_processes_no_match() {
-        // Create a target and set up the watcher
+        // Create a target and set up the process manager
         let target = Target::new(TargetMatch::ProcessName("test_process".to_string()));
         let target_manager = TargetManager::new(vec![target.clone()], vec![]);
         let log_recorder = create_mock_log_recorder();
-
         let process_manager = ProcessManager::new(target_manager, log_recorder);
 
         // Create a process that doesn't match any target
@@ -212,9 +210,8 @@ mod tests {
             "/usr/bin/non_matching_process",
         );
 
-        // Test the function
-        let result = process_manager
-            .find_matching_processes(vec![process])
+        // Test the function using functional approach
+        let result = process_manager.find_matching_processes(vec![process])
             .await
             .unwrap();
 
@@ -254,9 +251,8 @@ mod tests {
         // Insert the parent process into the state first
         process_manager.state_manager.insert_process(parent_process.pid, parent_process).await;
 
-        // Test with the child process
-        let result = process_manager
-            .find_matching_processes(vec![child_process.clone()])
+        // Test with the child process using functional approach
+        let result = process_manager.find_matching_processes(vec![child_process.clone()])
             .await
             .unwrap();
 
@@ -303,9 +299,8 @@ mod tests {
         // Insert the parent process into the state first
         process_manager.state_manager.insert_process(parent_process.pid, parent_process).await;
 
-        // Test with the child process
-        let result = process_manager
-            .find_matching_processes(vec![child_process])
+        // Test with the child process using functional approach
+        let result = process_manager.find_matching_processes(vec![child_process])
             .await
             .unwrap();
 
@@ -385,11 +380,9 @@ mod tests {
     ) {
         let target_manager = TargetManager::new(TARGETS.to_vec(), vec![]);
         let log_recorder = create_mock_log_recorder();
-
         let process_manager = ProcessManager::new(target_manager, log_recorder);
 
-        let result = process_manager
-            .find_matching_processes(vec![process])
+        let result = process_manager.find_matching_processes(vec![process])
             .await
             .unwrap();
 
@@ -423,10 +416,9 @@ mod tests {
     async fn test_nextflow_wrapped_scripts(#[case] process: ProcessStartTrigger) {
         let target_manager = TargetManager::new(TARGETS.to_vec(), vec![]);
         let log_recorder = create_mock_log_recorder();
-
         let process_manager = ProcessManager::new(target_manager, log_recorder);
-        let result = process_manager
-            .find_matching_processes(vec![process])
+
+        let result = process_manager.find_matching_processes(vec![process])
             .await
             .unwrap();
 
