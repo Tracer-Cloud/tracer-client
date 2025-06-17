@@ -32,10 +32,10 @@ pub struct InstallTracerCli {
 pub enum InstallerCommand {
     /// Run the Tracer installer with the specified version or branch
     Run {
-        /// The version or branch to install.
+        /// The channel or branch to install.
         /// Accepts "development", "production", or a custom branch name.
         #[arg(default_value = "development")]
-        version: TracerVersion,
+        channel: TracerVersion,
 
         /// Optional user ID used to associate this installation with your account.
         #[arg(long)]

@@ -22,31 +22,23 @@ const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analyt
 
 pub struct Installer {
     pub platform: PlatformInfo,
-    pub version: TracerVersion,
+    pub channel: TracerVersion,
     pub user_id: Option<String>,
 }
 
 impl Installer {
+    /// Executes the tracer binary download process:
+    /// - Downloads the appropriate Tracer binary based on platform and version
+    /// - Extracts and installs it to `~/.tracerbio/bin`
+    /// - Updates shell configuration files to include Tracer in the PATH
+    /// - Emits analytics events if a user ID is provided
     pub async fn run(&self) -> Result<()> {
-        if let Some(ref user_id) = self.user_id {
-            let metadata = self.build_install_metadata();
-            let user_id = user_id.clone();
-            tokio::spawn(async move {
-                if let Err(_err) = Self::emit_install_event(
-                    &user_id,
-                    AnalyticsEventType::InstallScriptStarted,
-                    Some(metadata),
-                )
-                .await
-                {
-                    eprintln!("Failed to send analytics event: ")
-                }
-            });
-        };
+        self.emit_analytic_event(AnalyticsEventType::InstallScriptStarted)
+            .await;
 
         let finder = TracerUrlFinder;
         let url = finder
-            .get_binary_url(self.version.clone(), &self.platform)
+            .get_binary_url(self.channel.clone(), &self.platform)
             .await?;
 
         println!("📦 Downloading Tracer from:\n  {url}");
@@ -66,21 +58,8 @@ impl Installer {
             .await
             .expect("failed to write to rc files");
 
-        if let Some(ref user_id) = self.user_id {
-            let metadata = self.build_install_metadata();
-            let user_id = user_id.clone();
-            tokio::spawn(async move {
-                if let Err(_err) = Self::emit_install_event(
-                    &user_id,
-                    AnalyticsEventType::InstallScriptCompleted,
-                    Some(metadata),
-                )
-                .await
-                {
-                    eprintln!("Failed to send analytics event: ")
-                }
-            });
-        };
+        self.emit_analytic_event(AnalyticsEventType::InstallScriptCompleted)
+            .await;
 
         println!("🚀 Done! Tracer is ready at {}", installed_path.display());
 
@@ -201,7 +180,7 @@ impl Installer {
         Ok(())
     }
 
-    pub async fn emit_install_event(
+    pub async fn send_analytic_event(
         user_id: &str,
         event: AnalyticsEventType,
         metadata: Option<HashMap<String, String>>,
@@ -237,8 +216,21 @@ impl Installer {
 
         map.insert("platform_os".into(), format!("{:?}", self.platform.os));
         map.insert("platform_arch".into(), format!("{:?}", self.platform.arch));
-        map.insert("version".into(), format!("{:?}", self.version));
+        map.insert("channel".into(), format!("{:?}", self.channel));
 
         map
+    }
+
+    pub async fn emit_analytic_event(&self, event: AnalyticsEventType) {
+        if let Some(ref user_id) = self.user_id {
+            let metadata = self.build_install_metadata();
+            let user_id = user_id.clone();
+            tokio::spawn(async move {
+                if let Err(_err) = Self::send_analytic_event(&user_id, event, Some(metadata)).await
+                {
+                    eprintln!("Failed to send analytics event: ")
+                }
+            });
+        };
     }
 }
