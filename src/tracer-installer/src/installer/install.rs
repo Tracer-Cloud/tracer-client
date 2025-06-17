@@ -18,7 +18,7 @@ use super::platform::PlatformInfo;
 use crate::installer::url_builder::TracerUrlFinder;
 use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
 
-const TRACER_ANALYTICS_ENDPOINT: &str = "https://your.analytics.endpoint.com/events";
+const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics";
 
 pub struct Installer {
     pub platform: PlatformInfo,
