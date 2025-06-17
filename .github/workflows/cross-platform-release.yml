@@ -6,25 +6,27 @@ on:
       - "v*"
 
 jobs:
-  upload-assets:
+  build-binaries:
     permissions: write-all
     strategy:
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
-            os: ubuntu-22.04
+            runner: ubuntu-22.04
           - target: aarch64-unknown-linux-gnu
-            os: ubuntu-22.04-arm
+            runner: ubuntu-22.04-arm
           - target: x86_64-apple-darwin
-            os: macos-latest
+            runner: macos-latest
           - target: aarch64-apple-darwin
-            os: macos-latest
+            runner: macos-latest
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4.1.4
+      - name: Check out repository with submodules
+        uses: actions/checkout@v4.1.4
         with:
           submodules: recursive  # This will fetch all submodules recursively
+          fetch-depth: 0  # Fetch all history for versioning
 
       - name: Update version in Cargo.toml
         run: |
@@ -36,12 +38,14 @@ jobs:
 
           # Create new version string
           NEW_VERSION="${DATE}+${TIME}"
+          
           # Update version in Cargo.toml (compatible with both macOS and Linux)
           if [[ "${{ matrix.runner }}" == *"macos"* ]]; then
             sed -i '' "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
           else
             sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
           fi
+          
           # Print the new version for verification
           echo "Updated version to: ${NEW_VERSION}"
 
@@ -86,14 +90,103 @@ jobs:
             echo "WARNING: Expected vendor subdirectories are missing"
           fi
 
-      - name: Install cross-compilation tools
-        uses: taiki-e/setup-cross-toolchain-action@v1
-        with:
-          target: ${{ matrix.target }}
-        if: startsWith(matrix.os, 'ubuntu')
+      - name: Build binary
+        run: cargo build --release --target ${{ matrix.target }}
 
-      - uses: taiki-e/upload-rust-binary-action@v1
+      - name: Prepare binary for release
+        run: |
+          mkdir -p release-files/${{ matrix.target }}
+          cp target/${{ matrix.target }}/release/tracer release-files/${{ matrix.target }}/tracer
+          chmod +x release-files/${{ matrix.target }}/tracer
+          tar -czf release-files/tracer-${{ matrix.target }}.tar.gz -C release-files/${{ matrix.target }} tracer
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
-          bin: tracer
-          target: ${{ matrix.target }}
+          name: tracer-${{ matrix.target }}
+          path: release-files/tracer-${{ matrix.target }}.tar.gz
+
+  build-amazon-linux:
+    permissions: write-all
+    runs-on: ubuntu-latest
+    container:
+      image: amazonlinux:2023
+
+    steps:
+      - name: Install dependencies
+        run: |
+          yum update -y
+          yum groupinstall -y "Development Tools"
+          yum install -y kernel-devel kernel-headers clang llvm libbpf-devel
+
+      - name: Install Rust
+        run: |
+          curl https://sh.rustup.rs -sSf | sh -s -- -y
+          echo 'source $HOME/.cargo/env' >> ~/.bashrc
+          source $HOME/.cargo/env
+          rustup target add x86_64-unknown-linux-gnu
+          rustup toolchain install nightly-2025-04-15 --component rust-src
+
+      - name: Check out repository with submodules
+        uses: actions/checkout@v4.1.4
+        with:
+          submodules: recursive  # This will fetch all submodules recursively
+          fetch-depth: 0  # Fetch all history for versioning
+
+      - name: Configure Git safe directory
+        run: git config --global --add safe.directory $GITHUB_WORKSPACE
+
+      - name: Update version in Cargo.toml
+        run: |
+          # Get current date in YYYY.MM.DD format
+          DATE=$(date +'%Y.%-m.%-d')
+          # Get short commit hash
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          # Get time in HH.MM format
+          TIME=$(date +'%H.%M')
+          # Create new version string
+          NEW_VERSION="${DATE}+${TIME}.${COMMIT_HASH}"
+          sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
+          echo "Updated version to: ${NEW_VERSION}"
+
+      - name: Build the binary
+        run: |
+          source $HOME/.cargo/env
+          cargo build --release
+
+      - name: Prepare binary for release
+        run: |
+          mkdir -p release-files/amazon-linux
+          cp target/release/tracer release-files/amazon-linux/tracer
+          chmod +x release-files/amazon-linux/tracer
+          tar -czf release-files/tracer-x86_64-amazon-linux-gnu.tar.gz -C release-files/amazon-linux tracer
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracer-amazon-linux
+          path: release-files/tracer-x86_64-amazon-linux-gnu.tar.gz
+
+  create-release:
+    needs: [build-binaries, build-amazon-linux]
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - name: Create Release
+        id: create_release
+        uses: taiki-e/create-gh-release-action@v1.8.2
+        with:
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Upload to release
+        run: |
+          for file in artifacts/*/*.tar.gz; do
+            gh release upload ${{ github.ref_name }} "$file" --clobber
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

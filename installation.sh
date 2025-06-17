@@ -34,7 +34,7 @@ elif [[ "$1" == "production" ]]; then
     echo "Downloading version ${tag}"
     TRACER_LINUX_URL_X86_64="https://github.com/${repo}/releases/download/${TRACER_VERSION}/tracer-x86_64-unknown-linux-gnu.tar.gz"
     TRACER_LINUX_URL_ARM="https://github.com/${repo}/releases/download/${TRACER_VERSION}/tracer-aarch64-unknown-linux-gnu.tar.gz"
-    TRACER_AMAZON_LINUX_URL_X86_64="https://github.com/${repo}/releases/download/tracer-x86_64-amazon-linux-gnu.tar.gz"
+    TRACER_AMAZON_LINUX_URL_X86_64="https://github.com/${repo}/releases/download/${TRACER_VERSION}/tracer-x86_64-amazon-linux-gnu.tar.gz"
     TRACER_MACOS_AARCH_URL="https://github.com/${repo}/releases/download/${TRACER_VERSION}/tracer-aarch64-apple-darwin.tar.gz"
     TRACER_MACOS_X86_URL="https://github.com/${repo}/releases/download/${TRACER_VERSION}/tracer-x86_64-apple-darwin.tar.gz"
 else
