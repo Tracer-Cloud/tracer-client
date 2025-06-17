@@ -6,6 +6,15 @@
 BINARY_NAME="tracer"
 USER_ID="${TRACER_USER_ID:-}"
 
+# Set your github username and repo name
+repo="Tracer-Cloud/tracer-client"
+
+# Get latest release info
+release=$(curl --silent "https://api.github.com/repos/$repo/releases/latest")
+
+# Release version
+tag=$(echo "$release" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+
 # echo "Arg: $1"
 
 # Set environment-specific variables based on the environment parameter
@@ -21,12 +30,13 @@ if [[ "$1" == "development" ]]; then
 elif [[ "$1" == "production" ]]; then
     echo "Production configuration"
     # Production configuration // production binaries coming from Github 
-    TRACER_VERSION="v2025.5.15+1"
-    TRACER_LINUX_URL_X86_64="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-x86_64-unknown-linux-gnu.tar.gz"
-    TRACER_LINUX_URL_ARM="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-aarch64-unknown-linux-gnu.tar.gz"
-    TRACER_AMAZON_LINUX_URL_X86_64="https://tracer-releases.s3.us-east-1.amazonaws.com/tracer-x86_64-amazon-linux-gnu.tar.gz"
-    TRACER_MACOS_AARCH_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-aarch64-apple-darwin.tar.gz"
-    TRACER_MACOS_X86_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${TRACER_VERSION}/tracer-x86_64-apple-darwin.tar.gz"
+    TRACER_VERSION=${tag}
+    echo "Downloading version ${tag}"
+    TRACER_LINUX_URL_X86_64="https://github.com/${repo}/releases/download/${TRACER_VERSION}/tracer-x86_64-unknown-linux-gnu.tar.gz"
+    TRACER_LINUX_URL_ARM="https://github.com/${repo}/releases/download/${TRACER_VERSION}/tracer-aarch64-unknown-linux-gnu.tar.gz"
+    TRACER_AMAZON_LINUX_URL_X86_64="https://github.com/${repo}/releases/download/tracer-x86_64-amazon-linux-gnu.tar.gz"
+    TRACER_MACOS_AARCH_URL="https://github.com/${repo}/releases/download/${TRACER_VERSION}/tracer-aarch64-apple-darwin.tar.gz"
+    TRACER_MACOS_X86_URL="https://github.com/${repo}/releases/download/${TRACER_VERSION}/tracer-x86_64-apple-darwin.tar.gz"
 else
     echo "Custom branch configuration: $1"
     # Custom branch configuration // binaries coming from S3 github actions with branch name
