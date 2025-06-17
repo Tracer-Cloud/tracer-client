@@ -16,7 +16,11 @@ impl TargetManager {
     /// Returns the matching target if it's not blacklisted
     pub fn get_target_match(&self, process: &ProcessStartTrigger) -> Option<&Target> {
         // Skip blacklisted processes
-        if self.blacklist.iter().any(|b| b.matches_process(process)) {
+        if self
+            .blacklist
+            .iter()
+            .any(|target| target.matches_process(process))
+        {
             tracing::error!(
                 "blocking process: {} | path: {} | argv: {:?}",
                 process.comm,
@@ -27,11 +31,12 @@ impl TargetManager {
         }
 
         // Return first matching target
-        self.targets.iter().find(|t| t.matches_process(process))
+        self.targets
+            .iter()
+            .find(|target| target.matches_process(process))
     }
 }
 
-//TODO add tests related to targets
 #[cfg(test)]
 mod tests {
     use crate::common::target_process::target_matching::{CommandContainsStruct, TargetMatch};

@@ -1,16 +1,14 @@
-use colored::Colorize;
-use console::Emoji;
-use std::fmt::Write;
 use std::process::Command;
 
 #[cfg(target_os = "linux")]
 use crate::utils::get_kernel_version;
 
-use crate::client::config_manager::{Config, ConfigLoader, INTERCEPTOR_STDOUT_FILE};
 use crate::common::constants::{
-    FILE_CACHE_DIR, LOG_FILE, PID_FILE, REPO_NAME, REPO_OWNER, STDERR_FILE, STDOUT_FILE,
+    FILE_CACHE_DIR, PID_FILE, REPO_NAME, REPO_OWNER, STDERR_FILE, STDOUT_FILE,
 };
+use crate::config::Config;
 use crate::daemon::client::DaemonClient;
+use crate::utils::info_formatter::InfoFormatter;
 use anyhow::{bail, Context, Result};
 use std::result::Result::Ok;
 use tokio::time::sleep;
@@ -20,7 +18,6 @@ pub fn clean_up_after_daemon() -> Result<()> {
     std::fs::remove_file(PID_FILE).context("Failed to remove pid file")?;
     std::fs::remove_file(STDOUT_FILE).context("Failed to remove stdout file")?;
     std::fs::remove_file(STDERR_FILE).context("Failed to remove stderr file")?;
-    let _ = std::fs::remove_file(INTERCEPTOR_STDOUT_FILE).context("Failed to remove stdout file");
     std::fs::remove_dir_all(FILE_CACHE_DIR).context("Failed to remove cache directory")?;
     Ok(())
 }
@@ -175,186 +172,38 @@ pub fn print_install_readiness() -> Result<()> {
 }
 
 pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Result<()> {
-    let mut output = String::new();
-
+    let mut formatter = InfoFormatter::new(90);
     let info = match api_client.send_info_request().await {
         Ok(info) => info,
         Err(e) => {
             tracing::error!("Error getting info response: {e}");
-            const CHECK: Emoji<'_, '_> = Emoji("✨ ", "[OK] ");
-            const PLAY: Emoji<'_, '_> = Emoji("▶️ ", "▶ ");
-            const BOOK: Emoji<'_, '_> = Emoji("📖 ", "-> ");
-            const SUPPORT: Emoji<'_, '_> = Emoji("✉️ ", "-> ");
-            const WEB: Emoji<'_, '_> = Emoji("🌐 ", "-> ");
-            const WARNING: Emoji<'_, '_> = Emoji("⚠️ ", "⚠ ");
-            let width = 75;
-
-            writeln!(
-                &mut output,
-                "\n{} {}",
-                CHECK,
-                "Tracer CLI installed.".bold()
-            )?;
-            writeln!(
-                &mut output,
-                "{} Daemon status: {}",
-                WARNING,
-                "Not started yet".yellow()
-            )?;
-
-            writeln!(
-                &mut output,
-                "\n   ╭{:─^width$}╮",
-                " Next Steps ",
-                width = width
-            )?;
-            writeln!(&mut output, "   │{:width$}│", "", width = width)?;
-
-            writeln!(
-                &mut output,
-                "   │ {} {:<width$} │",
-                PLAY,
-                "tracer init         Interactive Pipeline Setup",
-                width = width - 6
-            )?;
-            writeln!(&mut output, "   │{:width$}│", "", width = width)?;
-
-            writeln!(
-                &mut output,
-                "   │ {} Visualize Data:     {:<width$}                        │",
-                WEB,
-                "https://sandbox.tracer.cloud".bright_blue().underline(),
-                width = width - 50
-            )?;
-            writeln!(&mut output, "   │{:width$}│", "", width = width)?;
-
-            writeln!(
-                &mut output,
-                "   │ {} Documentation:      {:<width$}     │",
-                BOOK,
-                "https://github.com/Tracer-Cloud/tracer-client"
-                    .bright_blue()
-                    .underline(),
-                width = width - 30
-            )?;
-            writeln!(&mut output, "   │{:width$}│", "", width = width)?;
-
-            writeln!(
-                &mut output,
-                "   │ {} Support: {:<width$} │",
-                SUPPORT,
-                "           support@tracer.cloud".bright_blue(),
-                width = width - 15
-            )?;
-            writeln!(&mut output, "   │{:width$}│", "", width = width)?;
-
-            writeln!(&mut output, "   ╰{:─^width$}╯", "", width = width)?;
-            println!("{}", output);
+            formatter.print_error_state()?;
+            println!("{}", formatter.get_output());
             return Ok(());
         }
     };
 
-    // Fixed width for the left column and separator
-    let total_header_width = 80;
+    formatter.add_header("TRACER INFO")?;
+    formatter.add_empty_line()?;
 
-    writeln!(
-        &mut output,
-        "\n┌{:─^width$}┐",
-        " TRACER INFO ",
-        width = total_header_width
-    )?;
+    formatter.print_daemon_status()?;
 
-    writeln!(
-        &mut output,
-        "│ Daemon status:            │ {}  ",
-        "Running".green()
-    )?;
-
-    if let Some(ref inner) = info.inner {
-        writeln!(
-            &mut output,
-            "│ Pipeline name:            │ {}  ",
-            inner.pipeline_name
-        )?;
-        writeln!(
-            &mut output,
-            "│ Run name:                 │ {}  ",
-            inner.run_name
-        )?;
-        writeln!(
-            &mut output,
-            "│ Run ID:                   │ {}  ",
-            inner.run_id
-        )?;
-        writeln!(
-            &mut output,
-            "│ Total Run Time:           │ {}  ",
-            inner.formatted_runtime()
-        )?;
+    if let Some(inner) = &info.inner {
+        formatter.print_pipeline_info(inner, &info)?;
     }
 
-    writeln!(
-        &mut output,
-        "│ Recognized Processes:     │ {}:{}  ",
-        info.watched_processes_count,
-        info.watched_processes_preview()
-    )?;
-
-    writeln!(
-        &mut output,
-        "│ Daemon version:           │ {}  ",
-        env!("CARGO_PKG_VERSION")
-    )?;
-
-    let clickable_url = format!(
-        "\u{1b}]8;;{0}\u{1b}\\{0}\u{1b}]8;;\u{1b}\\",
-        config.grafana_workspace_url
-    );
-    let colored_url = clickable_url.bright_blue().underline().to_string();
-
-    writeln!(
-        &mut output,
-        "│ Grafana Workspace URL:    │ {}  ",
-        colored_url
-    )?;
-
-    writeln!(
-        &mut output,
-        "│ Process polling interval: │ {} ms  ",
-        config.process_polling_interval_ms
-    )?;
-
-    writeln!(
-        &mut output,
-        "│ Batch submission interval:│ {} ms  ",
-        config.batch_submission_interval_ms
-    )?;
-
-    writeln!(
-        &mut output,
-        "│ Tracer Agent Log files:   │ {}  ",
-        STDOUT_FILE
-    )?;
-
-    writeln!(
-        &mut output,
-        "│                           │ {}  ",
-        STDERR_FILE
-    )?;
-
-    writeln!(&mut output, "│                           │ {}  ", LOG_FILE)?;
-
-    writeln!(&mut output, "└{:─^width$}┘", "", width = total_header_width)?;
-
-    println!("{}", output);
+    formatter.print_config_and_logs(config)?;
+    formatter.add_footer()?;
+    println!("{}", formatter.get_output());
     Ok(())
 }
+
 pub async fn setup_config(
     api_key: &Option<String>,
     process_polling_interval_ms: &Option<u64>,
     batch_submission_interval_ms: &Option<u64>,
 ) -> Result<()> {
-    let mut current_config = ConfigLoader::load_default_config()?;
+    let mut current_config = Config::default();
     if let Some(api_key) = api_key {
         current_config.api_key.clone_from(api_key);
     }
@@ -384,7 +233,7 @@ pub async fn update_tracer() -> Result<()> {
         return Ok(());
     }
 
-    let config = ConfigLoader::load_default_config()?;
+    let config = Config::default();
 
     println!("Updating Tracer to version {}", release.tag_name);
 

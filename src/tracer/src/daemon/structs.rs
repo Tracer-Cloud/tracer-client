@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use crate::common::types::current_run::PipelineMetadata;
+use crate::common::types::pipeline_tags::PipelineTags;
 use chrono::{DateTime, TimeDelta, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -18,6 +19,7 @@ pub struct InnerInfoResponse {
     pub run_id: String,
     pub pipeline_name: String,
     pub start_time: DateTime<Utc>,
+    pub tags: PipelineTags,
 }
 
 impl InfoResponse {
@@ -46,6 +48,7 @@ impl TryFrom<PipelineMetadata> for InnerInfoResponse {
                 run_name: run.name,
                 pipeline_name: value.pipeline_name,
                 start_time: run.start_time,
+                tags: value.tags,
             })
         } else {
             Err(anyhow::anyhow!("No run found"))

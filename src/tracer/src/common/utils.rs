@@ -1,8 +1,11 @@
-use anyhow::{Context, Result};
-use serde_json::{Map, Value};
-
 use crate::common::types::event::attributes::process::ProcessProperties;
 use crate::common::types::event::{attributes::EventAttributes, Event};
+use anyhow::{Context, Result};
+use serde_json::{Map, Value};
+use std::fs::OpenOptions;
+use std::io::Write;
+use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
+use tracing::error;
 
 /// Flattens the `attributes` field of an event with prefixing, e.g.:
 /// `process.tool_name` or `system_properties.ec2_cost_per_hour`
@@ -53,5 +56,25 @@ pub fn flatten_with_prefix(prefix: &str, val: &Value, out: &mut Map<String, Valu
         _ => {
             out.insert(prefix.to_string(), val.clone());
         }
+    }
+}
+
+pub fn log_matched_process(trigger: &ProcessStartTrigger, is_matched: bool) {
+    let matched_string = if is_matched { "MATCHED" } else { "NOT MATCHED" };
+
+    let log_line = format!(
+        "{} | {} | {}\n\n\n",
+        trigger.clone().comm,
+        trigger.clone().argv.join(" "),
+        matched_string,
+    );
+
+    if let Err(e) = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("/tmp/tracer/matches.txt")
+        .and_then(|mut file| file.write_all(log_line.as_bytes()))
+    {
+        error!("Failed to write match log: {}", e);
     }
 }

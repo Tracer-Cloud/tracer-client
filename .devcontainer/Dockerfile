@@ -14,4 +14,4 @@ RUN rustup toolchain install stable && rustup toolchain install nightly-2025-04-
 RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
 RUN cargo binstall cargo-nextest --secure
 
-RUN cargo install bpf-linker && cargo install bindgen-cli && cargo install --git https://github.com/aya-rs/aya -- aya-tool
+RUN cargo install bpf-linker && cargo install bindgen-cli

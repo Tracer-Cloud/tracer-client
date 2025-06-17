@@ -18,6 +18,7 @@ pub struct FullProcessProperties {
     pub tool_parent_pid: String,
     pub tool_binary_path: String,
     pub tool_cmd: String,
+    pub tool_args: String,
     pub start_timestamp: String,
     pub process_cpu_utilization: f32,
     pub process_memory_usage: u64,

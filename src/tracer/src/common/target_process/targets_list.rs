@@ -715,7 +715,7 @@ pub static ref TARGETS: Vec<Target> = [
     Target::new(TargetMatch::ProcessName("PEAR".to_string())),
     Target::new(TargetMatch::ProcessName("Trimmomatic".to_string())),
     Target::new(TargetMatch::ProcessName("sra-toolkit".to_string())),
-    Target::new(TargetMatch::ProcessName("Picard".to_string())),
+    Target::new(TargetMatch::ProcessName("picard".to_string())),
     Target::new(TargetMatch::ProcessName("cutadapt".to_string())),
     Target::new(TargetMatch::ProcessName("cellranger".to_string())),
     Target::new(TargetMatch::ProcessName("STATsolo".to_string())),
@@ -775,13 +775,101 @@ pub static ref TARGETS: Vec<Target> = [
     // tracer internal oom_example
     Target::new(TargetMatch::ProcessName("oom_example_c".to_string())),
 
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: Some("java".to_string()),
+        command_content: "picard".to_string(),
+    })).set_display_name(DisplayName::Name("picard".to_string())),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "picard".to_string(),
+    })).set_display_name(DisplayName::Name("picard".to_string())),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "bracken-build".to_string(),
+    })).set_display_name(DisplayName::Name("bracken".to_string())),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "bracken".to_string(),
+    })).set_display_name(DisplayName::Name("bracken".to_string())),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "kraken2".to_string(),
+    })).set_display_name(DisplayName::Name("kraken2".to_string())),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "kraken2-build".to_string(),
+    })).set_display_name(DisplayName::Name("kraken2".to_string())),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "umi_tools".to_string(),
+    })).set_display_name(DisplayName::Name("umi_tools".to_string())),
+        Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "fastp".to_string(),
+    })).set_display_name(DisplayName::Name("fastp".to_string())),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "multiqc".to_string(),
+    })).set_display_name(DisplayName::Name("multiqc".to_string())),
+        Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "qualimap".to_string(),
+    })).set_display_name(DisplayName::Name("qualimap".to_string())),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "fq".to_string(),
+    })).set_display_name(DisplayName::Name("fq".to_string())),
+        Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "dupradar".to_string(),
+    })).set_display_name(DisplayName::Name("dupRadar".to_string())),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "deseq".to_string(),
+    })).set_display_name(DisplayName::Name("DESeq2".to_string())),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "preseq".to_string(),
+    })).set_display_name(DisplayName::Name("Preseq".to_string())),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "rseqc".to_string(),
+    })).set_display_name(DisplayName::Name("RSeQC".to_string())),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "bigwig".to_string(),
+    })).set_display_name(DisplayName::Name("bedGraphToBigWig".to_string())),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "kallisto".to_string(),
+    })).set_display_name(DisplayName::Name("kallisto".to_string())),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "rsem".to_string(),
+    })).set_display_name(DisplayName::Name("RSEM".to_string())),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "dupradar".to_string(),
+    })).set_display_name(DisplayName::Name("dupRadar".to_string())),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: Some("cat".to_string()),
+        command_content: "fastq".to_string(),
+    })).set_display_name(DisplayName::Name("cat fastq".to_string())),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: Some("bbsplit.sh".to_string()),
+        command_content: "bbsplit.sh".to_string(),
+    })).set_display_name(DisplayName::Name("BBSplit".to_string())),
+    Target::new(TargetMatch::CommandContains(CommandContainsStruct {
+        process_name: None,
+        command_content: "sortmerna".to_string(),
+    })).set_display_name(DisplayName::Name("SortMeRNA".to_string())),
 ]
 .to_vec();
 
 pub static ref DEFAULT_EXCLUDED_PROCESS_RULES : Vec<Target>  = vec![
-    Target::new(TargetMatch::ProcessName("java".to_string())),
-    Target::new(TargetMatch::ProcessName("bash".to_string())),
-    Target::new(TargetMatch::ProcessName("/bin/bash".to_string())),
+    // Target::new(TargetMatch::ProcessName("java".to_string())),
+    // Target::new(TargetMatch::ProcessName("bash".to_string())),
+    // Target::new(TargetMatch::ProcessName("/bin/bash".to_string())),
     Target::new(TargetMatch::ProcessName("/usr/bin/bash".to_string())),
     Target::new(TargetMatch::ProcessName("make".to_string())),
     Target::new(TargetMatch::CommandContains(CommandContainsStruct {
@@ -845,14 +933,10 @@ pub static ref DEFAULT_EXCLUDED_PROCESS_RULES : Vec<Target>  = vec![
         command_content: "nextflow-config".to_string(),
     })),
     Target::new(TargetMatch::BinPathLastComponent("mkdir".to_string()),),
-    Target::new(TargetMatch::BinPathLastComponent("python".to_string())),
-    Target::new(TargetMatch::BinPathLastComponent("python3".to_string())),
+    // Target::new(TargetMatch::BinPathLastComponent("python".to_string())),
+    // Target::new(TargetMatch::BinPathLastComponent("python3".to_string())),
     Target::new(TargetMatch::BinPathLastComponent("rm".to_string())),
     Target::new(TargetMatch::BinPathLastComponent("ln".to_string())),
-
-
-
-
 ].to_vec();
 
 
@@ -918,5 +1002,9 @@ pub static DEFAULT_DISPLAY_PROCESS_RULES: LazyLock<Vec<&'static str>> = LazyLock
         "trim_galore",
         "tr",
         "bedclip",
+        "umi_tools",
+        "fastp",
+        "rsem",
+        "bedgraphtobigwig",
     ]
 });
