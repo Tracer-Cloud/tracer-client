@@ -6,7 +6,16 @@ on:
       - "v*"
 
 jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - uses: taiki-e/create-gh-release-action@v1.8.2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
   upload-assets:
+    needs: create-release
     permissions: write-all
     strategy:
       matrix:
@@ -36,7 +45,7 @@ jobs:
 
           # Create new version string
           NEW_VERSION="${DATE}+${TIME}"
-          
+
           # Update version in Cargo.toml (compatible with both macOS and Linux)
           if [[ "${{ runner.os }}" == "macOS" ]]; then
             sed -i '' "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
