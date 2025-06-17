@@ -41,11 +41,8 @@ impl EbpfWatcher {
     }
 
     pub async fn update_targets(self: &Arc<Self>, targets: Vec<Target>) -> Result<()> {
-        self.process_manager
-            .write()
-            .await
-            .update_targets(targets)
-            .await?;
+        let process_manager = self.process_manager.write().await;
+        process_manager.update_targets(targets).await?;
         Ok(())
     }
 
@@ -165,7 +162,7 @@ impl EbpfWatcher {
         match tokio::runtime::Handle::try_current() {
             Ok(_) => {
                 tokio::spawn(async move {
-                    let mut process_manager = self.process_manager.write().await;
+                    let process_manager = self.process_manager.write().await;
                     process_manager.set_ebpf_task(task).await;
                 });
                 info!("eBPF monitoring task initialized successfully");
