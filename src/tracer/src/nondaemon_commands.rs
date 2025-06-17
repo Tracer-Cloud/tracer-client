@@ -3,10 +3,10 @@ use std::process::Command;
 #[cfg(target_os = "linux")]
 use crate::utils::get_kernel_version;
 
-use crate::client::config_manager::{Config, ConfigLoader, INTERCEPTOR_STDOUT_FILE};
 use crate::common::constants::{
     FILE_CACHE_DIR, PID_FILE, REPO_NAME, REPO_OWNER, STDERR_FILE, STDOUT_FILE,
 };
+use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::utils::info_formatter::InfoFormatter;
 use anyhow::{bail, Context, Result};
@@ -18,7 +18,6 @@ pub fn clean_up_after_daemon() -> Result<()> {
     std::fs::remove_file(PID_FILE).context("Failed to remove pid file")?;
     std::fs::remove_file(STDOUT_FILE).context("Failed to remove stdout file")?;
     std::fs::remove_file(STDERR_FILE).context("Failed to remove stderr file")?;
-    let _ = std::fs::remove_file(INTERCEPTOR_STDOUT_FILE).context("Failed to remove stdout file");
     std::fs::remove_dir_all(FILE_CACHE_DIR).context("Failed to remove cache directory")?;
     Ok(())
 }
@@ -204,7 +203,7 @@ pub async fn setup_config(
     process_polling_interval_ms: &Option<u64>,
     batch_submission_interval_ms: &Option<u64>,
 ) -> Result<()> {
-    let mut current_config = ConfigLoader::load_default_config()?;
+    let mut current_config = Config::default();
     if let Some(api_key) = api_key {
         current_config.api_key.clone_from(api_key);
     }
@@ -234,7 +233,7 @@ pub async fn update_tracer() -> Result<()> {
         return Ok(());
     }
 
-    let config = ConfigLoader::load_default_config()?;
+    let config = Config::default();
 
     println!("Updating Tracer to version {}", release.tag_name);
 
