@@ -68,7 +68,10 @@ impl StateManager {
     }
 
     /// Updates the monitoring state with new processes
-    pub async fn update_monitoring(&self, processes: HashMap<Target, HashSet<ProcessStartTrigger>>) -> Result<()> {
+    pub async fn update_monitoring(
+        &self,
+        processes: HashMap<Target, HashSet<ProcessStartTrigger>>,
+    ) -> Result<()> {
         let mut state = self.state.write().await;
         state.update_monitoring(processes);
         Ok(())
@@ -123,7 +126,10 @@ mod tests {
 
         // Test initial state
         assert_eq!(state_manager.get_number_of_monitored_processes().await, 0);
-        assert!(state_manager.get_monitored_processes_pids().await.is_empty());
+        assert!(state_manager
+            .get_monitored_processes_pids()
+            .await
+            .is_empty());
 
         // Test inserting a process
         let process = create_test_process(100, 1, "test_process");

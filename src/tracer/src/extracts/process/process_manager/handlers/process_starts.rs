@@ -1,3 +1,4 @@
+use crate::common::target_process::Target;
 use crate::extracts::process::process_manager::logger::ProcessLogger;
 use crate::extracts::process::process_manager::matcher::Filter;
 use crate::extracts::process::process_manager::state::StateManager;
@@ -6,7 +7,6 @@ use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 use tracing::debug;
-use crate::common::target_process::Target;
 
 /// Handles process start events through explicit data transformations.
 pub struct ProcessStartHandler;
@@ -24,14 +24,16 @@ impl ProcessStartHandler {
 
         let stored_triggers = Self::store_triggers(state_manager, triggers).await;
 
-        let matched_processes = Self::match_processes(state_manager, matcher, stored_triggers).await?;
+        let matched_processes =
+            Self::match_processes(state_manager, matcher, stored_triggers).await?;
 
         if matched_processes.is_empty() {
             debug!("No matching processes found; exiting early.");
             return Ok(());
         }
 
-        let refreshed_processes = Self::refresh_process_data(system_refresher, matched_processes).await?;
+        let refreshed_processes =
+            Self::refresh_process_data(system_refresher, matched_processes).await?;
 
         Self::log_matched_processes(logger, system_refresher, &refreshed_processes).await?;
 
@@ -49,7 +51,9 @@ impl ProcessStartHandler {
     ) -> Vec<ProcessStartTrigger> {
         debug!("Storing {} triggers in state.", triggers.len());
         for trigger in &triggers {
-            state_manager.insert_process(trigger.pid, trigger.clone()).await;
+            state_manager
+                .insert_process(trigger.pid, trigger.clone())
+                .await;
         }
         triggers
     }
@@ -60,7 +64,10 @@ impl ProcessStartHandler {
         matcher: &Filter,
         triggers: Vec<ProcessStartTrigger>,
     ) -> Result<HashMap<Target, HashSet<ProcessStartTrigger>>> {
-        debug!("Matching {} stored triggers against targets.", triggers.len());
+        debug!(
+            "Matching {} stored triggers against targets.",
+            triggers.len()
+        );
         let state = state_manager.get_state().await;
         matcher.filter_processes_of_interest(triggers, &state).await
     }

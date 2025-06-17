@@ -4,7 +4,6 @@ use std::sync::Arc;
 use sysinfo::{Pid, ProcessRefreshKind, System};
 use tokio::sync::RwLock;
 
-
 /// Handles system information refresh operations
 pub struct SystemRefresher {
     system: Arc<RwLock<System>>,

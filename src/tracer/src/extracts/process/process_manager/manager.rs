@@ -12,9 +12,7 @@ use crate::extracts::process::process_manager::system_refresher::SystemRefresher
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 use tokio::task::JoinHandle;
-use tracer_ebpf::ebpf_trigger::{
-    OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger,
-};
+use tracer_ebpf::ebpf_trigger::{OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger};
 
 /// Main coordinator for process management operations
 /// Uses functional programming principles with direct component access
@@ -76,21 +74,20 @@ impl ProcessManager {
             &self.state_manager,
             &self.logger,
             triggers,
-        ).await
+        )
+        .await
     }
 
     /// Handles newly started processes
-    pub async fn handle_process_starts(
-        &self,
-        triggers: Vec<ProcessStartTrigger>,
-    ) -> Result<()> {
+    pub async fn handle_process_starts(&self, triggers: Vec<ProcessStartTrigger>) -> Result<()> {
         ProcessStartHandler::handle_process_starts(
             &self.state_manager,
             &self.logger,
             &self.matcher,
             &self.system_refresher,
             triggers,
-        ).await
+        )
+        .await
     }
 
     /// Polls and updates metrics for all monitored processes
@@ -99,7 +96,8 @@ impl ProcessManager {
             &self.state_manager,
             &self.logger,
             &self.system_refresher,
-        ).await
+        )
+        .await
     }
 
     /// Returns N process names of monitored processes
@@ -184,7 +182,8 @@ mod tests {
         );
 
         // Test the function using functional approach
-        let result = process_manager.find_matching_processes(vec![process])
+        let result = process_manager
+            .find_matching_processes(vec![process])
             .await
             .unwrap();
 
@@ -211,7 +210,8 @@ mod tests {
         );
 
         // Test the function using functional approach
-        let result = process_manager.find_matching_processes(vec![process])
+        let result = process_manager
+            .find_matching_processes(vec![process])
             .await
             .unwrap();
 
@@ -249,10 +249,14 @@ mod tests {
         let process_manager = ProcessManager::new(target_manager, log_recorder);
 
         // Insert the parent process into the state first
-        process_manager.state_manager.insert_process(parent_process.pid, parent_process).await;
+        process_manager
+            .state_manager
+            .insert_process(parent_process.pid, parent_process)
+            .await;
 
         // Test with the child process using functional approach
-        let result = process_manager.find_matching_processes(vec![child_process.clone()])
+        let result = process_manager
+            .find_matching_processes(vec![child_process.clone()])
             .await
             .unwrap();
 
@@ -297,10 +301,14 @@ mod tests {
         let process_manager = ProcessManager::new(target_manager, log_recorder);
 
         // Insert the parent process into the state first
-        process_manager.state_manager.insert_process(parent_process.pid, parent_process).await;
+        process_manager
+            .state_manager
+            .insert_process(parent_process.pid, parent_process)
+            .await;
 
         // Test with the child process using functional approach
-        let result = process_manager.find_matching_processes(vec![child_process])
+        let result = process_manager
+            .find_matching_processes(vec![child_process])
             .await
             .unwrap();
 
@@ -382,7 +390,8 @@ mod tests {
         let log_recorder = create_mock_log_recorder();
         let process_manager = ProcessManager::new(target_manager, log_recorder);
 
-        let result = process_manager.find_matching_processes(vec![process])
+        let result = process_manager
+            .find_matching_processes(vec![process])
             .await
             .unwrap();
 
@@ -418,7 +427,8 @@ mod tests {
         let log_recorder = create_mock_log_recorder();
         let process_manager = ProcessManager::new(target_manager, log_recorder);
 
-        let result = process_manager.find_matching_processes(vec![process])
+        let result = process_manager
+            .find_matching_processes(vec![process])
             .await
             .unwrap();
 

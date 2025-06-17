@@ -6,24 +6,24 @@ use anyhow::Result;
 use tracing::debug;
 
 /// Handles periodic polling and updating of process metrics for monitored processes.
-/// 
+///
 /// This handler is responsible for:
 /// - Periodically refreshing system data for all monitored processes
 /// - Extracting and logging updated metrics for each process
 /// - Detecting processes that are no longer running
-/// 
+///
 /// This is separate from event-driven process handling and runs on a periodic schedule.
 pub struct ProcessMetricsHandler;
 
 impl ProcessMetricsHandler {
     /// Polls and updates metrics for all monitored processes.
-    /// 
+    ///
     /// This method:
     /// 1. Gets the list of all currently monitored process PIDs
     /// 2. Refreshes system data for those processes
     /// 3. Iterates through all monitored processes and logs updated metrics
     /// 4. Detects and logs processes that are no longer running
-    /// 
+    ///
     /// This is typically called on a periodic schedule (e.g., every few seconds)
     /// to keep process metrics up to date.
     pub async fn poll_process_metrics(
@@ -41,7 +41,10 @@ impl ProcessMetricsHandler {
             return Ok(());
         }
 
-        debug!("Polling metrics for {} monitored processes", monitored_pids.len());
+        debug!(
+            "Polling metrics for {} monitored processes",
+            monitored_pids.len()
+        );
 
         // Step 2: Refresh system data for all monitored processes
         system_refresher.refresh_system(&monitored_pids).await?;
@@ -71,9 +74,8 @@ impl ProcessMetricsHandler {
         }
 
         debug!(
-            "Metrics polling completed: {} processes updated, {} not found", 
-            processed_count, 
-            not_found_count
+            "Metrics polling completed: {} processes updated, {} not found",
+            processed_count, not_found_count
         );
 
         Ok(())
@@ -114,11 +116,9 @@ mod tests {
         let system_refresher = SystemRefresher::new();
 
         // Test polling with no monitored processes
-        let result = ProcessMetricsHandler::poll_process_metrics(
-            &state_manager,
-            &logger,
-            &system_refresher,
-        ).await;
+        let result =
+            ProcessMetricsHandler::poll_process_metrics(&state_manager, &logger, &system_refresher)
+                .await;
 
         // Should succeed without error
         assert!(result.is_ok());
@@ -135,11 +135,9 @@ mod tests {
         let system_refresher = SystemRefresher::new();
 
         // Test polling (should work even with no actual processes)
-        let result = ProcessMetricsHandler::poll_process_metrics(
-            &state_manager,
-            &logger,
-            &system_refresher,
-        ).await;
+        let result =
+            ProcessMetricsHandler::poll_process_metrics(&state_manager, &logger, &system_refresher)
+                .await;
 
         // Should succeed without error
         assert!(result.is_ok());

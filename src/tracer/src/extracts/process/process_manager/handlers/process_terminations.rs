@@ -60,7 +60,9 @@ impl ProcessTerminationHandler {
                 continue;
             };
 
-            logger.log_process_completion(&start_trigger, &finish_trigger).await?;
+            logger
+                .log_process_completion(&start_trigger, &finish_trigger)
+                .await?;
         }
 
         Ok(())

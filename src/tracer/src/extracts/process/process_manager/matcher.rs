@@ -1,8 +1,8 @@
 use crate::common::target_process::{Target, TargetMatchable};
 use crate::extracts::process::types::process_state::ProcessState;
+use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
-use anyhow::Result;
 
 /// Handles filtering and matching processes against targets
 /// Gets targets from the ProcessState instead of holding its own copy
@@ -70,8 +70,6 @@ impl Filter {
         None
     }
 
-
-
     /// Filters processes to find those of interest based on targets and monitoring state
     ///
     /// This function:
@@ -113,7 +111,10 @@ impl Filter {
     }
 
     /// Collects all PIDs from the filtered target processes map
-    pub fn collect_pids_to_refresh(&self, filtered_target_processes: &HashMap<Target, HashSet<ProcessStartTrigger>>) -> HashSet<usize> {
+    pub fn collect_pids_to_refresh(
+        &self,
+        filtered_target_processes: &HashMap<Target, HashSet<ProcessStartTrigger>>,
+    ) -> HashSet<usize> {
         filtered_target_processes
             .values()
             .flat_map(|procs| procs.iter().map(|p| p.pid))
@@ -140,18 +141,18 @@ mod tests {
         // Create a test target and process
         let target = Target::new(TargetMatch::ProcessName("test_process".to_string()));
         let target_manager = TargetManager::new(vec![target.clone()], vec![]);
-        
+
         let process = create_test_process(
-            100, 
-            1, 
-            "test_process", 
+            100,
+            1,
+            "test_process",
             vec!["test_process", "--arg1", "value1"],
-            "/usr/bin/test_process"
+            "/usr/bin/test_process",
         );
-        
+
         // Create a process state with the target
         let state = ProcessState::new(target_manager);
-        
+
         // Test direct match
         let matched_target = Filter::get_matched_target(&state, &process);
         assert!(matched_target.is_some());

@@ -165,5 +165,4 @@ async fn info(State(state): State<AppState>) -> axum::response::Result<impl Into
     let output = InfoResponse::new(preview, number_of_monitored_processes, response_inner);
 
     Ok(Json(output))
-
 }

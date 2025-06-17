@@ -13,7 +13,11 @@ impl OomHandler {
         finish_triggers: &mut [ProcessEndTrigger],
     ) {
         for finish in finish_triggers.iter_mut() {
-            if state_manager.remove_out_of_memory_victim(&finish.pid).await.is_some() {
+            if state_manager
+                .remove_out_of_memory_victim(&finish.pid)
+                .await
+                .is_some()
+            {
                 finish.exit_reason = Some(ExitReason::OutOfMemoryKilled);
                 debug!("Marked PID {} as OOM-killed", finish.pid);
             }
@@ -37,7 +41,9 @@ impl OomHandler {
                 debug!("Tracking OOM for relevant pid {}", oom.pid);
                 victims.insert(oom.pid, oom.clone());
                 drop(state); // Release the read lock before acquiring write lock
-                state_manager.insert_out_of_memory_victim(oom.pid, oom).await;
+                state_manager
+                    .insert_out_of_memory_victim(oom.pid, oom)
+                    .await;
             } else {
                 debug!("Ignoring unrelated OOM for pid {}", oom.pid);
             }
