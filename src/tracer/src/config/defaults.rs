@@ -35,7 +35,7 @@ impl Default for Config {
             file_size_not_changing_period_ms: FILE_SIZE_NOT_CHANGING_PERIOD_MS,
             new_run_pause_ms: NEW_RUN_PAUSE_MS,
             targets: vec![],
-            
+
             aws_init_type: AwsConfig::Profile(get_aws_default_profile()),
             aws_region: AWS_REGION,
 

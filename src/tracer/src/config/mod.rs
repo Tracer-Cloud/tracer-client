@@ -1,5 +1,5 @@
 mod config_loader;
-mod tests;
 mod defaults;
+mod tests;
 
 pub use config_loader::Config;

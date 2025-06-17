@@ -5,8 +5,8 @@ use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::sync::{Mutex, RwLock};
 
-use crate::config;
 use crate::client::TracerClient;
+use crate::config;
 use crate::daemon::app::get_app;
 use crate::daemon::daemon_run::monitor_processes;
 use std::borrow::BorrowMut;
