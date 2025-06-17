@@ -1,10 +1,10 @@
 use crate::common::recorder::LogRecorder;
-use crate::common::target_process::Target;
 use crate::common::types::event::attributes::EventAttributes;
 use crate::common::types::event::ProcessStatus as TracerProcessStatus;
 use crate::extracts::process::extract_process_data::ExtractProcessData;
 use crate::extracts::process::process_utils::create_short_lived_process_properties;
 use crate::extracts::process::types::process_result::ProcessResult;
+use crate::extracts::target_process::Target;
 use anyhow::Result;
 use chrono::Utc;
 use sysinfo::Process;

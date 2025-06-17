@@ -1,5 +1,5 @@
-use crate::common::target_process::{Target, TargetMatchable};
 use crate::extracts::process::types::process_state::ProcessState;
+use crate::extracts::target_process::{Target, TargetMatchable};
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
@@ -131,9 +131,9 @@ impl Default for Filter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::target_process::target_matching::TargetMatch;
-    use crate::common::target_process::target_process_manager::TargetManager;
-    use crate::common::target_process::Target;
+    use crate::extracts::target_process::target_matching::TargetMatch;
+    use crate::extracts::target_process::target_process_manager::TargetManager;
+    use crate::extracts::target_process::Target;
     use chrono::DateTime;
 
     #[test]

@@ -86,11 +86,11 @@ impl ProcessMetricsHandler {
 mod tests {
     use super::*;
     use crate::common::recorder::LogRecorder;
-    use crate::common::target_process::target_matching::TargetMatch;
-    use crate::common::target_process::target_process_manager::TargetManager;
-    use crate::common::target_process::Target;
     use crate::common::types::current_run::{PipelineMetadata, Run};
     use crate::common::types::pipeline_tags::PipelineTags;
+    use crate::extracts::target_process::target_matching::TargetMatch;
+    use crate::extracts::target_process::target_process_manager::TargetManager;
+    use crate::extracts::target_process::Target;
     use std::sync::Arc;
     use tokio::sync::{mpsc, RwLock};
 

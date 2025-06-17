@@ -1,8 +1,8 @@
-use crate::common::target_process::Target;
 use crate::extracts::process::process_manager::logger::ProcessLogger;
 use crate::extracts::process::process_manager::matcher::Filter;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
+use crate::extracts::target_process::Target;
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;

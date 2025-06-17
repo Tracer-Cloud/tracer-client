@@ -1,6 +1,4 @@
 use crate::common::recorder::LogRecorder;
-use crate::common::target_process::target_process_manager::TargetManager;
-use crate::common::target_process::Target;
 use crate::extracts::process::process_manager::handlers::oom::OomHandler;
 use crate::extracts::process::process_manager::handlers::process_starts::ProcessStartHandler;
 use crate::extracts::process::process_manager::handlers::process_terminations::ProcessTerminationHandler;
@@ -9,6 +7,8 @@ use crate::extracts::process::process_manager::matcher::Filter;
 use crate::extracts::process::process_manager::metrics::ProcessMetricsHandler;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
+use crate::extracts::target_process::target_process_manager::TargetManager;
+use crate::extracts::target_process::Target;
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 use tokio::task::JoinHandle;
@@ -123,10 +123,10 @@ impl ProcessManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::target_process::target_matching::TargetMatch;
-    use crate::common::target_process::targets_list::TARGETS;
     use crate::common::types::current_run::{PipelineMetadata, Run};
     use crate::common::types::pipeline_tags::PipelineTags;
+    use crate::extracts::target_process::target_matching::TargetMatch;
+    use crate::extracts::target_process::targets_list::TARGETS;
     use chrono::DateTime;
     use rstest::rstest;
     use std::sync::Arc;

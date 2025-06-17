@@ -1,6 +1,6 @@
-use crate::common::target_process::target_process_manager::TargetManager;
-use crate::common::target_process::Target;
 use crate::extracts::process::types::process_state::ProcessState;
+use crate::extracts::target_process::target_process_manager::TargetManager;
+use crate::extracts::target_process::Target;
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -114,8 +114,8 @@ impl StateManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::target_process::target_matching::TargetMatch;
-    use crate::common::target_process::Target;
+    use crate::extracts::target_process::target_matching::TargetMatch;
+    use crate::extracts::target_process::Target;
     use chrono::DateTime;
 
     #[tokio::test]
