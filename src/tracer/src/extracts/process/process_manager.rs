@@ -1,6 +1,4 @@
 use crate::common::recorder::LogRecorder;
-use crate::common::target_process::target_process_manager::TargetManager;
-use crate::common::target_process::{Target, TargetMatchable};
 use crate::common::types::event::attributes::process::CompletedProcess;
 use crate::common::types::event::attributes::EventAttributes;
 use crate::common::types::event::ProcessStatus as TracerProcessStatus;
@@ -8,6 +6,8 @@ use crate::extracts::process::extract_process_data::ExtractProcessData;
 use crate::extracts::process::process_utils::create_short_lived_process_properties;
 use crate::extracts::process::types::process_result::ProcessResult;
 use crate::extracts::process::types::process_state::ProcessState;
+use crate::extracts::target_process::target_process_manager::TargetManager;
+use crate::extracts::target_process::{Target, TargetMatchable};
 use chrono::Utc;
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
@@ -526,10 +526,10 @@ impl ProcessManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::target_process::target_matching::TargetMatch;
-    use crate::common::target_process::targets_list::TARGETS;
     use crate::common::types::current_run::{PipelineMetadata, Run};
     use crate::common::types::pipeline_tags::PipelineTags;
+    use crate::extracts::target_process::target_matching::TargetMatch;
+    use crate::extracts::target_process::targets_list::TARGETS;
     use chrono::DateTime;
     use rstest::rstest;
     use std::sync::Arc;

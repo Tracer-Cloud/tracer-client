@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 
 use super::{DisplayName, Target};
-use crate::common::target_process::target_matching::{CommandContainsStruct, TargetMatch};
+use crate::extracts::target_process::target_matching::{CommandContainsStruct, TargetMatch};
 use std::sync::LazyLock;
 
 lazy_static! {

@@ -1,5 +1,5 @@
-use crate::common::target_process::target_process_manager::TargetManager;
-use crate::common::target_process::Target;
+use crate::extracts::target_process::target_process_manager::TargetManager;
+use crate::extracts::target_process::Target;
 use std::collections::{HashMap, HashSet};
 use tokio::task::JoinHandle;
 use tracer_ebpf::ebpf_trigger::{OutOfMemoryTrigger, ProcessStartTrigger};

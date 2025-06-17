@@ -1,11 +1,11 @@
-use std::process::Command;
 // src/tracer_client.rs
 use crate::config::Config;
+use std::process::Command;
 
 use crate::cloud_providers::aws::pricing::PricingSource;
-use crate::common::target_process::target_process_manager::TargetManager;
-use crate::common::target_process::targets_list::DEFAULT_EXCLUDED_PROCESS_RULES;
 use crate::common::types::cli::params::FinalizedInitArgs;
+use crate::extracts::target_process::target_process_manager::TargetManager;
+use crate::extracts::target_process::targets_list::DEFAULT_EXCLUDED_PROCESS_RULES;
 use anyhow::{Context, Result};
 
 use crate::client::events::{send_alert_event, send_log_event, send_start_run_event};

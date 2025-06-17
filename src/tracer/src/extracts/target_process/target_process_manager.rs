@@ -34,9 +34,9 @@ impl TargetManager {
 //TODO add tests related to targets
 #[cfg(test)]
 mod tests {
-    use crate::common::target_process::target_matching::{CommandContainsStruct, TargetMatch};
-    use crate::common::target_process::target_process_manager::TargetManager;
-    use crate::common::target_process::Target;
+    use crate::extracts::target_process::target_matching::{CommandContainsStruct, TargetMatch};
+    use crate::extracts::target_process::target_process_manager::TargetManager;
+    use crate::extracts::target_process::Target;
     use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 
     fn dummy_process(name: &str, cmd: &str, path: &str) -> ProcessStartTrigger {

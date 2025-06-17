@@ -83,7 +83,7 @@ pub fn matches_target(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::target_process::{DisplayName, Target, TargetMatchable};
+    use crate::extracts::target_process::{DisplayName, Target, TargetMatchable};
 
     #[test]
     fn test_plotpca_command() {

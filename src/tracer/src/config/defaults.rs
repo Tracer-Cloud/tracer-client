@@ -1,12 +1,12 @@
 use crate::cloud_providers::aws::config::AwsConfig;
 use crate::common::constants::DEFAULT_DAEMON_PORT;
-use crate::common::target_process::targets_list;
 use crate::config::Config;
 use crate::constants::{
     AWS_REGION, BATCH_SUBMISSION_INTERVAL_MS, DEFAULT_API_KEY, FILE_SIZE_NOT_CHANGING_PERIOD_MS,
     GRAFANA_WORKSPACE_URL, LOG_FORWARD_ENDPOINT_DEV, LOG_FORWARD_ENDPOINT_PROD, NEW_RUN_PAUSE_MS,
     PROCESS_METRICS_SEND_INTERVAL_MS, PROCESS_POLLING_INTERVAL_MS, SENTRY_DSN,
 };
+use crate::extracts::target_process::targets_list;
 
 fn get_aws_default_profile() -> String {
     match dirs::home_dir() {

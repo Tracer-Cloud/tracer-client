@@ -135,7 +135,7 @@ static MATCHER: OnceLock<NextFlowProcessMatcher> = OnceLock::new();
 /// Public convenience function for matching a single command against the default processes file
 pub fn match_process_command(command: &str) -> Result<String, MatchError> {
     let matcher = MATCHER.get_or_init(|| {
-        let json_content = include_str!("./nf_process_list.json");
+        let json_content = include_str!("nf_process_list.json");
         NextFlowProcessMatcher::new(json_content).expect("Failed to create matcher")
     });
     matcher.match_command(command)
@@ -148,7 +148,7 @@ mod tests {
     #[test]
     fn test_all_patterns() {
         // Load and parse the JSON data
-        let json_content = include_str!("./nf_process_list.json");
+        let json_content = include_str!("nf_process_list.json");
         let processes: Vec<ProcessInfo> =
             serde_json::from_str(json_content).expect("Failed to parse nf_process_list.json");
 
