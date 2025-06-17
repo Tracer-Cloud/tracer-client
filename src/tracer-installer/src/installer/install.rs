@@ -2,29 +2,48 @@ use anyhow::{Context, Result};
 use flate2::read::GzDecoder;
 use futures_util::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
+use reqwest::Client;
+use std::collections::HashMap;
 use std::fs::File as StdFile;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use tar::Archive;
+use tokio::fs::{self, OpenOptions};
 use tokio::{
     fs::File,
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
 };
 
-use tokio::fs::{self, OpenOptions};
-
-use crate::installer::url_builder::TracerUrlFinder;
-use crate::types::TracerVersion;
-
 use super::platform::PlatformInfo;
+use crate::installer::url_builder::TracerUrlFinder;
+use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
+
+const TRACER_ANALYTICS_ENDPOINT: &str = "https://your.analytics.endpoint.com/events";
 
 pub struct Installer {
     pub platform: PlatformInfo,
     pub version: TracerVersion,
+    pub user_id: Option<String>,
 }
 
 impl Installer {
-    pub async fn run(&self, user_id: Option<String>) -> Result<()> {
+    pub async fn run(&self) -> Result<()> {
+        if let Some(ref user_id) = self.user_id {
+            let metadata = self.build_install_metadata();
+            let user_id = user_id.clone();
+            tokio::spawn(async move {
+                if let Err(_err) = Self::emit_install_event(
+                    &user_id,
+                    AnalyticsEventType::InstallScriptStarted,
+                    Some(metadata),
+                )
+                .await
+                {
+                    eprintln!("Failed to send analytics event: ")
+                }
+            });
+        };
+
         let finder = TracerUrlFinder;
         let url = finder
             .get_binary_url(self.version.clone(), &self.platform)
@@ -43,9 +62,25 @@ impl Installer {
         self.extract_tarball(&archive_path, &extract_path)?;
         let installed_path = self.install_to_final_dir(&extract_path)?;
 
-        Self::patch_rc_files_async(user_id)
+        Self::patch_rc_files_async(self.user_id.clone())
             .await
             .expect("failed to write to rc files");
+
+        if let Some(ref user_id) = self.user_id {
+            let metadata = self.build_install_metadata();
+            let user_id = user_id.clone();
+            tokio::spawn(async move {
+                if let Err(_err) = Self::emit_install_event(
+                    &user_id,
+                    AnalyticsEventType::InstallScriptCompleted,
+                    Some(metadata),
+                )
+                .await
+                {
+                    eprintln!("Failed to send analytics event: ")
+                }
+            });
+        };
 
         println!("🚀 Done! Tracer is ready at {}", installed_path.display());
 
@@ -164,5 +199,46 @@ impl Installer {
         }
 
         Ok(())
+    }
+
+    pub async fn emit_install_event(
+        user_id: &str,
+        event: AnalyticsEventType,
+        metadata: Option<HashMap<String, String>>,
+    ) -> anyhow::Result<()> {
+        let client = Client::new();
+
+        let payload = AnalyticsPayload {
+            user_id,
+            event_name: event.as_str(),
+            metadata,
+        };
+
+        let res = client
+            .post(TRACER_ANALYTICS_ENDPOINT)
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .send()
+            .await?;
+
+        if !res.status().is_success() {
+            eprintln!(
+                "⚠️  Failed to send analytics event: {} [{}]",
+                event.as_str(),
+                res.status()
+            );
+        }
+
+        Ok(())
+    }
+
+    fn build_install_metadata(&self) -> HashMap<String, String> {
+        let mut map = HashMap::new();
+
+        map.insert("platform_os".into(), format!("{:?}", self.platform.os));
+        map.insert("platform_arch".into(), format!("{:?}", self.platform.arch));
+        map.insert("version".into(), format!("{:?}", self.version));
+
+        map
     }
 }

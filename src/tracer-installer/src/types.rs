@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
-use std::str::FromStr;
+use serde::Serialize;
+use std::{collections::HashMap, str::FromStr};
 
 #[derive(Clone, Debug)]
 pub(crate) enum TracerVersion {
@@ -40,4 +41,29 @@ pub enum InstallerCommand {
         #[arg(long)]
         user_id: Option<String>,
     },
+}
+
+#[derive(Serialize)]
+pub struct AnalyticsPayload<'a> {
+    #[serde(rename = "userId")]
+    pub user_id: &'a str,
+    pub event_name: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<HashMap<String, String>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AnalyticsEventType {
+    InstallScriptStarted,
+    InstallScriptCompleted,
+}
+
+impl AnalyticsEventType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            AnalyticsEventType::InstallScriptStarted => "install_script_started",
+            AnalyticsEventType::InstallScriptCompleted => "install_script_completed",
+        }
+    }
 }
