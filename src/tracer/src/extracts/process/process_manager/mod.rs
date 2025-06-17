@@ -2,7 +2,7 @@ pub mod handlers;
 pub mod logger;
 pub mod matcher;
 pub mod process_manager;
-pub mod process_metrics_handler;
+pub mod metrics;
 pub mod state;
 pub mod system_refresher;
 

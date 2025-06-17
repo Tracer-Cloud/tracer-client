@@ -6,7 +6,7 @@ use crate::extracts::process::process_manager::handlers::process_starts::Process
 use crate::extracts::process::process_manager::handlers::process_terminations::ProcessTerminationHandler;
 use crate::extracts::process::process_manager::logger::ProcessLogger;
 use crate::extracts::process::process_manager::matcher::Filter;
-use crate::extracts::process::process_manager::process_metrics_handler::ProcessMetricsHandler;
+use crate::extracts::process::process_manager::metrics::ProcessMetricsHandler;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
 use anyhow::Result;
