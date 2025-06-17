@@ -1,7 +1,7 @@
 use console::Emoji;
 use console::Style;
 use dialoguer::theme::ColorfulTheme;
-use dialoguer::Input;
+use dialoguer::{Input, Select};
 
 use crate::common::types::pipeline_tags::PipelineTags;
 
@@ -62,7 +62,7 @@ impl InteractiveInitArgs {
         if self.pipeline_name.is_none() {
             self.pipeline_name = Some(
                 Input::with_theme(&theme)
-                    .with_prompt("Enter pipeline name")
+                    .with_prompt("Enter pipeline name (e.g., RNA-seq_analysis_v1, scRNA-seq_2024)")
                     .default("demo_pipeline".into())
                     .interact_text()
                     .unwrap(),
@@ -70,29 +70,61 @@ impl InteractiveInitArgs {
         }
 
         if self.tags.environment.is_none() {
-            self.tags.environment = Some(
-                Input::with_theme(&theme)
-                    .with_prompt("Environment")
-                    .default("local".into())
-                    .interact_text()
-                    .unwrap(),
-            );
+            let environments = vec!["local", "development", "staging", "production", "custom"];
+            let selection = Select::with_theme(&theme)
+                .with_prompt("Select environment (or choose 'custom' to enter your own)")
+                .items(&environments)
+                .default(0)
+                .interact()
+                .unwrap();
+
+            self.tags.environment = if selection == 4 {
+                Some(
+                    Input::with_theme(&theme)
+                        .with_prompt("Enter custom environment name")
+                        .interact_text()
+                        .unwrap(),
+                )
+            } else {
+                Some(environments[selection].to_string())
+            };
         }
 
         if self.tags.pipeline_type.is_none() {
-            self.tags.pipeline_type = Some(
-                Input::with_theme(&theme)
-                    .with_prompt("Pipeline Type")
-                    .default("generic".into())
-                    .interact_text()
-                    .unwrap(),
-            );
+            let pipeline_types = vec![
+                "RNA-seq",
+                "scRNA-seq",
+                "ChIP-seq",
+                "ATAC-seq",
+                "WGS",
+                "WES",
+                "Metabolomics",
+                "Proteomics",
+                "custom",
+            ];
+            let selection = Select::with_theme(&theme)
+                .with_prompt("Select pipeline type (or choose 'custom' to enter your own)")
+                .items(&pipeline_types)
+                .default(0)
+                .interact()
+                .unwrap();
+
+            self.tags.pipeline_type = if selection == 8 {
+                Some(
+                    Input::with_theme(&theme)
+                        .with_prompt("Enter custom pipeline type")
+                        .interact_text()
+                        .unwrap(),
+                )
+            } else {
+                Some(pipeline_types[selection].to_string())
+            };
         }
 
         if self.tags.user_operator.is_none() {
             self.tags.user_operator = Some(
                 Input::with_theme(&theme)
-                    .with_prompt("User Operator")
+                    .with_prompt("Enter your name/username (who is running this pipeline)")
                     .default(std::env::var("USER").unwrap_or_else(|_| "unknown".into()))
                     .interact_text()
                     .unwrap(),
