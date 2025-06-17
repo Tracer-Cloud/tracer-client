@@ -1,6 +1,6 @@
 use std::process::Command;
 // src/tracer_client.rs
-use crate::client::config_manager::Config;
+use crate::config::Config;
 
 use crate::cloud_providers::aws::pricing::PricingSource;
 use crate::common::target_process::target_process_manager::TargetManager;

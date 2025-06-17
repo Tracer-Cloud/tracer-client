@@ -4,7 +4,7 @@ use log::info;
 use sqlx::pool::PoolOptions;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 
-use crate::client::config_manager::Config;
+use crate::config::Config;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 
 use crate::cloud_providers::aws::config::SecretsClient;

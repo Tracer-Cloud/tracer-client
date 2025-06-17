@@ -2,11 +2,11 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 use tokio_util::sync::CancellationToken;
 
-use crate::client::config_manager::{Config, ConfigLoader};
 use crate::client::TracerClient;
+use crate::config::Config;
 use crate::daemon::structs::{InfoResponse, InnerInfoResponse, Message, RunData, TagData};
 use axum::response::IntoResponse;
-use axum::routing::{post, put};
+use axum::routing::post;
 use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
 
 #[derive(Clone)]
@@ -37,10 +37,6 @@ pub fn get_app(
         .route("/alert", post(alert))
         .route("/refresh-config", post(refresh_config))
         .route("/tag", post(tag))
-        .route(
-            "/log-short-lived-process",
-            put(log_short_lived_process_command),
-        )
         .route("/info", get(info))
         .with_state(state)
 }
@@ -116,8 +112,7 @@ async fn refresh_config(
     State(state): State<AppState>,
 ) -> axum::response::Result<impl IntoResponse> {
     // todo: IO in load condig has to be async
-    let config_file =
-        ConfigLoader::load_default_config().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let config_file = Config::default();
 
     {
         let mut guard = state.tracer_client.lock().await;
@@ -143,12 +138,6 @@ async fn tag(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(StatusCode::ACCEPTED)
-}
-
-async fn log_short_lived_process_command() -> axum::response::Result<impl IntoResponse> {
-    // todo: remove the endpoint
-
-    Ok(StatusCode::CREATED)
 }
 
 async fn info(State(state): State<AppState>) -> axum::response::Result<impl IntoResponse> {
