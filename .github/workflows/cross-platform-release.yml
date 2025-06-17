@@ -6,19 +6,7 @@ on:
       - "v*"
 
 jobs:
-  create-release:
-    runs-on: ubuntu-latest
-    permissions: write-all
-    steps:
-      - uses: actions/checkout@v4.1.4
-      - name: Create Release
-        id: create_release
-        uses: taiki-e/create-gh-release-action@v1.8.2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-       
-  upload-assets:
-    needs: create-release
+  build-binaries:
     permissions: write-all
     strategy:
       matrix:
@@ -105,40 +93,20 @@ jobs:
       - name: Build binary
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Create archive
-        run: |
-          mkdir -p dist
-          tar -czf dist/tracer-${{ matrix.target }}.tar.gz -C target/${{ matrix.target }}/release tracer
-
-      - name: Install GitHub CLI
-        run: |
-          if [[ "${{ matrix.runner }}" == *"macos"* ]]; then
-            brew install gh
-          else
-            type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
-            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
-            && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
-            && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
-            && sudo apt update \
-            && sudo apt install gh -y
-          fi
-
       - name: Prepare binary for release
         run: |
-          mkdir -p release-files/${{ matrix.arch }}
-          cp target/${{ matrix.target }}/release/tracer release-files/${{ matrix.arch }}/tracer
-          chmod +x release-files/${{ matrix.arch }}/tracer
-          tar -czf release-files/tracer-${{ matrix.target }}.tar.gz -C release-files/${{ matrix.arch }} tracer
+          mkdir -p release-files/${{ matrix.target }}
+          cp target/${{ matrix.target }}/release/tracer release-files/${{ matrix.target }}/tracer
+          chmod +x release-files/${{ matrix.target }}/tracer
+          tar -czf release-files/tracer-${{ matrix.target }}.tar.gz -C release-files/${{ matrix.target }} tracer
 
-      - name: Upload to release
-        run: |
-          gh release upload ${{ github.ref_name }} release-files/tracer-${{ matrix.target }}.tar.gz --clobber
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracer-${{ matrix.target }}
+          path: release-files/tracer-${{ matrix.target }}.tar.gz
 
-
-  build-and-release-amazon-linux:
-    needs: create-release
+  build-amazon-linux:
     permissions: write-all
     runs-on: ubuntu-latest
     container:
@@ -149,8 +117,7 @@ jobs:
         run: |
           yum update -y
           yum groupinstall -y "Development Tools"
-          yum  install -y kernel-devel kernel-headers clang llvm libbpf-devel
-
+          yum install -y kernel-devel kernel-headers clang llvm libbpf-devel
 
       - name: Install Rust
         run: |
@@ -179,13 +146,7 @@ jobs:
           TIME=$(date +'%H.%M')
           # Create new version string
           NEW_VERSION="${DATE}+${TIME}.${COMMIT_HASH}"
-          # Update version in Cargo.toml (compatible with both macOS and Linux)
-          if [[ "${{ matrix.runner }}" == *"macos"* ]]; then
-            sed -i '' "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
-          else
-            sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
-          fi
-          # Print the new version for verification
+          sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
           echo "Updated version to: ${NEW_VERSION}"
 
       - name: Build the binary
@@ -199,9 +160,33 @@ jobs:
           cp target/release/tracer release-files/amazon-linux/tracer
           chmod +x release-files/amazon-linux/tracer
           tar -czf release-files/tracer-x86_64-amazon-linux-gnu.tar.gz -C release-files/amazon-linux tracer
-      
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracer-amazon-linux
+          path: release-files/tracer-x86_64-amazon-linux-gnu.tar.gz
+
+  create-release:
+    needs: [build-binaries, build-amazon-linux]
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - name: Create Release
+        id: create_release
+        uses: taiki-e/create-gh-release-action@v1.8.2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
       - name: Upload to release
         run: |
-          gh release upload ${{ github.ref_name }} release-files/tracer-x86_64-amazon-linux-gnu.tar.gz --clobber
+          for file in artifacts/*/*.tar.gz; do
+            gh release upload ${{ github.ref_name }} "$file" --clobber
+          done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
