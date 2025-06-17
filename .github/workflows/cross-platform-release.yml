@@ -34,9 +34,11 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4.1.4
+      - name: Check out repository with submodules
+        uses: actions/checkout@v4.1.4
         with:
           submodules: recursive  # This will fetch all submodules recursively
+          fetch-depth: 0  # Fetch all history for versioning
 
       - name: Update version in Cargo.toml
         run: |
@@ -76,18 +78,7 @@ jobs:
           if [[ "${{ matrix.runner }}" == *"ubuntu"* ]]; then
             # Install necessary eBPF dependencies for Linux
             sudo apt-get update
-            sudo apt-get install -y \
-              linux-headers-$(uname -r) \
-              libbpf-dev \
-              clang \
-              llvm \
-              libelf-dev \
-              elfutils \
-              libdw-dev \
-              pkg-config \
-              libelf1 \
-              libelf-devel \
-              libelf-devel-static
+            sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm libelf-dev
           fi
 
       # Verify submodules are properly loaded
