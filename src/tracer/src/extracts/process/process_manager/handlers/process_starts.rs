@@ -3,15 +3,16 @@ use crate::extracts::process::process_manager::matcher::Filter;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
 use anyhow::Result;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 use tracing::debug;
+use crate::common::target_process::Target;
 
-/// Handles process start events.
+/// Handles process start events through explicit data transformations.
 pub struct ProcessStartHandler;
 
 impl ProcessStartHandler {
-    /// Handles newly started processes through simplified linear steps.
+    /// Entry point: handles newly started processes.
     pub async fn handle_process_starts(
         state_manager: &StateManager,
         logger: &ProcessLogger,
@@ -19,52 +20,95 @@ impl ProcessStartHandler {
         system_refresher: &SystemRefresher,
         triggers: Vec<ProcessStartTrigger>,
     ) -> Result<()> {
-        debug!("Handling {} process starts", triggers.len());
+        debug!("Handling {} process start triggers", triggers.len());
 
-        // Step 1: Store triggers for relationship tracking
-        for trigger in &triggers {
-            state_manager.insert_process(trigger.pid, trigger.clone()).await;
-        }
+        let stored_triggers = Self::store_triggers(state_manager, triggers).await;
 
-        // Step 2: Match triggers against targets
-        let matched_processes = {
-            let state = state_manager.get_state().await;
-            matcher.filter_processes_of_interest(triggers, &state).await?
-        };
+        let matched_processes = Self::match_processes(state_manager, matcher, stored_triggers).await?;
 
         if matched_processes.is_empty() {
-            debug!("No processes matched; pipeline completed early.");
+            debug!("No matching processes found; exiting early.");
             return Ok(());
         }
 
-        // Step 3: Refresh system data
-        let pids_to_refresh: HashSet<_> = matched_processes
-            .values()
-            .flatten()
-            .map(|p| p.pid)
-            .collect();
+        let refreshed_processes = Self::refresh_process_data(system_refresher, matched_processes).await?;
 
-        system_refresher.refresh_system(&pids_to_refresh).await?;
+        Self::log_matched_processes(logger, system_refresher, &refreshed_processes).await?;
 
-        // Step 4: Log processes
-        let mut logged_count = 0;
-        for (target, processes) in &matched_processes {
-            for process in processes {
-                let system = system_refresher.get_system().read().await;
-                let sys_proc = system.process(process.pid.into());
+        Self::update_monitoring(state_manager, refreshed_processes).await?;
 
-                logger.log_new_process(target, process, sys_proc).await?;
-                logged_count += 1;
-            }
-        }
-        debug!("Logged {} processes.", logged_count);
-
-        // Step 5: Set up ongoing monitoring
-        state_manager.update_monitoring(matched_processes).await?;
-        debug!("Monitoring updated.");
+        debug!("Process start handling completed successfully.");
 
         Ok(())
     }
 
+    /// Step 1: Store triggers for parent-child tracking in state.
+    async fn store_triggers(
+        state_manager: &StateManager,
+        triggers: Vec<ProcessStartTrigger>,
+    ) -> Vec<ProcessStartTrigger> {
+        debug!("Storing {} triggers in state.", triggers.len());
+        for trigger in &triggers {
+            state_manager.insert_process(trigger.pid, trigger.clone()).await;
+        }
+        triggers
+    }
 
+    /// Step 2: Match stored triggers against targets.
+    async fn match_processes(
+        state_manager: &StateManager,
+        matcher: &Filter,
+        triggers: Vec<ProcessStartTrigger>,
+    ) -> Result<HashMap<Target, HashSet<ProcessStartTrigger>>> {
+        debug!("Matching {} stored triggers against targets.", triggers.len());
+        let state = state_manager.get_state().await;
+        matcher.filter_processes_of_interest(triggers, &state).await
+    }
+
+    /// Step 3: Refresh system data for matched processes.
+    async fn refresh_process_data(
+        system_refresher: &SystemRefresher,
+        matched_processes: HashMap<Target, HashSet<ProcessStartTrigger>>,
+    ) -> Result<HashMap<Target, HashSet<ProcessStartTrigger>>> {
+        let pids: HashSet<usize> = matched_processes
+            .values()
+            .flatten()
+            .map(|trigger| trigger.pid)
+            .collect();
+
+        debug!("Refreshing system data for {} PIDs.", pids.len());
+        system_refresher.refresh_system(&pids).await?;
+
+        Ok(matched_processes)
+    }
+
+    /// Step 4: Log data for each matched process.
+    async fn log_matched_processes(
+        logger: &ProcessLogger,
+        system_refresher: &SystemRefresher,
+        matched_processes: &HashMap<Target, HashSet<ProcessStartTrigger>>,
+    ) -> Result<()> {
+        let mut count = 0;
+
+        for (target, processes) in matched_processes {
+            for process in processes {
+                let system = system_refresher.get_system().read().await;
+                let sys_proc = system.process(process.pid.into());
+                logger.log_new_process(target, process, sys_proc).await?;
+                count += 1;
+            }
+        }
+
+        debug!("Logged data for {} matched processes.", count);
+        Ok(())
+    }
+
+    /// Step 5: Update monitoring state with new processes.
+    async fn update_monitoring(
+        state_manager: &StateManager,
+        matched_processes: HashMap<Target, HashSet<ProcessStartTrigger>>,
+    ) -> Result<()> {
+        debug!("Updating monitoring for matched processes.");
+        state_manager.update_monitoring(matched_processes).await
+    }
 }
