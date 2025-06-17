@@ -84,7 +84,10 @@ jobs:
               libelf-dev \
               elfutils \
               libdw-dev \
-              pkg-config
+              pkg-config \
+              libelf1 \
+              libelf-devel \
+              libelf-devel-static
           fi
 
       # Verify submodules are properly loaded
