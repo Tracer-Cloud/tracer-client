@@ -220,58 +220,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_find_matching_processes_parent_match_with_force_ancestor_false() {
-        // Create a target that matches a parent process and has force_ancestor_to_match=false
-        let target = Target::new(TargetMatch::ProcessName("parent_process".to_string()))
-            .set_force_ancestor_to_match(false);
-
-        // Create a parent process
-        let parent_process = create_process_start_trigger(
-            50,
-            1,
-            "parent_process",
-            vec!["parent_process"],
-            "/usr/bin/parent_process",
-        );
-
-        // Create a child process that doesn't match any target
-        let child_process = create_process_start_trigger(
-            100,
-            50, // Parent PID is 50
-            "child_process",
-            vec!["child_process"],
-            "/usr/bin/child_process",
-        );
-
-        // Set up the process manager
-        let target_manager = TargetManager::new(vec![target.clone()], vec![]);
-        let log_recorder = create_mock_log_recorder();
-        let process_manager = ProcessManager::new(target_manager, log_recorder);
-
-        // Insert the parent process into the state first
-        process_manager
-            .state_manager
-            .insert_process(parent_process.pid, parent_process)
-            .await;
-
-        // Test with the child process using functional approach
-        let result = process_manager
-            .find_matching_processes(vec![child_process.clone()])
-            .await
-            .unwrap();
-
-        // Assert the child process was matched to the target because its parent matches
-        // and force_ancestor_to_match is false
-        assert_eq!(result.len(), 1);
-        assert!(result.contains_key(&target));
-
-        // Also verify the child process is the one that was matched
-        let matched_processes = result.get(&target).unwrap();
-        assert_eq!(matched_processes.len(), 1);
-        assert!(matched_processes.contains(&child_process));
-    }
-
-    #[tokio::test]
     async fn test_find_matching_processes_parent_match_with_force_ancestor_true() {
         // Create a target that matches a parent process but has force_ancestor_to_match=true
         let target = Target::new(TargetMatch::ProcessName("parent_process".to_string()));

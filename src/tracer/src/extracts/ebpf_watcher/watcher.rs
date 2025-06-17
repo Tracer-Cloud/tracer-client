@@ -7,6 +7,8 @@ use crate::extracts::process::process_utils::get_process_argv;
 use anyhow::{Error, Result};
 use chrono::Utc;
 use std::collections::HashSet;
+use std::fs::{self};
+use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
 use tracer_ebpf::binding::start_processing_events;
@@ -45,6 +47,7 @@ impl EbpfWatcher {
     }
 
     pub async fn start_ebpf(self: &Arc<Self>) -> Result<()> {
+        println!("Starting ebpf");
         Arc::clone(self)
             .ebpf
             .get_or_try_init(|| Arc::clone(self).initialize_ebpf())?;
@@ -228,6 +231,14 @@ impl EbpfWatcher {
 
         debug!("ProcessWatcher: processing {} triggers", triggers.len());
 
+        // Create the directory if it doesn't exist
+        let log_dir = Path::new("/tmp/tracer");
+        if !log_dir.exists() {
+            if let Err(e) = fs::create_dir_all(log_dir) {
+                error!("Failed to create log directory: {}", e);
+            }
+        }
+
         for trigger in triggers.into_iter() {
             match trigger {
                 Trigger::ProcessStart(process_started) => {
@@ -235,6 +246,7 @@ impl EbpfWatcher {
                         "ProcessWatcher: received START trigger pid={}, cmd={}",
                         process_started.pid, process_started.comm
                     );
+
                     process_start_triggers.push(process_started);
                 }
                 Trigger::ProcessEnd(process_end) => {

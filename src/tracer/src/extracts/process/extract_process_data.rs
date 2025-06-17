@@ -89,6 +89,7 @@ impl ExtractProcessData {
         proc: &P,
         display_name: String,
         process_start_time: DateTime<Utc>,
+        process_argv: Vec<String>,
     ) -> ProcessProperties {
         use tracing::debug;
         debug!("Gathering process data for {}", display_name);
@@ -112,6 +113,7 @@ impl ExtractProcessData {
                 .map(|path| path.as_os_str().to_str().unwrap_or("").to_string())
                 .unwrap_or_default(),
             tool_cmd: proc.cmd().join(" "),
+            tool_args: process_argv.join(" "),
             start_timestamp: process_start_time.to_rfc3339(),
             process_cpu_utilization: proc.cpu_usage(),
             process_run_time,
@@ -287,6 +289,7 @@ mod tests {
             &mock_process,
             display_name.clone(),
             process_start_time,
+            Vec::new(),
         )
         .await;
 
@@ -356,6 +359,7 @@ mod tests {
             &mock_process,
             display_name.clone(),
             process_start_time,
+            Vec::new(),
         )
         .await;
 
@@ -414,6 +418,7 @@ mod tests {
             &mock_process,
             display_name,
             process_start_time,
+            Vec::new(),
         )
         .await;
 

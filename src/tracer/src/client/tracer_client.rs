@@ -23,7 +23,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use sysinfo::System;
 use tokio::sync::{mpsc, RwLock};
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 pub struct TracerClient {
     system: Arc<RwLock<System>>, // todo: use arc swap
@@ -142,8 +142,11 @@ impl TracerClient {
         {
             let kernel_version = Self::get_kernel_version();
             match kernel_version {
-                Some((5, 15)) => {
-                    info!("Starting eBPF monitoring on Linux kernel 5.15");
+                Some((major, minor)) if major > 5 || (major == 5 && minor >= 15) => {
+                    info!(
+                        "Starting eBPF monitoring on Linux kernel {}.{}",
+                        major, minor
+                    );
                     match self.ebpf_watcher.start_ebpf().await {
                         Ok(_) => {
                             info!("eBPF monitoring started successfully");
@@ -160,14 +163,16 @@ impl TracerClient {
                     }
                 }
                 Some((major, minor)) => {
-                    info!("Starting process polling monitoring on Linux kernel {}.{} (eBPF not supported)", major, minor);
+                    warn!(
+                        "Kernel version {}.{} is too old for eBPF support (requires 5.15+), falling back to process polling",
+                        major, minor
+                    );
                     self.ebpf_watcher
                         .start_process_polling(self.config.process_polling_interval_ms)
                         .await
-                        .context(format!(
-                            "Failed to start process polling on kernel {}.{}",
-                            major, minor
-                        ))
+                        .context(
+                            "Failed to start process polling due to unsupported kernel version",
+                        )
                 }
                 None => {
                     error!("Failed to detect kernel version, falling back to process polling");

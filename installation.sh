@@ -563,8 +563,10 @@ function main() {
   print_header
   check_system_requirements
   send_analytics_event "$EVENT_INSTALL_STARTED" "{\"os\": \"$(uname -s)\", \"arch\": \"$(uname -m)\"}"
+
   print_section "Setting Tracer User ID"
   persist_tracer_user_id > /dev/null
+
   install_tracer_binary
   
 }
