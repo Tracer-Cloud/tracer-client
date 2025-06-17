@@ -286,7 +286,7 @@ pub fn process_cli() -> Result<()> {
                 println!("Daemon files cleaned up successfully.");
             }
             result
-        },
+        }
         Commands::Update => {
             // Handle update command directly without going through daemon
             tokio::runtime::Runtime::new()?.block_on(update_tracer())

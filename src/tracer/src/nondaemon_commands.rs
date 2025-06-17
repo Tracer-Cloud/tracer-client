@@ -1,19 +1,16 @@
-use std::os::unix::fs::PermissionsExt;
-use std::path::{Path, PathBuf};
 use std::process::Command;
 
 #[cfg(target_os = "linux")]
 use crate::utils::get_kernel_version;
 
-use crate::common::constants::{ARGS_DIR, FILE_CACHE_DIR, PID_FILE, REPO_NAME, REPO_OWNER, STDERR_FILE, STDOUT_FILE};
-use crate::common::types::pipeline_tags::PipelineTags;
+use crate::common::constants::{
+    FILE_CACHE_DIR, PID_FILE, REPO_NAME, REPO_OWNER, STDERR_FILE, STDOUT_FILE,
+};
 use crate::config::Config;
-use crate::daemon;
 use crate::daemon::client::DaemonClient;
 use crate::utils::info_formatter::InfoFormatter;
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
-use serde::{Deserialize, Serialize};
 use std::result::Result::Ok;
 use tokio::time::sleep;
 use tracing::debug;
@@ -223,239 +220,6 @@ pub async fn setup_config(
     Ok(())
 }
 
-
-/// Represents the running daemon state that needs to be preserved during updates
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct DaemonState {
-    run_id: String,
-    run_name: String,
-    pipeline_name: String,
-    tags: PipelineTags,
-    is_dev: bool,
-    init_args: Vec<String>, // initial arguments passed to tracer init
-}
-
-impl DaemonState {
-    /// Creates a new DaemonState from the current daemon info
-    fn from_daemon_info(
-        inner: &daemon::structs::InnerInfoResponse,
-        config: &Config,
-        init_args: Vec<String>,
-    ) -> Self {
-        // Extract only the init arguments, skipping the binary path and 'update' command
-        let filtered_args: Vec<String> = init_args
-            .into_iter()
-            .skip_while(|arg| arg.contains("tracer_cli") || arg == "update")
-            .collect();
-
-        // Create tags from the arguments
-        let mut tags = PipelineTags::default();
-        let mut args_iter = filtered_args.iter().peekable();
-
-        while let Some(arg) = args_iter.next() {
-            match arg.as_str() {
-                "--environment" => {
-                    if let Some(value) = args_iter.next() {
-                        tags.environment = Some(value.clone());
-                    }
-                }
-                "--pipeline-type" => {
-                    if let Some(value) = args_iter.next() {
-                        tags.pipeline_type = Some(value.clone());
-                    }
-                }
-                "--user-operator" => {
-                    if let Some(value) = args_iter.next() {
-                        tags.user_operator = Some(value.clone());
-                    }
-                }
-                "--department" => {
-                    if let Some(value) = args_iter.next() {
-                        tags.department = value.clone();
-                    }
-                }
-                "--team" => {
-                    if let Some(value) = args_iter.next() {
-                        tags.team = value.clone();
-                    }
-                }
-                "--organization-id" => {
-                    if let Some(value) = args_iter.next() {
-                        tags.organization_id = Some(value.clone());
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        Self {
-            run_id: inner.run_id.clone(),
-            run_name: inner.run_name.clone(),
-            pipeline_name: inner.pipeline_name.clone(),
-            tags,
-            is_dev: config.log_forward_endpoint_dev.is_some(),
-            init_args: filtered_args,
-        }
-    }
-
-    /// Gets the args directory path
-    fn get_args_dir() -> Result<PathBuf> {
-        let args_dir = PathBuf::from(ARGS_DIR);
-        std::fs::create_dir_all(&args_dir)?;
-        Ok(args_dir)
-    }
-
-    /// Saves the daemon state to a file
-    fn save(&self) -> Result<()> {
-        let args_dir = Self::get_args_dir()?;
-        std::fs::create_dir_all(&args_dir)?;
-
-        // Save the state
-        let state_file = args_dir.join("daemon_state.json");
-        let state_json = serde_json::to_string_pretty(self)?;
-        std::fs::write(&state_file, state_json)?;
-
-        // Save the init args separately for easy access
-        let args_file = args_dir.join("init_args.json");
-        let args_json = serde_json::to_string_pretty(&self.init_args)?;
-        std::fs::write(&args_file, args_json)?;
-
-        // Set file permissions
-        std::fs::set_permissions(&state_file, std::fs::Permissions::from_mode(0o644))?;
-        std::fs::set_permissions(&args_file, std::fs::Permissions::from_mode(0o644))?;
-
-        Ok(())
-    }
-
-    /// Loads the daemon state from the args dir
-    fn load() -> Result<Option<Self>> {
-        let args_dir = Self::get_args_dir()?;
-        let state_file = args_dir.join("daemon_state.json");
-        let args_file = args_dir.join("init_args.json");
-
-        if !state_file.exists() || !args_file.exists() {
-            return Ok(None);
-        }
-
-        let state_json = std::fs::read_to_string(state_file)?;
-        let args_json = std::fs::read_to_string(args_file)?;
-
-        let mut state: Self = serde_json::from_str(&state_json)?;
-        state.init_args = serde_json::from_str(&args_json)?;
-
-        Ok(Some(state))
-    }
-
-    /// Removes the saved daemon state
-    async fn cleanup() -> Result<()> {
-        let args_dir = Self::get_args_dir()?;
-        let state_file = args_dir.join("daemon_state.json");
-        let args_file = args_dir.join("init_args.json");
-
-        // Only cleanup if both files exist
-        if state_file.exists() && args_file.exists() {
-            // Check if daemon is running
-            let config = Config::default();
-            let api_client = DaemonClient::new(format!("http://{}", config.server));
-
-            // If we can't connect to the daemon, it's safe to cleanup
-            if api_client.send_info_request().await.is_err() {
-                if state_file.exists() {
-                    std::fs::remove_file(state_file)?;
-                }
-                if args_file.exists() {
-                    std::fs::remove_file(args_file)?;
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// Creates a command to restart the daemon with the saved state
-    fn create_restart_command(&self) -> Command {
-        let mut cmd = Command::new("tracer");
-        cmd.arg("init");
-
-        cmd.arg("--pipeline-name").arg(&self.pipeline_name);
-
-        if let Some(environment) = &self.tags.environment {
-            cmd.arg("--environment").arg(environment);
-        }
-        if let Some(pipeline_type) = &self.tags.pipeline_type {
-            cmd.arg("--pipeline-type").arg(pipeline_type);
-        }
-        if let Some(user_operator) = &self.tags.user_operator {
-            cmd.arg("--user-operator").arg(user_operator);
-        }
-        if !self.tags.department.is_empty() {
-            cmd.arg("--department").arg(&self.tags.department);
-        }
-        if !self.tags.team.is_empty() {
-            cmd.arg("--team").arg(&self.tags.team);
-        }
-        if let Some(org_id) = &self.tags.organization_id {
-            cmd.arg("--organization-id").arg(org_id);
-        }
-
-        cmd.arg("--is-dev")
-            .arg(if self.is_dev { "true" } else { "false" });
-
-        cmd.arg("--run-id").arg(&self.run_id);
-
-        cmd
-    }
-
-    /// Displays the daemon state and configuration information
-    fn display_info(&self, config: &Config, show_restart_command: bool) {
-        println!("\n{} Daemon Configuration:", "Info:".cyan());
-        println!(
-            "  Daemon Config Directory: {}",
-            Path::new(&ARGS_DIR).join("daemon_state.json").display()
-        );
-        println!("  Server: {}", config.server);
-
-        println!("  Run ID: {}", self.run_id);
-        println!("  Run Name: {}", self.run_name);
-        println!("  Pipeline: {}", self.pipeline_name);
-        println!(
-            "  Process Polling Interval: {} ms",
-            config.process_polling_interval_ms
-        );
-        println!(
-            "  Batch Submission Interval: {} ms",
-            config.batch_submission_interval_ms
-        );
-
-        println!(
-            "  Environment: {}",
-            self.tags.environment.as_deref().unwrap_or("unknown")
-        );
-        println!(
-            "  Pipeline Type: {}",
-            self.tags.pipeline_type.as_deref().unwrap_or("unknown")
-        );
-        println!(
-            "  User Operator: {}",
-            self.tags.user_operator.as_deref().unwrap_or("unknown")
-        );
-        println!("  Department: {}", self.tags.department);
-        println!("  Team: {}", self.tags.team);
-        if let Some(org_id) = &self.tags.organization_id {
-            println!("  Organization ID: {}", org_id);
-        }
-        println!("  Grafana Workspace URL: {}", config.grafana_workspace_url);
-
-        println!("\nThe daemon will be restarted with these settings after the update.");
-
-        if show_restart_command {
-            println!("\nRestart command will be:");
-            let cmd = self.create_restart_command();
-            println!("{}", format!("{:?}", cmd).replace("\"", ""));
-        }
-    }
-}
-
-
 fn parse_version(s: &str) -> Option<(u32, u32, u32)> {
     let s = s.trim_start_matches('v');
     let main_version = s.split('+').next()?;
@@ -500,46 +264,10 @@ pub async fn update_tracer() -> Result<()> {
         return Ok(());
     }
 
-    // Get current daemon state
-    let config = Config::default();
-    let api_client = DaemonClient::new(format!("http://{}", config.server));
-    let daemon_info = api_client.send_info_request().await;
-    let is_daemon_running = daemon_info.is_ok();
-    let mut daemon_state = None;
-
-
     println!("\nA new version of Tracer is available!");
     println!("\nVersion Information:");
     println!("  Current Version: {}", format_version(current_ver));
     println!("  Latest Version:  {}", format_version(latest_ver));
-
-    if is_daemon_running {
-        if let Ok(info) = daemon_info {
-            if let Some(inner) = info.inner {
-                println!("\n{} A daemon is currently running. It is recommended to update when no flows are active.", "Warning:".yellow());
-                println!("Current run details:");
-                println!("  Run ID: {}", inner.run_id);
-                println!("  Run Name: {}", inner.run_name);
-                println!("  Pipeline: {}", inner.pipeline_name);
-                println!("\nWould you like to proceed with the update anyway? [y/N] ");
-
-                let mut input = String::new();
-                std::io::stdin().read_line(&mut input)?;
-
-                if !input.trim().eq_ignore_ascii_case("y") {
-                    println!("Update cancelled.");
-                    return Ok(());
-                }
-
-                // Get the current command line arguments
-                let init_args = std::env::args().collect::<Vec<String>>();
-
-                // Save daemon state with init args
-                daemon_state = Some(DaemonState::from_daemon_info(&inner, &config, init_args));
-                daemon_state.as_ref().unwrap().display_info(&config, false);
-            }
-        }
-    }
 
     println!("\nWould you like to proceed with the update? [y/N]");
     let mut input = String::new();
@@ -548,12 +276,6 @@ pub async fn update_tracer() -> Result<()> {
     if !input.trim().eq_ignore_ascii_case("y") {
         println!("Update cancelled by user.");
         return Ok(());
-    }
-
-    if is_daemon_running {
-        println!("\nStopping the daemon...");
-        api_client.send_terminate_request().await?;
-        clean_up_after_daemon()?;
     }
 
     let config = Config::default();
@@ -565,10 +287,9 @@ pub async fn update_tracer() -> Result<()> {
 
     let mut command = Command::new("bash");
     command.arg("-c").arg(format!(
-        "curl -sSL https://install.tracer.cloud | bash -s -- {} && . ~/.bashrc",
+        "curl -sSL https://install.tracer.cloud | sudo bash -s -- {} && . ~/.bashrc",
         config.api_key
     ));
-
     let status = command
         .status()
         .context("Failed to update Tracer. Please try again.")?;
@@ -582,49 +303,5 @@ pub async fn update_tracer() -> Result<()> {
         "Success:".green(),
         format_version(latest_ver)
     );
-
-    // Save daemon state if it was running
-    if let Some(state) = daemon_state {
-        state.save()?;
-    }
-
-    // Restart the daemon if it was running
-    if let Some(daemon_state) = DaemonState::load()? {
-        println!("\n{} Restarting the daemon", "Info:".cyan());
-
-        let mut restart_cmd = daemon_state.create_restart_command();
-
-        match restart_cmd.status() {
-            Ok(status) => {
-                if status.success() {
-                    println!("Daemon restarted successfully.");
-
-                    sleep(std::time::Duration::from_secs(2)).await;
-
-                    let new_config = Config::default();
-                    let new_api_client = DaemonClient::new(format!("http://{}", new_config.server));
-
-                    if let Ok(info) = new_api_client.send_info_request().await {
-                        println!("\n{} Successfully Restarted Daemon:", "Success:".green());
-                        if let Some(inner) = info.inner {
-                            let new_state =
-                                DaemonState::from_daemon_info(&inner, &new_config, vec![]);
-
-                            // Save the new state
-                            new_state.save()?;
-                        }
-                    }
-                } else {
-                    println!("{} Failed to restart daemon. Please run 'tracer init' manually with the following command:", "Warning:".yellow());
-                    daemon_state.display_info(&config, true);
-                }
-            }
-            Err(e) => {
-                println!("{} Failed to restart daemon: {}. Please run 'tracer init' manually with the following command:", "Warning:".yellow(), e);
-                daemon_state.display_info(&config, true);
-            }
-        }
-    }
-
     Ok(())
 }
