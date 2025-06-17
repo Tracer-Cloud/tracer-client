@@ -272,10 +272,10 @@ mod tests {
         mock_process.expect_disk_usage().return_const(disk_usage);
         mock_process
             .expect_memory()
-            .return_const(1024 * 1024 * 100_u64); // 100MB
+            .return_const(1024 * 1024 * 100 as u64); // 100MB
         mock_process
             .expect_virtual_memory()
-            .return_const(1024 * 1024 * 200_u64); // 200MB
+            .return_const(1024 * 1024 * 200 as u64); // 200MB
         mock_process
             .expect_status()
             .return_const(ProcessStatus::Run);
