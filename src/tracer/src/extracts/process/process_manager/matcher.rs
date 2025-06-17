@@ -1,4 +1,4 @@
-use crate::common::target_process::{Target, TargetMatchable};
+use crate::common::target_process::Target;
 use crate::extracts::process::types::process_state::ProcessState;
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
@@ -23,7 +23,7 @@ impl Filter {
         let mut matched_processes = HashMap::new();
 
         for trigger in triggers {
-            if let Some(matched_target) = Self::get_matched_target(state, &trigger) {
+            if let Some(matched_target) = state.get_target_manager().get_target_match(&trigger) {
                 let matched_target = matched_target.clone();
                 matched_processes
                     .entry(matched_target)
@@ -33,41 +33,6 @@ impl Filter {
         }
 
         Ok(matched_processes)
-    }
-
-    /// Gets the matching target for a process, considering both direct matches and parent process matches
-    pub fn get_matched_target<'a>(
-        state: &'a ProcessState,
-        process: &ProcessStartTrigger,
-    ) -> Option<&'a Target> {
-        // First try direct match
-        if let Some(target) = state.get_target_manager().get_target_match(process) {
-            return Some(target);
-        }
-
-        // If no direct match, try matching through parent processes
-        let eligible_targets_for_parents = state
-            .get_target_manager()
-            .targets
-            .iter()
-            .filter(|target| !target.should_force_ancestor_to_match())
-            .collect::<Vec<_>>();
-
-        if eligible_targets_for_parents.is_empty() {
-            return None;
-        }
-
-        // Check if any parent process matches an eligible target
-        let parents = state.get_process_parents(process);
-        for parent in parents {
-            for target in eligible_targets_for_parents.iter() {
-                if target.matches_process(parent) {
-                    return Some(target);
-                }
-            }
-        }
-
-        None
     }
 
     /// Filters processes to find those of interest based on targets and monitoring state
@@ -154,7 +119,7 @@ mod tests {
         let state = ProcessState::new(target_manager);
 
         // Test direct match
-        let matched_target = Filter::get_matched_target(&state, &process);
+        let matched_target = state.get_target_manager().get_target_match(&process);
         assert!(matched_target.is_some());
         assert_eq!(matched_target.unwrap().match_type, target.match_type);
     }

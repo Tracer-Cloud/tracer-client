@@ -40,6 +40,7 @@ impl ProcessLogger {
                     system_process,
                     display_name.clone(),
                     process.started_at,
+                    process.argv.clone(),
                 )
                 .await
             }
@@ -90,6 +91,7 @@ impl ProcessLogger {
             system_process,
             display_name.clone(),
             process.started_at,
+            process.argv.clone(),
         )
         .await;
 
