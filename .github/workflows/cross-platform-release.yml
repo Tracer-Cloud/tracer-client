@@ -123,8 +123,15 @@ jobs:
             && sudo apt install gh -y
           fi
 
+      - name: Prepare binary for release
+        run: |
+          mkdir -p release-files/${{ matrix.arch }}
+          cp target/${{ matrix.target }}/release/tracer release-files/${{ matrix.arch }}/tracer
+          chmod +x release-files/${{ matrix.arch }}/tracer
+          tar -czf release-files/tracer-${{ matrix.target }}.tar.gz -C release-files/${{ matrix.arch }} tracer
+
       - name: Upload to release
         run: |
-          gh release upload ${{ github.ref_name }} dist/tracer-${{ matrix.target }}.tar.gz --clobber
+          gh release upload ${{ github.ref_name }} release-files/tracer-${{ matrix.target }}.tar.gz --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
