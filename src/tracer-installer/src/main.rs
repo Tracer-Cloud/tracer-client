@@ -18,7 +18,7 @@ async fn main() {
     let args = InstallTracerCli::parse();
 
     match args.command {
-        InstallerCommand::Run { version, user_id } => {
+        InstallerCommand::Run { channel, user_id } => {
             // Run checks
             let requirements = CheckManager::new();
             requirements.run_all().await;
@@ -34,7 +34,7 @@ async fn main() {
 
             let installer = Installer {
                 platform,
-                version,
+                channel,
                 user_id,
             };
             if let Err(err) = installer.run().await {
