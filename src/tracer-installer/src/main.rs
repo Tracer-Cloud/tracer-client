@@ -1,5 +1,7 @@
 use checks::CheckManager;
-use installer::run_installer;
+use clap::Parser;
+use installer::{Installer, PlatformInfo};
+use types::{InstallTracerCli, InstallerCommand};
 
 mod checks;
 mod installer;
@@ -12,8 +14,29 @@ async fn main() {
         .expect("Failed to install rustls crypto provider");
 
     println!("Welcome to tracer rust installer");
-    let requirements = CheckManager::new();
-    requirements.run_all().await;
 
-    run_installer().await;
+    let args = InstallTracerCli::parse();
+
+    match args.command {
+        InstallerCommand::Run { version, user_id } => {
+            // Run checks
+            let requirements = CheckManager::new();
+            requirements.run_all().await;
+
+            // Platform detection
+            let platform = match PlatformInfo::build() {
+                Ok(p) => p,
+                Err(e) => {
+                    eprintln!("Failed to detect platform: {e}");
+                    std::process::exit(1);
+                }
+            };
+
+            let installer = Installer { platform, version };
+            if let Err(err) = installer.run(user_id).await {
+                eprintln!("Error Running Installer: {err}");
+                std::process::exit(1);
+            }
+        }
+    }
 }
