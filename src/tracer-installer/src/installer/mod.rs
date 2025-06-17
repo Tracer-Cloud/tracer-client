@@ -1,19 +1,19 @@
+use install::Installer;
 use platform::PlatformInfo;
-use url_builder::TracerUrlFinder;
 
 use crate::types::TracerVersion;
 
+mod install;
 mod platform;
 mod url_builder;
 
 pub async fn run_installer() {
     let platform = PlatformInfo::build().expect("Failed to get platform info");
-    let finder = TracerUrlFinder;
 
-    let url = finder
-        .get_binary_url(TracerVersion::PRODUCTION, &platform)
-        .await
-        .expect("Failed to get url");
+    // ✅ Set version (can be changed later)
+    let version = TracerVersion::Development;
 
-    println!("{url}");
+    // ✅ Build and run installer
+    let installer = Installer { platform, version };
+    installer.run().await.expect("Failed to run installer");
 }

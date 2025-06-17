@@ -18,7 +18,6 @@ impl TracerUrlFinder {
 
             (Os::Macos, Arch::X86_64) => Ok("tracer-x86_64-apple-darwin.tar.gz"),
             (Os::Macos, Arch::Aarch64) => Ok("tracer-aarch64-apple-darwin.tar.gz"),
-            _ => Err(anyhow::anyhow!("Unsupported OS/Arch combination")),
         }
     }
 
@@ -30,15 +29,15 @@ impl TracerUrlFinder {
         let filename = Self::binary_filename(&platform.os, &platform.arch)?;
 
         match version {
-            TracerVersion::DEVELOPMENT => Ok(format!(
+            TracerVersion::Development => Ok(format!(
                 "https://tracer-releases.s3.us-east-1.amazonaws.com/{}",
                 filename
             )),
-            TracerVersion::FEATURE(branch) => Ok(format!(
+            TracerVersion::Feature(branch) => Ok(format!(
                 "https://tracer-releases.s3.us-east-1.amazonaws.com/{}/{}",
                 branch, filename
             )),
-            TracerVersion::PRODUCTION => {
+            TracerVersion::Production => {
                 let tag = Self::get_latest_release_tag().await?;
                 Ok(format!(
                     "https://github.com/Tracer-Cloud/tracer-client/releases/download/{}/{}",

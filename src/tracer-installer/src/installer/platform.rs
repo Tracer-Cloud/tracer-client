@@ -12,7 +12,6 @@ pub enum Os {
 pub enum Arch {
     X86_64,
     Aarch64,
-    Other,
 }
 
 #[derive(Debug, Clone)]
@@ -37,12 +36,6 @@ impl PlatformInfo {
                 if Self::is_amazon_linux()? {
                     match arch {
                         Arch::X86_64 | Arch::Aarch64 => Os::AmazonLinux,
-                        _ => {
-                            return Err(anyhow!(
-                                "Unsupported Amazon Linux architecture: {}",
-                                raw_arch
-                            ))
-                        }
                     }
                 } else {
                     Os::Linux

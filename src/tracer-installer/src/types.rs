@@ -1,5 +1,6 @@
+#[derive(Clone, Debug)]
 pub(crate) enum TracerVersion {
-    DEVELOPMENT,
-    PRODUCTION,
-    FEATURE(String),
+    Development,
+    Production,
+    Feature(String),
 }
