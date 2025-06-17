@@ -114,8 +114,24 @@ jobs:
           target: ${{ matrix.target }}
         if: startsWith(matrix.os, 'ubuntu')
 
-      - uses: taiki-e/upload-rust-binary-action@v1
-        with:
-          bin: tracer
-          target: ${{ matrix.target }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Install GitHub CLI
+        run: |
+          if [[ "${{ runner.os }}" == "macOS" ]]; then
+            brew install gh
+          else
+            type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+            && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+            && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+            && sudo apt update \
+            && sudo apt install gh -y
+          fi
+
+      - name: Upload to release
+        run: |
+          gh release upload ${{ github.ref_name }} target/${{ matrix.target }}/release/tracer --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
