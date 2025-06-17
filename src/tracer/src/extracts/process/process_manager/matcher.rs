@@ -1,27 +1,20 @@
-use crate::common::target_process::target_process_manager::TargetManager;
 use crate::common::target_process::{Target, TargetMatchable};
 use crate::extracts::process::types::process_state::ProcessState;
-use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 use anyhow::Result;
 
 /// Handles filtering and matching processes against targets
-pub struct Filter {
-    target_manager: TargetManager,
-}
+/// Gets targets from the ProcessState instead of holding its own copy
+pub struct Filter;
 
 impl Filter {
-    pub fn new(target_manager: TargetManager) -> Self {
-        Self { target_manager }
-    }
-
-    /// Gets the target manager
-    pub fn get_target_manager(&self) -> &TargetManager {
-        &self.target_manager
+    pub fn new() -> Self {
+        Self
     }
 
     /// Finds processes that match our targets
+    /// Uses the state's target manager for consistency
     pub fn find_matching_processes(
         &self,
         triggers: Vec<ProcessStartTrigger>,
@@ -58,7 +51,7 @@ impl Filter {
             .targets
             .iter()
             .filter(|target| !target.should_force_ancestor_to_match())
-            .collect_vec();
+            .collect::<Vec<_>>();
 
         if eligible_targets_for_parents.is_empty() {
             return None;
@@ -77,10 +70,7 @@ impl Filter {
         None
     }
 
-    /// Updates the targets being watched
-    pub fn update_targets(&mut self, targets: Vec<Target>) {
-        self.target_manager = TargetManager::new(targets, self.target_manager.blacklist.clone());
-    }
+
 
     /// Filters processes to find those of interest based on targets and monitoring state
     ///
@@ -131,10 +121,17 @@ impl Filter {
     }
 }
 
+impl Default for Filter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::common::target_process::target_matching::TargetMatch;
+    use crate::common::target_process::target_process_manager::TargetManager;
     use crate::common::target_process::Target;
     use chrono::DateTime;
 

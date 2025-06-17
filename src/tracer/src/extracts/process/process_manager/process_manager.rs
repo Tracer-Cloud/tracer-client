@@ -6,6 +6,7 @@ use crate::extracts::process::process_manager::handlers::process_starts::Process
 use crate::extracts::process::process_manager::handlers::process_terminations::ProcessTerminationHandler;
 use crate::extracts::process::process_manager::logger::ProcessLogger;
 use crate::extracts::process::process_manager::matcher::Filter;
+use crate::extracts::process::process_manager::process_metrics_handler::ProcessMetricsHandler;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
 use anyhow::Result;
@@ -25,9 +26,9 @@ pub struct ProcessManager {
 
 impl ProcessManager {
     pub fn new(target_manager: TargetManager, log_recorder: LogRecorder) -> Self {
-        let state_manager = StateManager::new(target_manager.clone());
+        let state_manager = StateManager::new(target_manager);
         let logger = ProcessLogger::new(log_recorder);
-        let matcher = Filter::new(target_manager);
+        let matcher = Filter::new();
         let system_refresher = SystemRefresher::new();
 
         ProcessManager {
@@ -45,6 +46,7 @@ impl ProcessManager {
 
     /// Updates the list of targets being watched
     pub async fn update_targets(&self, targets: Vec<Target>) -> Result<()> {
+        // StateManager is now the single source of truth for targets
         self.state_manager.update_targets(targets).await
     }
 
@@ -92,7 +94,7 @@ impl ProcessManager {
 
     /// Polls and updates metrics for all monitored processes
     pub async fn poll_process_metrics(&self) -> Result<()> {
-        ProcessStartHandler::poll_process_metrics(
+        ProcessMetricsHandler::poll_process_metrics(
             &self.state_manager,
             &self.logger,
             &self.system_refresher,
@@ -109,25 +111,13 @@ impl ProcessManager {
         self.state_manager.get_number_of_monitored_processes().await
     }
 
-    /// Finds matching processes (for compatibility with existing code)
+    /// Finds matching processes (delegates to Filter for consistency)
     pub async fn find_matching_processes(
         &self,
         triggers: Vec<ProcessStartTrigger>,
     ) -> Result<HashMap<Target, HashSet<ProcessStartTrigger>>> {
         let state = self.state_manager.get_state().await;
-        let mut matched_processes = HashMap::new();
-
-        for trigger in triggers {
-            if let Some(matched_target) = Filter::get_matched_target(&state, &trigger) {
-                let matched_target = matched_target.clone();
-                matched_processes
-                    .entry(matched_target)
-                    .or_insert(HashSet::new())
-                    .insert(trigger);
-            }
-        }
-
-        Ok(matched_processes)
+        self.matcher.find_matching_processes(triggers, &state)
     }
 }
 
