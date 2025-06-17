@@ -1,9 +1,9 @@
-use crate::client::config_manager::{Config, ConfigLoader};
 use crate::commands::{Cli, Commands};
 use crate::common::constants::{
     DEFAULT_DAEMON_PORT, PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR,
 };
 use crate::common::debug_log::Logger;
+use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::daemon_run::run;
 use crate::daemon::structs::{Message, TagData};
@@ -144,7 +144,7 @@ pub fn process_cli() -> Result<()> {
 
     let cli = Cli::parse();
     // Use the --config flag, if provided, when loading the configuration
-    let config = ConfigLoader::load_default_config()?;
+    let config = Config::default();
 
     let _guard = (!cfg!(test)).then(|| {
         config.sentry_dsn.as_deref().map(|dsn| {
@@ -287,7 +287,6 @@ pub fn process_cli() -> Result<()> {
             }
             result
         }
-        Commands::ApplyBashrc => ConfigLoader::setup_aliases(),
         _ => {
             match tokio::runtime::Runtime::new()?.block_on(run_async_command(
                 cli.command,

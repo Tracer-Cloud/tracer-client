@@ -1,5 +1,5 @@
-use crate::client::config_manager::Config;
 use crate::common::constants::{LOG_FILE, STDERR_FILE, STDOUT_FILE};
+use crate::config::Config;
 use crate::daemon::structs::{InfoResponse, InnerInfoResponse};
 use anyhow::Result;
 use colored::Colorize;
