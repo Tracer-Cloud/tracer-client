@@ -4782,6 +4782,7 @@ version = "2025.5.15+1"
 dependencies = [
  "anyhow",
  "async-trait",
+ "clap",
  "colored",
  "console",
  "dirs",

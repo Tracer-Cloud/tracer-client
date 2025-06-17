@@ -1,7 +1,6 @@
-use super::{
-    platform::{Arch, Os, PlatformInfo},
-    TracerVersion,
-};
+use crate::types::TracerVersion;
+
+use super::platform::{Arch, Os, PlatformInfo};
 
 pub(super) struct TracerUrlFinder;
 

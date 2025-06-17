@@ -19,6 +19,7 @@ octocrab = { workspace = true }
 futures-util = {workspace = true }
 tempfile = {workspace = true }
 dirs = {workspace = true }
+clap = {workspace = true }
 
 indicatif = "0.17"
 async-trait = "0.1.88"

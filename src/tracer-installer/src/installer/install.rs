@@ -14,8 +14,9 @@ use tokio::{
 use tokio::fs::{self, OpenOptions};
 
 use crate::installer::url_builder::TracerUrlFinder;
+use crate::types::TracerVersion;
 
-use super::{platform::PlatformInfo, TracerVersion};
+use super::platform::PlatformInfo;
 
 pub struct Installer {
     pub platform: PlatformInfo,
@@ -23,7 +24,7 @@ pub struct Installer {
 }
 
 impl Installer {
-    pub async fn run(&self) -> Result<()> {
+    pub async fn run(&self, user_id: Option<String>) -> Result<()> {
         let finder = TracerUrlFinder;
         let url = finder
             .get_binary_url(self.version.clone(), &self.platform)
@@ -42,7 +43,7 @@ impl Installer {
         self.extract_tarball(&archive_path, &extract_path)?;
         let installed_path = self.install_to_final_dir(&extract_path)?;
 
-        Self::patch_rc_files_async(Some("12434"))
+        Self::patch_rc_files_async(user_id)
             .await
             .expect("failed to write to rc files");
 
@@ -106,7 +107,7 @@ impl Installer {
         Ok(final_path)
     }
 
-    pub async fn patch_rc_files_async(user_id: Option<&str>) -> Result<()> {
+    pub async fn patch_rc_files_async(user_id: Option<String>) -> Result<()> {
         let home = dirs::home_dir().context("Could not find home directory")?;
 
         let export_path = r#"export PATH="$HOME/.tracerbio/bin:$PATH""#;
