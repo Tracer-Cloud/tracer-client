@@ -109,4 +109,13 @@ impl ProcessManager {
     pub async fn get_number_of_monitored_processes(&self) -> usize {
         self.state_manager.get_number_of_monitored_processes().await
     }
+
+    /// Finds matching processes (functional approach with explicit data flow)
+    pub async fn find_matching_processes(
+        &self,
+        triggers: Vec<ProcessStartTrigger>,
+    ) -> Result<HashMap<Target, HashSet<ProcessStartTrigger>>> {
+        let state = self.state_manager.get_state().await;
+        self.matcher.find_matching_processes(triggers, &state)
+    }
 }

@@ -1,0 +1,791 @@
+{
+  "rules": [
+    {
+      "rule_name": "FastQC execution",
+      "display_name": "fastqc merging fasta files",
+      "tool_name": "fastqc",
+      "condition": {
+        "type": "and",
+        "value": {
+          "and": [
+            {
+              "type": "simple",
+              "value": {
+                "field": "process_name",
+                "value": "perl"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": "/opt/conda/bin/fastqc"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "rule_name": "Nextflow pipeline step",
+      "display_name": "nextflow-step",
+      "condition": {
+        "type": "or",
+        "value": {
+          "or": [
+            {
+              "type": "simple",
+              "value": {
+                "field": "bin_path_starts_with",
+                "value": "/opt/nextflow/bin"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": "nextflow run"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "rule_name": "BBSplit execution",
+      "display_name": "BBSplit",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "bbsplit.sh"
+        }
+      }
+    },
+    {
+      "rule_name": "Salmon quantification",
+      "display_name": "salmon",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "salmon"
+        }
+      }
+    },
+    {
+      "rule_name": "STAR alignment",
+      "display_name": "star",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "star"
+        }
+      }
+    },
+    {
+      "rule_name": "BWA alignment",
+      "display_name": "bwa",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "bwa"
+        }
+      }
+    },
+    {
+      "rule_name": "Bowtie2 alignment",
+      "display_name": "bowtie2",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "bowtie2"
+        }
+      }
+    },
+    {
+      "rule_name": "Samtools operations",
+      "display_name": "samtools",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "samtools"
+        }
+      }
+    },
+    {
+      "rule_name": "Picard tools",
+      "display_name": "picard",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "picard"
+        }
+      }
+    },
+    {
+      "rule_name": "GATK4 tools",
+      "display_name": "gatk4",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "gatk4"
+        }
+      }
+    },
+    {
+      "rule_name": "SnpEff annotation",
+      "display_name": "snpeff",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "snpeff"
+        }
+      }
+    },
+    {
+      "rule_name": "MultiQC report generation",
+      "display_name": "multiqc",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "multiqc"
+        }
+      }
+    },
+    {
+      "rule_name": "Qualimap quality control",
+      "display_name": "qualimap",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "qualimap"
+        }
+      }
+    },
+    {
+      "rule_name": "Kallisto quantification",
+      "display_name": "kallisto",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "kallisto"
+        }
+      }
+    },
+    {
+      "rule_name": "RSEM quantification",
+      "display_name": "rsem",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "rsem"
+        }
+      }
+    },
+    {
+      "rule_name": "FastP preprocessing",
+      "display_name": "fastp",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "fastp"
+        }
+      }
+    },
+    {
+      "rule_name": "Cutadapt adapter trimming",
+      "display_name": "cutadapt",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "cutadapt"
+        }
+      }
+    },
+    {
+      "rule_name": "Trimmomatic trimming",
+      "display_name": "trimmomatic",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "trimmomatic"
+        }
+      }
+    },
+    {
+      "rule_name": "Trim Galore trimming",
+      "display_name": "trim-galore",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "trim_galore"
+        }
+      }
+    },
+    {
+      "rule_name": "Bedtools operations",
+      "display_name": "bedtools",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "bedtools"
+        }
+      }
+    },
+    {
+      "rule_name": "RSeQC quality control",
+      "display_name": "RSeQC",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "rseqc"
+        }
+      }
+    },
+    {
+      "rule_name": "DESeq2 differential expression",
+      "display_name": "DESeq2",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "deseq"
+        }
+      }
+    },
+    {
+      "rule_name": "dupRadar quality control",
+      "display_name": "dupRadar",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "dupradar"
+        }
+      }
+    },
+    {
+      "rule_name": "FeatureCounts quantification",
+      "display_name": "featurecounts",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "featurecounts"
+        }
+      }
+    },
+    {
+      "rule_name": "BGZip compression",
+      "display_name": "bgzip",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "bgzip"
+        }
+      }
+    },
+    {
+      "rule_name": "Pigz compression",
+      "display_name": "pigz",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "pigz"
+        }
+      }
+    },
+    {
+      "rule_name": "UMI tools",
+      "display_name": "umi_tools",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "umi_tools"
+        }
+      }
+    },
+    {
+      "rule_name": "Kraken2 classification",
+      "display_name": "kraken2",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "kraken2"
+        }
+      }
+    },
+    {
+      "rule_name": "Bracken abundance estimation",
+      "display_name": "bracken",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "bracken"
+        }
+      }
+    },
+    {
+      "rule_name": "StringTie assembly",
+      "display_name": "stringtie",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "stringtie"
+        }
+      }
+    },
+    {
+      "rule_name": "HISAT2 alignment",
+      "display_name": "hisat2",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "hisat2"
+        }
+      }
+    },
+    {
+      "rule_name": "MACS3 peak calling",
+      "display_name": "macs3",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "macs3"
+        }
+      }
+    },
+    {
+      "rule_name": "DeepTools analysis",
+      "display_name": "deeptools",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "deeptools"
+        }
+      }
+    },
+    {
+      "rule_name": "Subread feature counting",
+      "display_name": "subread",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "subread"
+        }
+      }
+    },
+    {
+      "rule_name": "CNVkit copy number analysis",
+      "display_name": "cnvkit",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "cnvkit"
+        }
+      }
+    },
+    {
+      "rule_name": "Snakemake workflow",
+      "display_name": "snakemake",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "snakemake"
+        }
+      }
+    },
+    {
+      "rule_name": "Conda environment operations",
+      "display_name": "conda",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "bin_path_starts_with",
+          "value": "/opt/conda/bin"
+        }
+      }
+    },
+    {
+      "rule_name": "Python script execution",
+      "display_name": "python-script",
+      "condition": {
+        "type": "and",
+        "value": {
+          "and": [
+            {
+              "type": "simple",
+              "value": {
+                "field": "process_name",
+                "value": "python"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": ".py"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "rule_name": "R script execution",
+      "display_name": "r-script",
+      "condition": {
+        "type": "and",
+        "value": {
+          "and": [
+            {
+              "type": "simple",
+              "value": {
+                "field": "process_name",
+                "value": "R"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": ".R"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "rule_name": "Bash script execution",
+      "display_name": "bash-script",
+      "condition": {
+        "type": "and",
+        "value": {
+          "and": [
+            {
+              "type": "simple",
+              "value": {
+                "field": "process_name",
+                "value": "bash"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": ".sh"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "rule_name": "Perl script execution",
+      "display_name": "perl-script",
+      "condition": {
+        "type": "and",
+        "value": {
+          "and": [
+            {
+              "type": "simple",
+              "value": {
+                "field": "process_name",
+                "value": "perl"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": ".pl"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "rule_name": "Java application",
+      "display_name": "java-app",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name",
+          "value": "java"
+        }
+      }
+    },
+    {
+      "rule_name": "Docker container",
+      "display_name": "docker",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "docker"
+        }
+      }
+    },
+    {
+      "rule_name": "Singularity container",
+      "display_name": "singularity",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "singularity"
+        }
+      }
+    },
+    {
+      "rule_name": "Git operations",
+      "display_name": "git",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "git"
+        }
+      }
+    },
+    {
+      "rule_name": "SSH connection",
+      "display_name": "ssh",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "ssh"
+        }
+      }
+    },
+    {
+      "rule_name": "SCP file transfer",
+      "display_name": "scp",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "scp"
+        }
+      }
+    },
+    {
+      "rule_name": "RSYNC synchronization",
+      "display_name": "rsync",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "rsync"
+        }
+      }
+    },
+    {
+      "rule_name": "WGET download",
+      "display_name": "wget",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "wget"
+        }
+      }
+    },
+    {
+      "rule_name": "CURL request",
+      "display_name": "curl",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "curl"
+        }
+      }
+    },
+    {
+      "rule_name": "Compression operations",
+      "display_name": "compression",
+      "condition": {
+        "type": "or",
+        "value": {
+          "or": [
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": "gzip"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": "bzip2"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": "xz"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": "tar"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "rule_name": "File operations",
+      "display_name": "file-ops",
+      "condition": {
+        "type": "or",
+        "value": {
+          "or": [
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": "cp"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": "mv"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": "rm"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": "mkdir"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": "ln"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "rule_name": "Text processing",
+      "display_name": "text-processing",
+      "condition": {
+        "type": "or",
+        "value": {
+          "or": [
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": "grep"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": "sed"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": "awk"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": "sort"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": "uniq"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": "cut"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": "paste"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": "join"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+} 
