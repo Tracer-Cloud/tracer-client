@@ -45,6 +45,7 @@ pub struct TracerClient {
 
     // todo: remove completely
     initialization_id: Option<String>,
+    pub user_id: Option<String>,
     pipeline_name: String,
 }
 
@@ -86,6 +87,7 @@ impl TracerClient {
 
             pipeline_name: cli_args.pipeline_name,
             initialization_id: cli_args.run_id,
+            user_id: cli_args.user_id,
         })
     }
 

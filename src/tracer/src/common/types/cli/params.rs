@@ -22,6 +22,10 @@ pub struct TracerCliInitArgs {
 
     #[clap(long)]
     pub is_dev: Option<bool>,
+
+    /// Optional user ID used to associate this installation with your account.
+    #[arg(long)]
+    pub user_id: Option<String>,
 }
 
 /// Ensures the pipeline name remains required
@@ -32,4 +36,5 @@ pub struct FinalizedInitArgs {
     pub tags: PipelineTags,
     pub no_daemonize: bool,
     pub is_dev: Option<bool>,
+    pub user_id: Option<String>,
 }
