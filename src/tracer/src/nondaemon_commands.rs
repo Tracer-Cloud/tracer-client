@@ -257,15 +257,10 @@ pub async fn update_tracer() -> Result<()> {
         return Ok(());
     }
 
-    let config = Config::default();
-
     println!("\nUpdating Tracer to version {}...", latest_ver);
 
     let mut command = Command::new("bash");
-    command.arg("-c").arg(format!(
-        "curl -sSL https://install.tracer.cloud | sudo bash -s -- {} && . ~/.bashrc",
-        config.api_key
-    ));
+    command.arg("-c").arg("curl -sSL https://install.tracer.cloud/ | sudo bash && source ~/.bashrc && source ~/.zshrc");
     let status = command
         .status()
         .context("Failed to update Tracer. Please try again.")?;
