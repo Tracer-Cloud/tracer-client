@@ -134,9 +134,20 @@ pub fn load_json_rules<P: AsRef<Path>>(path: P) -> Result<Vec<Target>, Box<dyn s
         json_content.len()
     );
 
-    let config: RulesConfig = serde_json::from_str(&json_content)?;
+    load_json_rules_from_str(&json_content)
+}
+
+pub fn load_json_rules_from_str(
+    json_content: &str,
+) -> Result<Vec<Target>, Box<dyn std::error::Error>> {
     println!(
-        "[load_json_rules] Parsed {} rules from JSON",
+        "[load_json_rules_from_str] Parsing JSON content of {} bytes",
+        json_content.len()
+    );
+
+    let config: RulesConfig = serde_json::from_str(json_content)?;
+    println!(
+        "[load_json_rules_from_str] Parsed {} rules from JSON",
         config.rules.len()
     );
 
@@ -146,7 +157,7 @@ pub fn load_json_rules<P: AsRef<Path>>(path: P) -> Result<Vec<Target>, Box<dyn s
         .map(|rule| {
             let target = rule.clone().to_target();
             println!(
-                "[load_json_rules] Converted rule '{}' to target: {:?}",
+                "[load_json_rules_from_str] Converted rule '{}' to target: {:?}",
                 rule.rule_name.clone(),
                 target
             );
@@ -155,7 +166,7 @@ pub fn load_json_rules<P: AsRef<Path>>(path: P) -> Result<Vec<Target>, Box<dyn s
         .collect();
 
     println!(
-        "[load_json_rules] Successfully converted {} targets",
+        "[load_json_rules_from_str] Successfully converted {} targets",
         targets.len()
     );
     Ok(targets)

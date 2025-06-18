@@ -1,4 +1,4 @@
-use crate::common::target_process::json_rules_parser::load_json_rules;
+use crate::common::target_process::json_rules_parser::{load_json_rules, load_json_rules_from_str};
 use crate::common::target_process::Target;
 use crate::common::utils::log_matched_process;
 use std::path::Path;
@@ -11,7 +11,22 @@ pub struct TargetManager {
 
 impl TargetManager {
     pub fn new() -> Self {
-        // Try multiple possible paths for the rules file
+        // First try to load from embedded JSON (for production builds)
+        println!("[TargetManager] Trying to load embedded rules...");
+        match load_json_rules_from_str(include_str!("default_rules.json")) {
+            Ok(targets) => {
+                println!(
+                    "[TargetManager] Successfully loaded {} targets from embedded JSON",
+                    targets.len()
+                );
+                return Self { targets };
+            }
+            Err(e) => {
+                println!("[TargetManager] Failed to load embedded rules: {}", e);
+            }
+        }
+
+        // Fallback to file loading (for development)
         let possible_paths = vec![
             "common/target_process/default_rules.json",
             "src/tracer/src/common/target_process/default_rules.json",
@@ -23,7 +38,10 @@ impl TargetManager {
         let mut loaded = false;
 
         for rules_path in possible_paths {
-            println!("[TargetManager] Trying to load rules from: {}", rules_path);
+            println!(
+                "[TargetManager] Trying to load rules from file: {}",
+                rules_path
+            );
 
             match load_json_rules(rules_path) {
                 Ok(loaded_targets) => {
@@ -46,7 +64,7 @@ impl TargetManager {
         }
 
         if !loaded {
-            println!("[TargetManager] WARNING: Could not load rules from any path. Using empty target list.");
+            println!("[TargetManager] WARNING: Could not load rules from any source. Using empty target list.");
         }
 
         Self { targets }
