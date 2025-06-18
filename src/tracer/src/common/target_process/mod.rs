@@ -1,12 +1,12 @@
 // File: src/target/mod.rs
-pub mod nf_process_match;
 pub mod target_matching;
 pub mod target_process_manager;
-pub mod targets_list;
+pub mod json_rules_parser;
+
 use serde::{Deserialize, Serialize};
 use target_matching::{matches_target, TargetMatch};
-use targets_list::DEFAULT_DISPLAY_PROCESS_RULES;
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
+use json_rules_parser::load_default_json_rules;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Hash, Eq)]
 pub enum DisplayName {
@@ -46,42 +46,19 @@ impl DisplayName {
     }
 
     fn process_default_display_name(process_name: &str, commands: &[String]) -> String {
-        // First try NextFlow process matching
+        // First try to match against JSON rules
         if !commands.is_empty() {
             let command_string = commands.join(" ");
-            if let Ok(nf_process_name) = nf_process_match::match_process_command(&command_string) {
-                return nf_process_name;
+            if let Ok(json_targets) = load_default_json_rules() {
+                for target in json_targets {
+                    if target.matches(process_name, &command_string, process_name) {
+                        return target.get_display_name_object().get_display_name(process_name, commands);
+                    }
+                }
             }
         }
-
-        // Fall back to the existing logic
-        let tokens: Vec<String> = commands
-            .iter()
-            .flat_map(|cmd| cmd.split([' ', ';']))
-            .map(|token| {
-                std::path::Path::new(token)
-                    .file_stem()
-                    .map(|f| f.to_string_lossy().to_lowercase())
-                    .unwrap_or_else(|| token.to_lowercase())
-            })
-            .collect();
-
-        for label in DEFAULT_DISPLAY_PROCESS_RULES.iter() {
-            if tokens.iter().any(|t| t == label) {
-                return label.to_string();
-            }
-        }
-
-        // If process name contains a valid path, return just the file stem
-        if let Some(stem) = std::path::Path::new(process_name)
-            .file_stem()
-            .map(|s| s.to_string_lossy().to_string())
-        {
-            return stem;
-        }
-
-        // Fallback: return as-is
-        process_name.to_string()
+        
+        String::new()
     }
 }
 
@@ -124,32 +101,6 @@ impl Target {
         }
     }
 
-    pub fn set_merge_with_parents(self, merge_with_parents: bool) -> Target {
-        Target {
-            merge_with_parents,
-            ..self
-        }
-    }
-
-    pub fn set_force_ancestor_to_match(self, force_ancestor_to_match: bool) -> Target {
-        Target {
-            force_ancestor_to_match,
-            ..self
-        }
-    }
-
-    pub fn set_filter_out(self, filter_out: Option<Vec<TargetMatch>>) -> Target {
-        Target { filter_out, ..self }
-    }
-
-    pub fn should_be_merged_with_parents(&self) -> bool {
-        self.merge_with_parents
-    }
-
-    pub fn should_force_ancestor_to_match(&self) -> bool {
-        self.force_ancestor_to_match
-    }
-
     pub fn get_display_name_object(&self) -> DisplayName {
         self.display_name.clone()
     }
@@ -172,6 +123,24 @@ impl TargetMatchable for Vec<TargetMatch> {
         self.iter()
             .any(|target| matches_target(target, process_name, command, bin_path))
     }
+}
+
+/// Load targets from JSON configuration
+pub fn load_targets_from_json() -> Result<Vec<Target>, Box<dyn std::error::Error>> {
+    load_default_json_rules()
+}
+
+/// Get default targets (fallback to hardcoded list if JSON fails)
+pub fn get_default_targets() -> Vec<Target> {
+    load_targets_from_json().unwrap_or_else(|_| {
+        // Fallback to hardcoded targets if JSON loading fails
+        vec![]
+    })
+}
+
+// Keep backward compatibility
+pub fn load_targets_from_yaml() -> Result<Vec<Target>, Box<dyn std::error::Error>> {
+    load_targets_from_json()
 }
 
 #[cfg(test)]

@@ -121,7 +121,7 @@ mod tests {
     #[tokio::test]
     async fn test_state_manager_basic_operations() {
         let target = Target::new(TargetMatch::ProcessName("test_process".to_string()));
-        let target_manager = TargetManager::new(vec![target], vec![]);
+        let target_manager = TargetManager::new(vec![target]);
         let state_manager = StateManager::new(target_manager);
 
         // Test initial state

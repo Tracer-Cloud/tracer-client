@@ -70,7 +70,7 @@ mod tests {
     fn test_get_matched_target_direct_match() {
         // Create a test target and process
         let target = Target::new(TargetMatch::ProcessName("test_process".to_string()));
-        let target_manager = TargetManager::new(vec![target.clone()], vec![]);
+        let target_manager = TargetManager::new(vec![target.clone()]);
 
         let process = create_test_process(
             100,
