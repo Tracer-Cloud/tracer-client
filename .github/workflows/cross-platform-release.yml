@@ -30,14 +30,9 @@ jobs:
 
       - name: Update version in Cargo.toml
         run: |
-          # Get current date in YYYY.MM.DD format
-          DATE=$(date +'%Y.%-m.%-d')
-
-          # Get time in HH.MM format
-          TIME=$(date +'%H.%M')
-
-          # Create new version string
-          NEW_VERSION="${DATE}+${TIME}"
+          # Extract version from git tag (remove 'v' prefix)
+          TAG_VERSION=${{ github.ref_name }}
+          NEW_VERSION=${TAG_VERSION#v}
           
           # Update version in Cargo.toml (compatible with both macOS and Linux)
           if [[ "${{ matrix.runner }}" == *"macos"* ]]; then
@@ -47,7 +42,7 @@ jobs:
           fi
           
           # Print the new version for verification
-          echo "Updated version to: ${NEW_VERSION}"
+          echo "Updated version to: ${NEW_VERSION} (from tag: ${TAG_VERSION})"
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -138,16 +133,11 @@ jobs:
 
       - name: Update version in Cargo.toml
         run: |
-          # Get current date in YYYY.MM.DD format
-          DATE=$(date +'%Y.%-m.%-d')
-          # Get short commit hash
-          COMMIT_HASH=$(git rev-parse --short HEAD)
-          # Get time in HH.MM format
-          TIME=$(date +'%H.%M')
-          # Create new version string
-          NEW_VERSION="${DATE}+${TIME}.${COMMIT_HASH}"
+          # Extract version from git tag (remove 'v' prefix)
+          TAG_VERSION=${{ github.ref_name }}
+          NEW_VERSION=${TAG_VERSION#v}
           sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
-          echo "Updated version to: ${NEW_VERSION}"
+          echo "Updated version to: ${NEW_VERSION} (from tag: ${TAG_VERSION})"
 
       - name: Build the binary
         run: |
