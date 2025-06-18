@@ -5,6 +5,7 @@
 
 BINARY_NAME="tracer"
 USER_ID="${TRACER_USER_ID:-}"
+SESSION_ID="${TRACER_SESSION_ID:-}"
 
 # Set your github username and repo name
 repo="Tracer-Cloud/tracer-client"
@@ -34,7 +35,7 @@ elif [[ "$1" == "production" ]]; then
     echo "Downloading version ${tag}"
     TRACER_LINUX_URL_X86_64="https://github.com/${repo}/releases/download/${TRACER_VERSION}/tracer-x86_64-unknown-linux-gnu.tar.gz"
     TRACER_LINUX_URL_ARM="https://github.com/${repo}/releases/download/${TRACER_VERSION}/tracer-aarch64-unknown-linux-gnu.tar.gz"
-    TRACER_AMAZON_LINUX_URL_X86_64="https://github.com/${repo}/releases/download/tracer-x86_64-amazon-linux-gnu.tar.gz"
+    TRACER_AMAZON_LINUX_URL_X86_64="https://github.com/${repo}/releases/download/${TRACER_VERSION}/tracer-x86_64-amazon-linux-gnu.tar.gz"
     TRACER_MACOS_AARCH_URL="https://github.com/${repo}/releases/download/${TRACER_VERSION}/tracer-aarch64-apple-darwin.tar.gz"
     TRACER_MACOS_X86_URL="https://github.com/${repo}/releases/download/${TRACER_VERSION}/tracer-x86_64-apple-darwin.tar.gz"
 else
@@ -554,7 +555,7 @@ function send_analytics_event() {
 function cleanup() {
     echo ""
     print_section "Cleanup"
-    send_analytics_event "$EVENT_INSTALL_COMPLETED"
+    send_analytics_event "$EVENT_INSTALL_COMPLETED" "{\"os\": \"$(uname -s)\", \"arch\": \"$(uname -m)\", \"session_id\": \"${SESSION_ID}\"}"
 
 
     if [ -d "$TRACER_TEMP_DIR" ]; then
@@ -572,7 +573,7 @@ trap cleanup EXIT
 function main() {
   print_header
   check_system_requirements
-  send_analytics_event "$EVENT_INSTALL_STARTED" "{\"os\": \"$(uname -s)\", \"arch\": \"$(uname -m)\"}"
+  send_analytics_event "$EVENT_INSTALL_STARTED" "{\"os\": \"$(uname -s)\", \"arch\": \"$(uname -m)\", \"session_id\": \"${SESSION_ID}\"}"
   print_section "Setting Tracer User ID"
   persist_tracer_user_id > /dev/null
   install_tracer_binary
