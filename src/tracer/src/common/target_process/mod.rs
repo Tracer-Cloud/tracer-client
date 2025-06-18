@@ -1,5 +1,5 @@
-pub mod target_manager;
 pub mod json_rules_parser;
+pub mod target_manager;
 
 use serde::{Deserialize, Serialize};
 
@@ -85,9 +85,9 @@ pub fn matches_target(target_match: &TargetMatch, process_name: &str, command: &
     match target_match {
         TargetMatch::ProcessName(name) => process_name == name,
         TargetMatch::CommandContains(content) => command.contains(content),
-        TargetMatch::Or(conditions) => {
-            conditions.iter().any(|condition| matches_target(condition, process_name, command))
-        }
+        TargetMatch::Or(conditions) => conditions
+            .iter()
+            .any(|condition| matches_target(condition, process_name, command)),
     }
 }
 
