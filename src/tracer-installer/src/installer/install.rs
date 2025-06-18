@@ -17,6 +17,7 @@ use tokio::{
 use super::platform::PlatformInfo;
 use crate::installer::url_builder::TracerUrlFinder;
 use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
+use crate::utils::{print_summary, StepStatus};
 
 const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics";
 
@@ -41,7 +42,10 @@ impl Installer {
             .get_binary_url(self.channel.clone(), &self.platform)
             .await?;
 
-        println!("📦 Downloading Tracer from:\n  {url}");
+        print_summary(
+            &format!("Downloading Tracer from:\n {url}"),
+            StepStatus::Custom(console::Emoji("📦", "[DONE]"), ""),
+        );
 
         let temp_dir = tempfile::tempdir()?;
         let archive_path = temp_dir.path().join("tracer.tar.gz");
@@ -58,10 +62,15 @@ impl Installer {
             .await
             .expect("failed to write to rc files");
 
+        Self::create_tracer_tmp_dir()?;
+
         self.emit_analytic_event(AnalyticsEventType::InstallScriptCompleted)
             .await;
 
-        println!("🚀 Done! Tracer is ready at {}", installed_path.display());
+        print_summary(
+            &format!("Done! Tracer is ready at {}", installed_path.display()),
+            StepStatus::Custom(console::Emoji("🚀", "[DONE]"), ""),
+        );
 
         Ok(())
     }
@@ -100,7 +109,13 @@ impl Installer {
         let decompressed = GzDecoder::new(file);
         let mut archive = Archive::new(decompressed);
         archive.unpack(dest)?;
-        println!("📂 Extracted Tracer to: {}", dest.display());
+
+        println!();
+        print_summary(
+            &format!("Extracted Tracer to: {}", dest.display()),
+            StepStatus::Custom(console::Emoji("📂", "[DONE]"), ""),
+        );
+
         Ok(())
     }
 
@@ -116,7 +131,10 @@ impl Installer {
             .with_context(|| format!("Failed to copy tracer binary from {:?}", extracted_binary))?;
 
         std::fs::set_permissions(&final_path, std::fs::Permissions::from_mode(0o755))?;
-        println!("✅ Tracer installed to: {}", final_path.display());
+        print_summary(
+            &format!("Tracer installed to: {}", final_path.display()),
+            StepStatus::Success(""),
+        );
 
         Ok(final_path)
     }
@@ -173,9 +191,9 @@ impl Installer {
                 append_file.write_all(user_line.as_bytes()).await?;
                 append_file.write_all(b"\n").await?;
             }
-
-            println!("Updated shell profile: {}", path.display());
         }
+
+        print_summary("Updated Shell Profile", StepStatus::Success(""));
 
         Ok(())
     }
@@ -209,6 +227,12 @@ impl Installer {
         }
 
         Ok(())
+    }
+
+    /// Creates a temporary working directory at `/tmp/tracer`.
+    fn create_tracer_tmp_dir() -> anyhow::Result<()> {
+        let path = Path::new("/tmp/tracer");
+        std::fs::create_dir_all(path).map_err(|err| anyhow::anyhow!(err))
     }
 
     fn build_install_metadata(&self) -> HashMap<String, String> {
