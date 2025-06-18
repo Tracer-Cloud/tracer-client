@@ -9,6 +9,7 @@ use crate::common::constants::{
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::utils::info_formatter::InfoFormatter;
+use crate::utils::version::Version;
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use std::result::Result::Ok;
@@ -220,26 +221,6 @@ pub async fn setup_config(
     Ok(())
 }
 
-fn parse_version(s: &str) -> Option<(u32, u32, u32)> {
-    let s = s.trim_start_matches('v');
-    let main_version = s.split('+').next()?;
-    let parts: Vec<&str> = main_version.split('.').collect();
-
-    if parts.len() != 3 {
-        return None;
-    }
-
-    let major = parts[0].parse::<u32>().ok()?;
-    let minor = parts[1].parse::<u32>().ok()?;
-    let patch = parts[2].parse::<u32>().ok()?;
-
-    Some((major, minor, patch))
-}
-
-fn format_version(ver: (u32, u32, u32)) -> String {
-    format!("{}.{}.{}", ver.0, ver.1, ver.2)
-}
-
 pub async fn update_tracer() -> Result<()> {
     let octocrab = octocrab::instance();
     let release = octocrab
@@ -251,23 +232,21 @@ pub async fn update_tracer() -> Result<()> {
     let current = env!("CARGO_PKG_VERSION");
     let latest = &release.tag_name;
 
-    let current_ver = parse_version(current)
-        .ok_or_else(|| anyhow::anyhow!("Invalid current version format: {}", current))?;
-    let latest_ver = parse_version(latest)
-        .ok_or_else(|| anyhow::anyhow!("Invalid latest version format: {}", latest))?;
+    let current_ver = Version::from_str(current)?;
+    let latest_ver = Version::from_str(latest)?;
 
     if latest_ver <= current_ver {
         println!(
             "\nTracer is already at the latest version: {}.",
-            format_version(current_ver)
+            current_ver
         );
         return Ok(());
     }
 
     println!("\nA new version of Tracer is available!");
     println!("\nVersion Information:");
-    println!("  Current Version: {}", format_version(current_ver));
-    println!("  Latest Version:  {}", format_version(latest_ver));
+    println!("  Current Version: {}", current_ver);
+    println!("  Latest Version:  {}", latest_ver);
 
     println!("\nWould you like to proceed with the update? [y/N]");
     let mut input = String::new();
@@ -280,10 +259,7 @@ pub async fn update_tracer() -> Result<()> {
 
     let config = Config::default();
 
-    println!(
-        "\nUpdating Tracer to version {}...",
-        format_version(latest_ver)
-    );
+    println!("\nUpdating Tracer to version {}...", latest_ver);
 
     let mut command = Command::new("bash");
     command.arg("-c").arg(format!(
@@ -301,7 +277,7 @@ pub async fn update_tracer() -> Result<()> {
     println!(
         "\n{} Tracer has been successfully updated to version {}!",
         "Success:".green(),
-        format_version(latest_ver)
+        latest_ver
     );
     Ok(())
 }
