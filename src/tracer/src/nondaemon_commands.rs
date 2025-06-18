@@ -232,8 +232,8 @@ pub async fn update_tracer() -> Result<()> {
     let current = env!("CARGO_PKG_VERSION");
     let latest = &release.tag_name;
 
-    let current_ver = Version::from_str(current)?;
-    let latest_ver = Version::from_str(latest)?;
+    let current_ver: Version = current.parse().ok().unwrap();
+    let latest_ver: Version = latest.parse().ok().unwrap();
 
     if latest_ver <= current_ver {
         println!(

@@ -1,6 +1,7 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use std::cmp::Ordering;
 use std::fmt;
+use std::str::FromStr;
 
 #[derive(Debug)]
 pub struct Version {
@@ -9,24 +10,24 @@ pub struct Version {
     pub patch: u32,
 }
 
-impl Version {
+impl FromStr for Version {
+    type Err = String;
+
     /// Parses a version string like "1.2.3" or "v1.2.3" into a `Version`.
     ///
     /// Ignores any build metadata after a '+' sign.
     ///
     /// Returns an error if the string is not in the correct format
-    /// or any part is not a valid number
-    pub fn from_str(s: &str) -> Result<Self> {
-        let message = format!("Failed to parse version string: {}", s);
+    /// or any part is not a valid number.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let err_msg = format!("Failed to parse version string: {}", s);
+
         let s = s.trim_start_matches('v');
-        let version = s
-            .split('+')
-            .next()
-            .ok_or_else(|| anyhow!(message.clone()))?;
+        let version = s.split('+').next().ok_or_else(|| err_msg.clone())?;
         let parts: Vec<&str> = version.split('.').collect();
 
         if parts.len() != 3 {
-            return Err(anyhow!(message.clone()));
+            return Err(err_msg.clone());
         }
 
         let major = parts[0].parse::<u32>().ok();
@@ -39,7 +40,7 @@ impl Version {
                 minor,
                 patch,
             }),
-            _ => Err(anyhow!(message)),
+            _ => Err(err_msg),
         }
     }
 }
