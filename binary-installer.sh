@@ -70,7 +70,7 @@ echo "🚀 Executing Tracer Installer..."
 
 # Run the binary with or without user ID
 if [[ -n "$USER_ID" ]]; then
-  "$EXTRACT_DIR/$BINARY_NAME" run --user-id="$USER_ID"
+  sudo "$EXTRACT_DIR/$BINARY_NAME" run --user-id="$USER_ID"
 else
-  "$EXTRACT_DIR/$BINARY_NAME" run
+  sudo "$EXTRACT_DIR/$BINARY_NAME" run
 fi
