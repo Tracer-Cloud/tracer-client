@@ -2,6 +2,7 @@ use checks::CheckManager;
 use clap::Parser;
 use installer::{Installer, PlatformInfo};
 use types::{InstallTracerCli, InstallerCommand};
+use utils::print_honey_badger_banner;
 
 mod checks;
 mod installer;
@@ -14,13 +15,13 @@ async fn main() {
         .install_default()
         .expect("Failed to install rustls crypto provider");
 
-    println!("Welcome to tracer rust installer");
-
     let args = InstallTracerCli::parse();
 
     match args.command {
         InstallerCommand::Run { channel, user_id } => {
             // Run checks
+            print_honey_badger_banner(&channel);
+
             let requirements = CheckManager::new();
             requirements.run_all().await;
 

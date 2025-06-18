@@ -1,5 +1,7 @@
-//use colored::Colorize;
+use colored::Colorize;
 use console::Emoji;
+
+use crate::types::TracerVersion;
 
 pub enum StepStatus<'a> {
     Success(&'a str),
@@ -53,4 +55,43 @@ pub fn print_summary(label: &str, status: StepStatus) {
         }
     }
     println!(); // spacer after
+}
+
+pub fn _print_honey_badger_banner_v2(version: &TracerVersion) {
+    println!("                    ___,,___");
+    println!("               _,-='=- =-  -`\"--.__,,.._");
+    println!("            ,-;// /  - -       -   -= - \"=.");
+    println!("          ,'///    -     -   -   =  - ==-=\\`.");
+    println!("         |/// /  =    `. - =   == - =.=_,,._ `=/|");
+    println!("        ///    -   -    \\  - - = ,ndDMHHMM/\\b  \\\\");
+    println!("      ,' - / /        / /\\ =  - /MM(,,._`YQMML  `|");
+    println!("     <_,=^Kkm / / / / ///H|wnWWdMKKK#\"\"-;. `\"0\\  |");
+    println!("            `\"\"QkmmmmmnWMMM\\\"\"WHMKKMM\\   `--. \\> \\");
+    println!("     hjm          `\"\"'  `->>>    ``WHMb,.    `-_<@)");
+    println!("                                    `\"QMM`.");
+    println!("                                       `>>>");
+    println!("{} ", "Tracer Installer".yellow().bold());
+    println!(
+        "{} {}",
+        "Tracer version:".bold(),
+        version.to_string().cyan().bold()
+    );
+}
+
+pub fn print_honey_badger_banner(version: &TracerVersion) {
+    println!(" ");
+    println!("⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀│ ");
+    println!(
+        "⠀⢷⣦⣦⣄⣄⣔⣿⣿⣆⣄⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀│ {}",
+        "Tracer.bio CLI Installer".bold()
+    );
+    println!("⠀⠀⠻⣿⣿⣿⣿⣿⣿⣿⣿⠛⣿⣷⣦⡄⡀⠀⠀⠀⠀⠀⠀⠀⠀│ ");
+    println!("⠀⠀⠀⠈⠻⣻⣿⣿⣿⣿⣿⣷⣷⣿⣿⣿⣷⣧⡄⡀⠀⠀⠀⠀⠀│ ");
+    println!(
+        "⠀⠀⠀⠀⠀⠀⠘⠉⠃⠑⠁⠃⠋⠋⠛⠟⢿⢿⣿⣷⣦⡀⠀⠀⠀│ Tracer version: {}",
+        version.to_string().blue().bold()
+    );
+    println!("⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠑⠙⠻⠿⣧⠄⠀│ ");
+    println!("⠀          ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠀⠀│ ");
+    println!(" ");
 }

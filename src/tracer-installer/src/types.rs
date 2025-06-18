@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 use serde::Serialize;
+use std::fmt;
 use std::{collections::HashMap, str::FromStr};
 
 #[derive(Clone, Debug)]
@@ -17,6 +18,16 @@ impl FromStr for TracerVersion {
             "development" | "dev" => Ok(Self::Development),
             "production" | "prod" => Ok(Self::Production),
             other => Ok(Self::Feature(other.to_string())),
+        }
+    }
+}
+
+impl fmt::Display for TracerVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TracerVersion::Development => write!(f, "development"),
+            TracerVersion::Production => write!(f, "production"),
+            TracerVersion::Feature(name) => write!(f, "{name}"),
         }
     }
 }
