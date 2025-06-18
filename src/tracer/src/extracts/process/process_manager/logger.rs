@@ -3,7 +3,7 @@ use crate::common::target_process::Target;
 use crate::common::types::event::attributes::EventAttributes;
 use crate::common::types::event::ProcessStatus as TracerProcessStatus;
 use crate::extracts::process::extract_process_data::ExtractProcessData;
-use crate::extracts::process::process_utils::create_short_lived_process_properties;
+use crate::extracts::process::process_utils::create_short_lived_process_object;
 use crate::extracts::process::types::process_result::ProcessResult;
 use anyhow::Result;
 use chrono::Utc;
@@ -46,7 +46,7 @@ impl ProcessLogger {
             }
             None => {
                 debug!("Process({}) wasn't found", process.pid);
-                create_short_lived_process_properties(process, display_name.clone())
+                create_short_lived_process_object(process, display_name.clone())
             }
         };
 

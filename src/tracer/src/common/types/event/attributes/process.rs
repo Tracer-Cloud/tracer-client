@@ -36,20 +36,8 @@ pub struct FullProcessProperties {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct ShortProcessProperties {
-    pub tool_name: String,
-    pub tool_pid: String, // todo: usize?
-    pub tool_parent_pid: String,
-    pub tool_binary_path: String,
-    pub start_timestamp: String, // todo: timestamp
-    pub tool_args: String,
-    pub tool_cmd: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum ProcessProperties {
     Full(Box<FullProcessProperties>),
-    ShortLived(Box<ShortProcessProperties>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

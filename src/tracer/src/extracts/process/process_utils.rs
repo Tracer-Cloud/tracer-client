@@ -1,4 +1,4 @@
-use crate::common::types::event::attributes::process::{ProcessProperties, ShortProcessProperties};
+use crate::common::types::event::attributes::process::{FullProcessProperties, ProcessProperties};
 use chrono::Utc;
 use itertools::Itertools;
 use std::process::Command;
@@ -23,18 +23,31 @@ pub fn process_status_to_string(status: &ProcessStatus) -> String {
 }
 
 /// Creates properties for a short-lived process that wasn't found in the system
-pub fn create_short_lived_process_properties(
+pub fn create_short_lived_process_object(
     process: &ProcessStartTrigger,
     display_name: String,
 ) -> ProcessProperties {
-    ProcessProperties::ShortLived(Box::new(ShortProcessProperties {
+    ProcessProperties::Full(Box::new(FullProcessProperties {
         tool_name: display_name,
         tool_pid: process.pid.to_string(),
         tool_parent_pid: process.ppid.to_string(),
-        tool_binary_path: process.file_name.clone(), // TODO WTF
-        start_timestamp: Utc::now().to_rfc3339(),
-        tool_args: process.argv.iter().join(" "),
+        tool_binary_path: "".to_string(), // TODO WTF
         tool_cmd: process.comm.clone(),
+        tool_args: process.argv.iter().join(" "),
+        start_timestamp: Utc::now().to_rfc3339(),
+        process_cpu_utilization: 0.0,
+        process_run_time: 0,
+        process_disk_usage_read_total: 0,
+        process_disk_usage_write_total: 0,
+        process_disk_usage_read_last_interval: 0,
+        process_disk_usage_write_last_interval: 0,
+        process_memory_usage: 0,
+        process_memory_virtual: 0,
+        process_status: process_status_to_string(&ProcessStatus::Unknown(0)),
+        container_id: None,
+        job_id: None,
+        working_directory: None,
+        trace_id: None,
     }))
 }
 
