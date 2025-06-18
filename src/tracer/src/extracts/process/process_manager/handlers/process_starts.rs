@@ -69,7 +69,7 @@ impl ProcessStartHandler {
             triggers.len()
         );
         let state = state_manager.get_state().await;
-        matcher.filter_processes_of_interest(triggers, &state).await
+        matcher.find_matching_processes(triggers, &state)
     }
 
     /// Step 3: Refresh system data for matched processes.
@@ -110,7 +110,7 @@ impl ProcessStartHandler {
         Ok(())
     }
 
-    /// Step 5: Update monitoring state with new processes.
+    /// Step 5: Update the monitoring state with new processes.
     async fn update_monitoring(
         state_manager: &StateManager,
         matched_processes: HashMap<Target, HashSet<ProcessStartTrigger>>,
