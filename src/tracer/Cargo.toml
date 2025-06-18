@@ -57,3 +57,4 @@ sqlx = { workspace = true }
 dotenv = { workspace = true }
 serial_test = { workspace = true }
 uuid = { workspace = true }
+rstest.workspace = true
