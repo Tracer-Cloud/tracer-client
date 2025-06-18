@@ -57,27 +57,8 @@ impl Filter {
 
         // Find processes that match our targets
         let matched_processes = self.find_matching_processes(triggers, state)?;
-
-        // Filter out already monitored processes and include parent processes
-        let interested_in: HashMap<_, _> = matched_processes
-            .into_iter()
-            .map(|(target, processes)| {
-                let processes = processes
-                    .into_iter()
-                    .flat_map(|proc| {
-                        // Get the process and its parents
-                        let mut parents = state.get_process_hierarchy(proc);
-                        // Filter out already monitored processes
-                        parents.retain(|p| !already_monitored_pids.contains(&p.pid));
-                        parents
-                    })
-                    .collect::<HashSet<_>>();
-
-                (target, processes)
-            })
-            .collect();
-
-        Ok(interested_in)
+        
+        Ok(matched_processes)
     }
 
     /// Collects all PIDs from the filtered target processes map
