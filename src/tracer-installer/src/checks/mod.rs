@@ -1,6 +1,3 @@
-//use colored::Colorize;
-use console::Emoji;
-
 mod api;
 mod dependency;
 mod environment;
@@ -12,6 +9,8 @@ use dependency::DependencyCheck;
 use environment::EnvironmentCheck;
 use kernel::KernelCheck;
 use root::RootCheck;
+
+use crate::utils::{print_step, StepStatus};
 
 /// Trait defining functions a Requirement check must implement before being called
 /// as a preflight step or readiness check for installing the tracer binary
@@ -45,31 +44,30 @@ impl CheckManager {
     }
 
     pub async fn run_all(&self) {
-        const PASS: Emoji<'_, '_> = Emoji("✅ ", "[OK] ");
-        const FAIL: Emoji<'_, '_> = Emoji("❌ ", "[X] ");
-
         let mut all_passed = true;
 
         for check in &self.checks {
             let passed = check.check().await;
-            let label = format!("{:<25}", check.name()); // left-pad to 25 chars
-            let status = if passed { PASS } else { FAIL };
-            let message = if passed {
-                check.success_message()
+
+            if passed {
+                print_step(check.name(), StepStatus::Success(&check.success_message()));
             } else {
                 all_passed = false;
-                check.error_message()
-            };
 
-            println!("{status} {label} {message}");
+                let reason = check.error_message();
+                print_step(check.name(), StepStatus::Error(&reason));
+            }
         }
 
-        println!(); // spacer
+        println!(); // spacing after checks
 
         if all_passed {
-            println!("✅ Environment ready for installation");
+            print_step("Environment", StepStatus::Success("OK"));
         } else {
-            println!("❌ Some requirements failed. Tracer may be limited.");
+            print_step(
+                "Environment",
+                StepStatus::Warning("Some requirements failed. Tracer may be limited."),
+            );
         }
     }
 }

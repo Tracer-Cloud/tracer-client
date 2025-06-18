@@ -6,6 +6,7 @@ use types::{InstallTracerCli, InstallerCommand};
 mod checks;
 mod installer;
 mod types;
+mod utils;
 
 #[tokio::main]
 async fn main() {
