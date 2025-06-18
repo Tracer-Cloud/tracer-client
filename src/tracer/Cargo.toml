@@ -53,6 +53,7 @@ lazy_static = { workspace = true }
 typed-builder = { workspace = true }
 dialoguer = { workspace = true }
 regex = { workspace = true }
+rustls = { workspace = true }
 
 [dev-dependencies]
 sqlx = { workspace = true }

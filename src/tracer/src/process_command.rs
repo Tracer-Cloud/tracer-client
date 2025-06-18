@@ -287,6 +287,10 @@ pub fn process_cli() -> Result<()> {
             }
             result
         }
+        Commands::Update => {
+            // Handle update command directly without going through daemon
+            tokio::runtime::Runtime::new()?.block_on(update_tracer())
+        }
         _ => {
             match tokio::runtime::Runtime::new()?.block_on(run_async_command(
                 cli.command,
@@ -338,7 +342,6 @@ pub async fn run_async_command(
             None => println!("Pipeline should have started"),
         },
         Commands::End => api_client.send_end_request().await?,
-        Commands::Update => update_tracer().await?,
         Commands::Tag { tags } => {
             let tags = TagData { names: tags };
             api_client.send_update_tags_request(tags).await?;

@@ -1,4 +1,5 @@
 pub mod info_formatter;
+pub mod version;
 
 use crate::common::types::analytics::{AnalyticsEventType, AnalyticsPayload};
 use crate::constants::TRACER_ANALYTICS_ENDPOINT;

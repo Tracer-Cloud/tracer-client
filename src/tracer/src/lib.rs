@@ -15,7 +15,6 @@ pub mod logging;
 pub mod nondaemon_commands;
 pub mod process_command;
 pub mod utils;
-
 /// Runs tracer init in interactive mode
 pub fn init_command_interactive_mode(cli_args: TracerCliInitArgs) -> FinalizedInitArgs {
     InteractiveInitArgs::from_partial(cli_args)

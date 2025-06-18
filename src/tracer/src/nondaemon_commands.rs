@@ -9,7 +9,9 @@ use crate::common::constants::{
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::utils::info_formatter::InfoFormatter;
+use crate::utils::version::Version;
 use anyhow::{bail, Context, Result};
+use colored::Colorize;
 use std::result::Result::Ok;
 use tokio::time::sleep;
 use tracing::debug;
@@ -221,28 +223,56 @@ pub async fn setup_config(
 
 pub async fn update_tracer() -> Result<()> {
     let octocrab = octocrab::instance();
-
     let release = octocrab
         .repos(REPO_OWNER, REPO_NAME)
         .releases()
         .get_latest()
         .await?;
 
-    if release.tag_name == env!("CARGO_PKG_VERSION") {
-        println!("You are already using the latest version of Tracer.");
+    let current = env!("CARGO_PKG_VERSION");
+    let latest = &release.tag_name;
+
+    let current_ver: Version = current.parse().ok().unwrap();
+    let latest_ver: Version = latest.parse().ok().unwrap();
+
+    if latest_ver <= current_ver {
+        println!(
+            "\nTracer is already at the latest version: {}.",
+            current_ver
+        );
         return Ok(());
     }
 
-    let config = Config::default();
+    println!("\nA new version of Tracer is available!");
+    println!("\nVersion Information:");
+    println!("  Current Version: {}", current_ver);
+    println!("  Latest Version:  {}", latest_ver);
 
-    println!("Updating Tracer to version {}", release.tag_name);
+    println!("\nWould you like to proceed with the update? [y/N]");
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input)?;
+
+    if !input.trim().eq_ignore_ascii_case("y") {
+        println!("Update cancelled by user.");
+        return Ok(());
+    }
+
+    println!("\nUpdating Tracer to version {}...", latest_ver);
 
     let mut command = Command::new("bash");
-    command.arg("-c").arg(format!("curl -sSL https://raw.githubusercontent.com/davincios/tracer-daemon/main/install-tracer.sh | bash -s -- {} && . ~/.bashrc && tracer", config.api_key));
-
-    command
+    command.arg("-c").arg("curl -sSL https://install.tracer.cloud/ | sudo bash && source ~/.bashrc && source ~/.zshrc");
+    let status = command
         .status()
         .context("Failed to update Tracer. Please try again.")?;
 
+    if !status.success() {
+        bail!("Failed to update Tracer. Please try again.");
+    }
+
+    println!(
+        "\n{} Tracer has been successfully updated to version {}!",
+        "Success:".green(),
+        latest_ver
+    );
     Ok(())
 }
