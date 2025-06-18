@@ -1,3 +1,7 @@
+mod nf_process_match;
+
+pub use nf_process_match::{NextFlowProcessMatcher, ProcessInfo};
+
 use chrono::Utc;
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 
@@ -14,15 +18,4 @@ pub fn new_process_start_trigger(cmd: &str, path: &str) -> ProcessStartTrigger {
         file_name: path.to_string(),
         started_at: Utc::now(),
     }
-}
-
-/// Removes regex characters from a pattern to turn it into a valid path.
-/// Currontly only removes leading '^' and strips whitespace.
-pub fn pattern_to_path(pattern: &str) -> String {
-    let pattern = if pattern[0] == '^' {
-        pattern[1..]
-    } else {
-        pattern
-    };
-    pattern.trim().to_string()
 }

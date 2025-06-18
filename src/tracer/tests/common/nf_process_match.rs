@@ -9,6 +9,26 @@ pub struct ProcessInfo {
     pub process_name: String,
     pub test_commands: Vec<Vec<String>>,
     pub pattern: String,
+    pub tool_name: Option<String>,
+}
+
+impl ProcessInfo {
+    /// Removes regex characters from the first element in `self.pattern` to turn it into a valid
+    /// path. Currontly only removes leading '^' and strips whitespace.
+    pub fn path(&self) -> &str {
+        if self.pattern.starts_with('^') {
+            pattern[1..]
+        } else {
+            pattern
+        };
+        pattern.split(" ").first().unwrap().trim()
+    }
+
+    pub fn tool_name(&self) -> &str {
+        self.tool_name
+            .as_deref()
+            .unwrap_or_else(|| self.path().split("/").last().unwrap())
+    }
 }
 
 #[derive(Debug)]
@@ -35,10 +55,10 @@ impl fmt::Display for MatchError {
 impl Error for MatchError {}
 
 pub struct NextFlowProcessMatcher {
-    processes: Vec<ProcessInfo>,
+    pub processes: Vec<ProcessInfo>,
     // Changed to store Vec<(usize, Regex)> to handle multiple patterns per process name
     // The usize is the index in the processes vector
-    compiled_regexes: HashMap<String, Vec<(usize, Regex)>>,
+    pub compiled_regexes: HashMap<String, Vec<(usize, Regex)>>,
 }
 
 impl NextFlowProcessMatcher {
@@ -126,147 +146,5 @@ impl NextFlowProcessMatcher {
             .iter()
             .filter(|p| p.process_name == process_name)
             .collect()
-    }
-}
-
-use std::sync::OnceLock;
-static MATCHER: OnceLock<NextFlowProcessMatcher> = OnceLock::new();
-
-/// Public convenience function for matching a single command against the default processes file
-pub fn match_process_command(command: &str) -> Result<String, MatchError> {
-    let matcher = MATCHER.get_or_init(|| {
-        let json_content = include_str!("./nf_process_list.json");
-        NextFlowProcessMatcher::new(json_content).expect("Failed to create matcher")
-    });
-    matcher.match_command(command)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_all_patterns() {
-        // Load and parse the JSON data
-        let json_content = include_str!("./nf_process_list.json");
-        let processes: Vec<ProcessInfo> =
-            serde_json::from_str(json_content).expect("Failed to parse nf_process_list.json");
-
-        let mut failed_cases = Vec::new();
-        let mut total_tests = 0;
-        let mut passed_tests = 0;
-
-        for process in &processes {
-            println!("Testing process: {}", process.process_name);
-
-            for (command_set_idx, command_set) in process.test_commands.iter().enumerate() {
-                total_tests += 1;
-                let mut matching_commands = 0;
-                let mut relaxed_matches = 0;
-                let mut command_results = Vec::new();
-
-                // Test each command in the command set
-                for (cmd_idx, command) in command_set.iter().enumerate() {
-                    match match_process_command(command) {
-                        Ok(matched_process) => {
-                            if matched_process == process.process_name {
-                                matching_commands += 1;
-                                command_results.push(format!(
-                                    "  Command {}: '{}' -> MATCH ({})",
-                                    cmd_idx, command, matched_process
-                                ));
-                            } else if process.process_name.contains(&matched_process) {
-                                matching_commands += 1;
-                                relaxed_matches += 1;
-                                command_results.push(format!(
-                                    "  Command {}: '{}' -> RELAXED MATCH ({})",
-                                    cmd_idx, command, matched_process
-                                ));
-                            } else {
-                                command_results.push(format!(
-                                    "  Command {}: '{}' -> WRONG MATCH (got '{}', expected '{}')",
-                                    cmd_idx, command, matched_process, process.process_name
-                                ));
-                            }
-                        }
-                        Err(MatchError::NoMatch) => {
-                            command_results
-                                .push(format!("  Command {}: '{}' -> NO MATCH", cmd_idx, command));
-                        }
-                        Err(MatchError::MultipleMatches(matches)) => {
-                            command_results.push(format!(
-                                "  Command {}: '{}' -> MULTIPLE MATCHES: {}",
-                                cmd_idx,
-                                command,
-                                matches.join(", ")
-                            ));
-                        }
-                        Err(e) => {
-                            command_results.push(format!(
-                                "  Command {}: '{}' -> ERROR: {}",
-                                cmd_idx, command, e
-                            ));
-                        }
-                    }
-                }
-
-                // Check if at least one command matched
-                let test_passed = matching_commands >= 1;
-
-                if test_passed {
-                    passed_tests += 1;
-                    if relaxed_matches > 0 {
-                        println!(
-                            "  ✓ Command set {} PASSED (relaxed match found)",
-                            command_set_idx
-                        );
-                    } else {
-                        println!("  ✓ Command set {} PASSED (match found)", command_set_idx);
-                    }
-                } else {
-                    failed_cases.push(format!(
-                        "FAILED - Process '{}', Command set {}: Expected at least 1 match, got {}\n{}",
-                        process.process_name,
-                        command_set_idx,
-                        matching_commands,
-                        command_results.join("\n")
-                    ));
-                    println!(
-                        "  ✗ Command set {} FAILED ({} matches found)",
-                        command_set_idx, matching_commands
-                    );
-                }
-
-                // Print detailed results for failed cases
-                if !test_passed {
-                    for result in command_results {
-                        println!("{}", result);
-                    }
-                }
-            }
-            println!();
-        }
-
-        // Print summary
-        println!("=== TEST SUMMARY ===");
-        println!("Total tests: {}", total_tests);
-        println!("Passed: {}", passed_tests);
-        println!("Failed: {}", failed_cases.len());
-
-        if !failed_cases.is_empty() {
-            println!("\n=== FAILED CASES ===");
-            for (i, failure) in failed_cases.iter().enumerate() {
-                println!("{}. {}", i + 1, failure);
-                println!();
-            }
-
-            panic!(
-                "Test failed: {}/{} test cases failed",
-                failed_cases.len(),
-                total_tests
-            );
-        }
-
-        println!("All tests passed! ✓");
     }
 }
