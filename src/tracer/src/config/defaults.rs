@@ -1,6 +1,5 @@
 use crate::cloud_providers::aws::config::AwsConfig;
 use crate::common::constants::DEFAULT_DAEMON_PORT;
-use crate::common::target_process::targets_list;
 use crate::config::Config;
 use crate::constants::{
     AWS_REGION, BATCH_SUBMISSION_INTERVAL_MS, DEFAULT_API_KEY, FILE_SIZE_NOT_CHANGING_PERIOD_MS,
@@ -27,7 +26,7 @@ fn get_aws_default_profile() -> String {
 
 impl Default for Config {
     fn default() -> Self {
-        let mut config = Self {
+        let config = Self {
             api_key: DEFAULT_API_KEY.to_string(),
             process_polling_interval_ms: PROCESS_POLLING_INTERVAL_MS,
             batch_submission_interval_ms: BATCH_SUBMISSION_INTERVAL_MS,
@@ -52,10 +51,7 @@ impl Default for Config {
             log_forward_endpoint_dev: Some(LOG_FORWARD_ENDPOINT_DEV.to_string()),
             log_forward_endpoint_prod: Some(LOG_FORWARD_ENDPOINT_PROD.to_string()),
         };
-        if config.targets.is_empty() {
-            config.targets = targets_list::TARGETS.to_vec()
-            // todo: TARGETS shouldn't be specified in the code. Instead, we should have this set in the config file
-        }
+        // Targets will be loaded from config file or JSON rules
         config
     }
 }

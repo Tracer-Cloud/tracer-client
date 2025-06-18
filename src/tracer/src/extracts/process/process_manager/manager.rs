@@ -1,6 +1,6 @@
 use crate::common::recorder::LogRecorder;
-use crate::common::target_process::target_process_manager::TargetManager;
-use crate::common::target_process::Target;
+use crate::common::target_process::target_manager::TargetManager;
+use crate::common::target_process::{Target};
 use crate::extracts::process::process_manager::handlers::oom::OomHandler;
 use crate::extracts::process::process_manager::handlers::process_starts::ProcessStartHandler;
 use crate::extracts::process::process_manager::handlers::process_terminations::ProcessTerminationHandler;
@@ -108,14 +108,5 @@ impl ProcessManager {
     /// Returns the total number of processes being monitored
     pub async fn get_number_of_monitored_processes(&self) -> usize {
         self.state_manager.get_number_of_monitored_processes().await
-    }
-
-    /// Finds matching processes (functional approach with explicit data flow)
-    pub async fn find_matching_processes(
-        &self,
-        triggers: Vec<ProcessStartTrigger>,
-    ) -> Result<HashMap<Target, HashSet<ProcessStartTrigger>>> {
-        let state = self.state_manager.get_state().await;
-        self.matcher.find_matching_processes(triggers, &state)
     }
 }

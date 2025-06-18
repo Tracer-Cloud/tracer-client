@@ -1,4 +1,4 @@
-use crate::common::target_process::target_process_manager::TargetManager;
+use crate::common::target_process::target_manager::TargetManager;
 use crate::common::target_process::Target;
 use crate::extracts::process::types::process_state::ProcessState;
 use anyhow::Result;
@@ -70,7 +70,7 @@ impl StateManager {
     /// Updates the monitoring state with new processes
     pub async fn update_monitoring(
         &self,
-        processes: HashMap<Target, HashSet<ProcessStartTrigger>>,
+        processes: HashMap<String, HashSet<ProcessStartTrigger>>,
     ) -> Result<()> {
         let mut state = self.state.write().await;
         state.update_monitoring(processes);
