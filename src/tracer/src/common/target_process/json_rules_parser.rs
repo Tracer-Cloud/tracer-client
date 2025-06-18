@@ -1,16 +1,13 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-use super::{DisplayName, Target, TargetMatchable};
-use crate::common::target_process::target_matching::{CommandContainsStruct, TargetMatch};
+use super::{DisplayName, Target, TargetMatch, matches_target};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Rule {
     pub rule_name: String,
     pub display_name: String,
-    pub tool_name: Option<String>,
     pub condition: Condition,
 }
 
@@ -42,16 +39,10 @@ pub enum SimpleCondition {
     ProcessName(String),
     #[serde(rename = "command_contains")]
     CommandContains(String),
-    #[serde(rename = "bin_path_starts_with")]
-    BinPathStartsWith(String),
-    #[serde(rename = "bin_path_last_component")]
-    BinPathLastComponent(String),
-    #[serde(rename = "bin_path_contains")]
-    BinPathContains(String),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct YamlRulesConfig {
+pub struct RulesConfig {
     pub rules: Vec<Rule>,
 }
 
@@ -62,22 +53,12 @@ impl Condition {
                 TargetMatch::ProcessName(name.clone())
             }
             Condition::Simple(SimpleCondition::CommandContains(content)) => {
-                TargetMatch::CommandContains(CommandContainsStruct {
-                    process_name: None,
-                    command_content: content.clone(),
-                })
-            }
-            Condition::Simple(SimpleCondition::BinPathStartsWith(prefix)) => {
-                TargetMatch::BinPathStartsWith(prefix.clone())
-            }
-            Condition::Simple(SimpleCondition::BinPathLastComponent(name)) => {
-                TargetMatch::BinPathLastComponent(name.clone())
-            }
-            Condition::Simple(SimpleCondition::BinPathContains(content)) => {
-                TargetMatch::BinPathContains(content.clone())
+                TargetMatch::CommandContains(content.clone())
             }
             Condition::And(and_cond) => {
-                // For AND conditions, we'll use the first condition as the primary match
+                // For AND conditions, we need to create a custom TargetMatch that can handle multiple conditions
+                // Since TargetMatch doesn't have an And variant, we'll use the first condition as primary
+                // and rely on the matches method to handle the AND logic properly
                 if let Some(first) = and_cond.and.first() {
                     first.to_target_match()
                 } else {
@@ -87,51 +68,30 @@ impl Condition {
             }
             Condition::Or(or_cond) => {
                 // For OR conditions, convert all conditions to TargetMatch and use the Or variant
-                let target_matches: Vec<TargetMatch> = or_cond.or.iter().map(|c| c.to_target_match()).collect();
+                let target_matches: Vec<TargetMatch> = or_cond.or.iter().map(|condition| condition.to_target_match()).collect();
                 TargetMatch::Or(target_matches)
             }
         }
     }
-
-    pub fn get_filter_out_conditions(&self) -> Option<Vec<TargetMatch>> {
-        match self {
-            Condition::And(and_cond) => {
-                if and_cond.and.len() > 1 {
-                    let filter_conditions: Vec<TargetMatch> = and_cond
-                        .and
-                        .iter()
-                        .skip(1)
-                        .map(|c| c.to_target_match())
-                        .collect();
-                    Some(filter_conditions)
-                } else {
-                    None
-                }
-            }
-            Condition::Or(_) => None,
-            Condition::Simple(_) => None,
-        }
-    }
-
-    pub fn matches(&self, process_name: &str, command: &str, bin_path: &str) -> bool {
+    
+    pub fn matches(&self, process_name: &str, command: &str) -> bool {
         match self {
             Condition::Simple(_condition) => {
                 let target_match = self.to_target_match();
-                crate::common::target_process::target_matching::matches_target(
+                matches_target(
                     &target_match,
                     process_name,
                     command,
-                    bin_path,
                 )
             }
             Condition::And(and_cond) => {
                 and_cond.and.iter().all(|condition| {
-                    condition.matches(process_name, command, bin_path)
+                    condition.matches(process_name, command)
                 })
             }
             Condition::Or(or_cond) => {
                 or_cond.or.iter().any(|condition| {
-                    condition.matches(process_name, command, bin_path)
+                    condition.matches(process_name, command)
                 })
             }
         }
@@ -139,31 +99,21 @@ impl Condition {
 }
 
 impl Rule {
-    pub fn to_target(&self) -> Target {
-        let mut target = Target::new(self.condition.to_target_match())
-            .set_display_name(DisplayName::Name(self.display_name.clone()));
-
-        // Add filter_out conditions for AND logic
-        if let Some(filter_conditions) = self.condition.get_filter_out_conditions() {
-            target = target.set_filter_out(Some(filter_conditions));
+    pub fn to_target(self) -> Target {
+        Target {
+            match_type: self.condition.to_target_match(),
+            display_name: DisplayName::Name(self.display_name),
+            filter_out: None,
         }
-
-        target
     }
 }
 
 pub fn load_json_rules<P: AsRef<Path>>(path: P) -> Result<Vec<Target>, Box<dyn std::error::Error>> {
-    let content = fs::read_to_string(path)?;
-    let config: YamlRulesConfig = serde_json::from_str(&content)?;
+    let json_content = fs::read_to_string(path)?;
+    let config: RulesConfig = serde_json::from_str(&json_content)?;
     
     let targets: Vec<Target> = config.rules.into_iter().map(|rule| rule.to_target()).collect();
     Ok(targets)
-}
-
-pub fn load_default_json_rules() -> Result<Vec<Target>, Box<dyn std::error::Error>> {
-    // Try to load from the default location
-    let default_path = "src/tracer/src/common/target_process/default_rules.json";
-    load_json_rules(default_path)
 }
 
 #[cfg(test)]
@@ -230,7 +180,7 @@ mod tests {
 }
 "#;
         
-        let config: YamlRulesConfig = serde_json::from_str(json).unwrap();
+        let config: RulesConfig = serde_json::from_str(json).unwrap();
         assert_eq!(config.rules.len(), 1);
         
         let rule = &config.rules[0];
