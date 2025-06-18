@@ -108,6 +108,12 @@ jobs:
           name: tracer-${{ matrix.target }}
           path: release-files/tracer-${{ matrix.target }}.tar.gz
 
+      - name: Upload Tracer Installer binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracer-installer-${{ matrix.target }}
+          path: release-files/tracer-installer-${{ matrix.target }}.tar.gz
+
   build-amazon-linux:
     permissions: write-all
     runs-on: ubuntu-latest
