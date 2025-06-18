@@ -90,8 +90,8 @@ jobs:
             echo "WARNING: Expected vendor subdirectories are missing"
           fi
 
-      - name: Build binary
-        run: cargo build --release --target ${{ matrix.target }}
+      - name: Build binaries
+        run: cargo build --release --bin tracer --bin tracer-installer --target ${{ matrix.target }}
 
       - name: Prepare binary for release
         run: |
@@ -99,6 +99,13 @@ jobs:
           cp target/${{ matrix.target }}/release/tracer release-files/${{ matrix.target }}/tracer
           chmod +x release-files/${{ matrix.target }}/tracer
           tar -czf release-files/tracer-${{ matrix.target }}.tar.gz -C release-files/${{ matrix.target }} tracer
+
+          # Copy Tracer Installer binary (if it was built)
+          if [ -f target/${{ matrix.target }}/release/tracer-installer ]; then
+            cp target/${{ matrix.target }}/release/tracer-installer release-files/${{ matrix.target }}/tracer-installer
+            chmod +x release-files/${{ matrix.target }}/tracer-installer
+            tar -czf release-files/tracer-installer-${{ matrix.target }}.tar.gz -C release-files/${{ matrix.target }} tracer-installer
+          fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
