@@ -2,6 +2,7 @@
 pub mod target_matching;
 pub mod target_process_manager;
 pub mod json_rules_parser;
+pub mod target_manager;
 
 use serde::{Deserialize, Serialize};
 use target_matching::{matches_target, TargetMatch};

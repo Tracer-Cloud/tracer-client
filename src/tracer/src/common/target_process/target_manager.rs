@@ -11,9 +11,23 @@ pub struct TargetManager {
 }
 
 impl TargetManager {
+    pub fn new() -> Self {
+        Self {
+            targets: load_json_rules("common/target_process/default_rules.json").unwrap_or_default()
+        }
+    }
+
     /// Match a process against all targets and return the first matching target name
     pub fn get_target_match(&self, process: &ProcessStartTrigger) -> Option<String> {
         let command = process.argv.join(" ");
+
+        // exclude rules take precedence over rules
+        // if one of the exclude rules matches, return None, because we want to exclude the process
+        for target in self.exclude.iter() {
+            if target.matches(&process.comm, &command) {
+                return None;
+            }
+        }
 
         // exclude rules take precedence over rules
         // if one of the exclude rules matches, return None, because we want to exclude the process

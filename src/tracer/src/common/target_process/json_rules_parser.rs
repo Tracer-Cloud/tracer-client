@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
-use super::{DisplayName, Target, TargetMatch, matches_target};
+use super::{DisplayName, Target, TargetMatch};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Rule {
@@ -56,43 +56,59 @@ impl Condition {
                 TargetMatch::CommandContains(content.clone())
             }
             Condition::And(and_cond) => {
-                // For AND conditions, we need to create a custom TargetMatch that can handle multiple conditions
-                // Since TargetMatch doesn't have an And variant, we'll use the first condition as primary
-                // and rely on the matches method to handle the AND logic properly
                 if let Some(first) = and_cond.and.first() {
                     first.to_target_match()
                 } else {
-                    // Fallback to a simple condition that never matches
                     TargetMatch::ProcessName("__never_match__".to_string())
                 }
             }
             Condition::Or(or_cond) => {
-                // For OR conditions, convert all conditions to TargetMatch and use the Or variant
-                let target_matches: Vec<TargetMatch> = or_cond.or.iter().map(|condition| condition.to_target_match()).collect();
+                let target_matches: Vec<TargetMatch> = or_cond
+                    .or
+                    .iter()
+                    .map(|condition| condition.to_target_match())
+                    .collect();
                 TargetMatch::Or(target_matches)
             }
         }
     }
-    
+
     pub fn matches(&self, process_name: &str, command: &str) -> bool {
         match self {
-            Condition::Simple(_condition) => {
+            Condition::Simple(condition) => {
                 let target_match = self.to_target_match();
-                matches_target(
-                    &target_match,
-                    process_name,
-                    command,
-                )
+                let result = matches_target(&target_match, process_name, command);
+                println!(
+                    "[DEBUG] SimpleCondition: {:?}, process_name: {:?}, command: {:?}, result: {}",
+                    condition, process_name, command, result
+                );
+                result
             }
             Condition::And(and_cond) => {
-                and_cond.and.iter().all(|condition| {
-                    condition.matches(process_name, command)
-                })
+                let results: Vec<bool> = and_cond.and.iter().map(|condition| {
+                    let res = condition.matches(process_name, command);
+                    println!("[DEBUG] AndCondition: {:?}, process_name: {:?}, command: {:?}, result: {}", condition, process_name, command, res);
+                    res
+                }).collect();
+                let all = results.iter().all(|&x| x);
+                println!(
+                    "[DEBUG] AndCondition final: process_name: {:?}, command: {:?}, all: {}",
+                    process_name, command, all
+                );
+                all
             }
             Condition::Or(or_cond) => {
-                or_cond.or.iter().any(|condition| {
-                    condition.matches(process_name, command)
-                })
+                let results: Vec<bool> = or_cond.or.iter().map(|condition| {
+                    let res = condition.matches(process_name, command);
+                    println!("[DEBUG] OrCondition: {:?}, process_name: {:?}, command: {:?}, result: {}", condition, process_name, command, res);
+                    res
+                }).collect();
+                let any = results.iter().any(|&x| x);
+                println!(
+                    "[DEBUG] OrCondition final: process_name: {:?}, command: {:?}, any: {}",
+                    process_name, command, any
+                );
+                any
             }
         }
     }
@@ -109,11 +125,55 @@ impl Rule {
 }
 
 pub fn load_json_rules<P: AsRef<Path>>(path: P) -> Result<Vec<Target>, Box<dyn std::error::Error>> {
-    let json_content = fs::read_to_string(path)?;
+    let path_ref = path.as_ref();
+    println!("[load_json_rules] Reading file: {:?}", path_ref);
+
+    let json_content = fs::read_to_string(path_ref)?;
+    println!(
+        "[load_json_rules] File content length: {} bytes",
+        json_content.len()
+    );
+
     let config: RulesConfig = serde_json::from_str(&json_content)?;
-    
-    let targets: Vec<Target> = config.rules.into_iter().map(|rule| rule.to_target()).collect();
+    println!(
+        "[load_json_rules] Parsed {} rules from JSON",
+        config.rules.len()
+    );
+
+    let targets: Vec<Target> = config
+        .rules
+        .into_iter()
+        .map(|rule| {
+            let target = rule.clone().to_target();
+            println!(
+                "[load_json_rules] Converted rule '{}' to target: {:?}",
+                rule.rule_name.clone(),
+                target
+            );
+            target
+        })
+        .collect();
+
+    println!(
+        "[load_json_rules] Successfully converted {} targets",
+        targets.len()
+    );
     Ok(targets)
+}
+
+pub fn matches_target(target_match: &TargetMatch, process_name: &str, command: &str) -> bool {
+    let result = match target_match {
+        TargetMatch::ProcessName(name) => process_name == name,
+        TargetMatch::CommandContains(content) => command.contains(content),
+        TargetMatch::Or(conditions) => conditions
+            .iter()
+            .any(|condition| matches_target(condition, process_name, command)),
+    };
+    println!(
+        "[DEBUG] matches_target: {:?}, process_name: {:?}, command: {:?}, result: {}",
+        target_match, process_name, command, result
+    );
+    result
 }
 
 #[cfg(test)]
@@ -139,8 +199,8 @@ mod tests {
   ]
 }
 "#;
-        
-        let config: YamlRulesConfig = serde_json::from_str(json).unwrap();
+
+        let config: RulesConfig = serde_json::from_str(json).unwrap();
         assert_eq!(config.rules.len(), 1);
         assert_eq!(config.rules[0].rule_name, "Test Rule");
         assert_eq!(config.rules[0].display_name, "test");
@@ -179,57 +239,16 @@ mod tests {
   ]
 }
 "#;
-        
+
         let config: RulesConfig = serde_json::from_str(json).unwrap();
         assert_eq!(config.rules.len(), 1);
-        
-        let rule = &config.rules[0];
-        assert!(rule.condition.matches("perl", "/opt/conda/bin/fastqc -t 4", "/usr/bin/perl"));
-        assert!(!rule.condition.matches("python", "/opt/conda/bin/fastqc -t 4", "/usr/bin/python"));
-        assert!(!rule.condition.matches("perl", "some other command", "/usr/bin/perl"));
-    }
 
-    #[test]
-    fn test_or_condition_parsing() {
-        let json = r#"
-{
-  "rules": [
-    {
-      "rule_name": "Test OR Rule",
-      "display_name": "test",
-      "condition": {
-        "type": "or",
-        "value": {
-          "or": [
-            {
-              "type": "simple",
-              "value": {
-                "field": "bin_path_starts_with",
-                "value": "/opt/nextflow/bin"
-              }
-            },
-            {
-              "type": "simple",
-              "value": {
-                "field": "command_contains",
-                "value": "nextflow run"
-              }
-            }
-          ]
-        }
-      }
-    }
-  ]
-}
-"#;
-        
-        let config: YamlRulesConfig = serde_json::from_str(json).unwrap();
-        assert_eq!(config.rules.len(), 1);
-        
         let rule = &config.rules[0];
-        assert!(rule.condition.matches("any", "nextflow run pipeline", "/usr/bin/nextflow"));
-        assert!(rule.condition.matches("any", "some command", "/opt/nextflow/bin/nextflow"));
-        assert!(!rule.condition.matches("any", "some command", "/usr/bin/something"));
+        assert!(rule.condition.matches("perl", "/opt/conda/bin/fastqc -t 4"));
+        assert!(!rule
+            .condition
+            .matches("python", "/opt/conda/bin/fastqc -t 4"));
+        assert!(!rule.condition.matches("perl", "some other command"));
     }
 
     #[test]
@@ -251,11 +270,60 @@ mod tests {
   ]
 }
 "#;
-        
-        let config: YamlRulesConfig = serde_json::from_str(json).unwrap();
-        let target = config.rules[0].to_target();
-        
-        assert!(target.matches("any_process", "test_command with args", "/usr/bin/test"));
-        assert!(!target.matches("any_process", "different command", "/usr/bin/test"));
+
+        let config: RulesConfig = serde_json::from_str(json).unwrap();
+        let target = config.rules[0].clone().to_target();
+
+        assert!(target.matches("any_process", "test_command with args"));
+        assert!(!target.matches("any_process", "different command"));
     }
-} 
+
+    #[test]
+    fn test_cat_fastq_gz_rule() {
+        let json = r#"
+{
+  "rules": [
+    {
+      "rule_name": "Cat FASTQ",
+      "display_name": "CAT FASTQ",
+      "condition": {
+        "type": "and",
+        "value": {
+          "and": [
+            {
+              "type": "simple",
+              "value": {
+                "field": "process_name",
+                "value": "cat"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": ".fastq.gz"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
+"#;
+        let config: RulesConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.rules.len(), 1);
+        let rule = &config.rules[0];
+        // Should match: process name is 'cat' and command contains .fastq.gz
+        assert!(rule
+            .condition
+            .matches("cat", "cat input1/index.1.fastq.gz",));
+        assert!(rule.condition.matches("cat", "cat foo.fastq.gz bar.txt",));
+        // Should NOT match: process name is not 'cat'
+        assert!(!rule
+            .condition
+            .matches("bash", "cat input1/index.1.fastq.gz",));
+        // Should NOT match: command does not contain .fastq.gz
+        assert!(!rule.condition.matches("cat", "cat input1/index.1.txt",));
+    }
+}
