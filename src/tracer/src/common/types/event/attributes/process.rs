@@ -42,6 +42,8 @@ pub struct ShortProcessProperties {
     pub tool_parent_pid: String,
     pub tool_binary_path: String,
     pub start_timestamp: String, // todo: timestamp
+    pub tool_args: String,
+    pub tool_cmd: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

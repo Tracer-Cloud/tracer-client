@@ -1,5 +1,6 @@
 use crate::common::types::event::attributes::process::{ProcessProperties, ShortProcessProperties};
 use chrono::Utc;
+use itertools::Itertools;
 use std::process::Command;
 use sysinfo::ProcessStatus;
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
@@ -30,8 +31,10 @@ pub fn create_short_lived_process_properties(
         tool_name: display_name,
         tool_pid: process.pid.to_string(),
         tool_parent_pid: process.ppid.to_string(),
-        tool_binary_path: process.file_name.clone(),
+        tool_binary_path: process.file_name.clone(), // TODO WTF
         start_timestamp: Utc::now().to_rfc3339(),
+        tool_args: process.argv.iter().join(" "),
+        tool_cmd: process.comm.clone(),
     }))
 }
 

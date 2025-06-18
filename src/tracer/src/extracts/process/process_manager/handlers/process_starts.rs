@@ -22,10 +22,9 @@ impl ProcessStartHandler {
     ) -> Result<()> {
         debug!("Handling {} process start triggers", triggers.len());
 
-        let stored_triggers = Self::store_triggers(state_manager, triggers).await;
+        Self::store_triggers(state_manager, triggers.clone()).await;
 
-        let matched_processes =
-            Self::match_processes(state_manager, matcher, stored_triggers).await?;
+        let matched_processes = Self::match_processes(state_manager, matcher, triggers).await?;
 
         if matched_processes.is_empty() {
             debug!("No matching processes found; exiting early.");
@@ -45,17 +44,13 @@ impl ProcessStartHandler {
     }
 
     /// Step 1: Store triggers for parent-child tracking in state.
-    async fn store_triggers(
-        state_manager: &StateManager,
-        triggers: Vec<ProcessStartTrigger>,
-    ) -> Vec<ProcessStartTrigger> {
+    async fn store_triggers(state_manager: &StateManager, triggers: Vec<ProcessStartTrigger>) {
         debug!("Storing {} triggers in state.", triggers.len());
         for trigger in &triggers {
             state_manager
                 .insert_process(trigger.pid, trigger.clone())
                 .await;
         }
-        triggers
     }
 
     /// Step 2: Match stored triggers against targets.
