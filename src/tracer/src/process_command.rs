@@ -221,6 +221,7 @@ pub fn process_cli() -> Result<()> {
                     // Wait a moment for daemon to start, then show info
                     tokio::runtime::Runtime::new()?.block_on(async {
                         tokio::spawn(emit_analytic_event(
+                            args.user_id.clone(),
                             crate::common::types::analytics::AnalyticsEventType::DaemonStartAttempted,
                             None,
                         ));
@@ -240,6 +241,7 @@ pub fn process_cli() -> Result<()> {
 
                         tokio::runtime::Runtime::new()?.block_on(async {
                             tokio::spawn(emit_analytic_event(
+                                args.user_id.clone(),
                                 crate::common::types::analytics::AnalyticsEventType::DaemonStartAttempted,
                                 None,
                             ));
