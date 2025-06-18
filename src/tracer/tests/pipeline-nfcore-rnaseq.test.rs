@@ -1,12 +1,12 @@
 mod common;
 
-use common::nf_process_match::{NextFlowProcessMatcher, ProcessInfo};
+use self::common::nf_process_match::{NextFlowProcessMatcher, ProcessInfo};
 use rstest::*;
 use serde_json;
 use std::collections::HashMap;
-use std::fs;
 use std::path::Path;
 use std::sync::Arc;
+use std::{fs, iter};
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{self, Receiver, Sender, UnboundedSender};
 use tokio::sync::RwLock;
@@ -22,8 +22,6 @@ use tracer::extracts::ebpf_watcher::watcher::EbpfWatcher;
 use tracer::extracts::process::process_manager::matcher::Filter;
 use tracer::extracts::process::types::process_state::ProcessState;
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
-
-use crate::common::NextFlowProcessMatcher;
 
 // Note: we avoid annotating tests with #[tokio::test] so we can use #[once] fixtures.
 
@@ -87,7 +85,7 @@ fn test_process_matching(
 
         drop(tx);
 
-        std::iter::from_fn(async move || rx.recv().await)
+        iter::from_fn(async move || rx.recv().await)
             .partition(|event| event.process_status == ProcessStatus::ToolExecution)
             .collect::<Vec<_>>()
     });
