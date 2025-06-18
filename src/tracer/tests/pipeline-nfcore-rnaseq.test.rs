@@ -30,7 +30,7 @@ use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 #[fixture]
 #[once]
 fn processes() -> Vec<ProcessInfo> {
-    const NF_PROCESS_LIST_PATH: &str = "../assets/nf_process_list.json";
+    const PROCESS_LIST_PATH: &str = "../assets/nfcore_rnaseq_process_list.json";
     // TODO: now that NextFlowProcessMatcher is only used for testing and we don't use the patterns,
     // we can probably remove them from the JSON file, get rid of NextFlowProcessMatcher, and move
     // the parsing logic to e.g. ProcessInfo::load_from_file.
