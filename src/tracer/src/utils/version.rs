@@ -16,7 +16,7 @@ impl Version {
     ///
     /// Returns an error if the string is not in the correct format
     /// or any part is not a valid number
-    pub(crate) fn from_str(s: &str) -> Result<Self> {
+    pub fn from_str(s: &str) -> Result<Self> {
         let message = format!("Failed to parse version string: {}", s);
         let s = s.trim_start_matches('v');
         let version = s
