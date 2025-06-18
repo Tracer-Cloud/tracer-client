@@ -22,7 +22,7 @@ use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 /// If this function panics then any tests that depend on this fixture will be skipped.
 #[fixture]
 async fn processes() -> Vec<ProcessInfo> {
-    const NF_PROCESS_LIST_PATH: &str = "../src/common/target_process/nf_process_list.json";
+    const NF_PROCESS_LIST_PATH: &str = "../assets/nf_process_list.json";
     let json_path = Path::new(NF_PROCESS_LIST_PATH);
     let json_content = fs::read_to_string(json_path).unwrap();
     let process_infos: Vec<ProcessInfo> = serde_json::from_str(&json_content).unwrap();
