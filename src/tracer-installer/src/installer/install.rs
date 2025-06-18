@@ -1,4 +1,6 @@
 use anyhow::{Context, Result};
+use colored::Colorize;
+use console::Emoji;
 use flate2::read::GzDecoder;
 use futures_util::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -13,6 +15,8 @@ use tokio::{
     fs::File,
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
 };
+use tokio_retry::strategy::{jitter, ExponentialBackoff};
+use tokio_retry::Retry;
 
 use super::platform::PlatformInfo;
 use crate::installer::url_builder::TracerUrlFinder;
@@ -56,7 +60,7 @@ impl Installer {
         std::fs::create_dir_all(&extract_path)?;
 
         self.extract_tarball(&archive_path, &extract_path)?;
-        let installed_path = self.install_to_final_dir(&extract_path)?;
+        let _ = self.install_to_final_dir(&extract_path)?;
 
         Self::patch_rc_files_async(self.user_id.clone())
             .await
@@ -67,10 +71,7 @@ impl Installer {
         self.emit_analytic_event(AnalyticsEventType::InstallScriptCompleted)
             .await;
 
-        print_summary(
-            &format!("Done! Tracer is ready at {}", installed_path.display()),
-            StepStatus::Custom(console::Emoji("🚀", "[DONE]"), ""),
-        );
+        Self::print_next_steps();
 
         Ok(())
     }
@@ -205,28 +206,33 @@ impl Installer {
     ) -> anyhow::Result<()> {
         let client = Client::new();
 
+        let retry_strategy = ExponentialBackoff::from_millis(500).map(jitter).take(3);
+
         let payload = AnalyticsPayload {
             user_id,
             event_name: event.as_str(),
             metadata,
         };
+        Retry::spawn(retry_strategy, || async {
+            let res = client
+                .post(TRACER_ANALYTICS_ENDPOINT)
+                .json(&payload)
+                .send()
+                .await?;
 
-        let res = client
-            .post(TRACER_ANALYTICS_ENDPOINT)
-            .header("Content-Type", "application/json")
-            .json(&payload)
-            .send()
-            .await?;
+            if res.status().is_success() {
+                Ok(())
+            } else {
+                eprintln!(
+                    "⚠️  Failed to send analytics event: {} [{}]",
+                    event.as_str(),
+                    res.status()
+                );
 
-        if !res.status().is_success() {
-            eprintln!(
-                "⚠️  Failed to send analytics event: {} [{}]",
-                event.as_str(),
-                res.status()
-            );
-        }
-
-        Ok(())
+                Err(anyhow::anyhow!("status = {}", res.status()))
+            }
+        })
+        .await
     }
 
     /// Creates a temporary working directory at `/tmp/tracer`.
@@ -256,5 +262,38 @@ impl Installer {
                 }
             });
         };
+    }
+
+    pub fn print_next_steps() {
+        print_summary(
+            "Next Steps",
+            StepStatus::Custom(Emoji("🚀 ", "[NEXT] "), ""),
+        );
+
+        println!(
+            "- {} please follow the instructions at {}\n",
+            "For a better onboarding".bold().yellow(),
+            "https://sandbox.tracer.cloud".cyan()
+        );
+
+        println!("- Then initialize Tracer:");
+        println!("  {}\n", "tracer init".cyan());
+
+        println!("- [Optional] View Daemon Status:");
+        println!("  {}\n", "tracer info".cyan());
+
+        if !nix::unistd::Uid::effective().is_root() {
+            println!("- {} Set up elevated privileges:", "Required:".yellow());
+            println!("  {}\n", "sudo chown root ~/.tracerbio/bin/tracer".cyan());
+            println!("  {}\n", "sudo chmod u+s ~/.tracerbio/bin/tracer".cyan());
+        }
+
+        println!("- Support:");
+        println!(
+            "  {} Visit {} or email {}\n",
+            "Need help?".green(),
+            "https://github.com/Tracer-Cloud/tracer".cyan(),
+            "support@tracer.cloud".cyan()
+        );
     }
 }
