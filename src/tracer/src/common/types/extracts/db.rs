@@ -166,6 +166,8 @@ mod tests {
             tool_parent_pid: "1".to_string(),
             tool_binary_path: "/usr/bin/test_process".to_string(),
             start_timestamp: now.to_rfc3339(),
+            tool_cmd: "cmd".to_string(),
+            tool_args: "args".to_string(),
         };
 
         let event = Event {
