@@ -21,9 +21,6 @@ pub fn flatten_event_attributes(event: &Event) -> Result<Value> {
         EventAttributes::Process(ProcessProperties::Full(p)) => {
             ("process", serde_json::to_value(p)?)
         }
-        EventAttributes::Process(ProcessProperties::ShortLived(p)) => {
-            ("process", serde_json::to_value(p)?)
-        }
         EventAttributes::CompletedProcess(p) => ("completed_process", serde_json::to_value(p)?),
         EventAttributes::SystemMetric(p) => ("system_metric", serde_json::to_value(p)?),
         EventAttributes::SystemProperties(_) => return Ok(Value::Object(map)),
