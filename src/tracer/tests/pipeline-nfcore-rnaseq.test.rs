@@ -12,6 +12,9 @@ use tracer::common::target_process::nf_process_match::{NextFlowProcessMatcher, P
 use tracer::common::target_process::target_process_manager::TargetManager;
 use tracer::common::target_process::targets_list::TARGETS;
 use tracer::common::types::current_run::PipelineMetadata;
+use tracer::common::types::event::attributes::process::{FullProcessProperties, ProcessProperties};
+use tracer::common::types::event::attributes::EventAttributes;
+use tracer::common::types::event::{Event, ProcessStatus};
 use tracer::common::types::pipeline_tags::PipelineTags;
 use tracer::extracts::ebpf_watcher::watcher::EbpfWatcher;
 use tracer::extracts::process::process_manager::matcher::Filter;
@@ -30,27 +33,46 @@ async fn processes() -> Vec<ProcessInfo> {
 }
 
 #[rstest]
-fn test_process_matching(processes: Vec<ProcessInfo>) {
+#[tokio::test]
+async fn test_process_matching(processes: Vec<ProcessInfo>) {
     let pipeline = PipelineMetadata {
         pipeline_name: "test_pipeline".to_string(),
         run: Some(Run::new("test_run".to_string(), "test-id-123".to_string())),
         tags: PipelineTags::default(),
     };
-    let (tx, rx) = mpsc::unbounded_channel();
+    let (tx, rx) = mpsc::unbounded_channel::<Event>();
     let log_recorder = LogRecorder::new(Arc::new(RwLock::new(pipeline)), tx);
     let watcher = EbpfWatcher::new(TargetManager::new(TARGETS.to_vec(), vec![]), log_recorder);
-    let filter = Filter::new();
-    let target_manager = TargetManager::new(TARGETS.to_vec(), vec![]);
-    let state = ProcessState::new(target_manager);
 
-    processes.iter().map(|process| {
+    // process triggers for all commands in all processes
+    for process in processes {
         let path = common::pattern_to_path(process.pattern.split(" ").first().unwrap());
-        process.test_commands.iter().map(|commands| {
+        for commands in process.test_commands {
             let triggers: Vec<ProcessStartTrigger> = commands
                 .iter()
                 .map(|command| common::new_process_start_trigger(command, &path))
                 .collect();
-            let matches = filter.find_matching_processes(triggers, &state).unwrap();
-        });
-    });
+            watcher.process_triggers(triggers).await.unwrap();
+        }
+    }
+    drop(tx);
+
+    let (process_start_events, other_events) = std::iter::from_fn(async move || rx.recv().await)
+        .partition(|event| event.process_status == ProcessStatus::ToolExecution)
+        .collect::<Vec<_>>();
+
+    // make sure we only got process start events
+    assert!(other_events.is_empty());
+
+    // check that exactly the expected matches are observed
+    // since these processes don't actually exist, they'll all be represented as short-lived
+    for event in process_start_events {
+        if let Some(EventAttributes::Process(ProcessProperties::Full(properties))) =
+            event.attributes
+        {
+            
+        } else {
+            panic!("Expected process start event, got {:?}", event);
+        }
+    }
 }
