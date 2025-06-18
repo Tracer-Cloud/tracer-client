@@ -40,46 +40,6 @@ impl Filter {
         Ok(matched_processes)
     }
 
-    /// Filters processes to find those of interest based on targets and monitoring state
-    ///
-    /// This function:
-    /// 1. Stores all triggers in the state
-    /// 2. Gets PIDs of processes already being monitored
-    /// 3. Finds processes that match our targets
-    /// 4. Filters out already monitored processes and includes parent processes
-    pub async fn filter_processes_of_interest(
-        &self,
-        triggers: Vec<ProcessStartTrigger>,
-        state: &ProcessState,
-    ) -> Result<HashMap<Target, HashSet<ProcessStartTrigger>>> {
-        // Get PIDs of processes already being monitored
-        let already_monitored_pids = state.get_monitored_processes_pids();
-
-        // Find processes that match our targets
-        let matched_processes = self.find_matching_processes(triggers, state)?;
-
-        // Filter out already monitored processes and include parent processes
-        let interested_in: HashMap<_, _> = matched_processes
-            .into_iter()
-            .map(|(target, processes)| {
-                let processes = processes
-                    .into_iter()
-                    .flat_map(|proc| {
-                        // Get the process and its parents
-                        let mut parents = state.get_process_hierarchy(proc);
-                        // Filter out already monitored processes
-                        parents.retain(|p| !already_monitored_pids.contains(&p.pid));
-                        parents
-                    })
-                    .collect::<HashSet<_>>();
-
-                (target, processes)
-            })
-            .collect();
-
-        Ok(interested_in)
-    }
-
     /// Collects all PIDs from the filtered target processes map
     pub fn collect_pids_to_refresh(
         &self,
