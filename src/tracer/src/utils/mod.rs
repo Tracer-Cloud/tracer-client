@@ -57,12 +57,16 @@ pub fn get_kernel_version() -> Option<(u32, u32)> {
 }
 
 pub async fn emit_analytic_event(
+    explicit_user_id: Option<String>,
     event: AnalyticsEventType,
     metadata: Option<HashMap<String, String>>,
 ) -> anyhow::Result<()> {
-    let user_id = match std::env::var("TRACER_USER_ID") {
-        Ok(val) if !val.trim().is_empty() => val,
-        _ => return Ok(()), // silently skip if missing
+    let user_id = match explicit_user_id {
+        Some(id) => id,
+        None => match std::env::var("TRACER_USER_ID") {
+            Ok(val) if !val.trim().is_empty() => val,
+            _ => return Ok(()), // silently skip if no user ID
+        },
     };
 
     let payload = AnalyticsPayload {
