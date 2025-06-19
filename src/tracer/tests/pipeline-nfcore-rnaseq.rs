@@ -1,27 +1,21 @@
 mod common;
 
-use self::common::nf_process_match::{NextFlowProcessMatcher, ProcessInfo};
+use self::common::{NextFlowProcessMatcher, ProcessInfo};
 use rstest::*;
-use serde_json;
 use std::collections::HashMap;
-use std::path::Path;
 use std::sync::Arc;
-use std::{fs, iter};
 use tokio::runtime::Runtime;
-use tokio::sync::mpsc::{self, Receiver, Sender, UnboundedSender};
+use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::RwLock;
 use tracer::common::recorder::LogRecorder;
-use tracer::common::target_process::target_process_manager::TargetManager;
-use tracer::common::target_process::targets_list::TARGETS;
-use tracer::common::types::current_run::PipelineMetadata;
-use tracer::common::types::event::attributes::process::{FullProcessProperties, ProcessProperties};
+use tracer::common::target_process::target_manager::TargetManager;
+use tracer::common::types::current_run::{PipelineMetadata, Run};
+use tracer::common::types::event::attributes::process::ProcessProperties;
 use tracer::common::types::event::attributes::EventAttributes;
 use tracer::common::types::event::{Event, ProcessStatus};
 use tracer::common::types::pipeline_tags::PipelineTags;
 use tracer::extracts::ebpf_watcher::watcher::EbpfWatcher;
-use tracer::extracts::process::process_manager::matcher::Filter;
-use tracer::extracts::process::types::process_state::ProcessState;
-use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
+use tracer_ebpf::ebpf_trigger::Trigger;
 
 // Note: we avoid annotating tests with #[tokio::test] so we can use #[once] fixtures.
 
@@ -34,12 +28,16 @@ fn processes() -> Vec<ProcessInfo> {
     // TODO: now that NextFlowProcessMatcher is only used for testing and we don't use the patterns,
     // we can probably remove them from the JSON file, get rid of NextFlowProcessMatcher, and move
     // the parsing logic to e.g. ProcessInfo::load_from_file.
-    let matcher = NextFlowProcessMatcher::from_file(NF_PROCESS_LIST_PATH).unwrap();
+    let matcher = NextFlowProcessMatcher::from_file(PROCESS_LIST_PATH).unwrap();
     matcher.processes
 }
 
 #[fixture]
-#[once]
+fn target_manager() -> TargetManager {
+    TargetManager::new()
+}
+
+#[fixture]
 fn pipeline() -> PipelineMetadata {
     PipelineMetadata {
         pipeline_name: "test_pipeline".to_string(),
@@ -54,28 +52,31 @@ fn async_runtime() -> Runtime {
     Runtime::new().unwrap()
 }
 
-fn watcher(pipeline: PipelineMetadata, event_sender: UnboundedSender<Event>) -> EbpfWatcher {
-    let (tx, rx) = mpsc::unbounded_channel::<Event>();
+fn watcher(
+    target_manager: TargetManager,
+    pipeline: PipelineMetadata,
+    event_sender: Sender<Event>,
+) -> Arc<EbpfWatcher> {
     let log_recorder = LogRecorder::new(Arc::new(RwLock::new(pipeline)), event_sender);
-    let watcher = EbpfWatcher::new(TargetManager::new(TARGETS.to_vec(), vec![]), log_recorder);
-    (watcher, tx)
+    Arc::new(EbpfWatcher::new(target_manager, log_recorder))
 }
 
 #[rstest]
 fn test_process_matching(
-    processes: Vec<ProcessInfo>,
+    processes: &Vec<ProcessInfo>,
+    target_manager: TargetManager,
     pipeline: PipelineMetadata,
-    async_runtime: Runtime,
+    async_runtime: &Runtime,
 ) {
-    let (process_start_events, other_events) = async_runtime.block_on(async {
-        let (tx, rx) = mpsc::unbounded_channel::<Event>();
-        let watcher = watcher(pipeline, tx);
+    let process_start_events = async_runtime.block_on(async {
+        let (tx, mut rx) = mpsc::channel::<Event>(1000);
+        let watcher = watcher(target_manager, pipeline, tx);
 
         // process triggers for all commands in all processes
         for process in processes {
             let path = process.path().to_string();
-            for commands in process.test_commands {
-                let triggers: Vec<ProcessStartTrigger> = commands
+            for commands in &process.test_commands {
+                let triggers: Vec<Trigger> = commands
                     .iter()
                     .map(|command| common::new_process_start_trigger(command, &path))
                     .collect();
@@ -83,29 +84,31 @@ fn test_process_matching(
             }
         }
 
-        drop(tx);
+        let mut process_start_events = Vec::new();
 
-        iter::from_fn(async move || rx.recv().await)
-            .partition(|event| event.process_status == ProcessStatus::ToolExecution)
-            .collect::<Vec<_>>()
+        while let Some(event) = rx.recv().await {
+            match event.process_status {
+                ProcessStatus::ToolExecution => process_start_events.push(event),
+                _ => panic!("Expected process start event, got {:?}", event),
+            }
+        }
+
+        process_start_events
     });
 
-    // make sure we only got process start events
-    assert!(other_events.is_empty());
-
-    let expected_counts: HashMap<&str, u8> = processes
+    let expected_counts: HashMap<&str, usize> = processes
         .iter()
         .map(|process| (process.tool_name(), process.test_commands.len()))
         .collect::<HashMap<_, _>>();
 
     // check that exactly the expected matches are observed
     // since these processes don't actually exist, they'll all be represented as short-lived
-    let observed_counts: HashMap<&str, u8> =
+    let observed_counts: HashMap<&str, usize> =
         process_start_events
             .iter()
             .fold(HashMap::new(), |mut obs, event| {
                 if let Some(EventAttributes::Process(ProcessProperties::Full(properties))) =
-                    event.attribute
+                    &event.attributes
                 {
                     obs.entry(&properties.tool_name)
                         .and_modify(|count| *count += 1)

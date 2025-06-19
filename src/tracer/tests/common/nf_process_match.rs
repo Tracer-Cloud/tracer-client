@@ -16,12 +16,12 @@ impl ProcessInfo {
     /// Removes regex characters from the first element in `self.pattern` to turn it into a valid
     /// path. Currontly only removes leading '^' and strips whitespace.
     pub fn path(&self) -> &str {
-        if self.pattern.starts_with('^') {
-            pattern[1..]
+        let pattern = if self.pattern.starts_with('^') {
+            &self.pattern[1..]
         } else {
-            pattern
+            &self.pattern
         };
-        pattern.split(" ").first().unwrap().trim()
+        pattern.split(" ").next().unwrap().trim()
     }
 
     pub fn tool_name(&self) -> &str {
