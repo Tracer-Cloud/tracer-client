@@ -221,3 +221,46 @@ mod tests {
         assert_eq!(matched, None);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
+
+    fn make_process(comm: &str, argv: &[&str]) -> ProcessStartTrigger {
+        ProcessStartTrigger {
+            pid: 0,
+            ppid: 0,
+            comm: comm.to_string(),
+            file_name: "".to_string(),
+            argv: argv.iter().map(|s| s.to_string()).collect(),
+            started_at: Default::default(),
+        }
+    }
+
+    #[test]
+    fn test_cat_fastq_target_match() {
+        // Load rules from the actual default_rules.json file
+        let rules_path = "src/common/target_process/default_rules.json";
+        let rules_content =
+            fs::read_to_string(rules_path).expect("Failed to read default_rules.json");
+        let targets = load_json_rules_from_str(&rules_content).expect("Failed to parse rules");
+        let manager = TargetManager { targets };
+
+        // Should match: process_name is 'cat' and command contains 'fastq'
+        let process = make_process("cat", &["cat", "input1/index.1.fastq.gz"]);
+        let matched = manager.get_target_match(&process);
+        assert_eq!(matched.as_deref(), Some("CAT FASTQ"));
+
+        // Should NOT match: process_name is 'cat' but command does not contain 'fastq'
+        let process = make_process("cat", &["cat"]);
+        let matched = manager.get_target_match(&process);
+        assert_eq!(matched, None);
+
+        // Should NOT match: process_name is not 'cat'
+        let process = make_process("bash", &["cat", "input1/index.1.fastq.gz"]);
+        let matched = manager.get_target_match(&process);
+        assert_eq!(matched, None);
+    }
+}
