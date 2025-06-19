@@ -14,6 +14,7 @@ pub struct InteractiveInitArgs {
     pub tags: PipelineTags,
     pub no_daemonize: bool,
     pub is_dev: Option<bool>,
+    pub user_id: Option<String>,
 }
 
 impl Default for InteractiveInitArgs {
@@ -24,6 +25,7 @@ impl Default for InteractiveInitArgs {
             tags: PipelineTags::default(),
             no_daemonize: false,
             is_dev: Some(false),
+            user_id: None,
         }
     }
 }
@@ -44,6 +46,7 @@ impl InteractiveInitArgs {
             },
             no_daemonize: cli_args.no_daemonize,
             is_dev: cli_args.is_dev,
+            user_id: cli_args.user_id,
         }
     }
 
@@ -141,6 +144,7 @@ impl InteractiveInitArgs {
             tags: self.tags,
             no_daemonize: self.no_daemonize,
             is_dev: self.is_dev,
+            user_id: self.user_id,
         }
     }
 }
