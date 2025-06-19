@@ -1,7 +1,5 @@
 use crate::common::target_process::json_rules_parser::{load_json_rules, load_json_rules_from_str};
 use crate::common::target_process::Target;
-use crate::common::utils::log_matched_process;
-use std::path::Path;
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 
 #[derive(Clone)]
@@ -11,14 +9,9 @@ pub struct TargetManager {
 
 impl TargetManager {
     pub fn new() -> Self {
-        // First try to load from embedded JSON (for production builds)
-        println!("[TargetManager] Trying to load embedded rules...");
+        // First, try to load from embedded JSON (for production builds)
         match load_json_rules_from_str(include_str!("default_rules.json")) {
             Ok(targets) => {
-                println!(
-                    "[TargetManager] Successfully loaded {} targets from embedded JSON",
-                    targets.len()
-                );
                 return Self { targets };
             }
             Err(e) => {
@@ -38,18 +31,8 @@ impl TargetManager {
         let mut loaded = false;
 
         for rules_path in possible_paths {
-            println!(
-                "[TargetManager] Trying to load rules from file: {}",
-                rules_path
-            );
-
             match load_json_rules(rules_path) {
                 Ok(loaded_targets) => {
-                    println!(
-                        "[TargetManager] Successfully loaded {} targets from {}",
-                        loaded_targets.len(),
-                        rules_path
-                    );
                     targets = loaded_targets;
                     loaded = true;
                     break;
@@ -63,10 +46,6 @@ impl TargetManager {
             }
         }
 
-        if !loaded {
-            println!("[TargetManager] WARNING: Could not load rules from any source. Using empty target list.");
-        }
-
         Self { targets }
     }
 
@@ -74,19 +53,9 @@ impl TargetManager {
     pub fn get_target_match(&self, process: &ProcessStartTrigger) -> Option<String> {
         let command = process.argv.join(" ");
 
-        println!(
-            "[TargetManager] Checking process: comm='{}', command='{}'",
-            process.comm, command
-        );
-        println!("[TargetManager] Number of targets: {}", self.targets.len());
-
-        for (i, target) in self.targets.iter().enumerate() {
-            println!("[TargetManager] Checking target {}: {:?}", i, target);
+        for (target) in self.targets.iter() {
             if target.matches(&process.comm, &command) {
-                log_matched_process(process, true);
                 return Some(target.get_display_name_string());
-            } else {
-                log_matched_process(process, false);
             }
         }
 

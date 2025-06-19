@@ -88,9 +88,15 @@ impl Condition {
             Condition::Simple(condition) => {
                 let result = match condition {
                     SimpleCondition::ProcessNameIs(name) => process_name.eq_ignore_ascii_case(name),
-                    SimpleCondition::ProcessNameContains(substr) => process_name.to_lowercase().contains(&substr.to_lowercase()),
-                    SimpleCondition::CommandContains(content) => command.to_lowercase().contains(&content.to_lowercase()),
-                    SimpleCondition::CommandNotContains(content) => !command.to_lowercase().contains(&content.to_lowercase()),
+                    SimpleCondition::ProcessNameContains(substr) => {
+                        process_name.to_lowercase().contains(&substr.to_lowercase())
+                    }
+                    SimpleCondition::CommandContains(content) => {
+                        command.to_lowercase().contains(&content.to_lowercase())
+                    }
+                    SimpleCondition::CommandNotContains(content) => {
+                        !command.to_lowercase().contains(&content.to_lowercase())
+                    }
                 };
                 println!(
                     "[DEBUG] SimpleCondition: {:?}, process_name: {:?}, command: {:?}, result: {}",
@@ -341,21 +347,17 @@ mod tests {
         assert_eq!(config.rules.len(), 1);
         let rule = &config.rules[0];
         // Should match: process name is 'cat' and command contains .fastq.gz
-        assert!(rule
-            .condition
-            .matches("cat", "cat input1/index.1.fastq.gz",));
-        assert!(rule.condition.matches("cat", "cat foo.fastq.gz bar.txt",));
+        assert!(rule.condition.matches("cat", "cat input1/index.1.fastq.gz"));
+        assert!(rule.condition.matches("cat", "cat foo.fastq.gz bar.txt"));
         // Should NOT match: process name is not 'cat'
         assert!(!rule
             .condition
-            .matches("bash", "cat input1/index.1.fastq.gz",));
+            .matches("bash", "cat input1/index.1.fastq.gz"));
 
         // Should NOT match: process name is not 'cat'
-        assert!(!rule
-          .condition
-          .matches("cat", "cat",));
+        assert!(!rule.condition.matches("cat", "cat"));
         // Should NOT match: command does not contain .fastq.gz
-        assert!(!rule.condition.matches("cat", "cat input1/index.1.txt",));
+        assert!(!rule.condition.matches("cat", "cat input1/index.1.txt"));
     }
 
     #[test]
@@ -394,8 +396,12 @@ mod tests {
         let config: RulesConfig = serde_json::from_str(json).unwrap();
         let rule = &config.rules[0];
         // Should match: command contains 'fq' but not 'bbsplit'
-        assert!(rule.condition.matches("any_process", "echo fq something else"));
-        assert!(rule.condition.matches("any_process", "echo FQ something else"));
+        assert!(rule
+            .condition
+            .matches("any_process", "echo fq something else"));
+        assert!(rule
+            .condition
+            .matches("any_process", "echo FQ something else"));
         // Should NOT match: command contains both 'fq' and 'bbsplit' (any case)
         assert!(!rule.condition.matches("any_process", "/opt/conda/bin/bbsplit.sh -Xmx12206M path=bbsplit threads=7 in=WT_REP1_trimmed_1_val_1.fq.gz in2=WT_REP1_trimmed_2_val_2.fq.gz basename=WT_REP1_%_#.fastq.gz refstats=WT_REP1.stats.txt build=1 ambiguous2=all maxindel=150000 ow=f"));
         assert!(!rule.condition.matches("any_process", "echo fq BBSPLIT"));
