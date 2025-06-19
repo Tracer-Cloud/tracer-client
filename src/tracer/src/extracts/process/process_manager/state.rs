@@ -79,13 +79,7 @@ impl StateManager {
 
     /// Gets the number of monitored processes
     pub async fn get_number_of_monitored_processes(&self) -> usize {
-        self.state
-            .read()
-            .await
-            .get_monitoring()
-            .values()
-            .map(|processes| processes.len())
-            .sum()
+        self.state.read().await.get_monitoring().keys().count()
     }
 
     /// Gets N process names of monitored processes
@@ -94,8 +88,7 @@ impl StateManager {
             .read()
             .await
             .get_monitoring()
-            .iter()
-            .flat_map(|(_, processes)| processes.iter().map(|p| p.comm.clone()))
+            .keys()
             .take(n)
             .collect()
     }
