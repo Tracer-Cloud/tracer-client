@@ -29,8 +29,8 @@ sysinfo = { workspace = true }
 tracer_ebpf = { path = "../ebpf" }
 itertools = { workspace = true }
 once_cell = { workspace = true }
-rstest = {workspace = true}
-mockall = {workspace = true}
+rstest = { workspace = true }
+mockall = { workspace = true }
 homedir = { workspace = true }
 log = { workspace = true }
 reqwest = { workspace = true }
@@ -56,6 +56,7 @@ typed-builder = { workspace = true }
 dialoguer = { workspace = true }
 regex = { workspace = true }
 rustls = { workspace = true }
+shlex = { workspace = true }
 
 [dev-dependencies]
 sqlx = { workspace = true }
@@ -63,4 +64,4 @@ assert_cmd = { workspace = true }
 dotenv = { workspace = true }
 serial_test = { workspace = true }
 uuid = { workspace = true }
-rstest.workspace = true
+rstest = { workspace = true }

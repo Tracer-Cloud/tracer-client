@@ -1,5 +1,4 @@
 use anyhow::Result;
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 use tracer_ebpf::ebpf_trigger::Trigger;
@@ -8,14 +7,9 @@ pub const DUMMY_PID: usize = 1;
 pub const DUMMY_PPID: usize = 0;
 
 pub fn new_process_start_trigger(cmd: &str, path: &str) -> Trigger {
-    Trigger::ProcessStart(ProcessStartTrigger {
-        pid: DUMMY_PID,
-        ppid: DUMMY_PPID,
-        comm: path.split("/").last().unwrap().to_string(),
-        argv: cmd.split_whitespace().map(String::from).collect(),
-        file_name: path.to_string(),
-        started_at: Utc::now(),
-    })
+    Trigger::ProcessStart(ProcessStartTrigger::from_command_string_and_path(
+        DUMMY_PID, DUMMY_PPID, path, cmd,
+    ))
 }
 
 #[derive(Debug, Deserialize, Serialize)]
