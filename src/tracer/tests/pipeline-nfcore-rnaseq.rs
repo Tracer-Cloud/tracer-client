@@ -32,11 +32,13 @@ fn processes() -> Vec<ProcessInfo> {
 }
 
 #[fixture]
+#[once]
 fn target_manager() -> TargetManager {
     TargetManager::new()
 }
 
 #[fixture]
+#[once]
 fn pipeline() -> PipelineMetadata {
     PipelineMetadata {
         pipeline_name: "test_pipeline".to_string(),
@@ -52,19 +54,19 @@ fn async_runtime() -> Runtime {
 }
 
 fn watcher(
-    target_manager: TargetManager,
-    pipeline: PipelineMetadata,
+    target_manager: &TargetManager,
+    pipeline: &PipelineMetadata,
     event_sender: Sender<Event>,
 ) -> Arc<EbpfWatcher> {
-    let log_recorder = LogRecorder::new(Arc::new(RwLock::new(pipeline)), event_sender);
-    Arc::new(EbpfWatcher::new(target_manager, log_recorder))
+    let log_recorder = LogRecorder::new(Arc::new(RwLock::new(pipeline.clone())), event_sender);
+    Arc::new(EbpfWatcher::new(target_manager.clone(), log_recorder))
 }
 
 #[rstest]
 fn test_process_matching(
     processes: &Vec<ProcessInfo>,
-    target_manager: TargetManager,
-    pipeline: PipelineMetadata,
+    target_manager: &TargetManager,
+    pipeline: &PipelineMetadata,
     async_runtime: &Runtime,
 ) {
     let (tx, mut rx) = mpsc::channel::<Event>(1000);
@@ -90,7 +92,10 @@ fn test_process_matching(
     async_runtime.block_on(async {
         while let Some(event) = rx.recv().await {
             match event.process_status {
-                ProcessStatus::ToolExecution => process_start_events.push(event),
+                ProcessStatus::ToolExecution => {
+                    dbg!(&event);
+                    process_start_events.push(event);
+                }
                 _ => panic!("Expected process start event, got {:?}", event),
             }
         }
