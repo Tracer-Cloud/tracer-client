@@ -66,11 +66,12 @@ impl Condition {
                 TargetMatch::CommandNotContains(content.clone())
             }
             Condition::And(and_cond) => {
-                if let Some(first) = and_cond.and.first() {
-                    first.to_target_match()
-                } else {
-                    TargetMatch::ProcessNameIs("__never_match__".to_string())
-                }
+                let target_matches: Vec<TargetMatch> = and_cond
+                    .and
+                    .iter()
+                    .map(|condition| condition.to_target_match())
+                    .collect();
+                TargetMatch::And(target_matches)
             }
             Condition::Or(or_cond) => {
                 let target_matches: Vec<TargetMatch> = or_cond
@@ -197,6 +198,9 @@ pub fn matches_target(target_match: &TargetMatch, process_name: &str, command: &
         TargetMatch::ProcessNameContains(substr) => process_name.contains(substr),
         TargetMatch::CommandContains(content) => command.contains(content),
         TargetMatch::CommandNotContains(content) => !command.contains(content),
+        TargetMatch::And(conditions) => conditions
+            .iter()
+            .all(|condition| matches_target(condition, process_name, command)),
         TargetMatch::Or(conditions) => conditions
             .iter()
             .any(|condition| matches_target(condition, process_name, command)),
