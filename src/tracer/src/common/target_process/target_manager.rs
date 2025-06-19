@@ -1,6 +1,8 @@
-use crate::common::target_process::parser::json_rules_parser::{load_json_rules, load_json_rules_from_str};
-use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
+use crate::common::target_process::parser::json_rules_parser::{
+    load_json_rules, load_json_rules_from_str,
+};
 use crate::common::target_process::target::Target;
+use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 
 #[derive(Clone)]
 pub struct TargetManager {
@@ -28,13 +30,11 @@ impl TargetManager {
         ];
 
         let mut targets = Vec::new();
-        let mut loaded = false;
 
         for rules_path in possible_paths {
             match load_json_rules(rules_path) {
                 Ok(loaded_targets) => {
                     targets = loaded_targets;
-                    loaded = true;
                     break;
                 }
                 Err(e) => {
@@ -63,6 +63,12 @@ impl TargetManager {
     }
 }
 
+impl Default for TargetManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -83,7 +89,7 @@ mod tests {
     #[test]
     fn test_cat_fastq_target_match() {
         // Load rules from the actual default_rules.json file
-        let rules_path = "src/common/target_process/default_rules.json";
+        let rules_path = "src/common/target_process/json_rules/default_rules.json";
         let rules_content =
             fs::read_to_string(rules_path).expect("Failed to read default_rules.json");
         let targets = load_json_rules_from_str(&rules_content).expect("Failed to parse rules");

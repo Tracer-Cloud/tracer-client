@@ -1282,14 +1282,6 @@
       }
     },
     {
-      "rule_name": "BBSplit command",
-      "display_name": "BBSplit",
-      "and": {
-        "command_contains": "bbsplit.sh",
-        "process_name_contains": "bbsplit.sh"
-      }
-    },
-    {
       "rule_name": "sortmerna command",
       "display_name": "SortMeRNA",
       "condition": {

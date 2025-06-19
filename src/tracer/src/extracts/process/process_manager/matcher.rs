@@ -24,7 +24,7 @@ impl Filter {
 
         for trigger in triggers {
             if let Some(matched_target) = state.get_target_manager().get_target_match(&trigger) {
-                log_matched_process(&trigger, &*matched_target, true);
+                log_matched_process(&trigger, &matched_target, true);
 
                 let matched_target = matched_target.clone();
                 matched_processes
@@ -48,5 +48,10 @@ impl Filter {
             .values()
             .flat_map(|procs| procs.iter().map(|p| p.pid))
             .collect()
+    }
+}
+impl Default for Filter {
+    fn default() -> Self {
+        Self::new()
     }
 }
