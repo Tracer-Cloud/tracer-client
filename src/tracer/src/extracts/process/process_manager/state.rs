@@ -1,3 +1,4 @@
+use crate::common::target_process::target_matching::TargetMatch;
 use crate::common::target_process::target_process_manager::TargetManager;
 use crate::common::target_process::Target;
 use crate::extracts::process::types::process_state::ProcessState;
@@ -79,13 +80,7 @@ impl StateManager {
 
     /// Gets the number of monitored processes
     pub async fn get_number_of_monitored_processes(&self) -> usize {
-        self.state
-            .read()
-            .await
-            .get_monitoring()
-            .values()
-            .map(|processes| processes.len())
-            .sum()
+        self.state.read().await.get_monitoring().keys().count()
     }
 
     /// Gets N process names of monitored processes
@@ -94,8 +89,14 @@ impl StateManager {
             .read()
             .await
             .get_monitoring()
-            .iter()
-            .flat_map(|(_, processes)| processes.iter().map(|p| p.comm.clone()))
+            .keys()
+            .filter_map(|target| {
+                if let TargetMatch::ProcessName(ref s) = target.match_type {
+                    Some(s.clone())
+                } else {
+                    None
+                }
+            })
             .take(n)
             .collect()
     }
