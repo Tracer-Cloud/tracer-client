@@ -5,7 +5,6 @@ use crate::extracts::ebpf_watcher::handler::trigger::trigger_processor::TriggerP
 use crate::extracts::process::process_manager::ProcessManager;
 use crate::extracts::process::process_utils::get_process_argv;
 use anyhow::{Error, Result};
-use chrono::Utc;
 use std::collections::HashSet;
 use std::fs::{self};
 use std::path::Path;
@@ -87,14 +86,12 @@ impl EbpfWatcher {
                         }
 
                         // New process detected
-                        let start_trigger = ProcessStartTrigger {
-                            pid: pid_u32 as usize,
-                            ppid: process.parent().map(|p| p.as_u32()).unwrap_or(0) as usize,
-                            comm: process.name().to_string(),
-                            argv,
-                            file_name: "".to_string(),
-                            started_at: Utc::now(),
-                        };
+                        let start_trigger = ProcessStartTrigger::from_name_and_args(
+                            pid_u32 as usize,
+                            process.parent().map(|p| p.as_u32()).unwrap_or(0) as usize,
+                            process.name(),
+                            &argv,
+                        );
 
                         if let Err(e) = watcher
                             .process_triggers(vec![Trigger::ProcessStart(start_trigger)])

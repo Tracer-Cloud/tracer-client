@@ -144,14 +144,7 @@ mod tests {
     use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 
     fn make_process(comm: &str, argv: &[&str]) -> ProcessStartTrigger {
-        ProcessStartTrigger {
-            pid: 0,
-            ppid: 0,
-            comm: comm.to_string(),
-            file_name: "".to_string(),
-            argv: argv.iter().map(|s| s.to_string()).collect(),
-            started_at: Default::default(),
-        }
+        ProcessStartTrigger::from_name_and_args(0, 0, comm, argv)
     }
 
     #[test]

@@ -4625,6 +4625,7 @@ dependencies = [
  "serde-query",
  "serde_json",
  "serial_test",
+ "shlex",
  "sqlx",
  "sysinfo",
  "tokio",
@@ -4670,6 +4671,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "serde",
+ "shlex",
  "tokio",
 ]
 

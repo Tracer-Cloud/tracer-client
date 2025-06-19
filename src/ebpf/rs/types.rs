@@ -76,18 +76,13 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                 }
 
                 Ok(ebpf_trigger::Trigger::ProcessStart(
-                    ebpf_trigger::ProcessStartTrigger {
-                        pid: self.pid as usize,
-                        ppid: self.ppid as usize,
-                        file_name: args.first().cloned().unwrap_or_default(),
-                        comm: comm.to_string(),
-                        argv: args,
-                        started_at: chrono::DateTime::from_timestamp(
-                            (self.timestamp_ns / 1_000_000_000) as i64,
-                            (self.timestamp_ns % 1_000_000_000) as u32,
-                        )
-                        .unwrap(),
-                    },
+                    ebpf_trigger::ProcessStartTrigger::from_bpf_event(
+                        self.pid,
+                        self.ppid,
+                        comm,
+                        args,
+                        self.timestamp_ns,
+                    ),
                 ))
             }
             EVENT__SCHED__SCHED_PROCESS_EXIT => {
