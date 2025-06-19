@@ -2,7 +2,7 @@
   "rules": [
     {
       "rule_name": "FastQC java process",
-      "display_name": "fastqc",
+      "display_name": "FastQC",
       "condition": {
         "type": "and",
         "value": {
@@ -10,7 +10,7 @@
             {
               "type": "simple",
               "value": {
-                "field": "process_name",
+                "field": "process_name_is",
                 "value": "java"
               }
             },
@@ -29,10 +29,24 @@
       "rule_name": "STAR process",
       "display_name": "STAR",
       "condition": {
-        "type": "simple",
+        "type": "and",
         "value": {
-          "field": "process_name",
-          "value": "STAR"
+          "and": [
+            {
+              "type": "simple",
+              "value": {
+                "field": "process_name_is",
+                "value": "STAR"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": "STAR"
+              }
+            }
+          ]
         }
       }
     },
@@ -42,7 +56,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "bowtie2"
         }
       }
@@ -53,7 +67,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "bowtie2-build-s"
         }
       }
@@ -64,7 +78,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "bowtie2-align-s"
         }
       }
@@ -79,7 +93,7 @@
             {
               "type": "simple",
               "value": {
-                "field": "process_name",
+                "field": "process_name_is",
                 "value": "bowtie2-build-s"
               }
             },
@@ -111,7 +125,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "bwa"
         }
       }
@@ -122,7 +136,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "salmon"
         }
       }
@@ -133,7 +147,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "hisat2"
         }
       }
@@ -144,7 +158,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "hisat2-build"
         }
       }
@@ -155,7 +169,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "stringtie"
         }
       }
@@ -166,7 +180,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "featureCounts"
         }
       }
@@ -177,7 +191,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "HOMER"
         }
       }
@@ -188,7 +202,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "samtools"
         }
       }
@@ -199,7 +213,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "seasmoke"
         }
       }
@@ -210,7 +224,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "alphafold"
         }
       }
@@ -221,7 +235,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "bedtools"
         }
       }
@@ -232,7 +246,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "deeptools"
         }
       }
@@ -243,7 +257,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "macs3"
         }
       }
@@ -254,7 +268,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "plotCoverage"
         }
       }
@@ -265,7 +279,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "plotPCA"
         }
       }
@@ -276,7 +290,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "plotFingerprint"
         }
       }
@@ -287,7 +301,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "MACS33"
         }
       }
@@ -298,7 +312,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "Genrich"
         }
       }
@@ -309,7 +323,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "TopHat"
         }
       }
@@ -320,7 +334,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "JAMM"
         }
       }
@@ -331,7 +345,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "fastqc"
         }
       }
@@ -342,7 +356,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "fastqc"
         }
       }
@@ -353,7 +367,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "multiqc"
         }
       }
@@ -364,7 +378,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "fastp"
         }
       }
@@ -375,7 +389,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "PEAR"
         }
       }
@@ -386,7 +400,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "Trimmomatic"
         }
       }
@@ -397,19 +411,75 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "sra-toolkit"
         }
       }
     },
     {
-      "rule_name": "picard process",
+      "rule_name": "picard command",
       "display_name": "picard",
       "condition": {
-        "type": "simple",
+        "type": "or",
         "value": {
-          "field": "process_name",
-          "value": "picard"
+          "or": [
+            {
+              "type": "or",
+              "value": {
+                "or": [
+                  {
+                    "type": "simple",
+                    "value": {
+                      "field": "process_name_contains",
+                      "value": "picard"
+                    }
+                  },
+                  {
+                    "type": "simple",
+                    "value": {
+                      "field": "command_contains",
+                      "value": "picard"
+                    }
+                  },
+                  {
+                    "type": "simple",
+                    "value": {
+                      "field":"command_contains",
+                      "value": "markduplicates"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "and",
+              "value": {
+                "and": [
+                  {
+                    "type": "simple",
+                    "value": {
+                      "field": "process_name_contains",
+                      "value": "java"
+                    }
+                  },
+                  {
+                    "type": "simple",
+                    "value": {
+                      "field": "command_contains",
+                      "value": "picard"
+                    }
+                  },
+                   {
+                    "type": "simple",
+                    "value": {
+                      "field":"command_contains",
+                      "value": "markduplicates"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
         }
       }
     },
@@ -419,7 +489,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "cutadapt"
         }
       }
@@ -430,7 +500,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "cellranger"
         }
       }
@@ -441,7 +511,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "STATsolo"
         }
       }
@@ -452,7 +522,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "scTE"
         }
       }
@@ -463,7 +533,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "scanpy"
         }
       }
@@ -474,7 +544,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "Seurat"
         }
       }
@@ -485,7 +555,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "LIGER"
         }
       }
@@ -496,7 +566,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "SC3"
         }
       }
@@ -507,7 +577,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "Louvain"
         }
       }
@@ -518,7 +588,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "Leiden"
         }
       }
@@ -529,7 +599,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "Garnett"
         }
       }
@@ -540,7 +610,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "Monocle"
         }
       }
@@ -551,7 +621,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "Harmony"
         }
       }
@@ -562,7 +632,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "PAGA"
         }
       }
@@ -573,7 +643,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "Palantir"
         }
       }
@@ -584,7 +654,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "velocity"
         }
       }
@@ -595,7 +665,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "CellPhoneDB"
         }
       }
@@ -606,7 +676,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "CellChat"
         }
       }
@@ -617,7 +687,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "NicheNet"
         }
       }
@@ -628,7 +698,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "FIt-SNE"
         }
       }
@@ -639,7 +709,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "umap"
         }
       }
@@ -650,7 +720,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "bbmap"
         }
       }
@@ -661,7 +731,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "cuffdiff"
         }
       }
@@ -672,7 +742,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "RNA-SeQC"
         }
       }
@@ -683,7 +753,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "RSeQC"
         }
       }
@@ -694,7 +764,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "Trimgalore"
         }
       }
@@ -705,7 +775,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "UCHIME"
         }
       }
@@ -716,7 +786,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "Erange"
         }
       }
@@ -727,7 +797,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "X-Mate"
         }
       }
@@ -738,7 +808,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "SpliceSeq"
         }
       }
@@ -749,7 +819,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "casper"
         }
       }
@@ -760,7 +830,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "DESeq"
         }
       }
@@ -771,7 +841,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "EdgeR"
         }
       }
@@ -782,7 +852,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "bamSummary"
         }
       }
@@ -793,7 +863,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "kallisto"
         }
       }
@@ -804,7 +874,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "pairtools"
         }
       }
@@ -815,7 +885,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "HiCExplorer"
         }
       }
@@ -826,7 +896,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "GITAR"
         }
       }
@@ -837,7 +907,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "TADbit"
         }
       }
@@ -848,7 +918,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "Juicer"
         }
       }
@@ -859,7 +929,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "HiC-Pro"
         }
       }
@@ -870,7 +940,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "cooler"
         }
       }
@@ -881,7 +951,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "cooltools"
         }
       }
@@ -892,7 +962,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "runHiC"
         }
       }
@@ -903,7 +973,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "HTSlib"
         }
       }
@@ -914,7 +984,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "htslib"
         }
       }
@@ -925,7 +995,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "zlib"
         }
       }
@@ -936,7 +1006,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "libbz2"
         }
       }
@@ -947,7 +1017,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "liblzma"
         }
       }
@@ -958,7 +1028,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "libcurl"
         }
       }
@@ -969,7 +1039,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "libdeflate"
         }
       }
@@ -980,7 +1050,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "ncurses"
         }
       }
@@ -991,7 +1061,7 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "pthread"
         }
       }
@@ -1002,44 +1072,8 @@
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "oom_example_c"
-        }
-      }
-    },
-    {
-      "rule_name": "picard java command",
-      "display_name": "picard",
-      "condition": {
-        "type": "and",
-        "value": {
-          "and": [
-            {
-              "type": "simple",
-              "value": {
-                "field": "process_name",
-                "value": "java"
-              }
-            },
-            {
-              "type": "simple",
-              "value": {
-                "field": "command_contains",
-                "value": "picard"
-              }
-            }
-          ]
-        }
-      }
-    },
-    {
-      "rule_name": "picard command",
-      "display_name": "picard",
-      "condition": {
-        "type": "simple",
-        "value": {
-          "field": "command_contains",
-          "value": "picard"
         }
       }
     },
@@ -1135,10 +1169,24 @@
       "rule_name": "fq command",
       "display_name": "fq",
       "condition": {
-        "type": "simple",
+        "type": "and",
         "value": {
-          "field": "command_contains",
-          "value": "fq"
+          "and": [
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": "fq"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_not_contains",
+                "value": "bbsplit"
+              }
+            }
+          ]
         }
       }
     },
@@ -1240,7 +1288,7 @@
             {
               "type": "simple",
               "value": {
-                "field": "process_name",
+                "field": "process_name_is",
                 "value": "cat"
               }
             },
@@ -1265,7 +1313,7 @@
             {
               "type": "simple",
               "value": {
-                "field": "process_name",
+                "field": "process_name_contains",
                 "value": "bbsplit.sh"
               }
             },

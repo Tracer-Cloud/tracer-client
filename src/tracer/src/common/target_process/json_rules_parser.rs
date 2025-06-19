@@ -35,10 +35,14 @@ pub struct OrCondition {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(tag = "field", content = "value")]
 pub enum SimpleCondition {
-    #[serde(rename = "process_name")]
-    ProcessName(String),
+    #[serde(rename = "process_name_is")]
+    ProcessNameIs(String),
+    #[serde(rename = "process_name_contains")]
+    ProcessNameContains(String),
     #[serde(rename = "command_contains")]
     CommandContains(String),
+    #[serde(rename = "command_not_contains")]
+    CommandNotContains(String),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -49,17 +53,23 @@ pub struct RulesConfig {
 impl Condition {
     pub fn to_target_match(&self) -> TargetMatch {
         match self {
-            Condition::Simple(SimpleCondition::ProcessName(name)) => {
-                TargetMatch::ProcessName(name.clone())
+            Condition::Simple(SimpleCondition::ProcessNameIs(name)) => {
+                TargetMatch::ProcessNameIs(name.clone())
+            }
+            Condition::Simple(SimpleCondition::ProcessNameContains(substr)) => {
+                TargetMatch::ProcessNameContains(substr.clone())
             }
             Condition::Simple(SimpleCondition::CommandContains(content)) => {
                 TargetMatch::CommandContains(content.clone())
+            }
+            Condition::Simple(SimpleCondition::CommandNotContains(content)) => {
+                TargetMatch::CommandNotContains(content.clone())
             }
             Condition::And(and_cond) => {
                 if let Some(first) = and_cond.and.first() {
                     first.to_target_match()
                 } else {
-                    TargetMatch::ProcessName("__never_match__".to_string())
+                    TargetMatch::ProcessNameIs("__never_match__".to_string())
                 }
             }
             Condition::Or(or_cond) => {
@@ -76,8 +86,14 @@ impl Condition {
     pub fn matches(&self, process_name: &str, command: &str) -> bool {
         match self {
             Condition::Simple(condition) => {
-                let target_match = self.to_target_match();
-                let result = matches_target(&target_match, process_name, command);
+                let result = match condition {
+                    SimpleCondition::ProcessNameIs(name) => process_name.eq_ignore_ascii_case(name),
+                    SimpleCondition::ProcessNameContains(substr) => {
+                        process_name.to_lowercase().contains(&substr.to_lowercase())
+                    }
+                    SimpleCondition::CommandContains(content) => command.contains(content),
+                    SimpleCondition::CommandNotContains(content) => !command.contains(content),
+                };
                 println!(
                     "[DEBUG] SimpleCondition: {:?}, process_name: {:?}, command: {:?}, result: {}",
                     condition, process_name, command, result
@@ -119,7 +135,6 @@ impl Rule {
         Target {
             match_type: self.condition.to_target_match(),
             display_name: DisplayName::Name(self.display_name),
-            filter_out: None,
         }
     }
 }
@@ -174,8 +189,10 @@ pub fn load_json_rules_from_str(
 
 pub fn matches_target(target_match: &TargetMatch, process_name: &str, command: &str) -> bool {
     let result = match target_match {
-        TargetMatch::ProcessName(name) => process_name == name,
+        TargetMatch::ProcessNameIs(name) => process_name == name,
+        TargetMatch::ProcessNameContains(substr) => process_name.contains(substr),
         TargetMatch::CommandContains(content) => command.contains(content),
+        TargetMatch::CommandNotContains(content) => !command.contains(content),
         TargetMatch::Or(conditions) => conditions
             .iter()
             .any(|condition| matches_target(condition, process_name, command)),
@@ -202,7 +219,7 @@ mod tests {
       "condition": {
         "type": "simple",
         "value": {
-          "field": "process_name",
+          "field": "process_name_is",
           "value": "test_process"
         }
       }
@@ -232,7 +249,7 @@ mod tests {
             {
               "type": "simple",
               "value": {
-                "field": "process_name",
+                "field": "process_name_is",
                 "value": "perl"
               }
             },
@@ -304,7 +321,7 @@ mod tests {
             {
               "type": "simple",
               "value": {
-                "field": "process_name",
+                "field": "process_name_is",
                 "value": "cat"
               }
             },
