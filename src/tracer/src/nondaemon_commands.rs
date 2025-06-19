@@ -1,7 +1,7 @@
 use std::process::Command;
 
 #[cfg(target_os = "linux")]
-use crate::utils::get_kernel_version;
+use crate::utils::system_info::get_kernel_version;
 
 use crate::common::constants::{
     FILE_CACHE_DIR, PID_FILE, REPO_NAME, REPO_OWNER, STDERR_FILE, STDOUT_FILE,
