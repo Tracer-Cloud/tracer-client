@@ -79,15 +79,15 @@ jobs:
           restore-keys: |
             cargo-deps-${{ matrix.target }}-stable-
 
-      # - name: Cache build artifacts
-      #   id: cache-build
-      #   uses: actions/cache@v3
-      #   with:
-      #     path: |
-      #       target/
-      #     key: cargo-build-${{ matrix.target }}-stable-${{ hashFiles('Cargo.lock') }}
-      #     restore-keys: |
-      #       cargo-build-${{ matrix.target }}-stable-
+      - name: Cache build artifacts
+        id: cache-build
+        uses: actions/cache@v3
+        with:
+          path: |
+            target/
+          key: cargo-build-${{ matrix.target }}-stable-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            cargo-build-${{ matrix.target }}-stable-
 
       - name: Install build dependencies
         run: |
