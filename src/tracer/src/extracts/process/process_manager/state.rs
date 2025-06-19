@@ -90,6 +90,7 @@ impl StateManager {
             .get_monitoring()
             .keys()
             .take(n)
+            .cloned()
             .collect()
     }
 
