@@ -7,7 +7,6 @@ use std::sync::Arc;
 use tokio::sync::{RwLock, RwLockWriteGuard};
 use tokio::task::JoinHandle;
 use tracer_ebpf::ebpf_trigger::{OutOfMemoryTrigger, ProcessStartTrigger};
-use crate::common::target_process::target::Target;
 
 /// Manages the process state and provides controlled access to it
 pub struct StateManager {
