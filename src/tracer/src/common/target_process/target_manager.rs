@@ -17,7 +17,7 @@ impl TargetManager {
                 return Self { targets };
             }
             Err(e) => {
-                println!("[TargetManager] Failed to load embedded rules: {}", e);
+                trace!("[TargetManager] Failed to load embedded rules: {}", e);
             }
         }
 
@@ -38,9 +38,10 @@ impl TargetManager {
                     break;
                 }
                 Err(e) => {
-                    println!(
+                    trace!(
                         "[TargetManager] Failed to load rules from {}: {}",
-                        rules_path, e
+                        rules_path,
+                        e
                     );
                 }
             }
