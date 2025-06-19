@@ -1284,26 +1284,9 @@
     {
       "rule_name": "BBSplit command",
       "display_name": "BBSplit",
-      "condition": {
-        "type": "and",
-        "value": {
-          "and": [
-            {
-              "type": "simple",
-              "value": {
-                "field": "process_name_contains",
-                "value": "bbsplit.sh"
-              }
-            },
-            {
-              "type": "simple",
-              "value": {
-                "field": "command_contains",
-                "value": "bbsplit.sh"
-              }
-            }
-          ]
-        }
+      "and": {
+        "command_contains": "bbsplit.sh",
+        "process_name_contains": "bbsplit.sh"
       }
     },
     {

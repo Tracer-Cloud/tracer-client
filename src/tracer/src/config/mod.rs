@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::cloud_providers::aws::config::AwsConfig;
 use crate::cloud_providers::aws::types::aws_region::AwsRegion;
-use crate::common::target_process::Target;
+use crate::common::target_process::target::Target;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Config {

@@ -1,6 +1,6 @@
 use crate::common::recorder::LogRecorder;
 use crate::common::target_process::target_manager::TargetManager;
-use crate::common::target_process::Target;
+use crate::common::target_process::target::Target;
 use crate::extracts::ebpf_watcher::handler::trigger::trigger_processor::TriggerProcessor;
 use crate::extracts::process::process_manager::ProcessManager;
 use crate::extracts::process::process_utils::get_process_argv;

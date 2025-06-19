@@ -1,4 +1,4 @@
-use crate::common::target_process::Target;
+use crate::common::target_process::target::Target;
 use crate::common::utils::log_matched_process;
 use crate::extracts::process::types::process_state::ProcessState;
 use anyhow::Result;
