@@ -18,6 +18,24 @@ pub enum TargetMatch {
     BinPathContains(String),
 }
 
+impl TargetMatch {
+    pub fn get_name(&self) -> &str {
+        match self {
+            TargetMatch::ProcessName(name) => name,
+            TargetMatch::ShortLivedProcessExecutable(name) => name,
+            TargetMatch::CommandContains(cmd) => {
+                if let Some(ref name) = cmd.process_name {
+                    name
+                } else {
+                    &cmd.command_content
+                }
+            }
+            TargetMatch::BinPathStartsWith(prefix) => prefix,
+            TargetMatch::BinPathLastComponent(name) => name,
+            TargetMatch::BinPathContains(content) => content,
+        }
+    }
+}
 pub fn to_lowercase(s: &str) -> Cow<str> {
     if s.chars().any(|c| c.is_uppercase()) {
         Cow::Owned(s.to_lowercase())
