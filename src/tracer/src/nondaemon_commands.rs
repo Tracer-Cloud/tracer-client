@@ -8,8 +8,8 @@ use crate::common::constants::{
 };
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
-use crate::utils::info_formatter::InfoFormatter;
-use crate::utils::version::Version;
+use crate::utils::InfoFormatter;
+use crate::utils::Version;
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use std::result::Result::Ok;
