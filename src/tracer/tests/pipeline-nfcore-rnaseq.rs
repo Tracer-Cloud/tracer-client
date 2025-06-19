@@ -1,6 +1,6 @@
 mod common;
 
-use self::common::{NextFlowProcessMatcher, ProcessInfo};
+use self::common::ProcessInfo;
 use rstest::*;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -24,12 +24,11 @@ use tracer_ebpf::ebpf_trigger::Trigger;
 #[fixture]
 #[once]
 fn processes() -> Vec<ProcessInfo> {
-    const PROCESS_LIST_PATH: &str = "../assets/nfcore_rnaseq_process_list.json";
+    const PROCESS_LIST_PATH: &str = "tests/assets/nfcore_rnaseq_process_list.json";
     // TODO: now that NextFlowProcessMatcher is only used for testing and we don't use the patterns,
     // we can probably remove them from the JSON file, get rid of NextFlowProcessMatcher, and move
     // the parsing logic to e.g. ProcessInfo::load_from_file.
-    let matcher = NextFlowProcessMatcher::from_file(PROCESS_LIST_PATH).unwrap();
-    matcher.processes
+    ProcessInfo::from_file(PROCESS_LIST_PATH).unwrap()
 }
 
 #[fixture]
@@ -68,8 +67,9 @@ fn test_process_matching(
     pipeline: PipelineMetadata,
     async_runtime: &Runtime,
 ) {
-    let process_start_events = async_runtime.block_on(async {
-        let (tx, mut rx) = mpsc::channel::<Event>(1000);
+    let (tx, mut rx) = mpsc::channel::<Event>(1000);
+
+    async_runtime.block_on(async {
         let watcher = watcher(target_manager, pipeline, tx);
 
         // process triggers for all commands in all processes
@@ -83,17 +83,17 @@ fn test_process_matching(
                 watcher.process_triggers(triggers).await.unwrap();
             }
         }
+    });
 
-        let mut process_start_events = Vec::new();
+    let mut process_start_events = Vec::new();
 
+    async_runtime.block_on(async {
         while let Some(event) = rx.recv().await {
             match event.process_status {
                 ProcessStatus::ToolExecution => process_start_events.push(event),
                 _ => panic!("Expected process start event, got {:?}", event),
             }
         }
-
-        process_start_events
     });
 
     let expected_counts: HashMap<&str, usize> = processes
