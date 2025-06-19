@@ -1257,8 +1257,8 @@
       }
     },
     {
-      "rule_name": "cat fastq command",
-      "display_name": "cat fastq",
+      "rule_name": "Cat FASTQ",
+      "display_name": "CAT FASTQ",
       "condition": {
         "type": "and",
         "value": {
@@ -1274,7 +1274,7 @@
               "type": "simple",
               "value": {
                 "field": "command_contains",
-                "value": "fastq"
+                "value": ".fastq.gz"
               }
             }
           ]

@@ -10,6 +10,7 @@ pub enum TargetMatch {
     ProcessNameContains(String),
     CommandContains(String),
     CommandNotContains(String),
+    And(Vec<TargetMatch>),
     Or(Vec<TargetMatch>),
 }
 
@@ -58,6 +59,7 @@ impl Target {
     /// Simple matching logic
     pub fn matches(&self, process_name: &str, command: &str) -> bool {
         // Check if the process matches the primary condition
+
         if !matches_target(&self.match_type, process_name, command) {
             return false;
         }
@@ -73,6 +75,9 @@ pub fn matches_target(target_match: &TargetMatch, process_name: &str, command: &
         TargetMatch::ProcessNameContains(substr) => process_name.contains(substr),
         TargetMatch::CommandContains(content) => command.contains(content),
         TargetMatch::CommandNotContains(content) => !command.contains(content),
+        TargetMatch::And(conditions) => conditions
+            .iter()
+            .all(|condition| matches_target(condition, process_name, command)),
         TargetMatch::Or(conditions) => conditions
             .iter()
             .any(|condition| matches_target(condition, process_name, command)),
