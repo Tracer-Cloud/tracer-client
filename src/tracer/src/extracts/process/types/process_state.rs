@@ -1,5 +1,5 @@
-use crate::common::target_process::target_process_manager::TargetManager;
-use crate::common::target_process::Target;
+use crate::common::target_process::target::Target;
+use crate::common::target_process::target_manager::TargetManager;
 use std::collections::{HashMap, HashSet};
 use tokio::task::JoinHandle;
 use tracer_ebpf::ebpf_trigger::{OutOfMemoryTrigger, ProcessStartTrigger};
@@ -7,7 +7,7 @@ use tracer_ebpf::ebpf_trigger::{OutOfMemoryTrigger, ProcessStartTrigger};
 /// Internal state of the process manager
 pub struct ProcessState {
     processes: HashMap<usize, ProcessStartTrigger>,
-    monitoring: HashMap<Target, HashSet<ProcessStartTrigger>>,
+    monitoring: HashMap<String, HashSet<ProcessStartTrigger>>,
     target_manager: TargetManager,
     ebpf_task: Option<JoinHandle<()>>,
     out_of_memory_victims: HashMap<usize, OutOfMemoryTrigger>,
@@ -42,11 +42,11 @@ impl ProcessState {
 
     // Monitoring related methods
 
-    pub fn get_monitoring(&self) -> &HashMap<Target, HashSet<ProcessStartTrigger>> {
+    pub fn get_monitoring(&self) -> &HashMap<String, HashSet<ProcessStartTrigger>> {
         &self.monitoring
     }
 
-    pub fn get_monitoring_mut(&mut self) -> &mut HashMap<Target, HashSet<ProcessStartTrigger>> {
+    pub fn get_monitoring_mut(&mut self) -> &mut HashMap<String, HashSet<ProcessStartTrigger>> {
         &mut self.monitoring
     }
 
@@ -86,7 +86,7 @@ impl ProcessState {
 
     pub fn update_monitoring(
         &mut self,
-        interested_in: HashMap<Target, HashSet<ProcessStartTrigger>>,
+        interested_in: HashMap<String, HashSet<ProcessStartTrigger>>,
     ) {
         for (target, processes) in interested_in.into_iter() {
             self.monitoring.entry(target).or_default().extend(processes);

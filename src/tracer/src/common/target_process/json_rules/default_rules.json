@@ -1,0 +1,1296 @@
+{
+  "rules": [
+    {
+      "rule_name": "FastQC java process",
+      "display_name": "FastQC",
+      "condition": {
+        "type": "and",
+        "value": {
+          "and": [
+            {
+              "type": "simple",
+              "value": {
+                "field": "process_name_is",
+                "value": "java"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": "uk.ac.babraham.FastQC.FastQCApplication"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "rule_name": "STAR process",
+      "display_name": "STAR",
+      "condition": {
+        "type": "and",
+        "value": {
+          "and": [
+            {
+              "type": "simple",
+              "value": {
+                "field": "process_name_is",
+                "value": "STAR"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": "STAR"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "rule_name": "bowtie2 process",
+      "display_name": "bowtie2",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "bowtie2"
+        }
+      }
+    },
+    {
+      "rule_name": "bowtie2-build-s process",
+      "display_name": "bowtie2-build-s",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "bowtie2-build-s"
+        }
+      }
+    },
+    {
+      "rule_name": "bowtie2-align-s process",
+      "display_name": "bowtie2-align-s",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "bowtie2-align-s"
+        }
+      }
+    },
+    {
+      "rule_name": "bowtie2-build-s conda",
+      "display_name": "bowtie2-build-s (Conda)",
+      "condition": {
+        "type": "and",
+        "value": {
+          "and": [
+            {
+              "type": "simple",
+              "value": {
+                "field": "process_name_is",
+                "value": "bowtie2-build-s"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": "/opt/conda/bin/bowtie2-build-s"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "rule_name": "bowtie2-build conda",
+      "display_name": "bowtie2-build (Conda)",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "/opt/conda/bin/bowtie2-build"
+        }
+      }
+    },
+    {
+      "rule_name": "bwa process",
+      "display_name": "bwa",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "bwa"
+        }
+      }
+    },
+    {
+      "rule_name": "salmon process",
+      "display_name": "salmon",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "salmon"
+        }
+      }
+    },
+    {
+      "rule_name": "hisat2 process",
+      "display_name": "HISAT2",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "hisat2"
+        }
+      }
+    },
+    {
+      "rule_name": "hisat2-build process",
+      "display_name": "HISAT2_BUILD",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "hisat2-build"
+        }
+      }
+    },
+    {
+      "rule_name": "stringtie process",
+      "display_name": "stringtie",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "stringtie"
+        }
+      }
+    },
+    {
+      "rule_name": "featureCounts process",
+      "display_name": "featureCounts",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "featureCounts"
+        }
+      }
+    },
+    {
+      "rule_name": "HOMER process",
+      "display_name": "HOMER",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "HOMER"
+        }
+      }
+    },
+    {
+      "rule_name": "samtools process",
+      "display_name": "samtools",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "samtools"
+        }
+      }
+    },
+    {
+      "rule_name": "seasmoke process",
+      "display_name": "seasmoke",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "seasmoke"
+        }
+      }
+    },
+    {
+      "rule_name": "alphafold process",
+      "display_name": "alphafold",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "alphafold"
+        }
+      }
+    },
+    {
+      "rule_name": "bedtools process",
+      "display_name": "bedtools",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "bedtools"
+        }
+      }
+    },
+    {
+      "rule_name": "deeptools process",
+      "display_name": "deeptools",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "deeptools"
+        }
+      }
+    },
+    {
+      "rule_name": "macs3 process",
+      "display_name": "macs3",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "macs3"
+        }
+      }
+    },
+    {
+      "rule_name": "plotCoverage process",
+      "display_name": "plotCoverage",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "plotCoverage"
+        }
+      }
+    },
+    {
+      "rule_name": "plotPCA process",
+      "display_name": "plotPCA",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "plotPCA"
+        }
+      }
+    },
+    {
+      "rule_name": "plotFingerprint process",
+      "display_name": "plotFingerprint",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "plotFingerprint"
+        }
+      }
+    },
+    {
+      "rule_name": "MACS33 process",
+      "display_name": "MACS33",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "MACS33"
+        }
+      }
+    },
+    {
+      "rule_name": "Genrich process",
+      "display_name": "Genrich",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "Genrich"
+        }
+      }
+    },
+    {
+      "rule_name": "TopHat process",
+      "display_name": "TopHat",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "TopHat"
+        }
+      }
+    },
+    {
+      "rule_name": "JAMM process",
+      "display_name": "JAMM",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "JAMM"
+        }
+      }
+    },
+    {
+      "rule_name": "multiqc process",
+      "display_name": "multiqc",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "multiqc"
+        }
+      }
+    },
+    {
+      "rule_name": "fastp process",
+      "display_name": "fastp",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "fastp"
+        }
+      }
+    },
+    {
+      "rule_name": "PEAR process",
+      "display_name": "PEAR",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "PEAR"
+        }
+      }
+    },
+    {
+      "rule_name": "Trimmomatic process",
+      "display_name": "Trimmomatic",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "Trimmomatic"
+        }
+      }
+    },
+    {
+      "rule_name": "sra-toolkit process",
+      "display_name": "sra-toolkit",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "sra-toolkit"
+        }
+      }
+    },
+    {
+      "rule_name": "picard command",
+      "display_name": "picard",
+      "condition": {
+        "type": "or",
+        "value": {
+          "or": [
+            {
+              "type": "or",
+              "value": {
+                "or": [
+                  {
+                    "type": "simple",
+                    "value": {
+                      "field": "process_name_contains",
+                      "value": "picard"
+                    }
+                  },
+                  {
+                    "type": "simple",
+                    "value": {
+                      "field": "command_contains",
+                      "value": "picard"
+                    }
+                  },
+                  {
+                    "type": "simple",
+                    "value": {
+                      "field":"command_contains",
+                      "value": "markduplicates"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "and",
+              "value": {
+                "and": [
+                  {
+                    "type": "simple",
+                    "value": {
+                      "field": "process_name_contains",
+                      "value": "java"
+                    }
+                  },
+                  {
+                    "type": "simple",
+                    "value": {
+                      "field": "command_contains",
+                      "value": "picard"
+                    }
+                  },
+                   {
+                    "type": "simple",
+                    "value": {
+                      "field":"command_contains",
+                      "value": "markduplicates"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "rule_name": "cutadapt process",
+      "display_name": "cutadapt",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "cutadapt"
+        }
+      }
+    },
+    {
+      "rule_name": "cellranger process",
+      "display_name": "cellranger",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "cellranger"
+        }
+      }
+    },
+    {
+      "rule_name": "STATsolo process",
+      "display_name": "STATsolo",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "STATsolo"
+        }
+      }
+    },
+    {
+      "rule_name": "scTE process",
+      "display_name": "scTE",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "scTE"
+        }
+      }
+    },
+    {
+      "rule_name": "scanpy process",
+      "display_name": "scanpy",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "scanpy"
+        }
+      }
+    },
+    {
+      "rule_name": "Seurat process",
+      "display_name": "Seurat",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "Seurat"
+        }
+      }
+    },
+    {
+      "rule_name": "LIGER process",
+      "display_name": "LIGER",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "LIGER"
+        }
+      }
+    },
+    {
+      "rule_name": "SC3 process",
+      "display_name": "SC3",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "SC3"
+        }
+      }
+    },
+    {
+      "rule_name": "Louvain process",
+      "display_name": "Louvain",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "Louvain"
+        }
+      }
+    },
+    {
+      "rule_name": "Leiden process",
+      "display_name": "Leiden",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "Leiden"
+        }
+      }
+    },
+    {
+      "rule_name": "Garnett process",
+      "display_name": "Garnett",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "Garnett"
+        }
+      }
+    },
+    {
+      "rule_name": "Monocle process",
+      "display_name": "Monocle",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "Monocle"
+        }
+      }
+    },
+    {
+      "rule_name": "Harmony process",
+      "display_name": "Harmony",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "Harmony"
+        }
+      }
+    },
+    {
+      "rule_name": "PAGA process",
+      "display_name": "PAGA",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "PAGA"
+        }
+      }
+    },
+    {
+      "rule_name": "Palantir process",
+      "display_name": "Palantir",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "Palantir"
+        }
+      }
+    },
+    {
+      "rule_name": "velocity process",
+      "display_name": "velocity",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "velocity"
+        }
+      }
+    },
+    {
+      "rule_name": "CellPhoneDB process",
+      "display_name": "CellPhoneDB",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "CellPhoneDB"
+        }
+      }
+    },
+    {
+      "rule_name": "CellChat process",
+      "display_name": "CellChat",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "CellChat"
+        }
+      }
+    },
+    {
+      "rule_name": "NicheNet process",
+      "display_name": "NicheNet",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "NicheNet"
+        }
+      }
+    },
+    {
+      "rule_name": "FIt-SNE process",
+      "display_name": "FIt-SNE",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "FIt-SNE"
+        }
+      }
+    },
+    {
+      "rule_name": "umap process",
+      "display_name": "umap",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "umap"
+        }
+      }
+    },
+    {
+      "rule_name": "bbmap process",
+      "display_name": "bbmap",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "bbmap"
+        }
+      }
+    },
+    {
+      "rule_name": "cuffdiff process",
+      "display_name": "cuffdiff",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "cuffdiff"
+        }
+      }
+    },
+    {
+      "rule_name": "RNA-SeQC process",
+      "display_name": "RNA-SeQC",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "RNA-SeQC"
+        }
+      }
+    },
+    {
+      "rule_name": "RSeQC process",
+      "display_name": "RSeQC",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "RSeQC"
+        }
+      }
+    },
+    {
+      "rule_name": "Trimgalore process",
+      "display_name": "Trimgalore",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "Trimgalore"
+        }
+      }
+    },
+    {
+      "rule_name": "UCHIME process",
+      "display_name": "UCHIME",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "UCHIME"
+        }
+      }
+    },
+    {
+      "rule_name": "Erange process",
+      "display_name": "Erange",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "Erange"
+        }
+      }
+    },
+    {
+      "rule_name": "X-Mate process",
+      "display_name": "X-Mate",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "X-Mate"
+        }
+      }
+    },
+    {
+      "rule_name": "SpliceSeq process",
+      "display_name": "SpliceSeq",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "SpliceSeq"
+        }
+      }
+    },
+    {
+      "rule_name": "casper process",
+      "display_name": "casper",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "casper"
+        }
+      }
+    },
+    {
+      "rule_name": "DESeq process",
+      "display_name": "DESeq",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "DESeq"
+        }
+      }
+    },
+    {
+      "rule_name": "EdgeR process",
+      "display_name": "EdgeR",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "EdgeR"
+        }
+      }
+    },
+    {
+      "rule_name": "bamSummary process",
+      "display_name": "bamSummary",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "bamSummary"
+        }
+      }
+    },
+    {
+      "rule_name": "kallisto process",
+      "display_name": "kallisto",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "kallisto"
+        }
+      }
+    },
+    {
+      "rule_name": "pairtools process",
+      "display_name": "pairtools",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "pairtools"
+        }
+      }
+    },
+    {
+      "rule_name": "HiCExplorer process",
+      "display_name": "HiCExplorer",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "HiCExplorer"
+        }
+      }
+    },
+    {
+      "rule_name": "GITAR process",
+      "display_name": "GITAR",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "GITAR"
+        }
+      }
+    },
+    {
+      "rule_name": "TADbit process",
+      "display_name": "TADbit",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "TADbit"
+        }
+      }
+    },
+    {
+      "rule_name": "Juicer process",
+      "display_name": "Juicer",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "Juicer"
+        }
+      }
+    },
+    {
+      "rule_name": "HiC-Pro process",
+      "display_name": "HiC-Pro",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "HiC-Pro"
+        }
+      }
+    },
+    {
+      "rule_name": "cooler process",
+      "display_name": "cooler",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "cooler"
+        }
+      }
+    },
+    {
+      "rule_name": "cooltools process",
+      "display_name": "cooltools",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "cooltools"
+        }
+      }
+    },
+    {
+      "rule_name": "runHiC process",
+      "display_name": "runHiC",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "runHiC"
+        }
+      }
+    },
+    {
+      "rule_name": "HTSlib process",
+      "display_name": "HTSlib",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "HTSlib"
+        }
+      }
+    },
+    {
+      "rule_name": "htslib process",
+      "display_name": "htslib",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "htslib"
+        }
+      }
+    },
+    {
+      "rule_name": "zlib process",
+      "display_name": "zlib",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "zlib"
+        }
+      }
+    },
+    {
+      "rule_name": "libbz2 process",
+      "display_name": "libbz2",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "libbz2"
+        }
+      }
+    },
+    {
+      "rule_name": "liblzma process",
+      "display_name": "liblzma",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "liblzma"
+        }
+      }
+    },
+    {
+      "rule_name": "libcurl process",
+      "display_name": "libcurl",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "libcurl"
+        }
+      }
+    },
+    {
+      "rule_name": "libdeflate process",
+      "display_name": "libdeflate",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "libdeflate"
+        }
+      }
+    },
+    {
+      "rule_name": "ncurses process",
+      "display_name": "ncurses",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "ncurses"
+        }
+      }
+    },
+    {
+      "rule_name": "pthread process",
+      "display_name": "pthread",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "pthread"
+        }
+      }
+    },
+    {
+      "rule_name": "oom_example_c process",
+      "display_name": "oom_example_c",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "process_name_is",
+          "value": "oom_example_c"
+        }
+      }
+    },
+    {
+      "rule_name": "bracken-build command",
+      "display_name": "bracken",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "bracken-build"
+        }
+      }
+    },
+    {
+      "rule_name": "bracken command",
+      "display_name": "bracken",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "bracken"
+        }
+      }
+    },
+    {
+      "rule_name": "kraken2 command",
+      "display_name": "kraken2",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "kraken2"
+        }
+      }
+    },
+    {
+      "rule_name": "kraken2-build command",
+      "display_name": "kraken2",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "kraken2-build"
+        }
+      }
+    },
+    {
+      "rule_name": "umi_tools command",
+      "display_name": "umi_tools",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "umi_tools"
+        }
+      }
+    },
+    {
+      "rule_name": "fastp command",
+      "display_name": "fastp",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "fastp"
+        }
+      }
+    },
+    {
+      "rule_name": "multiqc command",
+      "display_name": "multiqc",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "multiqc"
+        }
+      }
+    },
+    {
+      "rule_name": "qualimap command",
+      "display_name": "qualimap",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "qualimap"
+        }
+      }
+    },
+    {
+      "rule_name": "fq command",
+      "display_name": "fq",
+      "condition": {
+        "type": "and",
+        "value": {
+          "and": [
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": "fq"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_not_contains",
+                "value": "bbsplit"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "rule_name": "dupradar command",
+      "display_name": "dupRadar",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "dupradar"
+        }
+      }
+    },
+    {
+      "rule_name": "deseq command",
+      "display_name": "DESeq2",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "deseq"
+        }
+      }
+    },
+    {
+      "rule_name": "preseq command",
+      "display_name": "Preseq",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "preseq"
+        }
+      }
+    },
+    {
+      "rule_name": "rseqc command",
+      "display_name": "RSeQC",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "rseqc"
+        }
+      }
+    },
+    {
+      "rule_name": "bigwig command",
+      "display_name": "bedGraphToBigWig",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "bigwig"
+        }
+      }
+    },
+    {
+      "rule_name": "kallisto command",
+      "display_name": "kallisto",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "kallisto"
+        }
+      }
+    },
+    {
+      "rule_name": "rsem command",
+      "display_name": "RSEM",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "rsem"
+        }
+      }
+    },
+    {
+      "rule_name": "dupradar command",
+      "display_name": "dupRadar",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "dupradar"
+        }
+      }
+    },
+    {
+      "rule_name": "Cat FASTQ",
+      "display_name": "CAT FASTQ",
+      "condition": {
+        "type": "and",
+        "value": {
+          "and": [
+            {
+              "type": "simple",
+              "value": {
+                "field": "process_name_is",
+                "value": "cat"
+              }
+            },
+            {
+              "type": "simple",
+              "value": {
+                "field": "command_contains",
+                "value": ".fastq.gz"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "rule_name": "sortmerna command",
+      "display_name": "SortMeRNA",
+      "condition": {
+        "type": "simple",
+        "value": {
+          "field": "command_contains",
+          "value": "sortmerna"
+        }
+      }
+    }
+  ]
+} 

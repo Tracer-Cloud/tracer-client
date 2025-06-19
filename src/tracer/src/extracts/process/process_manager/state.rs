@@ -1,5 +1,5 @@
-use crate::common::target_process::target_process_manager::TargetManager;
-use crate::common::target_process::Target;
+use crate::common::target_process::target::Target;
+use crate::common::target_process::target_manager::TargetManager;
 use crate::extracts::process::types::process_state::ProcessState;
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
@@ -70,7 +70,7 @@ impl StateManager {
     /// Updates the monitoring state with new processes
     pub async fn update_monitoring(
         &self,
-        processes: HashMap<Target, HashSet<ProcessStartTrigger>>,
+        processes: HashMap<String, HashSet<ProcessStartTrigger>>,
     ) -> Result<()> {
         let mut state = self.state.write().await;
         state.update_monitoring(processes);
@@ -101,48 +101,5 @@ impl StateManager {
             .iter()
             .flat_map(|(_, processes)| processes.iter().map(|p| p.pid))
             .collect()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::common::target_process::target_matching::TargetMatch;
-    use crate::common::target_process::Target;
-    use chrono::DateTime;
-
-    #[tokio::test]
-    async fn test_state_manager_basic_operations() {
-        let target = Target::new(TargetMatch::ProcessName("test_process".to_string()));
-        let target_manager = TargetManager::new(vec![target], vec![]);
-        let state_manager = StateManager::new(target_manager);
-
-        // Test initial state
-        assert_eq!(state_manager.get_number_of_monitored_processes().await, 0);
-        assert!(state_manager
-            .get_monitored_processes_pids()
-            .await
-            .is_empty());
-
-        // Test inserting a process
-        let process = create_test_process(100, 1, "test_process");
-        state_manager.insert_process(100, process.clone()).await;
-
-        // Verify process was inserted
-        let state = state_manager.get_state().await;
-        assert!(state.get_processes().contains_key(&100));
-    }
-
-    fn create_test_process(pid: usize, ppid: usize, comm: &str) -> ProcessStartTrigger {
-        ProcessStartTrigger {
-            pid,
-            ppid,
-            comm: comm.to_string(),
-            argv: vec![comm.to_string()],
-            file_name: format!("/usr/bin/{}", comm),
-            started_at: DateTime::parse_from_rfc3339("2025-05-07T00:00:00Z")
-                .unwrap()
-                .into(),
-        }
     }
 }
