@@ -340,28 +340,6 @@
       }
     },
     {
-      "rule_name": "fastqc process",
-      "display_name": "fastqc",
-      "condition": {
-        "type": "simple",
-        "value": {
-          "field": "process_name_is",
-          "value": "fastqc"
-        }
-      }
-    },
-    {
-      "rule_name": "fastqc short-lived process",
-      "display_name": "fastqc",
-      "condition": {
-        "type": "simple",
-        "value": {
-          "field": "process_name_is",
-          "value": "fastqc"
-        }
-      }
-    },
-    {
       "rule_name": "multiqc process",
       "display_name": "multiqc",
       "condition": {
