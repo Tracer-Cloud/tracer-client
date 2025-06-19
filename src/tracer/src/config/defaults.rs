@@ -26,7 +26,7 @@ fn get_aws_default_profile() -> String {
 
 impl Default for Config {
     fn default() -> Self {
-        let config = Self {
+        Self {
             api_key: DEFAULT_API_KEY.to_string(),
             process_polling_interval_ms: PROCESS_POLLING_INTERVAL_MS,
             batch_submission_interval_ms: BATCH_SUBMISSION_INTERVAL_MS,
@@ -50,8 +50,6 @@ impl Default for Config {
 
             log_forward_endpoint_dev: Some(LOG_FORWARD_ENDPOINT_DEV.to_string()),
             log_forward_endpoint_prod: Some(LOG_FORWARD_ENDPOINT_PROD.to_string()),
-        };
-        // Targets will be loaded from config file or JSON rules
-        config
+        }
     }
 }

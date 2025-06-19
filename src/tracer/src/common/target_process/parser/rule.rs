@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
-use crate::common::target_process::parser::conditions::Condition;
 use crate::common::target_process::display_name::DisplayName;
+use crate::common::target_process::parser::conditions::Condition;
 use crate::common::target_process::target::Target;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Rule {
@@ -11,7 +11,7 @@ pub struct Rule {
 }
 
 impl Rule {
-    pub fn to_target(self) -> Target {
+    pub fn into_target(self) -> Target {
         Target {
             match_type: self.condition.to_target_match(),
             display_name: DisplayName::Name(self.display_name),

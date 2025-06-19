@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::common::target_process::target_match::TargetMatch;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(tag = "type", content = "value")]
@@ -22,6 +22,9 @@ pub struct OrCondition {
     pub or: Vec<Condition>,
 }
 
+// negative rules
+//list of command that we want to discard that will be applied to every command
+// - process name and command contains
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(tag = "field", content = "value")]
 pub enum SimpleCondition {
@@ -56,7 +59,7 @@ impl Condition {
                     .iter()
                     .map(|condition| condition.to_target_match())
                     .collect();
-                
+
                 TargetMatch::And(target_matches)
             }
             Condition::Or(or_cond) => {
@@ -65,7 +68,7 @@ impl Condition {
                     .iter()
                     .map(|condition| condition.to_target_match())
                     .collect();
-                
+
                 TargetMatch::Or(target_matches)
             }
         }

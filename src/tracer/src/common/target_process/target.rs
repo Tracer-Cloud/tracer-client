@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
 use crate::common::target_process::display_name::DisplayName;
 use crate::common::target_process::target_match::{matches_target, TargetMatch};
+use serde::{Deserialize, Serialize};
 
 /// A target represents a process pattern to match against
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
