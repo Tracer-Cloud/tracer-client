@@ -53,7 +53,6 @@ impl Condition {
                     .iter()
                     .map(|condition| condition.to_target_match())
                     .collect();
-
                 TargetMatch::And(target_matches)
             }
             Condition::Or(or_cond) => {
@@ -62,7 +61,6 @@ impl Condition {
                     .iter()
                     .map(|condition| condition.to_target_match())
                     .collect();
-
                 TargetMatch::Or(target_matches)
             }
         }
