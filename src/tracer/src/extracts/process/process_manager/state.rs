@@ -89,7 +89,6 @@ impl StateManager {
             .await
             .get_monitoring()
             .keys()
-            .map(|target| target.match_type.get_name().to_string())
             .take(n)
             .collect()
     }
