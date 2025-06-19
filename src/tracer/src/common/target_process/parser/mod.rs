@@ -1,3 +1,4 @@
+pub mod json_rules_parser;
 mod conditions;
 mod rule;
-pub mod yaml_rules_parser;
+mod rules_config;

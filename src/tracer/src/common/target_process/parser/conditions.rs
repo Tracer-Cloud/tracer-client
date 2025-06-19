@@ -1,68 +1,73 @@
+use serde::{Deserialize, Serialize};
 use crate::common::target_process::target_match::TargetMatch;
 
-#[derive(Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(tag = "type", content = "value")]
 pub enum Condition {
+    #[serde(rename = "simple")]
     Simple(SimpleCondition),
-    And(CompoundCondition),
-    Or(CompoundCondition),
+    #[serde(rename = "and")]
+    And(AndCondition),
+    #[serde(rename = "or")]
+    Or(OrCondition),
 }
 
-// negative rules
-//list of command that we want to discard that will be applied to every command
-// - process name and command contains
-#[derive(Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct AndCondition {
+    pub and: Vec<Condition>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct OrCondition {
+    pub or: Vec<Condition>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(tag = "field", content = "value")]
 pub enum SimpleCondition {
-    ProcessNameIs { process_name_is: String },
-    ProcessNameContains { process_name_contains: String },
-    MinArgs { min_args: usize },
-    ArgsNotContain { args_not_contain: String },
-    FirstArgIs { first_arg_is: String },
-    CommandContains { command_contains: String },
-    CommandNotContains { command_not_contains: String },
-    CommandMatchesRegex { command_matches_regex: String },
-}
-
-#[derive(Clone, Debug)]
-pub struct CompoundCondition(pub Vec<Condition>);
-
-impl CompoundCondition {
-    pub fn into_target_matches(self) -> Vec<TargetMatch> {
-        self.0
-            .into_iter()
-            .map(|condition| condition.into_target_match())
-            .collect()
-    }
+    #[serde(rename = "process_name_is")]
+    ProcessNameIs(String),
+    #[serde(rename = "process_name_contains")]
+    ProcessNameContains(String),
+    #[serde(rename = "command_contains")]
+    CommandContains(String),
+    #[serde(rename = "command_not_contains")]
+    CommandNotContains(String),
 }
 
 impl Condition {
-    pub fn into_target_match(self) -> TargetMatch {
+    pub fn to_target_match(&self) -> TargetMatch {
         match self {
-            Condition::Simple(SimpleCondition::ProcessNameIs { process_name_is }) => {
-                TargetMatch::ProcessNameIs(process_name_is.clone())
+            Condition::Simple(SimpleCondition::ProcessNameIs(name)) => {
+                TargetMatch::ProcessNameIs(name.clone())
             }
-            Condition::Simple(SimpleCondition::ProcessNameContains {
-                process_name_contains,
-            }) => TargetMatch::ProcessNameContains(process_name_contains.clone()),
-            Condition::Simple(SimpleCondition::MinArgs { min_args }) => {
-                TargetMatch::MinArgs(min_args)
+            Condition::Simple(SimpleCondition::ProcessNameContains(substr)) => {
+                TargetMatch::ProcessNameContains(substr.clone())
             }
-            Condition::Simple(SimpleCondition::ArgsNotContain { args_not_contain }) => {
-                TargetMatch::ArgsNotContain(args_not_contain.clone())
+            Condition::Simple(SimpleCondition::CommandContains(content)) => {
+                TargetMatch::CommandContains(content.clone())
             }
-            Condition::Simple(SimpleCondition::FirstArgIs { first_arg_is }) => {
-                TargetMatch::FirstArgIs(first_arg_is.clone())
+            Condition::Simple(SimpleCondition::CommandNotContains(content)) => {
+                TargetMatch::CommandNotContains(content.clone())
             }
-            Condition::Simple(SimpleCondition::CommandContains { command_contains }) => {
-                TargetMatch::CommandContains(command_contains.clone())
+            Condition::And(and_cond) => {
+                let target_matches: Vec<TargetMatch> = and_cond
+                    .and
+                    .iter()
+                    .map(|condition| condition.to_target_match())
+                    .collect();
+                
+                TargetMatch::And(target_matches)
             }
-            Condition::Simple(SimpleCondition::CommandNotContains {
-                command_not_contains,
-            }) => TargetMatch::CommandNotContains(command_not_contains.clone()),
-            Condition::Simple(SimpleCondition::CommandMatchesRegex {
-                command_matches_regex,
-            }) => TargetMatch::CommandMatchesRegex(command_matches_regex.clone()),
-            Condition::And(and_cond) => TargetMatch::And(and_cond.into_target_matches()),
-            Condition::Or(or_cond) => TargetMatch::Or(or_cond.into_target_matches()),
+            Condition::Or(or_cond) => {
+                let target_matches: Vec<TargetMatch> = or_cond
+                    .or
+                    .iter()
+                    .map(|condition| condition.to_target_match())
+                    .collect();
+                
+                TargetMatch::Or(target_matches)
+            }
         }
     }
 }

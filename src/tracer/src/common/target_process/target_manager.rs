@@ -1,6 +1,6 @@
-use crate::common::target_process::json_rules_parser::{load_json_rules, load_json_rules_from_str};
-use crate::common::target_process::Target;
+use crate::common::target_process::parser::json_rules_parser::{load_json_rules, load_json_rules_from_str};
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
+use crate::common::target_process::target::Target;
 
 #[derive(Clone)]
 pub struct TargetManager {
@@ -10,7 +10,7 @@ pub struct TargetManager {
 impl TargetManager {
     pub fn new() -> Self {
         // First, try to load from embedded JSON (for production builds)
-        match load_json_rules_from_str(include_str!("default_rules.json")) {
+        match load_json_rules_from_str(include_str!("json_rules/default_rules.json")) {
             Ok(targets) => {
                 return Self { targets };
             }
@@ -21,10 +21,10 @@ impl TargetManager {
 
         // Fallback to file loading (for development)
         let possible_paths = vec![
-            "common/target_process/default_rules.json",
-            "src/tracer/src/common/target_process/default_rules.json",
-            "target_process/default_rules.json",
-            "default_rules.json",
+            "common/target_process/json_rules/default_rules.json",
+            "src/tracer/src/common/target_process/json_rules/default_rules.json",
+            "target_process/json_rules/default_rules.json",
+            "json_rules/default_rules.json",
         ];
 
         let mut targets = Vec::new();
@@ -53,14 +53,8 @@ impl TargetManager {
     pub fn get_target_match(&self, process: &ProcessStartTrigger) -> Option<String> {
         let command = process.argv.join(" ");
 
-        for (target) in self.targets.iter() {
+        for target in self.targets.iter() {
             if target.matches(&process.comm, &command) {
-                println!(
-                    "[TargetManager] Matching target: {} for process: {} | {}",
-                    target.get_display_name_string(),
-                    process.comm,
-                    command
-                );
                 return Some(target.get_display_name_string());
             }
         }
