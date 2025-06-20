@@ -40,7 +40,7 @@ impl Config {
             "process_metrics_send_interval_ms": self.process_metrics_send_interval_ms,
             "file_size_not_changing_period_ms": self.file_size_not_changing_period_ms,
             "new_run_pause_ms": self.new_run_pause_ms,
-            "aws_init_type": self.aws_init_type,
+            "aws_init_type": self.aws_init_type.to_string(),
             "aws_region": self.aws_region,
             "database_name": self.database_name,
             "grafana_workspace_url": self.grafana_workspace_url,

@@ -21,7 +21,7 @@ impl Sentry {
             },
         ));
 
-        Sentry::add_extra("Config", config.to_safe_json());
+        Sentry::add_context("Config", config.to_safe_json());
         Some(sentry)
     }
 
@@ -35,9 +35,18 @@ impl Sentry {
     /// Adds a context (flat JSON object) to the Sentry event.
     /// Requirements:
     ///   - The value must not be nested.
-    pub fn add_context(key: &str, value: BTreeMap<String, Value>) {
+    pub fn add_context(key: &str, value: Value) {
+        // Only accept flat JSON objects
+        let map = match value {
+            Value::Object(obj) => obj
+                .into_iter()
+                .filter(|(_, v)| !v.is_object() && !v.is_array())
+                .collect::<BTreeMap<String, Value>>(),
+            _ => BTreeMap::new(),
+        };
+
         sentry::configure_scope(|scope| {
-            scope.set_context(key, Context::Other(value));
+            scope.set_context(key, Context::Other(map));
         });
     }
 
