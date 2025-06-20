@@ -2,8 +2,7 @@ use crate::config::Config;
 use std::process::Command;
 
 use crate::cloud_providers::aws::pricing::PricingSource;
-use crate::common::target_process::target_process_manager::TargetManager;
-use crate::common::target_process::targets_list::DEFAULT_EXCLUDED_PROCESS_RULES;
+use crate::common::target_process::target_manager::TargetManager;
 use crate::common::types::cli::params::FinalizedInitArgs;
 use anyhow::{Context, Result};
 
@@ -65,7 +64,7 @@ impl TracerClient {
         let (log_recorder, rx) = Self::init_log_recorder(&pipeline);
         let system = Arc::new(RwLock::new(System::new_all()));
 
-        let ebpf_watcher = Self::init_ebpf_watcher(&config, &log_recorder);
+        let ebpf_watcher = Self::init_ebpf_watcher(&log_recorder);
 
         let exporter = Arc::new(ExporterManager::new(db_client, rx, pipeline.clone()));
 
@@ -111,11 +110,8 @@ impl TracerClient {
         (log_recorder, rx)
     }
 
-    fn init_ebpf_watcher(config: &Config, log_recorder: &LogRecorder) -> Arc<EbpfWatcher> {
-        let target_manager = TargetManager::new(
-            config.targets.clone(),
-            DEFAULT_EXCLUDED_PROCESS_RULES.to_vec(),
-        );
+    fn init_ebpf_watcher(log_recorder: &LogRecorder) -> Arc<EbpfWatcher> {
+        let target_manager = TargetManager::default(); //TODO add possibility to pass in targets
         Arc::new(EbpfWatcher::new(target_manager, log_recorder.clone()))
     }
 
