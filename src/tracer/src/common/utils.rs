@@ -56,14 +56,15 @@ pub fn flatten_with_prefix(prefix: &str, val: &Value, out: &mut Map<String, Valu
     }
 }
 
-pub fn log_matched_process(trigger: &ProcessStartTrigger, is_matched: bool) {
+pub fn log_matched_process(trigger: &ProcessStartTrigger, matched_rule: &str, is_matched: bool) {
     let matched_string = if is_matched { "MATCHED" } else { "NOT MATCHED" };
 
     let log_line = format!(
-        "{} | {} | {}\n\n\n",
+        "{} | {} | {} | {}\n\n\n",
         trigger.clone().comm,
         trigger.clone().argv.join(" "),
         matched_string,
+        matched_rule,
     );
 
     if let Err(e) = OpenOptions::new()
