@@ -1,5 +1,5 @@
 use crate::common::types::cli::params::TracerCliInitArgs;
-use crate::utils::version::Version;
+use crate::utils::Version;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Clone)]

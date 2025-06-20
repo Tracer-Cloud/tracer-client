@@ -229,7 +229,7 @@ pub async fn update_tracer() -> Result<()> {
 
     // let current = Version::current_str();
     // let latest = &release.tag_name;
-    
+
     // let current_ver: Version = current.parse().ok().unwrap();
     // let latest_ver: Version = latest.parse().ok().unwrap();
     //

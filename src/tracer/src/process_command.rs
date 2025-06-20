@@ -26,7 +26,7 @@ use std::fs::File;
 use std::io::{self, Write};
 use std::process::Command;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 
 pub fn start_daemon() -> Outcome<()> {
     let daemon = Daemonize::new()
@@ -96,9 +96,7 @@ async fn handle_port_conflict(port: u16) -> Result<bool> {
         .and_then(|line| line.split_whitespace().nth(1))
     {
         println!("\nKilling process with PID {}...", pid);
-        let kill_output = Command::new("sudo")
-            .args(["kill", "-9", pid])
-            .output()?;
+        let kill_output = Command::new("sudo").args(["kill", "-9", pid]).output()?;
 
         if !kill_output.status.success() {
             anyhow::bail!(
