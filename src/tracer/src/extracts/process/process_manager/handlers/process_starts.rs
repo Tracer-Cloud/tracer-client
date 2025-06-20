@@ -1,4 +1,3 @@
-use crate::common::target_process::Target;
 use crate::extracts::process::process_manager::logger::ProcessLogger;
 use crate::extracts::process::process_manager::matcher::Filter;
 use crate::extracts::process::process_manager::state::StateManager;
@@ -58,7 +57,7 @@ impl ProcessStartHandler {
         state_manager: &StateManager,
         matcher: &Filter,
         triggers: Vec<ProcessStartTrigger>,
-    ) -> Result<HashMap<Target, HashSet<ProcessStartTrigger>>> {
+    ) -> Result<HashMap<String, HashSet<ProcessStartTrigger>>> {
         debug!(
             "Matching {} stored triggers against targets.",
             triggers.len()
@@ -70,8 +69,8 @@ impl ProcessStartHandler {
     /// Step 3: Refresh system data for matched processes.
     async fn refresh_process_data(
         system_refresher: &SystemRefresher,
-        matched_processes: HashMap<Target, HashSet<ProcessStartTrigger>>,
-    ) -> Result<HashMap<Target, HashSet<ProcessStartTrigger>>> {
+        matched_processes: HashMap<String, HashSet<ProcessStartTrigger>>,
+    ) -> Result<HashMap<String, HashSet<ProcessStartTrigger>>> {
         let pids: HashSet<usize> = matched_processes
             .values()
             .flatten()
@@ -88,7 +87,7 @@ impl ProcessStartHandler {
     async fn log_matched_processes(
         logger: &ProcessLogger,
         system_refresher: &SystemRefresher,
-        matched_processes: &HashMap<Target, HashSet<ProcessStartTrigger>>,
+        matched_processes: &HashMap<String, HashSet<ProcessStartTrigger>>,
     ) -> Result<()> {
         let mut count = 0;
 
@@ -108,7 +107,7 @@ impl ProcessStartHandler {
     /// Step 5: Update the monitoring state with new processes.
     async fn update_monitoring(
         state_manager: &StateManager,
-        matched_processes: HashMap<Target, HashSet<ProcessStartTrigger>>,
+        matched_processes: HashMap<String, HashSet<ProcessStartTrigger>>,
     ) -> Result<()> {
         debug!("Updating monitoring for matched processes.");
         state_manager.update_monitoring(matched_processes).await

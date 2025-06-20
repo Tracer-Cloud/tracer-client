@@ -1,5 +1,6 @@
 use crate::common::types::pipeline_tags::PipelineTags;
 use clap::Args;
+use serde::Serialize;
 
 #[derive(Default, Args, Debug, Clone)]
 pub struct TracerCliInitArgs {
@@ -29,7 +30,7 @@ pub struct TracerCliInitArgs {
 }
 
 /// Ensures the pipeline name remains required
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct FinalizedInitArgs {
     pub pipeline_name: String,
     pub run_id: Option<String>,
