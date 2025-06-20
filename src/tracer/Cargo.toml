@@ -19,7 +19,6 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 sqlx = { workspace = true }
 colored = { workspace = true }
-tempfile = { workspace = true }
 tracing-subscriber = { workspace = true }
 tracing-appender = { workspace = true }
 sentry = { workspace = true }
@@ -29,9 +28,7 @@ sysinfo = { workspace = true }
 tracer_ebpf = { path = "../ebpf" }
 itertools = { workspace = true }
 once_cell = { workspace = true }
-rstest = {workspace = true}
 mockall = {workspace = true}
-homedir = { workspace = true }
 log = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
@@ -51,15 +48,14 @@ serde-query = { workspace = true }
 config = { workspace = true }
 ec2_instance_metadata = { workspace = true }
 axum = { workspace = true }
-lazy_static = { workspace = true }
 typed-builder = { workspace = true }
 dialoguer = { workspace = true }
 regex = { workspace = true }
 rustls = { workspace = true }
+serde_yaml = { workspace = true }
 
 [dev-dependencies]
 sqlx = { workspace = true }
-assert_cmd = { workspace = true }
 dotenv = { workspace = true }
 serial_test = { workspace = true }
 uuid = { workspace = true }

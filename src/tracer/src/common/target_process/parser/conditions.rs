@@ -2,13 +2,10 @@ use crate::common::target_process::target_match::TargetMatch;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(tag = "type", content = "value")]
+#[serde(untagged)]
 pub enum Condition {
-    #[serde(rename = "simple")]
     Simple(SimpleCondition),
-    #[serde(rename = "and")]
     And(AndCondition),
-    #[serde(rename = "or")]
     Or(OrCondition),
 }
 
@@ -26,33 +23,29 @@ pub struct OrCondition {
 //list of command that we want to discard that will be applied to every command
 // - process name and command contains
 #[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(tag = "field", content = "value")]
+#[serde(untagged)]
 pub enum SimpleCondition {
-    #[serde(rename = "process_name_is")]
-    ProcessNameIs(String),
-    #[serde(rename = "process_name_contains")]
-    ProcessNameContains(String),
-    #[serde(rename = "command_contains")]
-    CommandContains(String),
-    #[serde(rename = "command_not_contains")]
-    CommandNotContains(String),
+    ProcessNameIs { process_name_is: String },
+    ProcessNameContains { process_name_contains: String },
+    CommandContains { command_contains: String },
+    CommandNotContains { command_not_contains: String },
 }
 
 impl Condition {
     pub fn to_target_match(&self) -> TargetMatch {
         match self {
-            Condition::Simple(SimpleCondition::ProcessNameIs(name)) => {
-                TargetMatch::ProcessNameIs(name.clone())
+            Condition::Simple(SimpleCondition::ProcessNameIs { process_name_is }) => {
+                TargetMatch::ProcessNameIs(process_name_is.clone())
             }
-            Condition::Simple(SimpleCondition::ProcessNameContains(substr)) => {
-                TargetMatch::ProcessNameContains(substr.clone())
+            Condition::Simple(SimpleCondition::ProcessNameContains {
+                process_name_contains,
+            }) => TargetMatch::ProcessNameContains(process_name_contains.clone()),
+            Condition::Simple(SimpleCondition::CommandContains { command_contains }) => {
+                TargetMatch::CommandContains(command_contains.clone())
             }
-            Condition::Simple(SimpleCondition::CommandContains(content)) => {
-                TargetMatch::CommandContains(content.clone())
-            }
-            Condition::Simple(SimpleCondition::CommandNotContains(content)) => {
-                TargetMatch::CommandNotContains(content.clone())
-            }
+            Condition::Simple(SimpleCondition::CommandNotContains {
+                command_not_contains,
+            }) => TargetMatch::CommandNotContains(command_not_contains.clone()),
             Condition::And(and_cond) => {
                 let target_matches: Vec<TargetMatch> = and_cond
                     .and

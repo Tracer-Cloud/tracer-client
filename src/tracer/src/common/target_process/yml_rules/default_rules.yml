@@ -1,0 +1,173 @@
+rules:
+  - rule_name: "FastQC java process"
+    display_name: "FastQC"
+    condition:
+      and:
+        - process_name_is: "java"
+        - command_contains: "uk.ac.babraham.FastQC.FastQCApplication"
+
+  - rule_name: "STAR process"
+    display_name: "STAR"
+    condition:
+      and:
+        - process_name_is: "STAR"
+        - command_contains: "STAR"
+
+  - rule_name: "bowtie2 process"
+    display_name: "bowtie2"
+    condition:
+      process_name_is: "bowtie2"
+
+  - rule_name: "bowtie2-build-s process"
+    display_name: "bowtie2-build-s"
+    condition:
+      process_name_is: "bowtie2-build-s"
+
+  - rule_name: "bowtie2-align-s process"
+    display_name: "bowtie2-align-s"
+    condition:
+      process_name_is: "bowtie2-align-s"
+
+  - rule_name: "bowtie2-build-s conda"
+    display_name: "bowtie2-build-s (Conda)"
+    condition:
+      and:
+        - process_name_is: "bowtie2-build-s"
+        - command_contains: "/opt/conda/bin/bowtie2-build-s"
+
+  - rule_name: "bowtie2-build conda"
+    display_name: "bowtie2-build (Conda)"
+    condition:
+      command_contains: "/opt/conda/bin/bowtie2-build"
+
+  - rule_name: "bwa process"
+    display_name: "bwa"
+    condition:
+      process_name_is: "bwa"
+
+  - rule_name: "salmon process"
+    display_name: "salmon"
+    condition:
+      process_name_is: "salmon"
+
+  - rule_name: "hisat2 process"
+    display_name: "HISAT2"
+    condition:
+      process_name_is: "hisat2"
+
+  - rule_name: "hisat2-build process"
+    display_name: "HISAT2_BUILD"
+    condition:
+      process_name_is: "hisat2-build"
+
+  - rule_name: "stringtie process"
+    display_name: "stringtie"
+    condition:
+      process_name_is: "stringtie"
+
+  - rule_name: "featureCounts process"
+    display_name: "featureCounts"
+    condition:
+      process_name_is: "featureCounts"
+
+  - rule_name: "HOMER process"
+    display_name: "HOMER"
+    condition:
+      process_name_is: "HOMER"
+
+  - rule_name: "samtools process"
+    display_name: "samtools"
+    condition:
+      process_name_is: "samtools"
+
+  - rule_name: "seasmoke process"
+    display_name: "seasmoke"
+    condition:
+      process_name_is: "seasmoke"
+
+  - rule_name: "alphafold process"
+    display_name: "alphafold"
+    condition:
+      process_name_is: "alphafold"
+
+  - rule_name: "bedtools process"
+    display_name: "bedtools"
+    condition:
+      process_name_is: "bedtools"
+
+  - rule_name: "deeptools process"
+    display_name: "deeptools"
+    condition:
+      process_name_is: "deeptools"
+
+  - rule_name: "macs3 process"
+    display_name: "macs3"
+    condition:
+      process_name_is: "macs3"
+
+  - rule_name: "plotCoverage process"
+    display_name: "plotCoverage"
+    condition:
+      process_name_is: "plotCoverage"
+
+  - rule_name: "plotPCA process"
+    display_name: "plotPCA"
+    condition:
+      process_name_is: "plotPCA"
+
+  - rule_name: "plotFingerprint process"
+    display_name: "plotFingerprint"
+    condition:
+      process_name_is: "plotFingerprint"
+
+  - rule_name: "MACS33 process"
+    display_name: "MACS33"
+    condition:
+      process_name_is: "MACS33"
+
+  - rule_name: "Genrich process"
+    display_name: "Genrich"
+    condition:
+      process_name_is: "Genrich"
+
+  - rule_name: "TopHat process"
+    display_name: "TopHat"
+    condition:
+      process_name_is: "TopHat"
+
+  - rule_name: "JAMM process"
+    display_name: "JAMM"
+    condition:
+      process_name_is: "JAMM"
+
+  - rule_name: "multiqc process"
+    display_name: "multiqc"
+    condition:
+      process_name_is: "multiqc"
+
+  - rule_name: "fastp process"
+    display_name: "fastp"
+    condition:
+      process_name_is: "fastp"
+
+  - rule_name: "PEAR process"
+    display_name: "PEAR"
+    condition:
+      process_name_is: "PEAR"
+
+  - rule_name: "Trimmomatic process"
+    display_name: "Trimmomatic"
+    condition:
+      process_name_is: "Trimmomatic"
+
+  - rule_name: "sra-toolkit process"
+    display_name: "sra-toolkit"
+    condition:
+      process_name_is: "sra-toolkit"
+
+  - rule_name: "CAT FASTQ"
+    display_name: "CAT FASTQ"
+    condition:
+      and:
+        - process_name_is: "cat"
+        - command_contains: ".fastq.gz"

@@ -1,5 +1,5 @@
-use crate::common::target_process::parser::json_rules_parser::{
-    load_json_rules, load_json_rules_from_str,
+use crate::common::target_process::parser::yaml_rules_parser::{
+    load_yaml_rules, load_yaml_rules_from_str,
 };
 use crate::common::target_process::target::Target;
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
@@ -26,35 +26,35 @@ impl TargetManager {
 
 impl Default for TargetManager {
     fn default() -> Self {
-        // First, try to load from embedded JSON (for production builds)
-        match load_json_rules_from_str(include_str!("json_rules/default_rules.json")) {
+        // Try to load from embedded YAML (for production builds)
+        match load_yaml_rules_from_str(include_str!("yml_rules/default_rules.yml")) {
             Ok(targets) => {
                 return Self { targets };
             }
             Err(e) => {
-                println!("[TargetManager] Failed to load embedded rules: {}", e);
+                println!("[TargetManager] Failed to load embedded YAML rules: {}", e);
             }
         }
 
         // Fallback to file loading (for development)
-        let possible_paths = vec![
-            "common/target_process/json_rules/default_rules.json",
-            "src/tracer/src/common/target_process/json_rules/default_rules.json",
-            "target_process/json_rules/default_rules.json",
-            "json_rules/default_rules.json",
+        let possible_paths = [
+            "common/target_process/yml_rules/default_rules.yml",
+            "src/tracer/src/common/target_process/yml_rules/default_rules.yml",
+            "target_process/yml_rules/default_rules.yml",
+            "yml_rules/default_rules.yml",
         ];
 
         let mut targets = Vec::new();
 
-        for rules_path in possible_paths {
-            match load_json_rules(rules_path) {
+        for rules_path in possible_paths.iter() {
+            match load_yaml_rules(rules_path) {
                 Ok(loaded_targets) => {
                     targets = loaded_targets;
                     break;
                 }
                 Err(e) => {
                     println!(
-                        "[TargetManager] Failed to load rules from {}: {}",
+                        "[TargetManager] Failed to load YAML rules from {}: {}",
                         rules_path, e
                     );
                 }
@@ -84,11 +84,11 @@ mod tests {
 
     #[test]
     fn test_cat_fastq_target_match() {
-        // Load rules from the actual default_rules.json file
-        let rules_path = "src/common/target_process/json_rules/default_rules.json";
+        // Load rules from the actual default_rules.yml file
+        let rules_path = "src/common/target_process/yml_rules/default_rules.yml";
         let rules_content =
-            fs::read_to_string(rules_path).expect("Failed to read default_rules.json");
-        let targets = load_json_rules_from_str(&rules_content).expect("Failed to parse rules");
+            fs::read_to_string(rules_path).expect("Failed to read default_rules.yml");
+        let targets = load_yaml_rules_from_str(&rules_content).expect("Failed to parse rules");
         let manager = TargetManager { targets };
 
         // Should match: process_name is 'cat' and command contains 'fastq'
