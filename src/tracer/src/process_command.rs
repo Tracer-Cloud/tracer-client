@@ -14,7 +14,6 @@ use crate::nondaemon_commands::{
     clean_up_after_daemon, print_config_info, print_install_readiness, setup_config, update_tracer,
     wait,
 };
-
 use crate::utils::analytics::emit_analytic_event;
 use crate::utils::file_system::ensure_file_can_be_created;
 use crate::utils::system_info::check_sudo_privileges;
