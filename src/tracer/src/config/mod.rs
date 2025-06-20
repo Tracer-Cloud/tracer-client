@@ -40,13 +40,11 @@ impl Config {
             "process_metrics_send_interval_ms": self.process_metrics_send_interval_ms,
             "file_size_not_changing_period_ms": self.file_size_not_changing_period_ms,
             "new_run_pause_ms": self.new_run_pause_ms,
-            "targets": self.targets,
             "aws_init_type": self.aws_init_type,
             "aws_region": self.aws_region,
             "database_name": self.database_name,
             "grafana_workspace_url": self.grafana_workspace_url,
-            "server": self.server,
-            "config_sources": self.config_sources,
+            "server": self.server
         })
     }
 }
