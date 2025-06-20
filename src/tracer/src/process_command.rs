@@ -17,13 +17,15 @@ use crate::nondaemon_commands::{
 use crate::utils::analytics::emit_analytic_event;
 use crate::utils::file_system::ensure_file_can_be_created;
 use crate::utils::system_info::check_sudo_privileges;
+use crate::utils::Sentry;
 use anyhow::{Context, Result};
 use clap::Parser;
 use daemonize::{Daemonize, Outcome};
 use std::fs::File;
 use std::io::{self, Write};
+use std::process::Command;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 
 pub fn start_daemon() -> Outcome<()> {
     let daemon = Daemonize::new()
@@ -40,7 +42,7 @@ pub fn start_daemon() -> Outcome<()> {
     daemon.execute()
 }
 
-async fn handle_port_conflict(port: u16) -> anyhow::Result<bool> {
+async fn handle_port_conflict(port: u16) -> Result<bool> {
     println!("\n⚠️  Checking port {} for conflicts...", port);
 
     // First check if the port is actually in use
@@ -63,7 +65,7 @@ async fn handle_port_conflict(port: u16) -> anyhow::Result<bool> {
     io::stdout().flush()?;
 
     let mut input = String::new();
-    std::io::stdin().read_line(&mut input)?;
+    io::stdin().read_line(&mut input)?;
 
     if !input.trim().eq_ignore_ascii_case("y") {
         println!("\nPlease manually resolve the port conflict and try again.");
@@ -71,7 +73,7 @@ async fn handle_port_conflict(port: u16) -> anyhow::Result<bool> {
     }
 
     // Run lsof to find the process
-    let output = std::process::Command::new("sudo")
+    let output = Command::new("sudo")
         .args(["lsof", "-nP", &format!("-iTCP:{}", port), "-sTCP:LISTEN"])
         .output()?;
 
@@ -93,9 +95,7 @@ async fn handle_port_conflict(port: u16) -> anyhow::Result<bool> {
         .and_then(|line| line.split_whitespace().nth(1))
     {
         println!("\nKilling process with PID {}...", pid);
-        let kill_output = std::process::Command::new("sudo")
-            .args(["kill", "-9", pid])
-            .output()?;
+        let kill_output = Command::new("sudo").args(["kill", "-9", pid]).output()?;
 
         if !kill_output.status.success() {
             anyhow::bail!(
@@ -141,25 +141,11 @@ pub fn process_cli() -> Result<()> {
 
     // setting env var to prevent fork safety issues on macOS
     std::env::set_var("OBJC_DISABLE_INITIALIZE_FORK_SAFETY", "YES");
-
     let cli = Cli::parse();
     // Use the --config flag, if provided, when loading the configuration
     let config = Config::default();
 
-    let _guard = (!cfg!(test)).then(|| {
-        config.sentry_dsn.as_deref().map(|dsn| {
-            sentry::init((
-                dsn,
-                sentry::ClientOptions {
-                    release: sentry::release_name!(),
-                    // Capture user IPs and potentially sensitive headers when using HTTP server integrations
-                    // see https://docs.sentry.io/platforms/rust/data-management/data-collected for more info
-                    send_default_pii: true,
-                    ..Default::default()
-                },
-            ))
-        })
-    });
+    let _guard = Sentry::setup(&config);
 
     let api_client = DaemonClient::new(format!("http://{}", config.server));
     let command = cli.command.clone();
@@ -168,14 +154,13 @@ pub fn process_cli() -> Result<()> {
         Commands::Init(args) => {
             // Check if running with sudo
             check_sudo_privileges();
-
             // Create necessary files for logging and daemonizing
             create_necessary_files().expect("Error while creating necessary files");
 
             // Check for port conflict before starting daemon
             let port = DEFAULT_DAEMON_PORT; // Default Tracer port
             if let Err(e) = std::net::TcpListener::bind(format!("127.0.0.1:{}", port)) {
-                if e.kind() == std::io::ErrorKind::AddrInUse {
+                if e.kind() == io::ErrorKind::AddrInUse {
                     println!("Checking for port conflicts...");
                     if !tokio::runtime::Runtime::new()?.block_on(handle_port_conflict(port))? {
                         return Ok(());
@@ -185,7 +170,7 @@ pub fn process_cli() -> Result<()> {
 
             println!("Starting daemon...");
             let args = init_command_interactive_mode(args);
-
+            Sentry::add_extra("Tracer Init Args", serde_json::to_value(&args)?);
             if !args.no_daemonize {
                 #[cfg(any(target_os = "macos", target_os = "windows"))]
                 {
