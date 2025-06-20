@@ -27,7 +27,7 @@ impl TargetManager {
 impl Default for TargetManager {
     fn default() -> Self {
         // Try to load from embedded YAML (for production builds)
-        match load_yaml_rules_from_str(include_str!("yml_rules/default_rules.yml")) {
+        match load_yaml_rules_from_str(include_str!("yml_rules/tracer.rules.yml")) {
             Ok(targets) => {
                 return Self { targets };
             }
@@ -38,10 +38,10 @@ impl Default for TargetManager {
 
         // Fallback to file loading (for development)
         let possible_paths = [
-            "common/target_process/yml_rules/default_rules.yml",
-            "src/tracer/src/common/target_process/yml_rules/default_rules.yml",
-            "target_process/yml_rules/default_rules.yml",
-            "yml_rules/default_rules.yml",
+            "common/target_process/yml_rules/tracer.rules.yml",
+            "src/tracer/src/common/target_process/yml_rules/tracer.rules.yml",
+            "target_process/yml_rules/tracer.rules.yml",
+            "yml_rules/tracer.rules.yml",
         ];
 
         let mut targets = Vec::new();
@@ -84,10 +84,10 @@ mod tests {
 
     #[test]
     fn test_cat_fastq_target_match() {
-        // Load rules from the actual default_rules.yml file
-        let rules_path = "src/common/target_process/yml_rules/default_rules.yml";
+        // Load rules from the actual tracer.rules.yml file
+        let rules_path = "src/common/target_process/yml_rules/tracer.rules.yml";
         let rules_content =
-            fs::read_to_string(rules_path).expect("Failed to read default_rules.yml");
+            fs::read_to_string(rules_path).expect("Failed to read tracer.rules.yml");
         let targets = load_yaml_rules_from_str(&rules_content).expect("Failed to parse rules");
         let manager = TargetManager { targets };
 
