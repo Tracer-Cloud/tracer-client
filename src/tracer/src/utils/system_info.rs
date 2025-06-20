@@ -1,4 +1,5 @@
 use std::process::Command;
+use tracing::error;
 
 pub fn check_sudo_privileges() {
     if std::env::var("SUDO_USER").is_err() {
@@ -25,6 +26,7 @@ pub fn get_kernel_version() -> Option<(u32, u32)> {
                     let minor = parts[1].parse::<u32>().ok()?;
                     Some((major, minor))
                 } else {
+                    error!("Failed to parse kernel version: {}", version.trim());
                     None
                 }
             })
