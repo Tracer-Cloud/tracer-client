@@ -58,5 +58,6 @@ sqlx = { workspace = true }
 dotenv = { workspace = true }
 serial_test = { workspace = true }
 uuid = { workspace = true }
-rstest = { workspace = true }
-pretty_assertions_sorted = { workspace = true }
+
+[build-dependencies]
+built = { version = "0.8.0", features = ["git2"] }
