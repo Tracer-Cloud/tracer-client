@@ -1,7 +1,7 @@
 mod defaults;
 use crate::cloud_providers::aws::config::AwsConfig;
 use crate::cloud_providers::aws::types::aws_region::AwsRegion;
-use crate::common::target_process::Target;
+use crate::common::target_process::target::Target;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 

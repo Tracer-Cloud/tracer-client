@@ -7,4 +7,4 @@
 INSTALL_SCRIPT_URL="https://install.tracer.cloud/installation.sh"
 
 # Download and execute the installation script with production parameter
-curl -sSL "$INSTALL_SCRIPT_URL" | bash -s production
+curl -sSL "$INSTALL_SCRIPT_URL" | bash -s main

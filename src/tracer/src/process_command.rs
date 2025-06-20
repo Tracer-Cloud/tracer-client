@@ -14,14 +14,17 @@ use crate::nondaemon_commands::{
     clean_up_after_daemon, print_config_info, print_install_readiness, setup_config, update_tracer,
     wait,
 };
-use crate::utils::{emit_analytic_event, Sentry};
 
-use crate::utils::{check_sudo_privileges, ensure_file_can_be_created};
+use crate::utils::analytics::emit_analytic_event;
+use crate::utils::file_system::ensure_file_can_be_created;
+use crate::utils::system_info::check_sudo_privileges;
+use crate::utils::Sentry;
 use anyhow::{Context, Result};
 use clap::Parser;
 use daemonize::{Daemonize, Outcome};
 use std::fs::File;
 use std::io::{self, Write};
+use std::process::Command;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use std::process::{Command, Stdio};
 
@@ -40,7 +43,7 @@ pub fn start_daemon() -> Outcome<()> {
     daemon.execute()
 }
 
-async fn handle_port_conflict(port: u16) -> anyhow::Result<bool> {
+async fn handle_port_conflict(port: u16) -> Result<bool> {
     println!("\n⚠️  Checking port {} for conflicts...", port);
 
     // First check if the port is actually in use
@@ -63,7 +66,7 @@ async fn handle_port_conflict(port: u16) -> anyhow::Result<bool> {
     io::stdout().flush()?;
 
     let mut input = String::new();
-    std::io::stdin().read_line(&mut input)?;
+    io::stdin().read_line(&mut input)?;
 
     if !input.trim().eq_ignore_ascii_case("y") {
         println!("\nPlease manually resolve the port conflict and try again.");
@@ -71,7 +74,7 @@ async fn handle_port_conflict(port: u16) -> anyhow::Result<bool> {
     }
 
     // Run lsof to find the process
-    let output = std::process::Command::new("sudo")
+    let output = Command::new("sudo")
         .args(["lsof", "-nP", &format!("-iTCP:{}", port), "-sTCP:LISTEN"])
         .output()?;
 
@@ -93,7 +96,7 @@ async fn handle_port_conflict(port: u16) -> anyhow::Result<bool> {
         .and_then(|line| line.split_whitespace().nth(1))
     {
         println!("\nKilling process with PID {}...", pid);
-        let kill_output = std::process::Command::new("sudo")
+        let kill_output = Command::new("sudo")
             .args(["kill", "-9", pid])
             .output()?;
 
@@ -160,7 +163,7 @@ pub fn process_cli() -> Result<()> {
             // Check for port conflict before starting daemon
             let port = DEFAULT_DAEMON_PORT; // Default Tracer port
             if let Err(e) = std::net::TcpListener::bind(format!("127.0.0.1:{}", port)) {
-                if e.kind() == std::io::ErrorKind::AddrInUse {
+                if e.kind() == io::ErrorKind::AddrInUse {
                     println!("Checking for port conflicts...");
                     if !tokio::runtime::Runtime::new()?.block_on(handle_port_conflict(port))? {
                         return Ok(());

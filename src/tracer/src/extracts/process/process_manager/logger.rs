@@ -1,5 +1,4 @@
 use crate::common::recorder::LogRecorder;
-use crate::common::target_process::Target;
 use crate::common::types::event::attributes::EventAttributes;
 use crate::common::types::event::ProcessStatus as TracerProcessStatus;
 use crate::extracts::process::extract_process_data::ExtractProcessData;
@@ -24,15 +23,13 @@ impl ProcessLogger {
     /// Logs information about a newly detected process
     pub async fn log_new_process(
         &self,
-        target: &Target,
+        target: &String,
         process: &ProcessStartTrigger,
         system_process: Option<&Process>,
     ) -> Result<ProcessResult> {
         debug!("Processing pid={}", process.pid);
 
-        let display_name = target
-            .get_display_name_object()
-            .get_display_name(&process.file_name, process.argv.as_slice());
+        let display_name = target;
 
         let properties = match system_process {
             Some(system_process) => {
@@ -65,14 +62,11 @@ impl ProcessLogger {
     /// Logs metrics update for an already running process
     pub async fn log_process_metrics(
         &self,
-        target: &Target,
+        target: &String,
         process: &ProcessStartTrigger,
         system_process: Option<&Process>,
     ) -> Result<ProcessResult> {
-        let display_name = target
-            .get_display_name_object()
-            .get_display_name(&process.file_name, process.argv.as_slice());
-
+        let display_name = target;
         let Some(system_process) = system_process else {
             // Process no longer exists
             return Ok(ProcessResult::NotFound);
