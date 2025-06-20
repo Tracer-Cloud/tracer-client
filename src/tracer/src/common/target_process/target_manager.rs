@@ -3,6 +3,7 @@ use crate::common::target_process::parser::json_rules_parser::{
 };
 use crate::common::target_process::target::Target;
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
+use tracing::trace;
 
 #[derive(Clone)]
 pub struct TargetManager {
@@ -32,7 +33,7 @@ impl Default for TargetManager {
                 return Self { targets };
             }
             Err(e) => {
-                println!("[TargetManager] Failed to load embedded rules: {}", e);
+                trace!("[TargetManager] Failed to load embedded rules: {}", e);
             }
         }
 
@@ -53,9 +54,10 @@ impl Default for TargetManager {
                     break;
                 }
                 Err(e) => {
-                    println!(
+                    trace!(
                         "[TargetManager] Failed to load rules from {}: {}",
-                        rules_path, e
+                        rules_path,
+                        e
                     );
                 }
             }
@@ -72,14 +74,7 @@ mod tests {
     use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 
     fn make_process(comm: &str, argv: &[&str]) -> ProcessStartTrigger {
-        ProcessStartTrigger {
-            pid: 0,
-            ppid: 0,
-            comm: comm.to_string(),
-            file_name: "".to_string(),
-            argv: argv.iter().map(|s| s.to_string()).collect(),
-            started_at: Default::default(),
-        }
+        ProcessStartTrigger::from_name_and_args(0, 0, comm, argv)
     }
 
     #[test]
