@@ -10,7 +10,23 @@ pub struct TargetManager {
 }
 
 impl TargetManager {
-    pub fn new() -> Self {
+
+    /// Match a process against all targets and return the first matching target name
+    pub fn get_target_match(&self, process: &ProcessStartTrigger) -> Option<String> {
+        let command = process.argv.join(" ");
+
+        for target in self.targets.iter() {
+            if target.matches(&process.comm, &command) {
+                return Some(target.get_display_name_string());
+            }
+        }
+
+        None
+    }
+}
+
+impl Default for TargetManager {
+    fn default() -> Self {
         // First, try to load from embedded JSON (for production builds)
         match load_json_rules_from_str(include_str!("json_rules/default_rules.json")) {
             Ok(targets) => {
@@ -47,25 +63,6 @@ impl TargetManager {
         }
 
         Self { targets }
-    }
-
-    /// Match a process against all targets and return the first matching target name
-    pub fn get_target_match(&self, process: &ProcessStartTrigger) -> Option<String> {
-        let command = process.argv.join(" ");
-
-        for target in self.targets.iter() {
-            if target.matches(&process.comm, &command) {
-                return Some(target.get_display_name_string());
-            }
-        }
-
-        None
-    }
-}
-
-impl Default for TargetManager {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

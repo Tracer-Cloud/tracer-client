@@ -111,7 +111,7 @@ impl TracerClient {
     }
 
     fn init_ebpf_watcher(log_recorder: &LogRecorder) -> Arc<EbpfWatcher> {
-        let target_manager = TargetManager::new(); //TODO add possibility to pass in targets
+        let target_manager = TargetManager::default(); //TODO add possibility to pass in targets
         Arc::new(EbpfWatcher::new(target_manager, log_recorder.clone()))
     }
 
