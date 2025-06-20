@@ -34,7 +34,7 @@ fn processes() -> Vec<ProcessInfo> {
 #[fixture]
 #[once]
 fn target_manager() -> TargetManager {
-    TargetManager::new()
+    TargetManager::default()
 }
 
 #[fixture]

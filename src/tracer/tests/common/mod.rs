@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 use tracer_ebpf::ebpf_trigger::Trigger;
 
-pub const DUMMY_PID: usize = 1;
-pub const DUMMY_PPID: usize = 0;
+pub const DUMMY_PID: usize = 0;
+pub const DUMMY_PPID: usize = 1;
 
 pub fn new_process_start_trigger(cmd: &str, path: &str) -> Trigger {
     Trigger::ProcessStart(ProcessStartTrigger::from_command_string_and_path(
