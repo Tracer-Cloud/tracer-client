@@ -6,7 +6,6 @@ use aws_credential_types::provider::ProvideCredentials;
 use config::{Value, ValueKind};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fmt;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -15,15 +14,7 @@ pub enum AwsConfig {
     RoleArn(String),
     Env,
 }
-impl fmt::Display for AwsConfig {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            AwsConfig::Profile(profile) => write!(f, "profile:{}", profile),
-            AwsConfig::RoleArn(role) => write!(f, "role_arn:{}", role),
-            AwsConfig::Env => write!(f, "env"),
-        }
-    }
-}
+
 impl From<AwsConfig> for ValueKind {
     fn from(value: AwsConfig) -> Self {
         match value {

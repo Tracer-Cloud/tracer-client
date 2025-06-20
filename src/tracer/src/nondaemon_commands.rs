@@ -227,7 +227,7 @@ pub async fn update_tracer() -> Result<()> {
     //     .get_latest()
     //     .await?;
 
-    // let current = Version::current_str();
+    // let current = env!("CARGO_PKG_VERSION");
     // let latest = &release.tag_name;
 
     // let current_ver: Version = current.parse().ok().unwrap();

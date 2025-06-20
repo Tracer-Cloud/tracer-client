@@ -11,15 +11,6 @@ pub struct Version {
     build: Option<u32>,
 }
 
-impl Version {
-    pub fn current_str() -> &'static str {
-        env!("CARGO_PKG_VERSION")
-    }
-    pub fn current() -> Self {
-        Self::from_str(Self::current_str()).unwrap()
-    }
-}
-
 impl FromStr for Version {
     type Err = String;
 
