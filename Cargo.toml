@@ -79,4 +79,4 @@ console = "0.15.11"
 mockall = "0.13.1"
 regex = "1.0"
 rustls = { version = "0.23.28", features = ["ring"] }
-serde_yaml = "0.9.34"
+yaml-rust2 = "0.10.3"

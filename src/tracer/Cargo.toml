@@ -52,7 +52,7 @@ typed-builder = { workspace = true }
 dialoguer = { workspace = true }
 regex = { workspace = true }
 rustls = { workspace = true }
-serde_yaml = { workspace = true }
+yaml-rust2 = { workspace = true }
 
 [dev-dependencies]
 sqlx = { workspace = true }

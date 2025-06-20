@@ -1,20 +1,18 @@
 use crate::common::target_process::target_match::TargetMatch;
-use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(untagged)]
+#[derive(Clone, Debug)]
 pub enum Condition {
     Simple(SimpleCondition),
     And(AndCondition),
     Or(OrCondition),
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct AndCondition {
     pub and: Vec<Condition>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct OrCondition {
     pub or: Vec<Condition>,
 }
@@ -22,8 +20,7 @@ pub struct OrCondition {
 // negative rules
 //list of command that we want to discard that will be applied to every command
 // - process name and command contains
-#[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(untagged)]
+#[derive(Clone, Debug)]
 pub enum SimpleCondition {
     ProcessNameIs { process_name_is: String },
     ProcessNameContains { process_name_contains: String },
