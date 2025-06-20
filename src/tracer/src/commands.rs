@@ -1,11 +1,12 @@
 use crate::common::types::cli::params::TracerCliInitArgs;
+use crate::utils::version::Version;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Clone)]
 #[clap(
     name = "tracer",
     about = "A tool for monitoring bioinformatics applications",
-    version = env!("CARGO_PKG_VERSION")
+    version = Version::current_str()
 )]
 pub struct Cli {
     #[clap(long, global = true)]

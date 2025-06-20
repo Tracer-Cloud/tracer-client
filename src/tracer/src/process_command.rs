@@ -134,32 +134,18 @@ async fn handle_port_conflict(port: u16) -> anyhow::Result<bool> {
             port
         );
     }
-}
+} 
 
 pub fn process_cli() -> Result<()> {
     // has to be sync due to daemonizing
 
     // setting env var to prevent fork safety issues on macOS
     std::env::set_var("OBJC_DISABLE_INITIALIZE_FORK_SAFETY", "YES");
-
     let cli = Cli::parse();
     // Use the --config flag, if provided, when loading the configuration
     let config = Config::default();
 
-    let _guard = (!cfg!(test)).then(|| {
-        config.sentry_dsn.as_deref().map(|dsn| {
-            sentry::init((
-                dsn,
-                sentry::ClientOptions {
-                    release: sentry::release_name!(),
-                    // Capture user IPs and potentially sensitive headers when using HTTP server integrations
-                    // see https://docs.sentry.io/platforms/rust/data-management/data-collected for more info
-                    send_default_pii: true,
-                    ..Default::default()
-                },
-            ))
-        })
-    });
+    let _guard = setup_sentry(&config);
 
     let api_client = DaemonClient::new(format!("http://{}", config.server));
     let command = cli.command.clone();

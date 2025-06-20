@@ -1,10 +1,11 @@
 pub mod info_formatter;
 pub mod version;
-
+mod sentry;
 use crate::common::types::analytics::{AnalyticsEventType, AnalyticsPayload};
 use crate::constants::TRACER_ANALYTICS_ENDPOINT;
 use anyhow::Context;
 use reqwest::Client;
+pub use sentry::Sentry;
 use std::collections::HashMap;
 use std::path::Path;
 use std::process::Command;
