@@ -1,4 +1,3 @@
-pub mod display_name;
 pub mod parser;
 pub mod target;
 pub mod target_manager;
