@@ -14,7 +14,7 @@ use crate::nondaemon_commands::{
     clean_up_after_daemon, print_config_info, print_install_readiness, setup_config, update_tracer,
     wait,
 };
-use crate::utils::emit_analytic_event;
+use crate::utils::{emit_analytic_event, Sentry};
 
 use crate::utils::{check_sudo_privileges, ensure_file_can_be_created};
 use anyhow::{Context, Result};
@@ -134,7 +134,7 @@ async fn handle_port_conflict(port: u16) -> anyhow::Result<bool> {
             port
         );
     }
-} 
+}
 
 pub fn process_cli() -> Result<()> {
     // has to be sync due to daemonizing
@@ -145,7 +145,7 @@ pub fn process_cli() -> Result<()> {
     // Use the --config flag, if provided, when loading the configuration
     let config = Config::default();
 
-    let _guard = setup_sentry(&config);
+    let _guard = Sentry::setup(&config);
 
     let api_client = DaemonClient::new(format!("http://{}", config.server));
     let command = cli.command.clone();
@@ -154,7 +154,6 @@ pub fn process_cli() -> Result<()> {
         Commands::Init(args) => {
             // Check if running with sudo
             check_sudo_privileges();
-
             // Create necessary files for logging and daemonizing
             create_necessary_files().expect("Error while creating necessary files");
 
@@ -171,7 +170,7 @@ pub fn process_cli() -> Result<()> {
 
             println!("Starting daemon...");
             let args = init_command_interactive_mode(args);
-
+            Sentry::add_extra("Tracer Init Args", serde_json::to_value(&args)?);
             if !args.no_daemonize {
                 #[cfg(any(target_os = "macos", target_os = "windows"))]
                 {
