@@ -86,5 +86,11 @@ fn parse_condition(yaml: &Yaml) -> Result<Condition, Box<dyn std::error::Error>>
         }));
     }
 
+    if let Some(val) = yaml["command_matches_regex"].as_str() {
+        return Ok(Condition::Simple(SimpleCondition::CommandMatchesRegex {
+            command_matches_regex: val.to_string(),
+        }));
+    }
+
     Err("Invalid condition".into())
 }

@@ -26,6 +26,7 @@ pub enum SimpleCondition {
     ProcessNameContains { process_name_contains: String },
     CommandContains { command_contains: String },
     CommandNotContains { command_not_contains: String },
+    CommandMatchesRegex { command_matches_regex: String },
 }
 
 impl Condition {
@@ -43,6 +44,9 @@ impl Condition {
             Condition::Simple(SimpleCondition::CommandNotContains {
                 command_not_contains,
             }) => TargetMatch::CommandNotContains(command_not_contains.clone()),
+            Condition::Simple(SimpleCondition::CommandMatchesRegex {
+                command_matches_regex,
+            }) => TargetMatch::CommandMatchesRegex(command_matches_regex.clone()),
             Condition::And(and_cond) => {
                 let target_matches: Vec<TargetMatch> = and_cond
                     .and

@@ -170,4 +170,5 @@ rules:
     condition:
       and:
         - process_name_is: "cat"
-        - command_contains: ".fastq.gz"
+        # - command_contains: ".fastq.gz"
+        - command_matches_regex: ".*\\.fastq\\.gz.*\\.fastq\\.gz.*" 

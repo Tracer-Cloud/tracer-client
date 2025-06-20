@@ -14,7 +14,6 @@ anyhow = { workspace = true }
 clap = { workspace = true }
 daemonize = { workspace = true }
 octocrab = { workspace = true }
-predicates = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 sqlx = { workspace = true }

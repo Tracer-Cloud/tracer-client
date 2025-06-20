@@ -1,3 +1,4 @@
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 /// Simple target matching conditions
@@ -7,6 +8,7 @@ pub enum TargetMatch {
     ProcessNameContains(String),
     CommandContains(String),
     CommandNotContains(String),
+    CommandMatchesRegex(String),
     And(Vec<TargetMatch>),
     Or(Vec<TargetMatch>),
 }
@@ -18,6 +20,12 @@ pub fn matches_target(target_match: &TargetMatch, process_name: &str, command: &
         TargetMatch::ProcessNameContains(substr) => process_name.contains(substr),
         TargetMatch::CommandContains(content) => command.contains(content),
         TargetMatch::CommandNotContains(content) => !command.contains(content),
+        TargetMatch::CommandMatchesRegex(regex_str) => {
+            match Regex::new(regex_str) {
+                Ok(regex) => regex.is_match(command),
+                Err(_) => false, // Invalid regex pattern
+            }
+        }
         TargetMatch::And(conditions) => conditions
             .iter()
             .all(|condition| matches_target(condition, process_name, command)),
