@@ -223,41 +223,42 @@ pub async fn setup_config(
 
 pub async fn update_tracer() -> Result<()> {
     let octocrab = octocrab::instance();
-    let release = octocrab
-        .repos(REPO_OWNER, REPO_NAME)
-        .releases()
-        .get_latest()
-        .await?;
+    // TODO commenting out for now, as we get the s3 main release
+    // let release = octocrab
+    //     .repos(REPO_OWNER, REPO_NAME)
+    //     .releases()
+    //     .get_latest()
+    //     .await?;
 
-    let current = env!("CARGO_PKG_VERSION");
-    let latest = &release.tag_name;
+    // let current = env!("CARGO_PKG_VERSION");
+    // let latest = &release.tag_name;
 
-    let current_ver: Version = current.parse().ok().unwrap();
-    let latest_ver: Version = latest.parse().ok().unwrap();
+    // let current_ver: Version = current.parse().ok().unwrap();
+    // let latest_ver: Version = latest.parse().ok().unwrap();
+    // 
+    // if latest_ver <= current_ver {
+    //     println!(
+    //         "\nTracer is already at the latest version: {}.",
+    //         current_ver
+    //     );
+    //     return Ok(());
+    // }
 
-    if latest_ver <= current_ver {
-        println!(
-            "\nTracer is already at the latest version: {}.",
-            current_ver
-        );
-        return Ok(());
-    }
-
-    println!("\nA new version of Tracer is available!");
-    println!("\nVersion Information:");
-    println!("  Current Version: {}", current_ver);
-    println!("  Latest Version:  {}", latest_ver);
-
-    println!("\nWould you like to proceed with the update? [y/N]");
-    let mut input = String::new();
-    std::io::stdin().read_line(&mut input)?;
-
-    if !input.trim().eq_ignore_ascii_case("y") {
-        println!("Update cancelled by user.");
-        return Ok(());
-    }
-
-    println!("\nUpdating Tracer to version {}...", latest_ver);
+    // println!("\nA new version of Tracer is available!");
+    // println!("\nVersion Information:");
+    // println!("  Current Version: {}", current_ver);
+    // println!("  Latest Version:  {}", latest_ver);
+    // 
+    // println!("\nWould you like to proceed with the update? [y/N]");
+    // let mut input = String::new();
+    // std::io::stdin().read_line(&mut input)?;
+    // 
+    // if !input.trim().eq_ignore_ascii_case("y") {
+    //     println!("Update cancelled by user.");
+    //     return Ok(());
+    // }
+    // 
+    // println!("\nUpdating Tracer to version {}...", latest_ver);
 
     let mut command = Command::new("bash");
     command.arg("-c").arg("curl -sSL https://install.tracer.cloud/ | sudo bash && source ~/.bashrc && source ~/.zshrc");
@@ -270,9 +271,15 @@ pub async fn update_tracer() -> Result<()> {
     }
 
     println!(
-        "\n{} Tracer has been successfully updated to version {}!",
+        "\n{} Tracer has been successfully updated!",
         "Success:".green(),
-        latest_ver
+        // latest_ver
     );
+
+    // println!(
+    //     "\n{} Tracer has been successfully updated to version {}!",
+    //     "Success:".green(),
+    //     latest_ver
+    // );
     Ok(())
 }
