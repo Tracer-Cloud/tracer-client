@@ -1,5 +1,4 @@
 use crate::config::Config;
-use std::process::Command;
 
 use crate::cloud_providers::aws::pricing::PricingSource;
 use crate::common::target_process::target_manager::TargetManager;
@@ -23,6 +22,8 @@ use sysinfo::System;
 use tokio::sync::{mpsc, RwLock};
 use tracing::{error, info};
 
+#[cfg(target_os = "linux")]
+use crate::utils::system_info::get_kernel_version;
 #[cfg(target_os = "linux")]
 use tracing::warn;
 
@@ -140,7 +141,7 @@ impl TracerClient {
     pub async fn start_monitoring(&self) -> Result<()> {
         #[cfg(target_os = "linux")]
         {
-            let kernel_version = Self::get_kernel_version();
+            let kernel_version = get_kernel_version();
             match kernel_version {
                 Some((major, minor)) if major > 5 || (major == 5 && minor >= 15) => {
                     info!(
@@ -335,28 +336,5 @@ impl TracerClient {
     pub async fn close(&self) -> Result<()> {
         self.exporter.close().await?;
         Ok(())
-    }
-
-    pub fn get_kernel_version() -> Option<(u32, u32)> {
-        let kernel_version = Command::new("uname")
-            .arg("-r")
-            .output()
-            .ok()
-            .and_then(|output| {
-                String::from_utf8(output.stdout).ok().and_then(|version| {
-                    info!("Detected kernel version: {}", version.trim());
-                    let parts: Vec<&str> = version.trim().split('.').collect();
-                    if parts.len() >= 2 {
-                        let major = parts[0].parse::<u32>().ok()?;
-                        let minor = parts[1].parse::<u32>().ok()?;
-                        Some((major, minor))
-                    } else {
-                        error!("Failed to parse kernel version: {}", version.trim());
-                        None
-                    }
-                })
-            });
-
-        kernel_version
     }
 }

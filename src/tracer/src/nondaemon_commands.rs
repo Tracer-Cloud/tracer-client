@@ -1,13 +1,12 @@
 use std::process::Command;
 
 #[cfg(target_os = "linux")]
-use crate::utils::get_kernel_version;
+use crate::utils::system_info::get_kernel_version;
 
 use crate::common::constants::{FILE_CACHE_DIR, PID_FILE, STDERR_FILE, STDOUT_FILE};
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
-use crate::utils::info_formatter::InfoFormatter;
-// use crate::utils::version::Version;
+use crate::utils::InfoFormatter;
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use std::result::Result::Ok;
