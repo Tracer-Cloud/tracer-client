@@ -7,7 +7,6 @@ use crate::common::constants::{FILE_CACHE_DIR, PID_FILE, STDERR_FILE, STDOUT_FIL
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::utils::InfoFormatter;
-use crate::utils::Version;
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use std::result::Result::Ok;
