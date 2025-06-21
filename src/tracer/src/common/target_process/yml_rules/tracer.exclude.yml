@@ -5,8 +5,6 @@ rules:
       or:
         - command_contains: "--version"
         - command_contains: "-version"
-        - command_contains: "-v"
-        - command_contains: "--v"
 
   - rule_name: "Exclude help"
     display_name: "Exclude help"
@@ -14,5 +12,3 @@ rules:
       or:
         - command_contains: "--help"
         - command_contains: "-help"
-        - command_contains: "-h"
-        - command_contains: "--h"
