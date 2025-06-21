@@ -4611,6 +4611,7 @@ dependencies = [
  "dotenv",
  "ec2_instance_metadata",
  "itertools 0.14.0",
+ "lazy_static",
  "log",
  "mockall",
  "octocrab",

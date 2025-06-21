@@ -1,10 +1,10 @@
-use crate::daemon::app::AppState;
 use crate::daemon::handlers::*;
+use crate::daemon::state::DaemonState;
 use axum::routing::{get, post, MethodRouter};
 use lazy_static::lazy_static;
 
 lazy_static! {
-    pub(super) static ref ROUTES: Vec<(&'static str, MethodRouter<AppState>)> = vec![
+    pub(super) static ref ROUTES: Vec<(&'static str, MethodRouter<DaemonState>)> = vec![
         ("/log", post(log)),
         ("/terminate", post(terminate)),
         ("/start", post(start)),

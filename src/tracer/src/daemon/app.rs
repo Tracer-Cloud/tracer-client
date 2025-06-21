@@ -5,14 +5,8 @@ use tokio_util::sync::CancellationToken;
 use crate::client::TracerClient;
 use crate::config::Config;
 use crate::daemon::routes::ROUTES;
+use crate::daemon::state::DaemonState;
 use axum::Router;
-
-#[derive(Clone)]
-pub(super) struct AppState {
-    pub tracer_client: Arc<Mutex<TracerClient>>,
-    pub cancellation_token: CancellationToken,
-    pub config: Arc<RwLock<Config>>, // todo: config should only live inside Arc<TracerClient>
-}
 
 pub fn get_app(
     tracer_client: Arc<Mutex<TracerClient>>,
@@ -21,11 +15,11 @@ pub fn get_app(
 ) -> Router {
     // todo: set subscriber
 
-    let state = AppState {
+    let state = DaemonState::new(
         tracer_client,
         cancellation_token,
         config,
-    };
+    );
 
     let mut router = Router::new();
     for (path, method_router) in ROUTES.iter() {

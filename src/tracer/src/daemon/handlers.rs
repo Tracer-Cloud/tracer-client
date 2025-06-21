@@ -1,5 +1,5 @@
 use crate::config::Config;
-use crate::daemon::app::AppState;
+use crate::daemon::state::DaemonState;
 use crate::daemon::structs::{InfoResponse, InnerInfoResponse, Message, RunData, TagData};
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -7,19 +7,18 @@ use axum::response::IntoResponse;
 use axum::Json;
 
 pub(super) async fn terminate(
-    State(state): State<AppState>,
+    State(state): State<DaemonState>,
 ) -> axum::response::Result<impl IntoResponse> {
     state.cancellation_token.cancel(); // todo: gracefully shutdown
     Ok("Terminating...")
 }
 
 pub(super) async fn log(
-    State(state): State<AppState>,
+    State(state): State<DaemonState>,
     Json(message): Json<Message>,
 ) -> axum::response::Result<impl IntoResponse> {
     state
-        .tracer_client
-        .lock()
+        .get_tracer_client()
         .await
         .send_log_event(message.payload)
         .await
@@ -29,12 +28,11 @@ pub(super) async fn log(
 }
 
 pub(super) async fn alert(
-    State(state): State<AppState>,
+    State(state): State<DaemonState>,
     Json(message): Json<Message>,
 ) -> axum::response::Result<impl IntoResponse> {
     state
-        .tracer_client
-        .lock()
+        .get_tracer_client()
         .await
         .send_alert_event(message.payload)
         .await
@@ -44,9 +42,9 @@ pub(super) async fn alert(
 }
 
 pub(super) async fn start(
-    State(state): State<AppState>,
+    State(state): State<DaemonState>,
 ) -> axum::response::Result<impl IntoResponse> {
-    let guard = state.tracer_client.lock().await;
+    let guard = state.get_tracer_client().await;
 
     guard
         .start_new_run(None)
@@ -67,9 +65,9 @@ pub(super) async fn start(
 }
 
 pub(super) async fn end(
-    State(state): State<AppState>,
+    State(state): State<DaemonState>,
 ) -> axum::response::Result<impl IntoResponse> {
-    let guard = state.tracer_client.lock().await;
+    let guard = state.get_tracer_client().await;
 
     guard
         .stop_run()
@@ -80,13 +78,13 @@ pub(super) async fn end(
 }
 
 pub(super) async fn refresh_config(
-    State(state): State<AppState>,
+    State(state): State<DaemonState>,
 ) -> axum::response::Result<impl IntoResponse> {
-    // todo: IO in load condig has to be pub(super) async
+    // todo: IO in load config has to be pub(super) async
     let config_file = Config::default();
 
     {
-        let mut guard = state.tracer_client.lock().await;
+        let mut guard = state.get_tracer_client().await;
         guard
             .reload_config_file(config_file.clone())
             .await
@@ -99,23 +97,21 @@ pub(super) async fn refresh_config(
 }
 
 pub(super) async fn tag(
-    State(state): State<AppState>,
+    State(state): State<DaemonState>,
     Json(payload): Json<TagData>,
 ) -> axum::response::Result<impl IntoResponse> {
-    let guard = state.tracer_client.lock().await;
+    let guard= state.get_tracer_client().await;
     guard
         .send_update_tags_event(payload.names)
-        .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(StatusCode::ACCEPTED)
 }
 
 pub(super) async fn info(
-    State(state): State<AppState>,
+    State(state): State<DaemonState>,
 ) -> axum::response::Result<impl IntoResponse> {
-    let guard = state.tracer_client.lock().await;
-
+    let guard = state.get_tracer_client().await;
     let pipeline = guard.get_run_metadata().read().await.clone();
 
     let response_inner = InnerInfoResponse::try_from(pipeline).ok();
