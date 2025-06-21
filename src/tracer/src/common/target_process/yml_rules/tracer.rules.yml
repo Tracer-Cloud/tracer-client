@@ -275,10 +275,6 @@ rules:
     display_name: bamSummary
     condition:
       process_name_is: bamSummary
-  - rule_name: kallisto process
-    display_name: kallisto
-    condition:
-      process_name_is: kallisto
   - rule_name: pairtools process
     display_name: pairtools
     condition:
@@ -362,7 +358,9 @@ rules:
   - rule_name: bracken command
     display_name: bracken
     condition:
-      command_contains: bracken
+      and:
+        - command_contains: bracken
+        - args_not_contain: -v
   - rule_name: kraken2 command
     display_name: kraken2
     condition:
@@ -416,11 +414,14 @@ rules:
   - rule_name: kallisto command
     display_name: kallisto
     condition:
-      command_contains: kallisto
+      and:
+        - process_name_is: kallisto
+        - min_args: 1
+        - args_not_contain: version
   - rule_name: rsem command
     display_name: RSEM
     condition:
-      command_contains: rsem
+      process_name_contains: rsem-
   - rule_name: dupradar command
     display_name: dupRadar
     condition:

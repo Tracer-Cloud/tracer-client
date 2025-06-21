@@ -1,6 +1,5 @@
 use chrono::{DateTime, Utc};
 use shlex;
-use std::path::Path;
 
 fn join_args(argv: &Vec<String>) -> String {
     shlex::try_join(argv.iter().map(|s| s.as_str())).unwrap_or_else(|_| argv.join(" "))
@@ -71,26 +70,17 @@ impl ProcessStartTrigger {
         }
     }
 
-    pub fn from_command_string_and_path<P: AsRef<Path>>(
-        pid: usize,
-        ppid: usize,
-        path: P,
-        command_string: &str,
-    ) -> Self {
+    pub fn from_command_string(pid: usize, ppid: usize, command_string: &str) -> Self {
+        let argv = split_args(command_string);
+        let comm = argv.first().cloned().unwrap_or_default();
+        let file_name = comm.clone();
         Self {
             pid,
             ppid,
-            comm: path
-                .as_ref()
-                .components()
-                .last()
-                .unwrap()
-                .as_os_str()
-                .to_string_lossy()
-                .into_owned(),
-            argv: split_args(command_string),
+            comm,
+            argv,
             command_string: command_string.to_string(),
-            file_name: path.as_ref().to_string_lossy().into_owned(),
+            file_name,
             started_at: Utc::now(),
         }
     }

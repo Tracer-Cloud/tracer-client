@@ -75,6 +75,18 @@ fn parse_condition(yaml: &Yaml) -> Result<Condition, Box<dyn std::error::Error>>
         }));
     }
 
+    if let Some(val) = yaml["min_args"].as_i64() {
+        return Ok(Condition::Simple(SimpleCondition::MinArgs {
+            min_args: val as usize,
+        }));
+    }
+
+    if let Some(val) = yaml["args_not_contain"].as_str() {
+        return Ok(Condition::Simple(SimpleCondition::ArgsNotContain {
+            args_not_contain: val.to_string(),
+        }));
+    }
+
     if let Some(val) = yaml["command_contains"].as_str() {
         return Ok(Condition::Simple(SimpleCondition::CommandContains {
             command_contains: val.to_string(),

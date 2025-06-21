@@ -76,11 +76,10 @@ fn test_process_matching(
 
         // process triggers for all commands in all processes
         for process in processes {
-            let path = process.path().to_string();
             for commands in &process.test_commands {
                 let triggers: Vec<Trigger> = commands
                     .iter()
-                    .map(|command| common::new_process_start_trigger(command, &path))
+                    .map(|command| common::new_process_start_trigger(command))
                     .collect();
                 watcher.process_triggers(triggers).await.unwrap();
             }

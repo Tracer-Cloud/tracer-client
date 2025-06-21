@@ -24,6 +24,8 @@ pub struct OrCondition {
 pub enum SimpleCondition {
     ProcessNameIs { process_name_is: String },
     ProcessNameContains { process_name_contains: String },
+    MinArgs { min_args: usize },
+    ArgsNotContain { args_not_contain: String },
     CommandContains { command_contains: String },
     CommandNotContains { command_not_contains: String },
     CommandMatchesRegex { command_matches_regex: String },
@@ -38,6 +40,12 @@ impl Condition {
             Condition::Simple(SimpleCondition::ProcessNameContains {
                 process_name_contains,
             }) => TargetMatch::ProcessNameContains(process_name_contains.clone()),
+            Condition::Simple(SimpleCondition::MinArgs { min_args }) => {
+                TargetMatch::MinArgs(*min_args)
+            }
+            Condition::Simple(SimpleCondition::ArgsNotContain { args_not_contain }) => {
+                TargetMatch::ArgsNotContain(args_not_contain.clone())
+            }
             Condition::Simple(SimpleCondition::CommandContains { command_contains }) => {
                 TargetMatch::CommandContains(command_contains.clone())
             }

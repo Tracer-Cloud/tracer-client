@@ -6,9 +6,9 @@ use tracer_ebpf::ebpf_trigger::Trigger;
 pub const DUMMY_PID: usize = 0;
 pub const DUMMY_PPID: usize = 1;
 
-pub fn new_process_start_trigger(cmd: &str, path: &str) -> Trigger {
-    Trigger::ProcessStart(ProcessStartTrigger::from_command_string_and_path(
-        DUMMY_PID, DUMMY_PPID, path, cmd,
+pub fn new_process_start_trigger(cmd: &str) -> Trigger {
+    Trigger::ProcessStart(ProcessStartTrigger::from_command_string(
+        DUMMY_PID, DUMMY_PPID, cmd,
     ))
 }
 
