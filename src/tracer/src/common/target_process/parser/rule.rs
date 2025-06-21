@@ -1,10 +1,8 @@
 use crate::common::target_process::parser::conditions::Condition;
 use crate::common::target_process::target::Target;
-use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct Rule {
-    pub rule_name: String,
     pub display_name: String,
     pub condition: Condition,
 }
