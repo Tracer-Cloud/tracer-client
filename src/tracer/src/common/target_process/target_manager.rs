@@ -16,7 +16,6 @@ impl TargetManager {
     pub fn get_target_match(&self, process: &ProcessStartTrigger) -> Option<String> {
         let command = process.argv.join(" ");
 
-        
         // exclude rules take precedence over rules
         // if one of the exclude rules matches, return None, because we want to exclude the process
         for target in self.exclude.iter() {
@@ -48,7 +47,7 @@ impl Default for TargetManager {
                 rules_targets = targets;
             }
             Err(e) => {
-                println!(
+                trace!(
                     "[TargetManager] Failed to load embedded tracer.rules.yml rules: {}",
                     e
                 );
@@ -68,9 +67,10 @@ impl Default for TargetManager {
                             break;
                         }
                         Err(e) => {
-                            println!(
+                            trace!(
                                 "[TargetManager] Failed to load YAML rules from {}: {}",
-                                rules_path, e
+                                rules_path,
+                                e
                             );
                         }
                     }
@@ -83,7 +83,7 @@ impl Default for TargetManager {
                 exclude_targets = targets;
             }
             Err(e) => {
-                println!(
+                trace!(
                     "[TargetManager] Failed to load embedded tracer.exclude.yml exclude: {}",
                     e
                 );
@@ -103,9 +103,10 @@ impl Default for TargetManager {
                             break;
                         }
                         Err(e) => {
-                            println!(
+                            trace!(
                                 "[TargetManager] Failed to load YAML exclude from {}: {}",
-                                exclude_path, e
+                                exclude_path,
+                                e
                             );
                         }
                     }
