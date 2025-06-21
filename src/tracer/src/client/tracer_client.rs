@@ -296,7 +296,7 @@ impl TracerClient {
     }
 
     pub async fn send_log_event(&self, payload: String) -> Result<()> {
-        send_log_event(self.get_api_key(), &payload).await?; // todo: remove
+        send_log_event(self.get_api_key(), &payload)?; // todo: remove
 
         self.log_recorder
             .log(
@@ -311,7 +311,7 @@ impl TracerClient {
     }
 
     pub async fn send_alert_event(&self, payload: String) -> Result<()> {
-        send_alert_event(&payload).await?; // todo: remove
+        send_alert_event(&payload)?; // todo: remove
         self.log_recorder
             .log(ProcessStatus::Alert, payload, None, Some(Utc::now()))
             .await?;
@@ -319,7 +319,7 @@ impl TracerClient {
     }
 
     //FIXME: Should tag updates be parts of events?... how should it be handled and stored
-    pub async fn send_update_tags_event(&self, tags: Vec<String>) -> Result<()> {
+    pub fn send_update_tags_event(&self, tags: Vec<String>) -> Result<()> {
         let _tags_entry = json!({
             "tags": tags,
             "message": "[CLI] Updating tags",
