@@ -1,0 +1,17 @@
+# Copy this file to terraform.tfvars and update with your values
+
+# AWS region for deployment
+region = "us-east-1"
+
+# Tracer API key
+api_key = "your-actual-tracer-api-key-here"
+
+# SSH key pair name for instance access
+perm_key = "tracer-from-ami"
+
+# AMI ID with pre-configured bioinformatics tools
+# Update this when you create a new AMI with updated tools
+ami_id = "ami-0dcbd591823292f6a"
+
+# EC2 instance type
+instance_type = "c6g.2xlarge" 
