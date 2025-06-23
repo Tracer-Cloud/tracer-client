@@ -71,14 +71,19 @@ pub fn matches_target(
             (or_conditions_matched, subcommand_found)
         }
         TargetMatch::SubcommandIsOneOf(subcommands) => {
+            println!("Checking subcommands");
             let args = process
                 .argv
                 .iter()
                 .map(|s| s.to_string())
                 .collect::<Vec<String>>();
 
+            println!("Checking subcommands args: {:?}", args);
+            println!("Checking subcommands: {:?}", subcommands);
+
             // to find the subcommand, we find the first argument that doesn't start with '-' (as options are usually done with -)
             let subcommand = args.iter().skip(1).find(|arg| !arg.starts_with('-'));
+            println!("Subcommand found into args: {:?}", subcommand);
             match subcommand {
                 Some(cmd) => (subcommands.contains(cmd), Some(cmd.to_string())),
                 None => (false, None),

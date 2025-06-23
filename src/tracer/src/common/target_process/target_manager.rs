@@ -201,4 +201,30 @@ mod tests {
         let matched = manager.get_target_match(&process);
         assert_eq!(matched, None);
     }
+
+    #[test]
+    fn test_dynamic_display_subcommand() {
+        let rules_path = "src/common/target_process/yml_rules/tracer.rules.yml";
+        let rules_content =
+            fs::read_to_string(rules_path).expect("Failed to read tracer.rules.yml");
+        let rules_targets =
+            load_yaml_rules_from_str(&rules_content).expect("Failed to parse rules");
+
+        let target_manager = TargetManager {
+            targets: rules_targets,
+            exclude: Vec::new(),
+        };
+
+        let process = make_process("samtools", &["samtools", "sort", "file.bam"]);
+        let matched = target_manager.get_target_match(&process);
+        assert_eq!(matched.as_deref(), Some("samtools sort"));
+
+        let process = make_process("samtools", &["samtools", "-@ 4", "sort", "file.bam"]);
+        let matched = target_manager.get_target_match(&process);
+        assert_eq!(matched.as_deref(), Some("samtools sort"));
+
+        let process = make_process("samtools", &["samtools", "sort -4", "file.bam"]);
+        let matched = target_manager.get_target_match(&process);
+        assert_eq!(matched, None);
+    }
 }
