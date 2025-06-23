@@ -118,7 +118,7 @@ impl InfoFormatter {
         self.add_header("TRACER CLI STATUS")?;
         self.add_empty_line()?;
         self.add_status_field("Daemon Status", "Not Started", "inactive")?;
-        self.add_field("Version", &FullVersion::current_str(), "bold")?;
+        self.add_field("Version", &FullVersion::current().to_string(), "bold")?;
         self.add_empty_line()?;
         self.add_section_header("NEXT STEPS")?;
         self.add_empty_line()?;
@@ -139,7 +139,7 @@ impl InfoFormatter {
         self.add_section_header("DAEMON STATUS")?;
         self.add_empty_line()?;
         self.add_status_field("Status", "Running", "active")?;
-        self.add_field("Version", &FullVersion::current_str(), "bold")?;
+        self.add_field("Version", &FullVersion::current().to_string(), "bold")?;
         self.add_empty_line()?;
         Ok(())
     }

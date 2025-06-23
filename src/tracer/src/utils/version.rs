@@ -107,7 +107,7 @@ impl PartialOrd for Version {
 /// - Git commit hash, if package was built from a git repository
 /// - Git dirty info (whether the repo had uncommitted changes)
 pub struct FullVersion {
-    pub version_str: &'static str,
+    pub version: &'static Version,
     pub hash: Option<String>,
     pub dirty: bool,
 }
@@ -122,27 +122,52 @@ impl FullVersion {
             };
             let dirty = GIT_DIRTY.unwrap_or(false);
             FullVersion {
-                version_str: Version::current_str(),
+                version: Version::current(),
                 hash,
                 dirty,
             }
         });
         &VERSION
     }
+}
 
-    pub fn current_str() -> String {
-        let full_version = FullVersion::current();
-        match (&full_version.hash, full_version.dirty) {
-            (Some(hash), true) => format!("{}-{}-dirty", full_version.version_str, hash),
-            (Some(hash), false) => format!("{}-{}", full_version.version_str, hash),
-            (None, _) => full_version.version_str.to_string(),
+impl fmt::Display for FullVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match (&self.hash, self.dirty) {
+            (Some(hash), true) => write!(f, "{}-{}-dirty", self.version, hash),
+            (Some(hash), false) => write!(f, "{}-{}", self.version, hash),
+            (None, _) => self.version.fmt(f),
         }
     }
+}
 
-    pub fn version(&self) -> Version {
-        Version::from_str(self.version_str).unwrap()
+// Implement PartialEq for == and !=
+impl PartialEq for FullVersion {
+    fn eq(&self, other: &Self) -> bool {
+        self.version == other.version && self.hash == other.hash && self.dirty == other.dirty
     }
 }
+
+// Implement PartialOrd for <, <=, >, >=
+impl PartialOrd for FullVersion {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match self.version.partial_cmp(other.version) {
+            Some(Ordering::Equal) => match (&self.hash, &other.hash) {
+                (None, None) => Some(Ordering::Equal),
+                (None, Some(_)) => Some(Ordering::Less),
+                (Some(_), None) => Some(Ordering::Greater),
+                (Some(hash1), Some(hash2)) => match hash1.cmp(&hash2) {
+                    Ordering::Equal if self.dirty == other.dirty => Some(Ordering::Equal),
+                    Ordering::Equal if self.dirty => Some(Ordering::Greater),
+                    Ordering::Equal if other.dirty => Some(Ordering::Less),
+                    _ => None, // no good way to order different hashes
+                },
+            },
+            ord => ord,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

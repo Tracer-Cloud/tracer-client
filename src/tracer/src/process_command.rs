@@ -353,7 +353,7 @@ pub async fn run_async_command(
             handle_port_conflict(port).await?;
         }
         Commands::Version => {
-            println!("{}", FullVersion::current_str());
+            println!("{}", FullVersion::current());
         }
         _ => {
             println!("Command not implemented yet");
