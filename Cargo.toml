@@ -1,16 +1,7 @@
 [workspace]
 resolver = "2"
-members = [
-    "src/tracer",
-    "src/ebpf", 
-    "src/tracer-installer",
-]
-default-members = [
-    "src/tracer",
-    "src/ebpf",
-    "src/tracer-installer",
-
-]
+members = ["src/tracer", "src/ebpf", "src/tracer-installer"]
+default-members = ["src/tracer", "src/ebpf", "src/tracer-installer"]
 
 [workspace.package]
 version = "2025.5.15+1"
@@ -32,7 +23,11 @@ lazy_static = "1.5.0"
 log = "0.4.21"
 octocrab = "0.44.0"
 predicates = "3.1.2"
-reqwest = { version = "0.12.13", default-features = false, features = ["json", "rustls-tls", "stream"] }
+reqwest = { version = "0.12.13", default-features = false, features = [
+    "json",
+    "rustls-tls",
+    "stream",
+] }
 serde = { version = "1.0", features = ["std", "derive", "serde_derive"] }
 serde_json = "1.0.117"
 sysinfo = "0.30"
@@ -41,11 +36,19 @@ tokio-util = "0.7.15"
 toml = "0.8.23"
 tracing = { version = "0.1.40" }
 tracing-appender = "0.2"
-sqlx = { version = "0.8.3", features = ["runtime-tokio-rustls", "postgres", "chrono"] }
+sqlx = { version = "0.8.3", features = [
+    "runtime-tokio-rustls",
+    "postgres",
+    "chrono",
+] }
 
 ec2_instance_metadata = "0.3.0"
 rand = "0.9.1"
-uuid = { version = "1.17.0", features = ["v4", "fast-rng", "macro-diagnostics"] }
+uuid = { version = "1.17.0", features = [
+    "v4",
+    "fast-rng",
+    "macro-diagnostics",
+] }
 once_cell = "1.21.3"
 
 aws-config = { version = "1.6.3", features = ["behavior-version-latest"] }
@@ -54,7 +57,12 @@ aws-sdk-s3 = "1.91.0"
 aws-credential-types = "1.2.2"
 aws-sdk-secretsmanager = "1.76.0"
 
-tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json", "time", "local-time"] }
+tracing-subscriber = { version = "0.3.18", features = [
+    "env-filter",
+    "json",
+    "time",
+    "local-time",
+] }
 dirs = "6.0.0"
 serde-query = "0.2.0"
 itertools = "0.14.0"
@@ -62,7 +70,10 @@ percent-encoding = "2.3.1"
 colored = "3.0.0"
 axum = "0.8.3"
 tempfile = "3.20.0"
-config = { version = "0.15.11", default-features = false, features = ["toml", "convert-case"] }
+config = { version = "0.15.11", default-features = false, features = [
+    "toml",
+    "convert-case",
+] }
 serial_test = "3.1.1"
 dotenv = "0.15"
 bollard = "0.19.0"
@@ -70,7 +81,13 @@ assert_cmd = "2.0"
 which = { version = "6.0.0", default-features = false }
 bytes = "1.10.1"
 libc = { version = "0.2.172", default-features = false }
-sentry = { version = "0.38.1", default-features = false, features = ["anyhow", "backtrace", "reqwest", "rustls", "panic"] }
+sentry = { version = "0.38.1", default-features = false, features = [
+    "anyhow",
+    "backtrace",
+    "reqwest",
+    "rustls",
+    "panic",
+] }
 rstest = "0.25.0"
 typed-builder = "0.21.0"
 futures-util = "0.3"
@@ -79,4 +96,6 @@ console = "0.15.11"
 mockall = "0.13.1"
 regex = "1.0"
 rustls = { version = "0.23.28", features = ["ring"] }
+shlex = "1.3.0"
 yaml-rust2 = "0.10.3"
+pretty_assertions_sorted = "1.2.3"
