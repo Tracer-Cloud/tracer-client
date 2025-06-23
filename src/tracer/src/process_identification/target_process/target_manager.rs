@@ -12,6 +12,38 @@ pub struct TargetManager {
 }
 
 impl TargetManager {
+    /// Helper to load targets from embedded YAML or fallback file paths
+    fn load_targets_with_fallback(
+        embedded_yaml: Option<&str>,
+        fallback_paths: &[&str],
+    ) -> Vec<Target> {
+        let mut targets = Vec::new();
+        if let Some(embedded_str) = embedded_yaml {
+            match load_yaml_rules_from_str(embedded_str) {
+                Ok(loaded_targets) => {
+                    targets = loaded_targets;
+                }
+                Err(e) => {
+                    trace!("[TargetManager] Failed to load embedded rules: {}", e);
+                }
+            }
+        }
+        if targets.is_empty() {
+            for path in fallback_paths.iter() {
+                match load_yaml_rules(path) {
+                    Ok(loaded_targets) => {
+                        targets = loaded_targets;
+                        break;
+                    }
+                    Err(e) => {
+                        trace!("[TargetManager] Failed to load YAML from {}: {}", path, e);
+                    }
+                }
+            }
+        }
+        targets
+    }
+
     /// Match a process against all targets and return the first matching target name
     pub fn get_target_match(&self, process: &ProcessStartTrigger) -> Option<String> {
         // exclude rules take precedence over rules
@@ -45,87 +77,31 @@ impl TargetManager {
 
 impl Default for TargetManager {
     fn default() -> Self {
-        let mut rules_targets = Vec::new();
-        let mut exclude_targets = Vec::new();
+        let possible_paths_rules = [
+            "process_identification/target_process/yml_rules/tracer.rules.yml",
+            "src/tracer/src/process_identification/target_process/yml_rules/tracer.rules.yml",
+            "common/target_process/yml_rules/tracer.rules.yml",
+            "src/tracer/src/common/target_process/yml_rules/tracer.rules.yml",
+            "target_process/yml_rules/tracer.rules.yml",
+            "yml_rules/tracer.rules.yml",
+        ];
+        let possible_paths_exclude = [
+            "process_identification/target_process/yml_rules/tracer.exclude.yml",
+            "src/tracer/src/process_identification/target_process/yml_rules/tracer.exclude.yml",
+            "common/target_process/yml_rules/tracer.exclude.yml",
+            "src/tracer/src/common/target_process/yml_rules/tracer.exclude.yml",
+            "target_process/yml_rules/tracer.exclude.yml",
+            "yml_rules/tracer.exclude.yml",
+        ];
 
-        // Try to load from embedded YAML (for production builds)
-
-        // Handle individual failures and continue with fallback
-        match load_yaml_rules_from_str(include_str!("yml_rules/tracer.rules.yml")) {
-            Ok(targets) => {
-                rules_targets = targets;
-            }
-            Err(e) => {
-                trace!(
-                    "[TargetManager] Failed to load embedded tracer.rules.yml rules: {}",
-                    e
-                );
-
-                // Fallback to file loading for rules
-                let possible_paths_rules = [
-                    "process_identification/target_process/yml_rules/tracer.rules.yml",
-                    "src/tracer/src/process_identification/target_process/yml_rules/tracer.rules.yml",
-                    "common/target_process/yml_rules/tracer.rules.yml",
-                    "src/tracer/src/common/target_process/yml_rules/tracer.rules.yml",
-                    "target_process/yml_rules/tracer.rules.yml",
-                    "yml_rules/tracer.rules.yml",
-                ];
-
-                for rules_path in possible_paths_rules.iter() {
-                    match load_yaml_rules(rules_path) {
-                        Ok(loaded_targets) => {
-                            rules_targets = loaded_targets;
-                            break;
-                        }
-                        Err(e) => {
-                            trace!(
-                                "[TargetManager] Failed to load YAML rules from {}: {}",
-                                rules_path,
-                                e
-                            );
-                        }
-                    }
-                }
-            }
-        }
-
-        match load_yaml_rules_from_str(include_str!("yml_rules/tracer.exclude.yml")) {
-            Ok(targets) => {
-                exclude_targets = targets;
-            }
-            Err(e) => {
-                trace!(
-                    "[TargetManager] Failed to load embedded tracer.exclude.yml exclude: {}",
-                    e
-                );
-
-                // Fallback to file loading for exclude
-                let possible_paths_exclude = [
-                    "process_identification/target_process/yml_rules/tracer.exclude.yml",
-                    "src/tracer/src/process_identification/target_process/yml_rules/tracer.exclude.yml",
-                    "common/target_process/yml_rules/tracer.exclude.yml",
-                    "src/tracer/src/common/target_process/yml_rules/tracer.exclude.yml",
-                    "target_process/yml_rules/tracer.exclude.yml",
-                    "yml_rules/tracer.exclude.yml",
-                ];
-
-                for exclude_path in possible_paths_exclude.iter() {
-                    match load_yaml_rules(exclude_path) {
-                        Ok(loaded_targets) => {
-                            exclude_targets = loaded_targets;
-                            break;
-                        }
-                        Err(e) => {
-                            trace!(
-                                "[TargetManager] Failed to load YAML exclude from {}: {}",
-                                exclude_path,
-                                e
-                            );
-                        }
-                    }
-                }
-            }
-        }
+        let rules_targets = Self::load_targets_with_fallback(
+            Some(include_str!("yml_rules/tracer.rules.yml")),
+            &possible_paths_rules,
+        );
+        let exclude_targets = Self::load_targets_with_fallback(
+            Some(include_str!("yml_rules/tracer.exclude.yml")),
+            &possible_paths_exclude,
+        );
 
         Self {
             exclude: exclude_targets,
