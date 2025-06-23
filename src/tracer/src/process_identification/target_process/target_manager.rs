@@ -16,14 +16,30 @@ impl TargetManager {
     pub fn get_target_match(&self, process: &ProcessStartTrigger) -> Option<String> {
         // exclude rules take precedence over rules
         // if one of the exclude rules matches, return None, because we want to exclude the process
-        if self.exclude.iter().any(|target| target.matches(process)) {
+        if self
+            .exclude
+            .iter()
+            .any(|target| target.matches(process).is_match)
+        {
             return None;
         }
 
-        self.targets
-            .iter()
-            .find(|target| target.matches(process))
-            .map(|target| target.get_display_name())
+        self.targets.iter().find_map(|target| {
+            let process_match = target.matches(process);
+            if process_match.is_match {
+                let mut display_name = target.get_display_name();
+
+                // Replace {subcommand} if present and subcommand is Some
+                if process_match.sub_command.is_some() {
+                    let subcommand = process_match.sub_command.unwrap();
+                    display_name = display_name.replace("{subcommand}", &subcommand);
+                }
+
+                Some(display_name)
+            } else {
+                None
+            }
+        })
     }
 }
 
@@ -191,6 +207,31 @@ mod tests {
             &["cat", "--help", "input1/index.1.fastq.gz input.fastq.gz"],
         );
         let matched = manager.get_target_match(&process);
+        assert_eq!(matched, None);
+    }
+
+    #[test]
+    fn test_dynamic_display_subcommand() {
+        let rules_path = "src/process_identification/target_process/yml_rules/tracer.rules.yml";
+        let rules_content =
+            fs::read_to_string(rules_path).expect("Failed to read tracer.rules.yml");
+        let targets = load_yaml_rules_from_str(&rules_content).expect("Failed to parse rules");
+
+        let target_manager = TargetManager {
+            targets,
+            exclude: Vec::new(),
+        };
+
+        let process = make_process("samtools", &["samtools", "sort", "file.bam"]);
+        let matched = target_manager.get_target_match(&process);
+        assert_eq!(matched.as_deref(), Some("samtools sort"));
+
+        let process = make_process("samtools", &["samtools", "-@ 4", "sort", "file.bam"]);
+        let matched = target_manager.get_target_match(&process);
+        assert_eq!(matched.as_deref(), Some("samtools sort"));
+
+        let process = make_process("samtools", &["samtools", "sort -4", "file.bam"]);
+        let matched = target_manager.get_target_match(&process);
         assert_eq!(matched, None);
     }
 }

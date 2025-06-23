@@ -8,6 +8,7 @@ use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::RwLock;
+use tracer::extracts::ebpf_watcher::watcher::EbpfWatcher;
 use tracer::process_identification::recorder::LogRecorder;
 use tracer::process_identification::target_process::target_manager::TargetManager;
 use tracer::process_identification::types::current_run::{PipelineMetadata, Run};
@@ -15,7 +16,6 @@ use tracer::process_identification::types::event::attributes::process::ProcessPr
 use tracer::process_identification::types::event::attributes::EventAttributes;
 use tracer::process_identification::types::event::{Event, ProcessStatus};
 use tracer::process_identification::types::pipeline_tags::PipelineTags;
-use tracer::extracts::ebpf_watcher::watcher::EbpfWatcher;
 use tracer_ebpf::ebpf_trigger::Trigger;
 
 // Note: we avoid annotating tests with #[tokio::test] so we can use #[once] fixtures.

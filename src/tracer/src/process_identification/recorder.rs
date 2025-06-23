@@ -63,7 +63,9 @@ impl LogRecorder {
 mod tests {
     use super::*;
     use crate::process_identification::types::current_run::{PipelineMetadata, Run};
-    use crate::process_identification::types::event::attributes::{process::DataSetsProcessed, EventAttributes};
+    use crate::process_identification::types::event::attributes::{
+        process::DataSetsProcessed, EventAttributes,
+    };
     use crate::process_identification::types::pipeline_tags::PipelineTags;
     use chrono::TimeZone;
     use tokio::sync::mpsc;
