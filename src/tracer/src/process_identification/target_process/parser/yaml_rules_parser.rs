@@ -1,8 +1,8 @@
-use crate::common::target_process::parser::conditions::{
+use crate::process_identification::target_process::parser::conditions::{
     CompoundCondition, Condition, SimpleCondition,
 };
-use crate::common::target_process::parser::rule::Rule;
-use crate::common::target_process::target::Target;
+use crate::process_identification::target_process::parser::rule::Rule;
+use crate::process_identification::target_process::target::Target;
 use std::fs;
 use std::path::Path;
 use yaml_rust2::{Yaml, YamlLoader};
@@ -107,6 +107,16 @@ fn parse_condition(yaml: &Yaml) -> Result<Condition, Box<dyn std::error::Error>>
     if let Some(val) = yaml["command_matches_regex"].as_str() {
         return Ok(Condition::Simple(SimpleCondition::CommandMatchesRegex {
             command_matches_regex: val.to_string(),
+        }));
+    }
+
+    if let Some(val) = yaml["subcommand_is_one_of"].as_vec() {
+        let subcommands = val
+            .iter()
+            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+            .collect();
+        return Ok(Condition::Simple(SimpleCondition::SubcommandIsOneOf {
+            subcommands,
         }));
     }
 

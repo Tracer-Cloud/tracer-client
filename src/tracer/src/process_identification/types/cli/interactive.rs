@@ -3,7 +3,7 @@ use console::Style;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Input, Select};
 
-use crate::common::types::pipeline_tags::PipelineTags;
+use crate::process_identification::types::pipeline_tags::PipelineTags;
 
 use super::params::{FinalizedInitArgs, TracerCliInitArgs};
 

@@ -1,5 +1,5 @@
-use crate::common::types::event::attributes::process::ProcessProperties;
-use crate::common::types::event::{attributes::EventAttributes, Event};
+use crate::process_identification::types::event::attributes::process::ProcessProperties;
+use crate::process_identification::types::event::{attributes::EventAttributes, Event};
 use anyhow::{Context, Result};
 use serde_json::{Map, Value};
 use std::fs::OpenOptions;
@@ -28,6 +28,8 @@ pub fn flatten_event_attributes(event: &Event) -> Result<Value> {
             ("processed_dataset_stats", serde_json::to_value(p)?)
         }
         EventAttributes::Syslog(p) => ("syslog", serde_json::to_value(p)?),
+
+        EventAttributes::ContainerEvents(p) => ("containers", serde_json::to_value(p)?),
     };
 
     flatten_with_prefix(prefix, &json, &mut map);
@@ -60,7 +62,8 @@ pub fn log_matched_process(trigger: &ProcessStartTrigger, matched_rule: &str, is
     let matched_string = if is_matched { "MATCHED" } else { "NOT MATCHED" };
 
     let log_line = format!(
-        "{} | {} | {} | {}\n\n\n",
+        "{} | {} | {} | {} | {}\n\n\n",
+        trigger.pid,
         trigger.clone().comm,
         trigger.clone().argv.join(" "),
         matched_string,

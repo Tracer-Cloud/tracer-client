@@ -1,9 +1,10 @@
-use crate::common::recorder::LogRecorder;
-use crate::common::target_process::target::Target;
-use crate::common::target_process::target_manager::TargetManager;
+use crate::extracts::containers::DockerWatcher;
 use crate::extracts::ebpf_watcher::handler::trigger::trigger_processor::TriggerProcessor;
 use crate::extracts::process::process_manager::ProcessManager;
 use crate::extracts::process::process_utils::get_process_argv;
+use crate::process_identification::recorder::LogRecorder;
+use crate::process_identification::target_process::target::Target;
+use crate::process_identification::target_process::target_manager::TargetManager;
 use anyhow::{Error, Result};
 use std::collections::HashSet;
 use std::fs::{self};
@@ -20,6 +21,7 @@ use tracing::{debug, error, info};
 pub struct EbpfWatcher {
     ebpf: once_cell::sync::OnceCell<()>, // not tokio, because ebpf initialisation is sync
     process_manager: Arc<RwLock<ProcessManager>>,
+    docker: once_cell::sync::OnceCell<()>, // NEW
     trigger_processor: TriggerProcessor,
     // here will go the file manager for dataset recognition operations
 }
@@ -36,6 +38,7 @@ impl EbpfWatcher {
             ebpf: once_cell::sync::OnceCell::new(),
             trigger_processor: TriggerProcessor::new(Arc::clone(&process_manager)),
             process_manager,
+            docker: once_cell::sync::OnceCell::new(),
         }
     }
 
@@ -169,6 +172,24 @@ impl EbpfWatcher {
                 return Err(Error::msg("Failed to initialize eBPF monitoring task"));
             }
         }
+
+        Ok(())
+    }
+
+    pub async fn initialize_docker_watcher(
+        self: &Arc<Self>,
+        log_recorder: LogRecorder,
+    ) -> Result<()> {
+        self.docker.get_or_try_init(|| {
+            let watcher = DockerWatcher::new(log_recorder)?;
+            tokio::spawn(async move {
+                if let Err(e) = watcher.start().await {
+                    tracing::error!("Docker watcher failed: {:?}", e);
+                }
+            });
+
+            Ok::<(), anyhow::Error>(())
+        })?;
 
         Ok(())
     }
