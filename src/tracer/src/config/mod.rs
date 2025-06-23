@@ -22,7 +22,6 @@ pub struct Config {
     pub database_host: Option<String>,
     pub database_name: String,
 
-    pub grafana_workspace_url: String,
     pub server: String,
 
     pub config_sources: Vec<String>,
@@ -43,7 +42,6 @@ impl Config {
             "aws_init_type": self.aws_init_type.to_string(),
             "aws_region": self.aws_region,
             "database_name": self.database_name,
-            "grafana_workspace_url": self.grafana_workspace_url,
             "server": self.server
         })
     }

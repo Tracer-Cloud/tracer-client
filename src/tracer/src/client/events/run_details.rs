@@ -16,9 +16,9 @@ pub(super) fn generate_run_name() -> String {
     let mut rng = rand::rng();
     let adjective = ADJECTIVES.choose(&mut rng).unwrap();
     let animal = ANIMALS.choose(&mut rng).unwrap();
-    let random_number = rng.random_range(0..100);
+    let random_number = rng.random_range(0..1000);
 
-    format!("{}-{}-{}", adjective, animal, random_number)
+    format!("{}-{}-{:03}", adjective, animal, random_number)
 }
 
 pub(super) fn generate_run_id() -> String {
