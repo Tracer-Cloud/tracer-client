@@ -23,7 +23,7 @@ impl ProcessStartHandler {
 
         Self::store_triggers(state_manager, triggers.clone()).await;
 
-        let matched_processes = Self::match_processes(state_manager, matcher, triggers).await?;
+        let matched_processes = Self::match_processes(state_manager, matcher, triggers).await;
 
         if matched_processes.is_empty() {
             debug!("No matching processes found; exiting early.");
@@ -57,7 +57,7 @@ impl ProcessStartHandler {
         state_manager: &StateManager,
         matcher: &Filter,
         triggers: Vec<ProcessStartTrigger>,
-    ) -> Result<HashMap<String, HashSet<ProcessStartTrigger>>> {
+    ) -> HashMap<String, HashSet<ProcessStartTrigger>> {
         debug!(
             "Matching {} stored triggers against targets.",
             triggers.len()
