@@ -1,24 +1,21 @@
 use std::sync::Arc;
-use tokio::sync::{Mutex, RwLock};
 use tokio_util::sync::CancellationToken;
 
 use crate::client::TracerClient;
-use crate::config::Config;
 use crate::daemon::routes::ROUTES;
 use crate::daemon::state::DaemonState;
 use axum::Router;
+use tokio::sync::Mutex;
 
 pub fn get_app(
-    tracer_client: Arc<Mutex<TracerClient>>,
-    cancellation_token: CancellationToken,
-    config: Arc<RwLock<Config>>,
+    client: Arc<Mutex<TracerClient>>,
+    cancellation_token: CancellationToken
 ) -> Router {
     // todo: set subscriber
 
     let state = DaemonState::new(
-        tracer_client,
-        cancellation_token,
-        config,
+        client,
+        cancellation_token
     );
 
     let mut router = Router::new();

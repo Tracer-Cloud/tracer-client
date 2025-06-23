@@ -38,7 +38,7 @@ pub struct TracerClient {
     pipeline: Arc<RwLock<PipelineMetadata>>,
 
     pub pricing_client: PricingSource,
-    pub config: Config,
+    config: Config,
 
     log_recorder: LogRecorder,
     pub exporter: Arc<ExporterManager>,
@@ -128,7 +128,7 @@ impl TracerClient {
         self.ebpf_watcher
             .update_targets(config.targets.clone())
             .await?;
-        self.config = config;
+        self.set_config(config);
 
         Ok(())
     }
@@ -190,7 +190,7 @@ impl TracerClient {
             info!("Starting process polling monitoring on non-Linux platform");
             match self
                 .ebpf_watcher
-                .start_process_polling(self.config.process_polling_interval_ms)
+                .start_process_polling(self.get_config().process_polling_interval_ms)
                 .await
             {
                 Ok(_) => {
@@ -292,7 +292,7 @@ impl TracerClient {
     }
 
     pub fn get_api_key(&self) -> &str {
-        &self.config.api_key
+        &self.get_config().api_key
     }
 
     pub async fn send_log_event(&self, payload: String) -> Result<()> {
@@ -336,5 +336,13 @@ impl TracerClient {
     pub async fn close(&self) -> Result<()> {
         self.exporter.close().await?;
         Ok(())
+    }
+    
+    pub fn get_config(&self) -> &Config {
+        &self.config
+    }
+    
+    pub fn set_config(&mut self, config: Config) {
+        self.config = config;
     }
 }

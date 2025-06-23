@@ -3,10 +3,9 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpListener;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::Mutex;
 
 use crate::client::TracerClient;
-use crate::config;
 use crate::daemon::app::get_app;
 use crate::daemon::daemon_run::monitor_processes;
 use std::borrow::BorrowMut;
@@ -19,7 +18,9 @@ pub struct DaemonServer {
 }
 
 impl DaemonServer {
-    pub async fn bind(client: TracerClient, addr: SocketAddr) -> anyhow::Result<Self> {
+    pub async fn bind(client: TracerClient) -> anyhow::Result<Self> {
+        let addr: SocketAddr = client.get_config().server.parse()?;
+        
         match TcpListener::bind(addr).await {
             Ok(listener) => Ok(Self {
                 client: Arc::new(Mutex::new(client)),
@@ -41,18 +42,12 @@ impl DaemonServer {
 
     pub async fn run(self) -> anyhow::Result<()> {
         let tracer_client = self.client.clone();
-
-        let config: Arc<RwLock<config::Config>> =
-            Arc::new(RwLock::new(tracer_client.lock().await.config.clone()));
-
-        // todo: config shouldn't be here: it should only exist as a RW field in the client
-
+        
         let cancellation_token = CancellationToken::new();
 
         let app = get_app(
             tracer_client.clone(),
-            cancellation_token.clone(),
-            config.clone(),
+            cancellation_token.clone()
         );
 
         let server = tokio::spawn(axum::serve(self.listener, app).into_future());
@@ -63,24 +58,32 @@ impl DaemonServer {
             .borrow_mut()
             .start_new_run(None)
             .await?;
+        
+        let mut system_metrics_interval;
+        let mut process_metrics_interval;
+        let mut submission_interval;
 
-        let mut system_metrics_interval = tokio::time::interval(Duration::from_millis(
-            config.read().await.batch_submission_interval_ms,
-        ));
+        {
+            let guard = tracer_client.lock().await;
+            let config = guard.get_config();
+            system_metrics_interval = tokio::time::interval(Duration::from_millis(
+                config.batch_submission_interval_ms,
+            ));
 
-        let mut process_metrics_interval = tokio::time::interval(Duration::from_millis(
-            config.read().await.process_metrics_send_interval_ms,
-        ));
+            process_metrics_interval = tokio::time::interval(Duration::from_millis(
+                config.process_metrics_send_interval_ms,
+            ));
 
+
+            submission_interval = tokio::time::interval(Duration::from_millis(
+                config.batch_submission_interval_ms,
+            ));
+        }
         let exporter = Arc::clone(&tracer_client.lock().await.exporter);
-
-        let mut submission = tokio::time::interval(Duration::from_millis(
-            config.read().await.batch_submission_interval_ms,
-        ));
 
         tokio::spawn(async move {
             loop {
-                submission.tick().await;
+                submission_interval.tick().await;
                 debug!("DaemonServer submission interval ticked");
                 exporter.submit_batched_data().await.unwrap();
             }

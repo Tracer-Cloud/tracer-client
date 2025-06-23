@@ -7,7 +7,6 @@ use crate::config::Config;
 use crate::daemon::server::DaemonServer;
 use crate::utils::analytics::emit_analytic_event;
 use anyhow::{Context, Result};
-use std::net::SocketAddr;
 use tracing::info;
 
 #[tokio::main]
@@ -38,9 +37,7 @@ pub async fn run(cli_config_args: FinalizedInitArgs, config: Config) -> Result<(
     };
 
     info!("Using {}", db_client.variant_name());
-
-    let addr: SocketAddr = config.server.parse()?;
-
+    
     let client = TracerClient::new(config, db_client, cli_config_args)
         .await
         .context("Failed to create TracerClient")?;
@@ -51,7 +48,7 @@ pub async fn run(cli_config_args: FinalizedInitArgs, config: Config) -> Result<(
         crate::common::types::analytics::AnalyticsEventType::DaemonStartedSuccessfully,
         None,
     ));
-    DaemonServer::bind(client, addr).await?.run().await
+    DaemonServer::bind(client).await?.run().await
 }
 
 pub async fn monitor_processes(tracer_client: &mut TracerClient) -> Result<()> {
@@ -102,8 +99,7 @@ mod tests {
         .into_cli_args();
 
         let mut tracer_client = TracerClient::new(config, log_forward_client, default_args)
-            .await
-            .unwrap();
+            .await?;
         let result = monitor_processes(&mut tracer_client).await;
         if result.is_ok() {
             Ok(result?)

@@ -9,7 +9,7 @@ use axum::Json;
 pub(super) async fn terminate(
     State(state): State<DaemonState>,
 ) -> axum::response::Result<impl IntoResponse> {
-    state.cancellation_token.cancel(); // todo: gracefully shutdown
+    state.cancel(); // todo: gracefully shutdown
     Ok("Terminating...")
 }
 
@@ -91,7 +91,7 @@ pub(super) async fn refresh_config(
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     }
 
-    state.config.write().await.clone_from(&config_file);
+    state.get_tracer_client().await.set_config(config_file);
 
     Ok(StatusCode::ACCEPTED)
 }
