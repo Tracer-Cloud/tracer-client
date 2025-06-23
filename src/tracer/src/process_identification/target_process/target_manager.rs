@@ -47,6 +47,8 @@ impl Default for TargetManager {
 
                 // Fallback to file loading for rules
                 let possible_paths_rules = [
+                    "process_identification/target_process/yml_rules/tracer.rules.yml",
+                    "src/tracer/src/process_identification/target_process/yml_rules/tracer.rules.yml",
                     "common/target_process/yml_rules/tracer.rules.yml",
                     "src/tracer/src/common/target_process/yml_rules/tracer.rules.yml",
                     "target_process/yml_rules/tracer.rules.yml",
@@ -83,6 +85,8 @@ impl Default for TargetManager {
 
                 // Fallback to file loading for exclude
                 let possible_paths_exclude = [
+                    "process_identification/target_process/yml_rules/tracer.exclude.yml",
+                    "src/tracer/src/process_identification/target_process/yml_rules/tracer.exclude.yml",
                     "common/target_process/yml_rules/tracer.exclude.yml",
                     "src/tracer/src/common/target_process/yml_rules/tracer.exclude.yml",
                     "target_process/yml_rules/tracer.exclude.yml",
@@ -127,7 +131,7 @@ mod tests {
     #[test]
     fn test_cat_fastq_target_match() {
         // Load rules from the actual tracer.rules.yml file
-        let rules_path = "src/common/target_process/yml_rules/tracer.rules.yml";
+        let rules_path = "src/process_identification/target_process/yml_rules/tracer.rules.yml";
         let rules_content =
             fs::read_to_string(rules_path).expect("Failed to read tracer.rules.yml");
         let targets = load_yaml_rules_from_str(&rules_content).expect("Failed to parse rules");
@@ -160,13 +164,13 @@ mod tests {
     #[test]
     fn test_exclude_rule() {
         // Load rules from the actual tracer.rules.yml file
-        let rules_path = "src/common/target_process/yml_rules/tracer.rules.yml";
+        let rules_path = "src/process_identification/target_process/yml_rules/tracer.rules.yml";
         let rules_content =
             fs::read_to_string(rules_path).expect("Failed to read tracer.rules.yml");
         let rules_targets =
             load_yaml_rules_from_str(&rules_content).expect("Failed to parse rules");
 
-        let exclude_path = "src/common/target_process/yml_rules/tracer.exclude.yml";
+        let exclude_path = "src/process_identification/target_process/yml_rules/tracer.exclude.yml";
         let exclude_content =
             fs::read_to_string(exclude_path).expect("Failed to read tracer.exclude.yml");
         let exclude_targets =
