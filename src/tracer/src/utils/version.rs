@@ -115,8 +115,8 @@ pub struct FullVersion {
 impl FullVersion {
     pub fn current() -> &'static Self {
         static VERSION: Lazy<FullVersion> = Lazy::new(|| {
-            let hash = if PROFILE != "release" && GIT_COMMIT_HASH.is_some() {
-                Some(GIT_COMMIT_HASH.unwrap().to_string())
+            let hash = if PROFILE != "release" && GIT_COMMIT_HASH_SHORT.is_some() {
+                Some(GIT_COMMIT_HASH_SHORT.unwrap().to_string())
             } else {
                 None
             };
