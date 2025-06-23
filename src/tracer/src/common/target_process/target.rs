@@ -1,5 +1,6 @@
 use crate::common::target_process::target_match::{matches_target, TargetMatch};
 use serde::{Deserialize, Serialize};
+use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 
 /// A target represents a process pattern to match against
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -25,13 +26,8 @@ impl Target {
     }
 
     /// Simple matching logic
-    pub fn matches(&self, process_name: &str, command: &str) -> bool {
+    pub fn matches(&self, process: &ProcessStartTrigger) -> bool {
         // Check if the process matches the primary condition
-
-        if !matches_target(&self.match_type, process_name, command) {
-            return false;
-        }
-
-        true
+        matches_target(&self.match_type, process)
     }
 }

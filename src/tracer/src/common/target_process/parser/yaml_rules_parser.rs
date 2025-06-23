@@ -1,5 +1,5 @@
 use crate::common::target_process::parser::conditions::{
-    AndCondition, Condition, OrCondition, SimpleCondition,
+    CompoundCondition, Condition, SimpleCondition,
 };
 use crate::common::target_process::parser::rule::Rule;
 use crate::common::target_process::target::Target;
@@ -52,7 +52,7 @@ fn parse_condition(yaml: &Yaml) -> Result<Condition, Box<dyn std::error::Error>>
             .iter()
             .map(parse_condition)
             .collect::<Result<Vec<_>, _>>()?;
-        return Ok(Condition::And(AndCondition { and: conditions }));
+        return Ok(Condition::And(CompoundCondition(conditions)));
     }
 
     if let Some(or_conds) = yaml["or"].as_vec() {
@@ -60,7 +60,7 @@ fn parse_condition(yaml: &Yaml) -> Result<Condition, Box<dyn std::error::Error>>
             .iter()
             .map(parse_condition)
             .collect::<Result<Vec<_>, _>>()?;
-        return Ok(Condition::Or(OrCondition { or: conditions }));
+        return Ok(Condition::Or(CompoundCondition(conditions)));
     }
 
     if let Some(val) = yaml["process_name_is"].as_str() {
@@ -72,6 +72,24 @@ fn parse_condition(yaml: &Yaml) -> Result<Condition, Box<dyn std::error::Error>>
     if let Some(val) = yaml["process_name_contains"].as_str() {
         return Ok(Condition::Simple(SimpleCondition::ProcessNameContains {
             process_name_contains: val.to_string(),
+        }));
+    }
+
+    if let Some(val) = yaml["min_args"].as_i64() {
+        return Ok(Condition::Simple(SimpleCondition::MinArgs {
+            min_args: val as usize,
+        }));
+    }
+
+    if let Some(val) = yaml["args_not_contain"].as_str() {
+        return Ok(Condition::Simple(SimpleCondition::ArgsNotContain {
+            args_not_contain: val.to_string(),
+        }));
+    }
+
+    if let Some(val) = yaml["first_arg_is"].as_str() {
+        return Ok(Condition::Simple(SimpleCondition::FirstArgIs {
+            first_arg_is: val.to_string(),
         }));
     }
 
