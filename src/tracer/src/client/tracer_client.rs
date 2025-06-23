@@ -139,6 +139,16 @@ impl TracerClient {
     ///
     /// On non-Linux platforms, polling is used by default.
     pub async fn start_monitoring(&self) -> Result<()> {
+        {
+            let log_recorder = self.log_recorder.clone();
+            let ebpf_watcher = self.ebpf_watcher.clone();
+
+            tokio::spawn(async move {
+                if let Err(e) = ebpf_watcher.initialize_docker_watcher(log_recorder).await {
+                    tracing::error!("Failed to initialize Docker watcher: {:?}", e);
+                }
+            });
+        }
         #[cfg(target_os = "linux")]
         {
             let kernel_version = get_kernel_version();

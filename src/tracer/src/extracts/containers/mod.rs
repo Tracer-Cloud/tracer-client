@@ -1,25 +1,20 @@
-use chrono::{DateTime, TimeZone, Utc};
-use std::collections::HashMap;
-
-//use crate::extracts::containers::docker_watcher::{ContainerEvent, ContainerState};
+use crate::common::recorder::LogRecorder;
 use anyhow::Result;
 use bollard::models::EventMessage;
-use bollard::query_parameters::EventsOptionsBuilder;
-use bollard::query_parameters::InspectContainerOptions;
-
+use bollard::query_parameters::{EventsOptionsBuilder, InspectContainerOptions};
 use bollard::Docker;
-//API_DEFAULT_VERSION
+use chrono::{DateTime, TimeZone, Utc};
 use futures_util::StreamExt;
-use tokio::sync::mpsc::UnboundedSender;
+use std::collections::HashMap;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ContainerState {
     Started,
     Exited { exit_code: i64 },
     Died,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ContainerEvent {
     pub id: String,
     pub name: String,
@@ -30,77 +25,109 @@ pub struct ContainerEvent {
     pub state: ContainerState,
 }
 
-pub async fn start_docker_watcher(tx: UnboundedSender<ContainerEvent>) -> Result<()> {
-    let docker = Docker::connect_with_unix_defaults()?;
-
-    let filters = HashMap::from_iter([("type", vec!["container".to_string()])]);
-    let events_options = EventsOptionsBuilder::default().filters(&filters).build();
-    let mut events_stream = docker.events(Some(events_options));
-
-    tokio::spawn(async move {
-        while let Some(Ok(event)) = events_stream.next().await {
-            if let Some(container_event) = process_event(&docker, event).await {
-                let _ = tx.send(container_event);
-            }
-        }
-    });
-
-    Ok(())
+pub struct DockerWatcher {
+    docker: Docker,
+    recorder: LogRecorder,
 }
 
-async fn process_event(docker: &Docker, event: EventMessage) -> Option<ContainerEvent> {
-    let id = event.actor.as_ref().map(|action| action.id.clone())??;
-    let action = event.action.as_deref()?;
-    let time = Utc
-        .timestamp_opt(event.time.unwrap_or_default() as i64, 0)
-        .single()?;
+impl DockerWatcher {
+    pub fn new(recorder: LogRecorder) -> Result<Self> {
+        let docker = Docker::connect_with_unix_defaults()?;
+        Ok(Self { docker, recorder })
+    }
 
-    let inspect = docker
-        .inspect_container(&id, None::<InspectContainerOptions>)
-        .await
-        .ok()?;
+    pub async fn start(self) -> Result<()> {
+        let filters = HashMap::from_iter([("type", vec!["container".to_string()])]);
+        let events_options = EventsOptionsBuilder::default().filters(&filters).build();
+        let mut events_stream = self.docker.events(Some(events_options));
 
-    let name = inspect
-        .name
-        .unwrap_or_default()
-        .trim_start_matches('/')
-        .to_string();
-    let image = inspect
-        .config
-        .as_ref()
-        .and_then(|cfg| cfg.image.clone())
-        .unwrap_or_default();
-    let labels = inspect
-        .config
-        .and_then(|cfg| cfg.labels)
-        .unwrap_or_default();
-    let ip = inspect.network_settings.and_then(|net| {
-        net.ip_address.or_else(|| {
-            net.networks
-                .and_then(|m| m.values().next().and_then(|n| n.ip_address.clone()))
+        let docker = self.docker.clone();
+        let recorder = self.recorder.clone();
+
+        tokio::spawn(async move {
+            while let Some(Ok(event)) = events_stream.next().await {
+                if let Some(container_event) = Self::process_event(&docker, event).await {
+                    tracing::debug!("Container event: {:?}", container_event);
+
+                    if let Err(e) = recorder
+                        .log(
+                            crate::common::types::event::ProcessStatus::ContainerExecution,
+                            format!(
+                                "[container] {} - {:?}",
+                                container_event.name, container_event.state
+                            ),
+                            Some(
+                                crate::common::types::event::attributes::EventAttributes::ContainerEvents(
+                                    container_event.clone().into(),
+                                ),
+                            ),
+                            Some(container_event.timestamp),
+                        )
+                        .await
+                    {
+                        tracing::error!("Failed to log container event: {:?}", e);
+                    }
+                }
+            }
+        });
+
+        Ok(())
+    }
+
+    async fn process_event(docker: &Docker, event: EventMessage) -> Option<ContainerEvent> {
+        let id = event.actor.as_ref().map(|action| action.id.clone())??;
+        let action = event.action.as_deref()?;
+        let time = Utc
+            .timestamp_opt(event.time.unwrap_or_default(), 0)
+            .single()?;
+
+        let inspect = docker
+            .inspect_container(&id, None::<InspectContainerOptions>)
+            .await
+            .ok()?;
+
+        let name = inspect
+            .name
+            .unwrap_or_default()
+            .trim_start_matches('/')
+            .to_string();
+        let image = inspect
+            .config
+            .as_ref()
+            .and_then(|cfg| cfg.image.clone())
+            .unwrap_or_default();
+        let labels = inspect
+            .config
+            .and_then(|cfg| cfg.labels)
+            .unwrap_or_default();
+        let ip = inspect.network_settings.and_then(|net| {
+            net.ip_address.or_else(|| {
+                net.networks
+                    .and_then(|m| m.values().next().and_then(|n| n.ip_address.clone()))
+            })
+        });
+
+        let state = match action {
+            "start" => ContainerState::Started,
+            "die" => ContainerState::Exited {
+                exit_code: event
+                    .actor
+                    .and_then(|a| a.attributes)
+                    .and_then(|attrs| attrs.get("exitCode")?.parse().ok())
+                    .unwrap_or(-1),
+            },
+            "destroy" => ContainerState::Died,
+            _ => return None,
+        };
+
+        Some(ContainerEvent {
+            id,
+            name,
+            image,
+            ip,
+            labels,
+            timestamp: time,
+            state,
         })
-    });
-
-    let state = match action {
-        "start" => ContainerState::Started,
-        "die" => ContainerState::Exited {
-            exit_code: event
-                .actor
-                .and_then(|a| a.attributes)
-                .and_then(|attrs| attrs.get("exitCode")?.parse().ok())
-                .unwrap_or(-1),
-        },
-        "destroy" => ContainerState::Died,
-        _ => return None,
-    };
-
-    Some(ContainerEvent {
-        id,
-        name,
-        image,
-        ip,
-        labels,
-        timestamp: time,
-        state,
-    })
+    }
 }

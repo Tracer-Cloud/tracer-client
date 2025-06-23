@@ -2,6 +2,9 @@ use process::{CompletedProcess, DataSetsProcessed, ProcessProperties};
 use syslog::SyslogProperties;
 use system_metrics::{SystemMetric, SystemProperties};
 
+use container::ContainerProperties;
+
+pub mod container;
 pub mod process;
 pub mod syslog;
 pub mod system_metrics;
@@ -15,4 +18,5 @@ pub enum EventAttributes {
     Syslog(SyslogProperties),
     SystemProperties(Box<SystemProperties>),
     ProcessDatasetStats(DataSetsProcessed),
+    ContainerEvents(ContainerProperties),
 }

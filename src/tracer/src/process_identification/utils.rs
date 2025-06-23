@@ -28,6 +28,8 @@ pub fn flatten_event_attributes(event: &Event) -> Result<Value> {
             ("processed_dataset_stats", serde_json::to_value(p)?)
         }
         EventAttributes::Syslog(p) => ("syslog", serde_json::to_value(p)?),
+
+        EventAttributes::ContainerEvents(p) => ("containers", serde_json::to_value(p)?),
     };
 
     flatten_with_prefix(prefix, &json, &mut map);
