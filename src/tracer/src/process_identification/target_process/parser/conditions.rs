@@ -1,4 +1,4 @@
-use crate::process_identification::target_process::target_match::TargetMatch;
+use crate::process_identification::target_process::target_match::MatchType;
 
 #[derive(Clone, Debug)]
 pub enum Condition {
@@ -23,45 +23,45 @@ pub enum SimpleCondition {
 pub struct CompoundCondition(pub Vec<Condition>);
 
 impl CompoundCondition {
-    pub fn into_target_matches(self) -> Vec<TargetMatch> {
+    pub fn into_match_types(self) -> Vec<MatchType> {
         self.0
             .into_iter()
-            .map(|condition| condition.into_target_match())
+            .map(|condition| condition.into_match_type())
             .collect()
     }
 }
 
 impl Condition {
-    pub fn into_target_match(self) -> TargetMatch {
+    pub fn into_match_type(self) -> MatchType {
         match self {
             Condition::Simple(SimpleCondition::ProcessNameIs { process_name_is }) => {
-                TargetMatch::ProcessNameIs(process_name_is.clone())
+                MatchType::ProcessNameIs(process_name_is.clone())
             }
             Condition::Simple(SimpleCondition::ProcessNameContains {
                 process_name_contains,
-            }) => TargetMatch::ProcessNameContains(process_name_contains.clone()),
+            }) => MatchType::ProcessNameContains(process_name_contains.clone()),
             Condition::Simple(SimpleCondition::MinArgs { min_args }) => {
-                TargetMatch::MinArgs(min_args)
+                MatchType::MinArgs(min_args)
             }
             Condition::Simple(SimpleCondition::ArgsNotContain { args_not_contain }) => {
-                TargetMatch::ArgsNotContain(args_not_contain.clone())
+                MatchType::ArgsNotContain(args_not_contain.clone())
             }
             Condition::Simple(SimpleCondition::FirstArgIs { first_arg_is }) => {
-                TargetMatch::FirstArgIs(first_arg_is.clone())
+                MatchType::FirstArgIs(first_arg_is.clone())
             }
             Condition::Simple(SimpleCondition::CommandContains { command_contains }) => {
-                TargetMatch::CommandContains(command_contains.clone())
+                MatchType::CommandContains(command_contains.clone())
             }
             Condition::Simple(SimpleCondition::CommandNotContains {
                 command_not_contains,
-            }) => TargetMatch::CommandNotContains(command_not_contains.clone()),
+            }) => MatchType::CommandNotContains(command_not_contains.clone()),
             Condition::Simple(SimpleCondition::CommandMatchesRegex {
                 command_matches_regex,
-            }) => TargetMatch::CommandMatchesRegex(command_matches_regex.clone()),
-            Condition::And(and_condition) => TargetMatch::And(and_condition.into_target_matches()),
-            Condition::Or(or_condition) => TargetMatch::Or(or_condition.into_target_matches()),
+            }) => MatchType::CommandMatchesRegex(command_matches_regex.clone()),
+            Condition::And(and_condition) => MatchType::And(and_condition.into_match_types()),
+            Condition::Or(or_condition) => MatchType::Or(or_condition.into_match_types()),
             Condition::Simple(SimpleCondition::SubcommandIsOneOf { subcommands }) => {
-                TargetMatch::SubcommandIsOneOf(subcommands.clone())
+                MatchType::SubcommandIsOneOf(subcommands.clone())
             }
         }
     }
