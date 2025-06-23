@@ -1,5 +1,5 @@
-use crate::common::recorder::LogRecorder;
 use crate::extracts::containers::docker_watcher::event::{ContainerEvent, ContainerState};
+use crate::process_identification::recorder::LogRecorder;
 use anyhow::Result;
 use bollard::models::EventMessage;
 use bollard::query_parameters::{EventsOptionsBuilder, InspectContainerOptions};
@@ -35,13 +35,13 @@ impl DockerWatcher {
 
                     if let Err(e) = recorder
                         .log(
-                            crate::common::types::event::ProcessStatus::ContainerExecution,
+                            crate::process_identification::types::event::ProcessStatus::ContainerExecution,
                             format!(
                                 "[container] {} - {:?}",
                                 container_event.name, container_event.state
                             ),
                             Some(
-                                crate::common::types::event::attributes::EventAttributes::ContainerEvents(
+                                crate::process_identification::types::event::attributes::EventAttributes::ContainerEvents(
                                     container_event.clone().into(),
                                 ),
                             ),
