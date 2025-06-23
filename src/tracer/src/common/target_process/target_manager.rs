@@ -20,25 +20,22 @@ impl TargetManager {
             return None;
         }
 
-        self.targets
-            .iter()
-            .find_map(|target| {
-                let (matched, subcommand) = target.matches(process);
-                if matched {
-                    let mut display_name = target.get_display_name();
-                    
-                    // Replace {subcommand} if present and subcommand is Some
-                    if subcommand.is_some() {
-                        let subcommand = subcommand.unwrap();
-                        display_name = display_name.replace("{subcommand}", &subcommand);
-                        
-                    }
+        self.targets.iter().find_map(|target| {
+            let (matched, subcommand) = target.matches(process);
+            if matched {
+                let mut display_name = target.get_display_name();
 
-                    return Some(display_name);
-                } else {
-                    None
+                // Replace {subcommand} if present and subcommand is Some
+                if subcommand.is_some() {
+                    let subcommand = subcommand.unwrap();
+                    display_name = display_name.replace("{subcommand}", &subcommand);
                 }
-            })
+
+                return Some(display_name);
+            } else {
+                None
+            }
+        })
     }
 }
 

@@ -16,7 +16,7 @@ pub enum SimpleCondition {
     CommandContains { command_contains: String },
     CommandNotContains { command_not_contains: String },
     CommandMatchesRegex { command_matches_regex: String },
-    SubcommandIsOneOf { subcommands: Vec<String> }
+    SubcommandIsOneOf { subcommands: Vec<String> },
 }
 
 #[derive(Clone, Debug)]
