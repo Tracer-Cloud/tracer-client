@@ -15,8 +15,13 @@ pub struct Version {
 }
 
 impl Version {
+    pub fn current_str() -> &'static str {
+        PKG_VERSION
+    }
+
     pub fn current() -> &'static Self {
-        static VERSION: Lazy<Version> = Lazy::new(|| Version::from_str(PKG_VERSION).unwrap());
+        static VERSION: Lazy<Version> =
+            Lazy::new(|| Version::from_str(Version::current_str()).unwrap());
         &VERSION
     }
 }
@@ -98,7 +103,7 @@ impl PartialOrd for Version {
 }
 
 pub struct FullVersion {
-    version: Version,
+    version: &'static Version,
     hash: Option<String>,
     dirty: bool,
 }
@@ -112,22 +117,21 @@ impl FullVersion {
         static VERSION: Lazy<FullVersion> = Lazy::new(|| {
             let version = Version::current();
             let hash = if PROFILE != "release" && GIT_COMMIT_HASH.is_some() {
-
+                Some(GIT_COMMIT_HASH.unwrap().to_string())
+            } else {
+                None
+            };
+            let dirty = GIT_DIRTY.unwrap_or(false);
+            FullVersion {
+                version,
+                hash,
+                dirty,
             }
-            let prefix = match (PROFILE, GIT_COMMIT_HASH) {
-                ("release", _) | (_, None) => PKG_VERSION.to_string(),
-                (_, Some(hash)) => format!("{PKG_VERSION}-{hash}"),
-            };
-            let suffix = match GIT_DIRTY {
-                Some(true) => "-dirty",
-                _ => "",
-            };
-            let version = format!("{prefix}{suffix}");
-            Version::from_str(&version).unwrap()
         });
         &VERSION
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
