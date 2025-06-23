@@ -21,6 +21,7 @@ use crate::utils::Sentry;
 use anyhow::{Context, Result};
 use clap::Parser;
 use daemonize::{Daemonize, Outcome};
+use serde_json::Value;
 use std::fs::File;
 use std::io::{self, Write};
 use std::process::Command;
@@ -170,7 +171,24 @@ pub fn process_cli() -> Result<()> {
 
             println!("Starting daemon...");
             let args = init_command_interactive_mode(args);
-            Sentry::add_extra("Tracer Init Args", serde_json::to_value(&args)?);
+            {
+                // Layer tags on top of args
+                let mut json_args = serde_json::to_value(&args)?.as_object().unwrap().clone();
+                let tags_json = serde_json::to_value(&args.tags)?
+                    .as_object()
+                    .unwrap()
+                    .clone();
+                json_args.extend(tags_json);
+                Sentry::add_context("Init Arguments", Value::Object(json_args));
+                Sentry::add_tag(
+                    "user_operator",
+                    args.tags
+                        .user_operator
+                        .as_ref()
+                        .unwrap_or(&"unknown".to_string()),
+                );
+                Sentry::add_tag("pipeline_name", &args.pipeline_name.clone());
+            }
             if !args.no_daemonize {
                 #[cfg(any(target_os = "macos", target_os = "windows"))]
                 {
