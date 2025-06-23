@@ -1,8 +1,8 @@
-use crate::common::target_process::parser::conditions::{
+use crate::process_identification::target_process::parser::conditions::{
     CompoundCondition, Condition, SimpleCondition,
 };
-use crate::common::target_process::parser::rule::Rule;
-use crate::common::target_process::target::Target;
+use crate::process_identification::target_process::parser::rule::Rule;
+use crate::process_identification::target_process::target::Target;
 use std::fs;
 use std::path::Path;
 use yaml_rust2::{Yaml, YamlLoader};

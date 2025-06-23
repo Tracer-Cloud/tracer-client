@@ -1,6 +1,6 @@
 use crate::client::exporters::log_writer::LogWriter;
-use crate::common::types::event::Event;
-use crate::common::types::extracts::db::EventInsert;
+use crate::process_identification::types::event::Event;
+use crate::process_identification::types::extracts::db::EventInsert;
 use anyhow::Result;
 use reqwest::Client;
 use serde::Serialize;

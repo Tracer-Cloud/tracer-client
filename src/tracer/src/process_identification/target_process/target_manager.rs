@@ -1,7 +1,7 @@
-use crate::common::target_process::parser::yaml_rules_parser::{
+use crate::process_identification::target_process::parser::yaml_rules_parser::{
     load_yaml_rules, load_yaml_rules_from_str,
 };
-use crate::common::target_process::target::Target;
+use crate::process_identification::target_process::target::Target;
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 use tracing::trace;
 

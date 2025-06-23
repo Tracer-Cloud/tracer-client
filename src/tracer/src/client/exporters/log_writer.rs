@@ -1,6 +1,6 @@
 use crate::client::exporters::db::AuroraClient;
 use crate::client::exporters::log_forward::LogForward;
-use crate::common::types::event::Event;
+use crate::process_identification::types::event::Event;
 
 use anyhow::Result;
 

@@ -1,4 +1,4 @@
-use crate::common::types::cli::{
+use crate::process_identification::types::cli::{
     interactive::InteractiveInitArgs,
     params::{FinalizedInitArgs, TracerCliInitArgs},
 };
@@ -6,7 +6,7 @@ use crate::common::types::cli::{
 pub mod client;
 pub mod cloud_providers;
 pub mod commands;
-pub mod common;
+pub mod process_identification;
 pub mod config;
 pub mod constants;
 pub mod daemon;

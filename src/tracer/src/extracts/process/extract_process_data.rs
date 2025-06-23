@@ -1,4 +1,4 @@
-use crate::common::types::event::attributes::process::{FullProcessProperties, ProcessProperties};
+use crate::process_identification::types::event::attributes::process::{FullProcessProperties, ProcessProperties};
 use crate::extracts::process::process_utils::process_status_to_string;
 use chrono::{DateTime, Utc};
 use mockall::automock;

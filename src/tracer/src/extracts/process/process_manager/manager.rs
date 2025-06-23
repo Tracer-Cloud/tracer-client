@@ -1,6 +1,6 @@
-use crate::common::recorder::LogRecorder;
-use crate::common::target_process::target::Target;
-use crate::common::target_process::target_manager::TargetManager;
+use crate::process_identification::recorder::LogRecorder;
+use crate::process_identification::target_process::target::Target;
+use crate::process_identification::target_process::target_manager::TargetManager;
 use crate::extracts::process::process_manager::handlers::oom::OomHandler;
 use crate::extracts::process::process_manager::handlers::process_starts::ProcessStartHandler;
 use crate::extracts::process::process_manager::handlers::process_terminations::ProcessTerminationHandler;

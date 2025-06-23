@@ -1,5 +1,5 @@
-use crate::common::types::event::attributes::process::ProcessProperties;
-use crate::common::types::event::{attributes::EventAttributes, Event};
+use crate::process_identification::types::event::attributes::process::ProcessProperties;
+use crate::process_identification::types::event::{attributes::EventAttributes, Event};
 use anyhow::{Context, Result};
 use serde_json::{Map, Value};
 use std::fs::OpenOptions;
