@@ -4,6 +4,8 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 
+pub const END_ENDPOINT: &str = "/end";
+
 pub async fn end(State(state): State<DaemonState>) -> axum::response::Result<impl IntoResponse> {
     let guard = state.get_tracer_client().await;
 

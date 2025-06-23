@@ -5,6 +5,8 @@ use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::Json;
 
+pub const INFO_ENDPOINT: &str = "/info";
+
 pub async fn info(State(state): State<DaemonState>) -> axum::response::Result<impl IntoResponse> {
     let guard = state.get_tracer_client().await;
     Ok(Json(get_info_response(&guard).await))

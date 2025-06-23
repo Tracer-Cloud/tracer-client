@@ -6,3 +6,4 @@ pub(super) mod refresh_config;
 pub(super) mod start;
 pub(super) mod tag;
 pub(super) mod terminate;
+pub(super) mod log_short_lived_process;

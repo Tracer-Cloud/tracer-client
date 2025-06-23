@@ -5,6 +5,8 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 
+pub const REFRESH_CONFIG_ENDPOINT: &str = "/refresh-config";
+
 pub async fn refresh_config(
     State(state): State<DaemonState>,
 ) -> axum::response::Result<impl IntoResponse> {

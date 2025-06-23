@@ -6,6 +6,8 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
 
+pub const TAG_ENDPOINT: &str = "/tag";
+
 pub async fn tag(
     State(state): State<DaemonState>,
     Json(payload): Json<TagData>,
