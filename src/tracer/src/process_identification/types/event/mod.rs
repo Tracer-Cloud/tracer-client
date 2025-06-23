@@ -51,6 +51,7 @@ pub enum ProcessStatus {
     #[serde(rename = "datasets_in_process")]
     DataSamplesEvent,
     TestEvent, // Added TestEvent variant
+    ContainerExecution,
 }
 
 impl std::fmt::Display for ProcessStatus {
@@ -67,6 +68,7 @@ impl std::fmt::Display for ProcessStatus {
             ProcessStatus::Alert => write!(f, "alert"),
             ProcessStatus::DataSamplesEvent => write!(f, "datasets_in_process"),
             ProcessStatus::TestEvent => write!(f, "test_event"),
+            ProcessStatus::ContainerExecution => write!(f, "container_execution"),
         }
     }
 }

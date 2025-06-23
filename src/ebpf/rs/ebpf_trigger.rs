@@ -113,9 +113,9 @@ pub enum Trigger {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum ExitReason {
     OutOfMemoryKilled,
-    Signal(i32),
-    Code(i32),
-    Unknown,
+    Signal(i64),
+    Code(i64),
+    Unknown(i64),
 }
 
 impl std::fmt::Display for ExitReason {
@@ -124,7 +124,34 @@ impl std::fmt::Display for ExitReason {
             ExitReason::OutOfMemoryKilled => write!(f, "OOM Killed"),
             ExitReason::Signal(sig) => write!(f, "Signal {}", sig),
             ExitReason::Code(code) => write!(f, "Exit code {}", code),
-            ExitReason::Unknown => write!(f, "Unknown"),
+            ExitReason::Unknown(code) => write!(f, "Unknown Code {}", code),
+        }
+    }
+}
+
+impl ExitReason {
+    pub fn from_exit_code(code: i64) -> Self {
+        match code {
+            137 => ExitReason::OutOfMemoryKilled, // SIGKILL from kernel → usually OOM
+            143 => ExitReason::Signal(15),        // SIGTERM
+            0 => ExitReason::Code(0),
+            n if n > 128 => ExitReason::Signal(n - 128), // General signal exit (e.g. 137 → SIGKILL)
+            n if n >= 0 => ExitReason::Code(n),
+            n => ExitReason::Unknown(n),
+        }
+    }
+
+    pub fn explanation(&self) -> String {
+        match self {
+            ExitReason::OutOfMemoryKilled => {
+                "OOMKilled: The container was killed due to exceeding memory limits.".to_string()
+            }
+            ExitReason::Signal(15) => "SIGTERM: Graceful termination requested.".to_string(),
+            ExitReason::Signal(9) => "SIGKILL: Forcefully killed by the system.".to_string(),
+            ExitReason::Signal(sig) => format!("Terminated by signal {}.", sig),
+            ExitReason::Code(0) => "Exited successfully.".to_string(),
+            ExitReason::Code(code) => format!("Exited with code {} indicating an error.", code),
+            ExitReason::Unknown(code) => format!("Exited with unknown code {}.", code),
         }
     }
 }
