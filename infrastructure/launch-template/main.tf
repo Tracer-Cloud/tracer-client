@@ -12,14 +12,10 @@ data "aws_vpc" "default" {
   default = true
 }
 
-
-
-
 provider "aws" {
   region  = var.region
   profile = "default"
 }
-
 
 module "ec2_common" {
   source      = "../modules/ec2_common"
@@ -34,8 +30,8 @@ module "ec2_common" {
 # ---------------------------
 resource "aws_launch_template" "tracer_launch_template" {
   name_prefix   = "tracer-launch-template"
-  image_id      = "ami-02548ded9f4d4b199" #"ami-08963412c7663a4b8"
-  instance_type = "c6g.2xlarge"           #"c5d.large"         
+  image_id      = var.ami_id
+  instance_type = var.instance_type
 
   key_name = var.perm_key
 
