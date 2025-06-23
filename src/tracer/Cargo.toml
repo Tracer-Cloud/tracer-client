@@ -64,3 +64,6 @@ serial_test = { workspace = true }
 uuid = { workspace = true }
 rstest = { workspace = true }
 pretty_assertions_sorted = { workspace = true }
+
+[build-dependencies]
+built = { workspace = true }
