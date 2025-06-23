@@ -4,7 +4,7 @@ use crate::constants::{
 };
 use crate::daemon::structs::{InfoResponse, InnerInfoResponse};
 use crate::process_identification::constants::{LOG_FILE, STDERR_FILE, STDOUT_FILE};
-use crate::utils::version::Version;
+use crate::utils::version::FullVersion;
 use anyhow::Result;
 use colored::Colorize;
 use console::Emoji;
@@ -123,7 +123,7 @@ impl InfoFormatter {
         self.add_header("TRACER CLI STATUS")?;
         self.add_empty_line()?;
         self.add_status_field("Daemon Status", "Not Started", "inactive")?;
-        self.add_field("Version", Version::current_str(), "white")?;
+        self.add_field("Version", &FullVersion::current().to_string(), "bold")?;
         self.add_empty_line()?;
         self.add_section_header("NEXT STEPS")?;
         self.add_empty_line()?;
@@ -144,7 +144,7 @@ impl InfoFormatter {
         self.add_section_header("DAEMON STATUS")?;
         self.add_empty_line()?;
         self.add_status_field("Status", "Running", "active")?;
-        self.add_field("Version", Version::current_str(), "white")?;
+        self.add_field("Version", &FullVersion::current().to_string(), "bold")?;
         self.add_empty_line()?;
         Ok(())
     }
