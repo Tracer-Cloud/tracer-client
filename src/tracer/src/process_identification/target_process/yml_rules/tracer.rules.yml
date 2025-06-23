@@ -125,18 +125,6 @@ rules:
     display_name: sra-toolkit
     condition:
       process_name_is: sra-toolkit
-  - rule_name: picard command
-    display_name: picard
-    condition:
-      or:
-        - or:
-            - process_name_contains: picard
-            - command_contains: picard
-            - command_contains: markduplicates
-        - and:
-            - process_name_contains: java
-            - command_contains: picard
-            - command_contains: markduplicates
   - rule_name: cutadapt process
     display_name: cutadapt
     condition:
@@ -539,3 +527,112 @@ rules:
       and:
         - process_name_is: samtools
         - subcommand_is_one_of: [sort, view, idxstats, cat, index, stats, flagstat, faidx]
+
+  # picard
+  - rule_name: picard command
+    display_name: picard
+    condition:
+      or:
+        - and:
+            - process_name_contains: picard
+            - command_contains: picard
+        - and:
+            - process_name_contains: java
+            - command_contains: picard
+      and:
+        - subcommand_is_one_of: [
+            AddCommentsToBam,
+            AddOrReplaceReadGroups,
+            BaitDesigner,
+            BamToBfq,
+            BamIndexStats,
+            BedToIntervalList,
+            BuildBamIndex,
+            CalculateReadGroupChecksum,
+            CleanSam,
+            CollectAlignmentSummaryMetrics,
+            CollectBaseDistributionByCycle,
+            CollectGcBiasMetrics,
+            CollectHiSeqXPfFailMetrics,
+            CollectHsMetrics,
+            CollectIlluminaBasecallingMetrics,
+            CollectIlluminaLaneMetrics,
+            CollectInsertSizeMetrics,
+            CollectJumpingLibraryMetrics,
+            CollectMultipleMetrics,
+            CollectOxoGMetrics,
+            CollectQualityYieldMetrics,
+            CollectRawWgsMetrics,
+            CollectTargetedPcrMetrics,
+            CollectRnaSeqMetrics,
+            CollectRrbsMetrics,
+            CollectSequencingArtifactMetrics,
+            CollectVariantCallingMetrics,
+            CollectWgsMetrics,
+            CollectWgsMetricsWithNonZeroCoverage,
+            CompareMetrics,
+            CompareSAMs,
+            ConvertSequencingArtifactToOxoG,
+            CreateSequenceDictionary,
+            DownsampleSam,
+            ExtractIlluminaBarcodes,
+            EstimateLibraryComplexity,
+            FastqToSam,
+            FifoBuffer,
+            FindMendelianViolations,
+            CrosscheckFingerprints,
+            ClusterCrosscheckMetrics,
+            CheckFingerprint,
+            FilterSamReads,
+            FilterVcf,
+            FixMateInformation,
+            GatherBamFiles,
+            GatherVcfs,
+            GenotypeConcordance,
+            IlluminaBasecallsToFastq,
+            IlluminaBasecallsToSam,
+            CheckIlluminaDirectory,
+            CheckTerminatorBlock,
+            IntervalListTools,
+            LiftOverIntervalList,
+            LiftoverVcf,
+            MakeSitesOnlyVcf,
+            MarkDuplicates,
+            MarkDuplicatesWithMateCigar,
+            MeanQualityByCycle,
+            MergeBamAlignment,
+            MergeSamFiles,
+            MergeVcfs,
+            NormalizeFasta,
+            PositionBasedDownsampleSam,
+            ExtractSequences,
+            QualityScoreDistribution,
+            RenameSampleInVcf,
+            ReorderSam,
+            ReplaceSamHeader,
+            RevertSam,
+            RevertOriginalBaseQualitiesAndAddMateCigar,
+            SamFormatConverter,
+            SamToFastq,
+            ScatterIntervalsByNs,
+            SetNmMdAndUqTags,
+            SortSam,
+            SortVcf,
+            SplitSamByLibrary,
+            UmiAwareMarkDuplicatesWithMateCigar,
+            UpdateVcfSequenceDictionary,
+            VcfFormatConverter,
+            MarkIlluminaAdapters,
+            SplitVcfs,
+            ValidateSamFile,
+            ViewSam,
+            VcfToIntervalList,
+          ]
+
+  # GATK
+  - rule_name: gatk command
+    display_name: GATK {subcommand}
+    condition:
+      and:
+        - process_name_contains: gatk
+        - command_contains: gatk
