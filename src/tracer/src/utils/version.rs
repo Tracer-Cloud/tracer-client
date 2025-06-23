@@ -118,8 +118,11 @@ impl FullVersion {
     pub fn current() -> &'static Self {
         static VERSION: Lazy<FullVersion> = Lazy::new(|| {
             let (date, hash, dirty) = if PROFILE != "release" {
+                let date = DateTime::parse_from_rfc2822(BUILT_TIME_UTC)
+                    .unwrap()
+                    .with_timezone(&Utc);
                 (
-                    Some(BUILT_TIME_UTC.parse().unwrap()),
+                    Some(date),
                     Some(GIT_COMMIT_HASH_SHORT.unwrap().to_string()),
                     Some(GIT_DIRTY.unwrap_or(false)),
                 )
@@ -139,7 +142,11 @@ impl FullVersion {
 
 impl fmt::Display for FullVersion {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match (&self.date, &self.hash, self.dirty) {
+        match (
+            &self.date.map(|d| d.format("%Y.%m.%d-%H.%M").to_string()),
+            &self.hash,
+            self.dirty,
+        ) {
             (Some(date), Some(hash), Some(true)) => {
                 write!(f, "{}-{}-{}-dirty", self.version, date, hash)
             }
