@@ -1,4 +1,4 @@
-use crate::common::types::{event::Event, extracts::db::EventInsert};
+use crate::process_identification::types::{event::Event, extracts::db::EventInsert};
 use anyhow::{bail, Context, Result};
 use log::info;
 use sqlx::pool::PoolOptions;

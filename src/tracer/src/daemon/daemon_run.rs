@@ -2,7 +2,7 @@ use crate::client::exporters::db::AuroraClient;
 use crate::client::exporters::log_forward::LogForward;
 use crate::client::exporters::log_writer::LogWriterEnum;
 use crate::client::TracerClient;
-use crate::common::types::cli::params::FinalizedInitArgs;
+use crate::process_identification::types::cli::params::FinalizedInitArgs;
 use crate::config::Config;
 use crate::daemon::server::DaemonServer;
 use crate::utils::analytics::emit_analytic_event;
@@ -48,7 +48,7 @@ pub async fn run(cli_config_args: FinalizedInitArgs, config: Config) -> Result<(
     info!("Pipeline Name: {:?}", client.get_pipeline_name());
     tokio::spawn(emit_analytic_event(
         client.user_id.clone(),
-        crate::common::types::analytics::AnalyticsEventType::DaemonStartedSuccessfully,
+        crate::process_identification::types::analytics::AnalyticsEventType::DaemonStartedSuccessfully,
         None,
     ));
     DaemonServer::bind(client, addr).await?.run().await
@@ -65,8 +65,8 @@ mod tests {
     use crate::client::exporters::log_forward::LogForward;
     use crate::client::exporters::log_writer::LogWriterEnum;
     use crate::client::TracerClient;
-    use crate::common::types::cli::interactive::InteractiveInitArgs;
-    use crate::common::types::cli::params::TracerCliInitArgs;
+    use crate::process_identification::types::cli::interactive::InteractiveInitArgs;
+    use crate::process_identification::types::cli::params::TracerCliInitArgs;
     use crate::config::Config;
     use crate::daemon::daemon_run::monitor_processes;
     use dotenv::dotenv;

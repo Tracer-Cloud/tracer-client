@@ -1,5 +1,5 @@
 use crate::cloud_providers::aws::config::AwsConfig;
-use crate::common::constants::DEFAULT_DAEMON_PORT;
+use crate::process_identification::constants::DEFAULT_DAEMON_PORT;
 use crate::config::Config;
 use crate::constants::{
     AWS_REGION, BATCH_SUBMISSION_INTERVAL_MS, DEFAULT_API_KEY, FILE_SIZE_NOT_CHANGING_PERIOD_MS,

@@ -1,8 +1,8 @@
 use crate::commands::{Cli, Commands};
-use crate::common::constants::{
+use crate::process_identification::constants::{
     DEFAULT_DAEMON_PORT, PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR,
 };
-use crate::common::debug_log::Logger;
+use crate::process_identification::debug_log::Logger;
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::daemon_run::run;
@@ -207,7 +207,7 @@ pub fn process_cli() -> Result<()> {
                     tokio::runtime::Runtime::new()?.block_on(async {
                         tokio::spawn(emit_analytic_event(
                             args.user_id.clone(),
-                            crate::common::types::analytics::AnalyticsEventType::DaemonStartAttempted,
+                            crate::process_identification::types::analytics::AnalyticsEventType::DaemonStartAttempted,
                             None,
                         ));
                         let _ = print_install_readiness();
@@ -227,7 +227,7 @@ pub fn process_cli() -> Result<()> {
                         tokio::runtime::Runtime::new()?.block_on(async {
                             tokio::spawn(emit_analytic_event(
                                 args.user_id.clone(),
-                                crate::common::types::analytics::AnalyticsEventType::DaemonStartAttempted,
+                                crate::process_identification::types::analytics::AnalyticsEventType::DaemonStartAttempted,
                                 None,
                             ));
                             let _ = print_install_readiness();

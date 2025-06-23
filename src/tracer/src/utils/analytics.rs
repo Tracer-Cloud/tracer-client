@@ -1,4 +1,4 @@
-use crate::common::types::analytics::{AnalyticsEventType, AnalyticsPayload};
+use crate::process_identification::types::analytics::{AnalyticsEventType, AnalyticsPayload};
 use crate::constants::TRACER_ANALYTICS_ENDPOINT;
 use reqwest::Client;
 use std::collections::HashMap;

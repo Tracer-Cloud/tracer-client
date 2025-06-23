@@ -1,4 +1,4 @@
-use crate::common::target_process::target_match::{matches_target, TargetMatch};
+use crate::process_identification::target_process::target_match::{matches_target, TargetMatch};
 use serde::{Deserialize, Serialize};
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 
