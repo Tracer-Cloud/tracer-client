@@ -1,19 +1,19 @@
 use crate::config::Config;
 
 use crate::cloud_providers::aws::pricing::PricingSource;
-use crate::common::target_process::target_manager::TargetManager;
-use crate::common::types::cli::params::FinalizedInitArgs;
+use crate::process_identification::target_process::target_manager::TargetManager;
+use crate::process_identification::types::cli::params::FinalizedInitArgs;
 use anyhow::{Context, Result};
 
 use crate::client::events::{send_alert_event, send_log_event, send_start_run_event};
 use crate::client::exporters::client_export_manager::ExporterManager;
 use crate::client::exporters::log_writer::LogWriterEnum;
-use crate::common::recorder::LogRecorder;
-use crate::common::types::current_run::{PipelineMetadata, Run};
-use crate::common::types::event::attributes::EventAttributes;
-use crate::common::types::event::{Event, ProcessStatus};
 use crate::extracts::ebpf_watcher::watcher::EbpfWatcher;
 use crate::extracts::metrics::system_metrics_collector::SystemMetricsCollector;
+use crate::process_identification::recorder::LogRecorder;
+use crate::process_identification::types::current_run::{PipelineMetadata, Run};
+use crate::process_identification::types::event::attributes::EventAttributes;
+use crate::process_identification::types::event::{Event, ProcessStatus};
 use chrono::{DateTime, Utc};
 use serde_json::json;
 use std::sync::Arc;
@@ -139,6 +139,7 @@ impl TracerClient {
     ///
     /// On non-Linux platforms, polling is used by default.
     pub async fn start_monitoring(&self) -> Result<()> {
+        self.start_docker_monitoring().await;
         #[cfg(target_os = "linux")]
         {
             let kernel_version = get_kernel_version();
@@ -336,5 +337,16 @@ impl TracerClient {
     pub async fn close(&self) -> Result<()> {
         self.exporter.close().await?;
         Ok(())
+    }
+
+    async fn start_docker_monitoring(&self) {
+        let log_recorder = self.log_recorder.clone();
+        let ebpf_watcher = self.ebpf_watcher.clone();
+
+        tokio::spawn(async move {
+            if let Err(e) = ebpf_watcher.initialize_docker_watcher(log_recorder).await {
+                tracing::error!("Failed to initialize Docker watcher: {:?}", e);
+            }
+        });
     }
 }

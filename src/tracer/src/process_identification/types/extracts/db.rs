@@ -3,8 +3,8 @@ use serde_json::{json, Map, Value};
 
 use anyhow::Context;
 
-use crate::common::types::event::attributes::process::ProcessProperties;
-use crate::common::types::event::{attributes::EventAttributes, Event};
+use crate::process_identification::types::event::attributes::process::ProcessProperties;
+use crate::process_identification::types::event::{attributes::EventAttributes, Event};
 use serde::Serialize;
 use std::convert::TryFrom;
 
@@ -81,7 +81,7 @@ impl TryFrom<Event> for EventInsert {
 
                     // Properly flatten and assign to `resource_attributes`
                     let mut flat = Map::new();
-                    crate::common::utils::flatten_with_prefix(
+                    crate::process_identification::utils::flatten_with_prefix(
                         "system_properties",
                         &serde_json::to_value(p).context("serialize system_properties")?,
                         &mut flat,
@@ -96,7 +96,7 @@ impl TryFrom<Event> for EventInsert {
             }
 
             // Flatten main attributes using utility
-            attributes = crate::common::utils::flatten_event_attributes(&event)?;
+            attributes = crate::process_identification::utils::flatten_event_attributes(&event)?;
         }
 
         let tags = event.tags.clone();

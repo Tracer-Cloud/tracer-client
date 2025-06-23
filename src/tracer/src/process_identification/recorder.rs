@@ -1,6 +1,6 @@
-use crate::common::types::current_run::PipelineMetadata;
-use crate::common::types::event::attributes::EventAttributes;
-use crate::common::types::event::{Event, ProcessStatus};
+use crate::process_identification::types::current_run::PipelineMetadata;
+use crate::process_identification::types::event::attributes::EventAttributes;
+use crate::process_identification::types::event::{Event, ProcessStatus};
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
@@ -62,9 +62,11 @@ impl LogRecorder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::types::current_run::{PipelineMetadata, Run};
-    use crate::common::types::event::attributes::{process::DataSetsProcessed, EventAttributes};
-    use crate::common::types::pipeline_tags::PipelineTags;
+    use crate::process_identification::types::current_run::{PipelineMetadata, Run};
+    use crate::process_identification::types::event::attributes::{
+        process::DataSetsProcessed, EventAttributes,
+    };
+    use crate::process_identification::types::pipeline_tags::PipelineTags;
     use chrono::TimeZone;
     use tokio::sync::mpsc;
     use uuid::Uuid;

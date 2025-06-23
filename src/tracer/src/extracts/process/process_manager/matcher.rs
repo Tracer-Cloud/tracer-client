@@ -1,6 +1,6 @@
-use crate::common::target_process::target::Target;
-use crate::common::utils::log_matched_process;
 use crate::extracts::process::types::process_state::ProcessState;
+use crate::process_identification::target_process::target::Target;
+use crate::process_identification::utils::log_matched_process;
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;

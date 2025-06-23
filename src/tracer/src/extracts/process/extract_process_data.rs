@@ -1,5 +1,7 @@
-use crate::common::types::event::attributes::process::{FullProcessProperties, ProcessProperties};
 use crate::extracts::process::process_utils::process_status_to_string;
+use crate::process_identification::types::event::attributes::process::{
+    FullProcessProperties, ProcessProperties,
+};
 use chrono::{DateTime, Utc};
 use mockall::automock;
 use std::path::PathBuf;

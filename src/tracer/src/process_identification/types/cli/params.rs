@@ -1,4 +1,4 @@
-use crate::common::types::pipeline_tags::PipelineTags;
+use crate::process_identification::types::pipeline_tags::PipelineTags;
 use clap::Args;
 use serde::Serialize;
 

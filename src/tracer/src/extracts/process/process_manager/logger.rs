@@ -1,9 +1,9 @@
-use crate::common::recorder::LogRecorder;
-use crate::common::types::event::attributes::EventAttributes;
-use crate::common::types::event::ProcessStatus as TracerProcessStatus;
 use crate::extracts::process::extract_process_data::ExtractProcessData;
 use crate::extracts::process::process_utils::create_short_lived_process_object;
 use crate::extracts::process::types::process_result::ProcessResult;
+use crate::process_identification::recorder::LogRecorder;
+use crate::process_identification::types::event::attributes::EventAttributes;
+use crate::process_identification::types::event::ProcessStatus as TracerProcessStatus;
 use anyhow::Result;
 use chrono::Utc;
 use sysinfo::Process;
@@ -114,12 +114,13 @@ impl ProcessLogger {
             .try_into()
             .unwrap_or(0);
 
-        let properties = crate::common::types::event::attributes::process::CompletedProcess {
-            tool_name: start_trigger.comm.clone(),
-            tool_pid: start_trigger.pid.to_string(),
-            duration_sec,
-            exit_reason: finish_trigger.exit_reason.clone(),
-        };
+        let properties =
+            crate::process_identification::types::event::attributes::process::CompletedProcess {
+                tool_name: start_trigger.comm.clone(),
+                tool_pid: start_trigger.pid.to_string(),
+                duration_sec,
+                exit_reason: finish_trigger.exit_reason.clone(),
+            };
 
         self.log_recorder
             .log(

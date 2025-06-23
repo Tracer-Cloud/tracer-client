@@ -1,0 +1,7 @@
+rules:
+- rule_name: "Exclude help"
+  display_name: "Exclude help"
+  condition:
+    or:
+      - command_contains: "--help"
+      - command_contains: "-help"
