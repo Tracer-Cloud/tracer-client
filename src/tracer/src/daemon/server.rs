@@ -100,11 +100,13 @@ impl DaemonServer {
                     let guard = tracer_client.lock().await;
 
                     guard.poll_metrics_data().await?;
+                    guard.sentry_alert().await;
                 }
                 _ = process_metrics_interval.tick() => {
                     debug!("DaemonServer monitor interval ticked");
                     monitor_processes(tracer_client.lock().await.borrow_mut())
                     .await?;
+                    tracer_client.lock().await.sentry_alert().await;
                 }
 
             }
