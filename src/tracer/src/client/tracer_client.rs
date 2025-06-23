@@ -128,7 +128,7 @@ impl TracerClient {
         self.ebpf_watcher
             .update_targets(config.targets.clone())
             .await?;
-        self.set_config(config);
+        self.config = config;
 
         Ok(())
     }
@@ -337,12 +337,8 @@ impl TracerClient {
         self.exporter.close().await?;
         Ok(())
     }
-    
+
     pub fn get_config(&self) -> &Config {
         &self.config
-    }
-    
-    pub fn set_config(&mut self, config: Config) {
-        self.config = config;
     }
 }

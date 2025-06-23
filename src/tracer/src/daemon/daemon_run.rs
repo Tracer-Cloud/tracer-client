@@ -37,7 +37,7 @@ pub async fn run(cli_config_args: FinalizedInitArgs, config: Config) -> Result<(
     };
 
     info!("Using {}", db_client.variant_name());
-    
+
     let client = TracerClient::new(config, db_client, cli_config_args)
         .await
         .context("Failed to create TracerClient")?;
@@ -98,8 +98,7 @@ mod tests {
         })
         .into_cli_args();
 
-        let mut tracer_client = TracerClient::new(config, log_forward_client, default_args)
-            .await?;
+        let mut tracer_client = TracerClient::new(config, log_forward_client, default_args).await?;
         let result = monitor_processes(&mut tracer_client).await;
         if result.is_ok() {
             Ok(result?)

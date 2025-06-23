@@ -7,16 +7,10 @@ use crate::daemon::state::DaemonState;
 use axum::Router;
 use tokio::sync::Mutex;
 
-pub fn get_app(
-    client: Arc<Mutex<TracerClient>>,
-    cancellation_token: CancellationToken
-) -> Router {
+pub fn get_app(client: Arc<Mutex<TracerClient>>, cancellation_token: CancellationToken) -> Router {
     // todo: set subscriber
 
-    let state = DaemonState::new(
-        client,
-        cancellation_token
-    );
+    let state = DaemonState::new(client, cancellation_token);
 
     let mut router = Router::new();
     for (path, method_router) in ROUTES.iter() {

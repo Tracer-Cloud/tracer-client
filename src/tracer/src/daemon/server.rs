@@ -20,7 +20,7 @@ pub struct DaemonServer {
 impl DaemonServer {
     pub async fn bind(client: TracerClient) -> anyhow::Result<Self> {
         let addr: SocketAddr = client.get_config().server.parse()?;
-        
+
         match TcpListener::bind(addr).await {
             Ok(listener) => Ok(Self {
                 client: Arc::new(Mutex::new(client)),
@@ -42,13 +42,10 @@ impl DaemonServer {
 
     pub async fn run(self) -> anyhow::Result<()> {
         let tracer_client = self.client.clone();
-        
+
         let cancellation_token = CancellationToken::new();
 
-        let app = get_app(
-            tracer_client.clone(),
-            cancellation_token.clone()
-        );
+        let app = get_app(tracer_client.clone(), cancellation_token.clone());
 
         let server = tokio::spawn(axum::serve(self.listener, app).into_future());
 
@@ -58,7 +55,7 @@ impl DaemonServer {
             .borrow_mut()
             .start_new_run(None)
             .await?;
-        
+
         let mut system_metrics_interval;
         let mut process_metrics_interval;
         let mut submission_interval;
@@ -66,18 +63,15 @@ impl DaemonServer {
         {
             let guard = tracer_client.lock().await;
             let config = guard.get_config();
-            system_metrics_interval = tokio::time::interval(Duration::from_millis(
-                config.batch_submission_interval_ms,
-            ));
+            system_metrics_interval =
+                tokio::time::interval(Duration::from_millis(config.batch_submission_interval_ms));
 
             process_metrics_interval = tokio::time::interval(Duration::from_millis(
                 config.process_metrics_send_interval_ms,
             ));
 
-
-            submission_interval = tokio::time::interval(Duration::from_millis(
-                config.batch_submission_interval_ms,
-            ));
+            submission_interval =
+                tokio::time::interval(Duration::from_millis(config.batch_submission_interval_ms));
         }
         let exporter = Arc::clone(&tracer_client.lock().await.exporter);
 

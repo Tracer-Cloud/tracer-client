@@ -7,17 +7,17 @@ use tokio_util::sync::CancellationToken;
 #[derive(Clone)]
 pub(super) struct DaemonState {
     tracer_client: Arc<Mutex<TracerClient>>,
-    cancellation_token: CancellationToken
+    cancellation_token: CancellationToken,
 }
 
 impl DaemonState {
     pub fn new(
         tracer_client: Arc<Mutex<TracerClient>>,
-        cancellation_token: CancellationToken
+        cancellation_token: CancellationToken,
     ) -> Self {
         Self {
             tracer_client,
-            cancellation_token
+            cancellation_token,
         }
     }
 
