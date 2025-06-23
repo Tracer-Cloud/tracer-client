@@ -133,6 +133,7 @@
         "sed s/^.*GNU sed) //; s/ .*$//"
       ]
     ],
+    "match_commands": [],
     "pattern": "^paste gene_ids\\.txt tmp/genes/.*\\.counts\\.txt"
   },
   {
@@ -239,6 +240,9 @@
         "sed s/^.*samtools //; s/Using.*$//"
       ]
     ],
+    "match_commands": [
+      "samtools idxstats"
+    ],
     "pattern": "^samtools idxstats --threads \\d+ \\S+\\.bam$"
   },
   {
@@ -335,6 +339,9 @@
         "sed s/^.*samtools //; s/Using.*$//"
       ]
     ],
+    "match_commands": [
+      "samtools faidx"
+    ],
     "pattern": "^samtools faidx \\S+\\.(fa|fasta|fna|fa\\.gz|fasta\\.gz|fna\\.gz)$"
   },
   {
@@ -392,6 +399,9 @@
         "sed s/^.*samtools //; s/Using.*$//"
       ]
     ],
+    "match_commands": [
+      "samtools flagstat"
+    ],
     "pattern": "^samtools flagstat --threads \\d+ \\S+\\.bam$"
   },
   {
@@ -431,6 +441,7 @@
         "sed -e s/inner_distance.py //g"
       ]
     ],
+    "match_commands": [],
     "pattern": "^inner_distance\\.py --version$"
   },
   {
@@ -518,6 +529,10 @@
         "sed -e s/STAR_//g"
       ]
     ],
+    "match_commands": [
+      "STAR",
+      "rsem-prepare-reference"
+    ],
     "pattern": "^STAR --runMode genomeGenerate --genomeDir rsem/"
   },
   {
@@ -562,6 +577,10 @@
         "gawk --version",
         "sed s/^.*GNU Awk //; s/ .*$//"
       ]
+    ],
+    "match_commands": [
+      "STAR",
+      "samtools faidx"
     ],
     "pattern": "^STAR --runMode genomeGenerate --genomeDir star/ --genomeFastaFiles \\S+"
   },
@@ -620,6 +639,9 @@
         "sed s/^.*samtools //; s/Using.*$//"
       ]
     ],
+    "match_commands": [
+      "samtools stats"
+    ],
     "pattern": "^samtools stats --threads \\d+"
   },
   {
@@ -643,6 +665,9 @@
         "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//"
       ]
+    ],
+    "match_commands": [
+      "samtools index"
     ],
     "pattern": "^samtools index -@ \\d+.*\\.(bam|cram)$"
   },
@@ -730,6 +755,9 @@
         "fq subsample --version",
         "sed s/fq-subsample //g"
       ]
+    ],
+    "match_commands": [
+      "fq subsample"
     ],
     "pattern": "^fq subsample.*(-p|--probability|-n|--record-count).*--r1-dst \\S+"
   },
@@ -964,6 +992,9 @@
         "sed -e s/featureCounts v//g"
       ]
     ],
+    "match_commands": [
+      "featureCounts"
+    ],
     "pattern": "^featureCounts.*-T \\d+.*-a \\S+.*-s [012].*-o \\S+\\.featureCounts\\.txt.*\\.bam"
   },
   {
@@ -1008,6 +1039,10 @@
         "gawk --version",
         "sed s/^.*GNU Awk //; s/ .*$//"
       ]
+    ],
+    "match_commands": [
+      "STAR",
+      "samtools faidx"
     ],
     "pattern": "^STAR --runMode genomeGenerate --genomeDir star/ --genomeFastaFiles \\S+"
   },
@@ -1061,6 +1096,10 @@
         "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//"
       ]
+    ],
+    "match_commands": [
+      "samtools sort",
+      "samtools cat"
     ],
     "pattern": "^samtools sort.*-T \\S+.*--threads \\d+.*-o \\S+.*-$"
   },
@@ -1165,6 +1204,10 @@
         "sed s/^.*coreutils) //; s/ .*$//"
       ]
     ],
+    "match_commands": [
+      "cat FASTQ",
+      "cat FASTQ"
+    ],
     "pattern": "^cat .+\\.fastq\\.gz .+\\.fastq\\.gz"
   },
   {
@@ -1219,6 +1262,7 @@
         "sed s/^.*GNU sed) //; s/ .*$//"
       ]
     ],
+    "match_commands": [],
     "pattern": "^(zcat|cat) \\S+\\.(fa|fasta)(\\.gz)?$"
   },
   {
@@ -1269,6 +1313,9 @@
         "cat --version",
         "sed s/^.*coreutils) //; s/ .*$//"
       ]
+    ],
+    "match_commands": [
+      "cat FASTQ"
     ],
     "pattern": "^cat .*\\.fastq\\.gz( .*\\.fastq\\.gz)*$"
   },
@@ -1354,6 +1401,9 @@
         "sed s/fq-lint //g"
       ]
     ],
+    "match_commands": [
+      "fq lint"
+    ],
     "pattern": "^fq lint.*\\.(fastq|fq)(\\.gz|\\.bz2)?$"
   },
   {
@@ -1416,6 +1466,9 @@
         "sed s/kallisto version //g"
       ]
     ],
+    "match_commands": [
+      "kallisto quant"
+    ],
     "pattern": "^kallisto quant --threads \\d+ --index \\S+.*-o \\S+"
   },
   {
@@ -1439,6 +1492,9 @@
         "kallisto",
         "sed s/^kallisto //; s/Usage.*$//"
       ]
+    ],
+    "match_commands": [
+      "kallisto index"
     ],
     "pattern": "^kallisto index.*-i kallisto \\S+\\.(fa|fasta)(\\.gz)?$"
   },
@@ -1484,6 +1540,9 @@
         "bracken -v",
         "cut -f2 -d v"
       ]
+    ],
+    "match_commands": [
+      "bracken"
     ],
     "pattern": "^bracken.*-d \\S+.*-i \\S+.*-o \\S+.*-w \\S+"
   },

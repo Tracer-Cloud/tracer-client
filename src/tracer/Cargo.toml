@@ -60,3 +60,4 @@ dotenv = { workspace = true }
 serial_test = { workspace = true }
 uuid = { workspace = true }
 rstest = { workspace = true }
+pretty_assertions_sorted = { workspace = true }

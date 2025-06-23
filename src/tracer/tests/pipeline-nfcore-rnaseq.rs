@@ -1,8 +1,9 @@
 mod common;
 
 use self::common::ProcessInfo;
+use pretty_assertions_sorted::assert_eq;
 use rstest::*;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{self, Sender};
@@ -92,7 +93,6 @@ fn test_process_matching(
         while let Some(event) = rx.recv().await {
             match event.process_status {
                 ProcessStatus::ToolExecution => {
-                    dbg!(&event);
                     process_start_events.push(event);
                 }
                 _ => panic!("Expected process start event, got {:?}", event),
@@ -100,27 +100,37 @@ fn test_process_matching(
         }
     });
 
-    let expected_counts: HashMap<&str, usize> = processes
-        .iter()
-        .map(|process| (process.tool_name(), process.test_commands.len()))
-        .collect::<HashMap<_, _>>();
+    let expected_counts: BTreeMap<String, usize> =
+        processes
+            .iter()
+            .fold(BTreeMap::new(), |mut counts, process| {
+                let n = process.test_commands.len();
+                for tool_name in process.tool_names() {
+                    counts
+                        .entry(tool_name)
+                        .and_modify(|count| *count += n)
+                        .or_insert(n);
+                }
+                counts
+            });
 
     // check that exactly the expected matches are observed
     // since these processes don't actually exist, they'll all be represented as short-lived
-    let observed_counts: HashMap<&str, usize> =
+    let observed_counts: BTreeMap<String, usize> =
         process_start_events
             .iter()
-            .fold(HashMap::new(), |mut obs, event| {
+            .fold(BTreeMap::new(), |mut counts, event| {
                 if let Some(EventAttributes::Process(ProcessProperties::Full(properties))) =
                     &event.attributes
                 {
-                    obs.entry(&properties.tool_name)
+                    counts
+                        .entry(properties.tool_name.clone())
                         .and_modify(|count| *count += 1)
                         .or_insert(1);
                 } else {
                     panic!("Expected process start event, got {:?}", event);
                 }
-                obs
+                counts
             });
 
     assert_eq!(observed_counts, expected_counts);

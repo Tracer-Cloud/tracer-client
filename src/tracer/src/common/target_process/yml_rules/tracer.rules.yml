@@ -50,15 +50,55 @@ rules:
   - rule_name: featureCounts process
     display_name: featureCounts
     condition:
-      process_name_is: featureCounts
+      and:
+        - process_name_is: featureCounts
+        - args_not_contain: -v
   - rule_name: HOMER process
     display_name: HOMER
     condition:
       process_name_is: HOMER
-  - rule_name: samtools process
-    display_name: samtools
+  - rule_name: samtools idxstats process
+    display_name: samtools idxstats
     condition:
-      process_name_is: samtools
+      and:
+        - process_name_is: samtools
+        - first_arg_is: idxstats
+  - rule_name: samtools faidx process
+    display_name: samtools faidx
+    condition:
+      and:
+        - process_name_is: samtools
+        - first_arg_is: faidx
+  - rule_name: samtools flagstat process
+    display_name: samtools flagstat
+    condition:
+      and:
+        - process_name_is: samtools
+        - first_arg_is: flagstat
+  - rule_name: samtools stats process
+    display_name: samtools stats
+    condition:
+      and:
+        - process_name_is: samtools
+        - first_arg_is: stats
+  - rule_name: samtools index process
+    display_name: samtools index
+    condition:
+      and:
+        - process_name_is: samtools
+        - first_arg_is: index
+  - rule_name: samtools cat process
+    display_name: samtools cat
+    condition:
+      and:
+        - process_name_is: samtools
+        - first_arg_is: cat
+  - rule_name: samtools sort process
+    display_name: samtools sort
+    condition:
+      and:
+        - process_name_is: samtools
+        - first_arg_is: sort
   - rule_name: seasmoke process
     display_name: seasmoke
     condition:
@@ -384,13 +424,21 @@ rules:
   - rule_name: qualimap command
     display_name: qualimap
     condition:
-      command_contains: qualimap
-  - rule_name: fq command
-    display_name: fq
+      and:
+        - command_contains: qualimap
+        - min_args: 1
+  - rule_name: fq subsample command
+    display_name: fq subsample
     condition:
       and:
-        - command_contains: fq
-        - command_not_contains: bbsplit
+        - process_name_is: fq
+        - first_arg_is: subsample
+  - rule_name: fq lint command
+    display_name: fq lint
+    condition:
+      and:
+        - process_name_is: fq
+        - first_arg_is: lint
   - rule_name: dupradar command
     display_name: dupRadar
     condition:
@@ -400,39 +448,128 @@ rules:
     condition:
       command_contains: deseq
   - rule_name: preseq command
-    display_name: Preseq
+    display_name: preseq
     condition:
-      command_contains: preseq
-  - rule_name: rseqc command
-    display_name: RSeQC
-    condition:
-      command_contains: rseqc
-  - rule_name: bigwig command
+      and:
+        - command_contains: preseq
+        - min_args: 1
+  - rule_name: bedGraphToBigWig command
     display_name: bedGraphToBigWig
     condition:
-      command_contains: bigwig
-  - rule_name: kallisto command
-    display_name: kallisto
+      process_name_is: bedGraphToBigWig
+  - rule_name: kallisto index command
+    display_name: kallisto index
     condition:
       and:
         - process_name_is: kallisto
-        - min_args: 1
-        - args_not_contain: version
-  - rule_name: rsem command
-    display_name: RSEM
+        - first_arg_is: index
+  - rule_name: kallisto quant command
+    display_name: kallisto quant
     condition:
-      process_name_contains: rsem-
+      and:
+        - process_name_is: kallisto
+        - first_arg_is: quant
   - rule_name: dupradar command
     display_name: dupRadar
     condition:
       command_contains: dupradar
-  - rule_name: Cat FASTQ
-    display_name: CAT FASTQ
+  - rule_name: cat FASTQ command
+    display_name: cat FASTQ
     condition:
       and:
         - process_name_is: cat
-        - command_matches_regex: "(.*\\.f(ast)?q(\\.gz)?){2,}"
+        - command_matches_regex: "(.*\\.f(ast)?q(\\.gz)?)+"
   - rule_name: sortmerna command
     display_name: SortMeRNA
     condition:
       command_contains: sortmerna
+  - rule_name: rseqc bam_stat.py command
+    display_name: bam_stat.py
+    condition:
+      and:
+        - process_name_contains: python
+        - min_args: 1
+        - first_arg_is: bam_stat.py
+  - rule_name: rseqc inner_distance command
+    display_name: inner_distance.py
+    condition:
+      and:
+        - process_name_contains: python
+        - min_args: 1
+        - first_arg_is: inner_distance.py
+  - rule_name: rseqc read_distribution command
+    display_name: read_distribution.py
+    condition:
+      and:
+        - process_name_contains: python
+        - min_args: 1
+        - first_arg_is: read_distribution.py
+  - rule_name: rseqc read_duplication command
+    display_name: read_duplication.py
+    condition:
+      and:
+        - process_name_contains: python
+        - min_args: 1
+        - first_arg_is: read_duplication.py
+  - rule_name: rseqc infer_experiment command
+    display_name: infer_experiment.py
+    condition:
+      and:
+        - process_name_contains: python
+        - min_args: 1
+        - first_arg_is: infer_experiment.py
+  - rule_name: rseqc junction_saturation command
+    display_name: junction_saturation.py
+    condition:
+      and:
+        - process_name_contains: python
+        - min_args: 1
+        - first_arg_is: junction_saturation.py
+  - rule_name: rseqc junction_annotation command
+    display_name: junction_annotation.py
+    condition:
+      and:
+        - process_name_contains: python
+        - min_args: 1
+        - first_arg_is: junction_annotation.py
+  - rule_name: rseqc tin command
+    display_name: tin.py
+    condition:
+      and:
+        - process_name_contains: python
+        - min_args: 1
+        - first_arg_is: tin.py
+  - rule_name: bbsplit command
+    display_name: bbsplit.sh
+    condition:
+      process_name_is: bbsplit.sh
+  - rule_name: rsem-merge-expression-files command
+    display_name: rsem-merge-expression-files
+    condition:
+      process_name_is: rsem-merge-expression-files
+  - rule_name: rsem-prepare-reference command
+    display_name: rsem-prepare-reference
+    condition:
+      process_name_is: rsem-prepare-reference
+  - rule_name: rsem-calculate-expression command
+    display_name: rsem-calculate-expression
+    condition:
+      process_name_is: rsem-calculate-expression
+  - rule_name: bedClip command
+    display_name: bedClip
+    condition:
+      process_name_is: bedClip
+  - rule_name: filter_gtf command
+    display_name: filter_gtf.py
+    condition:
+      and:
+        - process_name_contains: python
+        - min_args: 1
+        - first_arg_is: filter_gtf.py
+  - rule_name: mqc_features_stat command
+    display_name: mqc_features_stat.py
+    condition:
+      and:
+        - process_name_contains: python
+        - min_args: 1
+        - first_arg_is: mqc_features_stat.py

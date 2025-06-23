@@ -10,7 +10,7 @@ pub struct Rule {
 impl Rule {
     pub fn into_target(self) -> Target {
         Target {
-            match_type: self.condition.to_target_match(),
+            match_type: self.condition.into_target_match(),
             display_name: self.display_name,
         }
     }
