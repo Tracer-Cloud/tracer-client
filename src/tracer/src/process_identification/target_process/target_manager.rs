@@ -77,22 +77,8 @@ impl TargetManager {
 
 impl Default for TargetManager {
     fn default() -> Self {
-        let possible_paths_rules = [
-            "process_identification/target_process/yml_rules/tracer.rules.yml",
-            "src/tracer/src/process_identification/target_process/yml_rules/tracer.rules.yml",
-            "common/target_process/yml_rules/tracer.rules.yml",
-            "src/tracer/src/common/target_process/yml_rules/tracer.rules.yml",
-            "target_process/yml_rules/tracer.rules.yml",
-            "yml_rules/tracer.rules.yml",
-        ];
-        let possible_paths_exclude = [
-            "process_identification/target_process/yml_rules/tracer.exclude.yml",
-            "src/tracer/src/process_identification/target_process/yml_rules/tracer.exclude.yml",
-            "common/target_process/yml_rules/tracer.exclude.yml",
-            "src/tracer/src/common/target_process/yml_rules/tracer.exclude.yml",
-            "target_process/yml_rules/tracer.exclude.yml",
-            "yml_rules/tracer.exclude.yml",
-        ];
+        let possible_paths_rules = ["yml_rules/tracer.rules.yml"];
+        let possible_paths_exclude = ["yml_rules/tracer.exclude.yml"];
 
         let rules_targets = Self::load_targets_with_fallback(
             Some(include_str!("yml_rules/tracer.rules.yml")),
