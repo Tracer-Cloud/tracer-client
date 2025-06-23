@@ -1,5 +1,7 @@
 use crate::process_identification::recorder::LogRecorder;
-use crate::process_identification::types::event::attributes::system_metrics::{DiskStatistic, SystemMetric};
+use crate::process_identification::types::event::attributes::system_metrics::{
+    DiskStatistic, SystemMetric,
+};
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::ProcessStatus;
 use anyhow::Result;

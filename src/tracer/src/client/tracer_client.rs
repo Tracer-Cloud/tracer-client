@@ -22,7 +22,7 @@ use sysinfo::System;
 use tokio::sync::{mpsc, RwLock};
 use tracing::{error, info};
 
-use crate::daemon::structs::{InfoResponse, InnerInfoResponse};
+use crate::daemon::structs::InnerInfoResponse;
 #[cfg(target_os = "linux")]
 use crate::utils::system_info::get_kernel_version;
 use crate::utils::Sentry;
@@ -340,7 +340,7 @@ impl TracerClient {
         Ok(())
     }
 
-    pub async fn sentry_alert(&self) -> () {
+    pub async fn sentry_alert(&self) {
         //todo refactor with daemon module
 
         let pipeline = self.get_run_metadata().read().await.clone();
@@ -350,16 +350,18 @@ impl TracerClient {
         let preview = self.ebpf_watcher.get_n_monitored_processes(10).await;
         let number_of_monitored_processes =
             self.ebpf_watcher.get_number_of_monitored_processes().await;
-        
+
         if let Some(inner) = response_inner {
-            Sentry::add_context("Run Details", json!({
-                "name": inner.run_name.clone(),
-                "id": inner.run_id.clone(),
-                "runtime": inner.formatted_runtime(),
-                "Monitored Processes": number_of_monitored_processes,
-            }));
+            Sentry::add_context(
+                "Run Details",
+                json!({
+                    "name": inner.run_name.clone(),
+                    "id": inner.run_id.clone(),
+                    "runtime": inner.formatted_runtime(),
+                    "monitored processes": number_of_monitored_processes,
+                }),
+            );
             Sentry::add_extra("Monitored Processes", json!(preview));
         }
-
     }
 }

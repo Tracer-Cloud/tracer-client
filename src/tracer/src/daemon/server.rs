@@ -9,7 +9,6 @@ use crate::client::TracerClient;
 use crate::config;
 use crate::daemon::app::get_app;
 use crate::daemon::daemon_run::monitor_processes;
-use crate::utils::Sentry;
 use std::borrow::BorrowMut;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;

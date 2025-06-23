@@ -172,8 +172,14 @@ pub fn process_cli() -> Result<()> {
             let args = init_command_interactive_mode(args);
             Sentry::add_context("Init Settings", serde_json::to_value(&args)?);
             Sentry::add_context("Init Arguments", serde_json::to_value(&args.tags)?);
-            Sentry::add_tag("user_operator",args.tags.user_operator.as_ref().unwrap_or(&"unknown".to_string()));
-            Sentry::add_tag("pipeline_name",&args.pipeline_name.clone());
+            Sentry::add_tag(
+                "user_operator",
+                args.tags
+                    .user_operator
+                    .as_ref()
+                    .unwrap_or(&"unknown".to_string()),
+            );
+            Sentry::add_tag("pipeline_name", &args.pipeline_name.clone());
             if !args.no_daemonize {
                 #[cfg(any(target_os = "macos", target_os = "windows"))]
                 {

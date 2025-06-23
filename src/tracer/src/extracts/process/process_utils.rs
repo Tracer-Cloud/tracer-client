@@ -1,4 +1,6 @@
-use crate::process_identification::types::event::attributes::process::{FullProcessProperties, ProcessProperties};
+use crate::process_identification::types::event::attributes::process::{
+    FullProcessProperties, ProcessProperties,
+};
 use chrono::Utc;
 use itertools::Itertools;
 use shlex;
