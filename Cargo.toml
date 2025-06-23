@@ -18,11 +18,8 @@ anyhow = "1.0.98"
 chrono = { version = "0.4.38", features = ["serde"] }
 clap = { version = "4.5.39", features = ["derive"] }
 daemonize = "0.5"
-homedir = "0.2.1"
-lazy_static = "1.5.0"
 log = "0.4.21"
 octocrab = "0.44.0"
-predicates = "3.1.2"
 reqwest = { version = "0.12.13", default-features = false, features = [
     "json",
     "rustls-tls",
@@ -76,11 +73,6 @@ config = { version = "0.15.11", default-features = false, features = [
 ] }
 serial_test = "3.1.1"
 dotenv = "0.15"
-bollard = "0.19.0"
-assert_cmd = "2.0"
-which = { version = "6.0.0", default-features = false }
-bytes = "1.10.1"
-libc = { version = "0.2.172", default-features = false }
 sentry = { version = "0.38.1", default-features = false, features = [
     "anyhow",
     "backtrace",
