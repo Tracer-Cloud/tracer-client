@@ -2,7 +2,6 @@
 resolver = "2"
 members = ["src/tracer", "src/ebpf", "src/tracer-installer"]
 default-members = ["src/tracer", "src/ebpf", "src/tracer-installer"]
-default-run = "tracer"
 
 [workspace.package]
 version = "2025.5.15+1"
