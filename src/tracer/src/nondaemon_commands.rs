@@ -173,7 +173,7 @@ pub fn print_install_readiness() -> Result<()> {
 }
 
 pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Result<()> {
-    let mut formatter = InfoFormatter::new(120);
+    let mut formatter = InfoFormatter::new(140);
     let info = match api_client.send_info_request().await {
         Ok(info) => info,
         Err(e) => {

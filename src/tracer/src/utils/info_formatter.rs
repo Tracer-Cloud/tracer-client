@@ -1,5 +1,7 @@
 use crate::config::Config;
-use crate::constants::{GRAFANA_PIPELINE_DASHBOARD_BASE, GRAFANA_RUN_DASHBOARD_BASE};
+use crate::constants::{
+    GRAFANA_PIPELINE_DASHBOARD_BASE, GRAFANA_RUN_DASHBOARD_BASE, GRAFANA_WORKSPACE_DASHBOARD,
+};
 use crate::daemon::structs::{InfoResponse, InnerInfoResponse};
 use crate::process_identification::constants::{LOG_FILE, STDERR_FILE, STDOUT_FILE};
 use crate::utils::version::Version;
@@ -205,8 +207,8 @@ impl InfoFormatter {
         self.add_field(
             "Run Dashboard",
             &format!(
-                "{}?var-pipeline_name={}",
-                GRAFANA_RUN_DASHBOARD_BASE, inner.pipeline_name
+                "{}?var-run_name={}&var-pipeline_name={}",
+                GRAFANA_RUN_DASHBOARD_BASE, inner.run_name, inner.pipeline_name
             ),
             "blue",
         )?;
@@ -220,6 +222,7 @@ impl InfoFormatter {
         self.add_empty_line()?;
 
         self.add_field("Sandbox Workspace", "https://sandbox.tracer.cloud", "blue")?;
+        self.add_field("Workspace Dashboard", GRAFANA_WORKSPACE_DASHBOARD, "blue")?;
 
         self.add_field(
             "Polling Interval",
