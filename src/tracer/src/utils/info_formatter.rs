@@ -1,5 +1,6 @@
 use crate::common::constants::{LOG_FILE, STDERR_FILE, STDOUT_FILE};
 use crate::config::Config;
+use crate::constants::{GRAFANA_PIPELINE_DASHBOARD_BASE, GRAFANA_RUN_DASHBOARD_BASE};
 use crate::daemon::structs::{InfoResponse, InnerInfoResponse};
 use crate::utils::version::Version;
 use anyhow::Result;
@@ -73,8 +74,9 @@ impl InfoFormatter {
         let padding = 4;
         let max_value_width = self.width - label_width - padding;
 
-        // Format the value with proper truncation
-        let formatted_value = if colored_value.len() > max_value_width {
+        let formatted_value = if value.starts_with("http") {
+            colored_value.to_string()
+        } else if colored_value.len() > max_value_width {
             format!("{}...", &colored_value[..max_value_width - 3])
         } else {
             colored_value.to_string()
@@ -149,7 +151,7 @@ impl InfoFormatter {
         &mut self,
         inner: &InnerInfoResponse,
         info: &InfoResponse,
-        config: &Config,
+        _config: &Config,
     ) -> Result<()> {
         self.add_section_header("PIPELINE & RUN DETAILS")?;
         self.add_empty_line()?;
@@ -173,7 +175,11 @@ impl InfoFormatter {
         )?;
         self.add_field(
             "Pipeline Dashboard",
-            &format!("{}/p/{}", config.grafana_base_url, inner.pipeline_name),
+            &format!(
+                "{}?var-pipeline_name={}",
+                GRAFANA_PIPELINE_DASHBOARD_BASE,
+                inner.pipeline_name
+            ),
             "blue",
         )?;
 
@@ -197,13 +203,15 @@ impl InfoFormatter {
             )?;
         }
 
-        if !config.grafana_base_url.is_empty() {
-            self.add_field(
-                "Run Dashboard",
-                &format!("{}/r/{}", config.grafana_base_url, inner.run_id),
-                "blue",
-            )?;
-        }
+        self.add_field(
+            "Run Dashboard",
+            &format!(
+                "{}?var-pipeline_name={}",
+                GRAFANA_RUN_DASHBOARD_BASE,
+                inner.pipeline_name
+            ),
+            "blue",
+        )?;
 
         self.add_empty_line()?;
         Ok(())

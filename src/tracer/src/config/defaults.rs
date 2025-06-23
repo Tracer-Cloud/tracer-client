@@ -3,7 +3,7 @@ use crate::common::constants::DEFAULT_DAEMON_PORT;
 use crate::config::Config;
 use crate::constants::{
     AWS_REGION, BATCH_SUBMISSION_INTERVAL_MS, DEFAULT_API_KEY, FILE_SIZE_NOT_CHANGING_PERIOD_MS,
-    GRAFANA_BASE_URL, LOG_FORWARD_ENDPOINT_DEV, LOG_FORWARD_ENDPOINT_PROD, NEW_RUN_PAUSE_MS,
+    LOG_FORWARD_ENDPOINT_DEV, LOG_FORWARD_ENDPOINT_PROD, NEW_RUN_PAUSE_MS,
     PROCESS_METRICS_SEND_INTERVAL_MS, PROCESS_POLLING_INTERVAL_MS, SENTRY_DSN,
 };
 
@@ -42,7 +42,6 @@ impl Default for Config {
             database_host: None,
             database_name: "tracer_db".to_string(),
 
-            grafana_base_url: GRAFANA_BASE_URL.to_string(),
             server: format!("127.0.0.1:{}", DEFAULT_DAEMON_PORT),
 
             config_sources: vec![],

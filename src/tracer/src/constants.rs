@@ -10,8 +10,8 @@ pub const FILE_SIZE_NOT_CHANGING_PERIOD_MS: u64 = 1000 * 60;
 pub const LOG_FORWARD_ENDPOINT_DEV: &str = "https://sandbox.tracer.cloud/api/logs-forward/dev";
 pub const LOG_FORWARD_ENDPOINT_PROD: &str = "https://sandbox.tracer.cloud/api/logs-forward/prod";
 pub const SENTRY_DSN: &str = "https://35e0843e6748d2c93dfd56716f2eecfe@o4509281671380992.ingest.us.sentry.io/4509281680949248";
-pub const GRAFANA_WORKSPACE_URL: &str = "https://tracerbio.grafana.net/goto/mYJ52c-HR?orgId=1";
-pub const GRAFANA_BASE_URL: &str = "https://tracer.vaibhavupreti.me";
+pub const GRAFANA_RUN_DASHBOARD_BASE: &str = "https://tracerbio.grafana.net/d/deklznatbxd1of/runs";
+pub const GRAFANA_PIPELINE_DASHBOARD_BASE: &str = "https://tracerbio.grafana.net/d/ceix2azfu4v0xd/pipelines";
 pub const AWS_REGION: AwsRegion = UsEast2;
 
 pub const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics";
