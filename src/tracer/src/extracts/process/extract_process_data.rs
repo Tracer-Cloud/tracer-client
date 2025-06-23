@@ -317,7 +317,7 @@ mod tests {
                     props.working_directory,
                     Some("/test/working/directory".to_string())
                 );
-            } //_ => panic!("Expected Full ProcessProperties"),
+            }
         }
     }
 
@@ -374,7 +374,7 @@ mod tests {
                 assert_eq!(props.job_id, None);
                 assert_eq!(props.trace_id, None);
                 assert_eq!(props.working_directory, None);
-            } //_ => panic!("Expected Full ProcessProperties"),
+            }
         }
     }
 
@@ -426,7 +426,7 @@ mod tests {
                 assert!(props.process_run_time >= 300_000);
                 // And should be reasonable (less than 6 minutes to account for test execution time)
                 assert!(props.process_run_time < 360_000);
-            } //_ => panic!("Expected Full ProcessProperties"),
+            }
         }
     }
 }
