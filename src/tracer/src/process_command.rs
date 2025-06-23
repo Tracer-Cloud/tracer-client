@@ -17,7 +17,7 @@ use crate::process_identification::debug_log::Logger;
 use crate::utils::analytics::emit_analytic_event;
 use crate::utils::file_system::ensure_file_can_be_created;
 use crate::utils::system_info::check_sudo_privileges;
-use crate::utils::Sentry;
+use crate::utils::{FullVersion, Sentry};
 use anyhow::{Context, Result};
 use clap::Parser;
 use daemonize::{Daemonize, Outcome};
@@ -351,6 +351,9 @@ pub async fn run_async_command(
         Commands::CleanupPort { port } => {
             let port = port.unwrap_or(DEFAULT_DAEMON_PORT); // Default Tracer port
             handle_port_conflict(port).await?;
+        }
+        Commands::Version => {
+            println!("{}", FullVersion::current_str());
         }
         _ => {
             println!("Command not implemented yet");

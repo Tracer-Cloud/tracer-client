@@ -1,7 +1,10 @@
 use anyhow::Result;
+use once_cell::sync::Lazy;
 use std::cmp::Ordering;
 use std::fmt;
 use std::str::FromStr;
+
+include!(concat!(env!("OUT_DIR"), "/built.rs"));
 
 #[derive(Debug)]
 pub struct Version {
@@ -13,10 +16,13 @@ pub struct Version {
 
 impl Version {
     pub fn current_str() -> &'static str {
-        env!("CARGO_PKG_VERSION")
+        PKG_VERSION
     }
-    pub fn current() -> Self {
-        Self::from_str(Self::current_str()).unwrap()
+
+    pub fn current() -> &'static Self {
+        static VERSION: Lazy<Version> =
+            Lazy::new(|| Version::from_str(Version::current_str()).unwrap());
+        &VERSION
     }
 }
 
@@ -96,6 +102,47 @@ impl PartialOrd for Version {
     }
 }
 
+/// Version of the software including
+/// - Cargo package version
+/// - Git commit hash, if package was built from a git repository
+/// - Git dirty info (whether the repo had uncommitted changes)
+pub struct FullVersion {
+    pub version_str: &'static str,
+    pub hash: Option<String>,
+    pub dirty: bool,
+}
+
+impl FullVersion {
+    pub fn current() -> &'static Self {
+        static VERSION: Lazy<FullVersion> = Lazy::new(|| {
+            let hash = if PROFILE != "release" && GIT_COMMIT_HASH.is_some() {
+                Some(GIT_COMMIT_HASH.unwrap().to_string())
+            } else {
+                None
+            };
+            let dirty = GIT_DIRTY.unwrap_or(false);
+            FullVersion {
+                version_str: Version::current_str(),
+                hash,
+                dirty,
+            }
+        });
+        &VERSION
+    }
+
+    pub fn current_str() -> String {
+        let full_version = FullVersion::current();
+        match (&full_version.hash, full_version.dirty) {
+            (Some(hash), true) => format!("{}-{}-dirty", full_version.version_str, hash),
+            (Some(hash), false) => format!("{}-{}", full_version.version_str, hash),
+            (None, _) => full_version.version_str.to_string(),
+        }
+    }
+
+    pub fn version(&self) -> Version {
+        Version::from_str(self.version_str).unwrap()
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
