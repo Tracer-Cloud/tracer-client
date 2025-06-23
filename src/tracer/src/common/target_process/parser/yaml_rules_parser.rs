@@ -3,7 +3,6 @@ use crate::common::target_process::parser::conditions::{
 };
 use crate::common::target_process::parser::rule::Rule;
 use crate::common::target_process::target::Target;
-use sentry::protocol::value;
 use std::fs;
 use std::path::Path;
 use yaml_rust2::{Yaml, YamlLoader};

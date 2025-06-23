@@ -46,16 +46,13 @@ pub fn matches_target(
             // saving the subcommand in case in the AND condition a subcommand is found
             let mut subcommand_found = None;
 
-            let and_conditions_matched = conditions
-                .iter()
-                .map(|condition| {
-                    let (matched, subcommand_name) = matches_target(condition, process);
-                    if matched && subcommand_name.is_some() {
-                        subcommand_found = Some(subcommand_name.unwrap());
-                    }
-                    matched
-                })
-                .all(|matched| matched);
+            let and_conditions_matched = conditions.iter().all(|condition| {
+                let (matched, subcommand_name) = matches_target(condition, process);
+                if matched && subcommand_name.is_some() {
+                    subcommand_found = Some(subcommand_name.unwrap());
+                }
+                matched
+            });
 
             (and_conditions_matched, subcommand_found)
         }
@@ -63,16 +60,13 @@ pub fn matches_target(
             // saving the subcommand in case in the OR condition a subcommand is found
             let mut subcommand_found = None;
 
-            let or_conditions_matched = conditions
-                .iter()
-                .map(|condition| {
-                    let (matched, subcommand_name) = matches_target(condition, process);
-                    if matched && subcommand_name.is_some() {
-                        subcommand_found = Some(subcommand_name.unwrap());
-                    }
-                    matched
-                })
-                .any(|matched| matched);
+            let or_conditions_matched = conditions.iter().any(|condition| {
+                let (matched, subcommand_name) = matches_target(condition, process);
+                if matched && subcommand_name.is_some() {
+                    subcommand_found = Some(subcommand_name.unwrap());
+                }
+                matched
+            });
 
             (or_conditions_matched, subcommand_found)
         }

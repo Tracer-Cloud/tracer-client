@@ -31,7 +31,7 @@ impl TargetManager {
                     display_name = display_name.replace("{subcommand}", &subcommand);
                 }
 
-                return Some(display_name);
+                Some(display_name)
             } else {
                 None
             }
