@@ -177,8 +177,7 @@ impl InfoFormatter {
             "Pipeline Dashboard",
             &format!(
                 "{}?var-pipeline_name={}",
-                GRAFANA_PIPELINE_DASHBOARD_BASE,
-                inner.pipeline_name
+                GRAFANA_PIPELINE_DASHBOARD_BASE, inner.pipeline_name
             ),
             "blue",
         )?;
@@ -207,8 +206,7 @@ impl InfoFormatter {
             "Run Dashboard",
             &format!(
                 "{}?var-pipeline_name={}",
-                GRAFANA_RUN_DASHBOARD_BASE,
-                inner.pipeline_name
+                GRAFANA_RUN_DASHBOARD_BASE, inner.pipeline_name
             ),
             "blue",
         )?;
