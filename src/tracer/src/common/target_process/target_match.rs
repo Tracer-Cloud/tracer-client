@@ -26,7 +26,7 @@ pub fn matches_target(target_match: &TargetMatch, process: &ProcessStartTrigger)
         TargetMatch::ArgsNotContain(content) => {
             !process.argv.iter().skip(1).any(|arg| arg == content)
         }
-        TargetMatch::FirstArgIs(arg) => process.argv.get(1).map_or(false, |a| a == arg),
+        TargetMatch::FirstArgIs(arg) => process.argv.get(1) == Some(arg),
         TargetMatch::CommandContains(content) => process.command_string.contains(content),
         TargetMatch::CommandNotContains(content) => !process.command_string.contains(content),
         TargetMatch::CommandMatchesRegex(regex_str) => {

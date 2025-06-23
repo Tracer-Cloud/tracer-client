@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use shlex;
 
-fn join_args(argv: &Vec<String>) -> String {
+fn join_args(argv: &[String]) -> String {
     shlex::try_join(argv.iter().map(|s| s.as_str())).unwrap_or_else(|_| argv.join(" "))
 }
 
