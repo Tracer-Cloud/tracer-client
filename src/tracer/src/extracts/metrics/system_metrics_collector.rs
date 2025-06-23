@@ -1,7 +1,7 @@
-use crate::common::recorder::LogRecorder;
-use crate::common::types::event::attributes::system_metrics::{DiskStatistic, SystemMetric};
-use crate::common::types::event::attributes::EventAttributes;
-use crate::common::types::event::ProcessStatus;
+use crate::process_identification::recorder::LogRecorder;
+use crate::process_identification::types::event::attributes::system_metrics::{DiskStatistic, SystemMetric};
+use crate::process_identification::types::event::attributes::EventAttributes;
+use crate::process_identification::types::event::ProcessStatus;
 use anyhow::Result;
 use chrono::Utc;
 use std::collections::HashMap;
@@ -95,7 +95,7 @@ impl SystemMetricsCollector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::types::current_run::PipelineMetadata;
+    use crate::process_identification::types::current_run::PipelineMetadata;
 
     #[tokio::test]
     async fn test_collect_metrics() {

@@ -1,4 +1,4 @@
-use crate::common::constants::{LOG_FILE, STDERR_FILE, STDOUT_FILE};
+use crate::process_identification::constants::{LOG_FILE, STDERR_FILE, STDOUT_FILE};
 use crate::config::Config;
 use crate::daemon::structs::{InfoResponse, InnerInfoResponse};
 use crate::utils::version::Version;

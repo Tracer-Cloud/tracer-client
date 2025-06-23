@@ -1,17 +1,17 @@
 use crate::config::Config;
 
 use crate::cloud_providers::aws::pricing::PricingSource;
-use crate::common::target_process::target_manager::TargetManager;
-use crate::common::types::cli::params::FinalizedInitArgs;
+use crate::process_identification::target_process::target_manager::TargetManager;
+use crate::process_identification::types::cli::params::FinalizedInitArgs;
 use anyhow::{Context, Result};
 
 use crate::client::events::{send_alert_event, send_log_event, send_start_run_event};
 use crate::client::exporters::client_export_manager::ExporterManager;
 use crate::client::exporters::log_writer::LogWriterEnum;
-use crate::common::recorder::LogRecorder;
-use crate::common::types::current_run::{PipelineMetadata, Run};
-use crate::common::types::event::attributes::EventAttributes;
-use crate::common::types::event::{Event, ProcessStatus};
+use crate::process_identification::recorder::LogRecorder;
+use crate::process_identification::types::current_run::{PipelineMetadata, Run};
+use crate::process_identification::types::event::attributes::EventAttributes;
+use crate::process_identification::types::event::{Event, ProcessStatus};
 use crate::extracts::ebpf_watcher::watcher::EbpfWatcher;
 use crate::extracts::metrics::system_metrics_collector::SystemMetricsCollector;
 use chrono::{DateTime, Utc};

@@ -1,5 +1,5 @@
-use crate::common::target_process::target::Target;
-use crate::common::target_process::target_manager::TargetManager;
+use crate::process_identification::target_process::target::Target;
+use crate::process_identification::target_process::target_manager::TargetManager;
 use crate::extracts::process::types::process_state::ProcessState;
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};

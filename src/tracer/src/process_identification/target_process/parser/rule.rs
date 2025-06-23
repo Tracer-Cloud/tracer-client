@@ -1,5 +1,5 @@
-use crate::common::target_process::parser::conditions::Condition;
-use crate::common::target_process::target::Target;
+use crate::process_identification::target_process::parser::conditions::Condition;
+use crate::process_identification::target_process::target::Target;
 
 #[derive(Clone, Debug)]
 pub struct Rule {

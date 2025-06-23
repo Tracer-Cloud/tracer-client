@@ -1,4 +1,4 @@
-use crate::common::target_process::target_match::TargetMatch;
+use crate::process_identification::target_process::target_match::TargetMatch;
 
 #[derive(Clone, Debug)]
 pub enum Condition {
