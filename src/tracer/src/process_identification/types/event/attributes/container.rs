@@ -3,7 +3,7 @@ use chrono::DateTime;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::extracts::containers::{ContainerEvent, ContainerState};
+use crate::extracts::containers::docker_watcher::event::{ContainerEvent, ContainerState};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContainerProperties {
