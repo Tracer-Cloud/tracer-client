@@ -208,14 +208,13 @@ mod tests {
 
     #[test]
     fn test_dynamic_display_subcommand() {
-        let rules_path = "src/common/target_process/yml_rules/tracer.rules.yml";
+        let rules_path = "src/process_identification/target_process/yml_rules/tracer.rules.yml";
         let rules_content =
             fs::read_to_string(rules_path).expect("Failed to read tracer.rules.yml");
-        let rules_targets =
-            load_yaml_rules_from_str(&rules_content).expect("Failed to parse rules");
+        let targets = load_yaml_rules_from_str(&rules_content).expect("Failed to parse rules");
 
         let target_manager = TargetManager {
-            targets: rules_targets,
+            targets,
             exclude: Vec::new(),
         };
 
