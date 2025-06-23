@@ -7,6 +7,7 @@ use bollard::Docker;
 use chrono::{TimeZone, Utc};
 use futures_util::StreamExt;
 use std::collections::HashMap;
+use tracer_ebpf::ebpf_trigger::ExitReason;
 
 pub struct DockerWatcher {
     docker: Docker,
@@ -92,13 +93,15 @@ impl DockerWatcher {
 
         let state = match action {
             "start" => ContainerState::Started,
-            "die" => ContainerState::Exited {
-                exit_code: event
+            "die" => {
+                let exit_code = event
                     .actor
                     .and_then(|a| a.attributes)
                     .and_then(|attrs| attrs.get("exitCode")?.parse().ok())
-                    .unwrap_or(-1),
-            },
+                    .unwrap_or(-1);
+                let reason = ExitReason::from_exit_code(exit_code).explanation();
+                ContainerState::Exited { exit_code, reason }
+            }
             "destroy" => ContainerState::Died,
             _ => return None,
         };

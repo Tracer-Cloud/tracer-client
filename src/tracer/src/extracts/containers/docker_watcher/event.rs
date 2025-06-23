@@ -5,7 +5,7 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ContainerState {
     Started,
-    Exited { exit_code: i64 },
+    Exited { exit_code: i64, reason: String },
     Died,
 }
 
