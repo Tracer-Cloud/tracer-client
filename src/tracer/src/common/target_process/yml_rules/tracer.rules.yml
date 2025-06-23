@@ -57,48 +57,6 @@ rules:
     display_name: HOMER
     condition:
       process_name_is: HOMER
-  - rule_name: samtools idxstats process
-    display_name: samtools idxstats
-    condition:
-      and:
-        - process_name_is: samtools
-        - first_arg_is: idxstats
-  - rule_name: samtools faidx process
-    display_name: samtools faidx
-    condition:
-      and:
-        - process_name_is: samtools
-        - first_arg_is: faidx
-  - rule_name: samtools flagstat process
-    display_name: samtools flagstat
-    condition:
-      and:
-        - process_name_is: samtools
-        - first_arg_is: flagstat
-  - rule_name: samtools stats process
-    display_name: samtools stats
-    condition:
-      and:
-        - process_name_is: samtools
-        - first_arg_is: stats
-  - rule_name: samtools index process
-    display_name: samtools index
-    condition:
-      and:
-        - process_name_is: samtools
-        - first_arg_is: index
-  - rule_name: samtools cat process
-    display_name: samtools cat
-    condition:
-      and:
-        - process_name_is: samtools
-        - first_arg_is: cat
-  - rule_name: samtools sort process
-    display_name: samtools sort
-    condition:
-      and:
-        - process_name_is: samtools
-        - first_arg_is: sort
   - rule_name: seasmoke process
     display_name: seasmoke
     condition:
@@ -573,3 +531,47 @@ rules:
         - process_name_contains: python
         - min_args: 1
         - first_arg_is: mqc_features_stat.py
+
+  # samtools rules
+  - rule_name: samtools idxstats process
+    display_name: samtools idxstats
+    condition:
+      and:
+        - process_name_is: samtools
+        - first_arg_is: idxstats
+  - rule_name: samtools faidx process
+    display_name: samtools faidx
+    condition:
+      and:
+        - process_name_is: samtools
+        - first_arg_is: faidx
+  - rule_name: samtools flagstat process
+    display_name: samtools flagstat
+    condition:
+      and:
+        - process_name_is: samtools
+        - first_arg_is: flagstat
+  - rule_name: samtools stats process
+    display_name: samtools stats
+    condition:
+      and:
+        - process_name_is: samtools
+        - first_arg_is: stats
+  - rule_name: samtools index process
+    display_name: samtools index
+    condition:
+      and:
+        - process_name_is: samtools
+        - first_arg_is: index
+  - rule_name: samtools cat process
+    display_name: samtools cat
+    condition:
+      and:
+        - process_name_is: samtools
+        - first_arg_is: cat
+  - rule_name: samtools sort process
+    display_name: samtools sort
+    condition:
+      and:
+        - process_name_is: samtools
+        - first_arg_is: sort

@@ -6,10 +6,6 @@ pub enum Condition {
     And(CompoundCondition),
     Or(CompoundCondition),
 }
-
-// negative rules
-//list of command that we want to discard that will be applied to every command
-// - process name and command contains
 #[derive(Clone, Debug)]
 pub enum SimpleCondition {
     ProcessNameIs { process_name_is: String },
@@ -20,6 +16,7 @@ pub enum SimpleCondition {
     CommandContains { command_contains: String },
     CommandNotContains { command_not_contains: String },
     CommandMatchesRegex { command_matches_regex: String },
+    SubcommandIsOneOf { subcommands: Vec<String> }
 }
 
 #[derive(Clone, Debug)]
@@ -61,8 +58,11 @@ impl Condition {
             Condition::Simple(SimpleCondition::CommandMatchesRegex {
                 command_matches_regex,
             }) => TargetMatch::CommandMatchesRegex(command_matches_regex.clone()),
-            Condition::And(and_cond) => TargetMatch::And(and_cond.into_target_matches()),
-            Condition::Or(or_cond) => TargetMatch::Or(or_cond.into_target_matches()),
+            Condition::And(and_condition) => TargetMatch::And(and_condition.into_target_matches()),
+            Condition::Or(or_condition) => TargetMatch::Or(or_condition.into_target_matches()),
+            Condition::Simple(SimpleCondition::SubcommandIsOneOf { subcommands }) => {
+                TargetMatch::SubcommandIsOneOf(subcommands.clone())
+            }
         }
     }
 }

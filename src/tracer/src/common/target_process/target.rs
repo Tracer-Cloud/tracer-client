@@ -17,10 +17,6 @@ impl Target {
         }
     }
 
-    pub fn set_display_name(mut self, display_name: String) {
-        self.display_name = display_name;
-    }
-
     pub fn get_display_name(&self) -> String {
         self.display_name.clone()
     }
