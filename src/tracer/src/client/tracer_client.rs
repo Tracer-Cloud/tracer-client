@@ -8,12 +8,12 @@ use anyhow::{Context, Result};
 use crate::client::events::{send_alert_event, send_log_event, send_start_run_event};
 use crate::client::exporters::client_export_manager::ExporterManager;
 use crate::client::exporters::log_writer::LogWriterEnum;
+use crate::extracts::ebpf_watcher::watcher::EbpfWatcher;
+use crate::extracts::metrics::system_metrics_collector::SystemMetricsCollector;
 use crate::process_identification::recorder::LogRecorder;
 use crate::process_identification::types::current_run::{PipelineMetadata, Run};
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::{Event, ProcessStatus};
-use crate::extracts::ebpf_watcher::watcher::EbpfWatcher;
-use crate::extracts::metrics::system_metrics_collector::SystemMetricsCollector;
 use chrono::{DateTime, Utc};
 use serde_json::json;
 use std::sync::Arc;
@@ -22,8 +22,10 @@ use sysinfo::System;
 use tokio::sync::{mpsc, RwLock};
 use tracing::{error, info};
 
+use crate::daemon::structs::{InfoResponse, InnerInfoResponse};
 #[cfg(target_os = "linux")]
 use crate::utils::system_info::get_kernel_version;
+use crate::utils::Sentry;
 #[cfg(target_os = "linux")]
 use tracing::warn;
 
@@ -336,5 +338,28 @@ impl TracerClient {
     pub async fn close(&self) -> Result<()> {
         self.exporter.close().await?;
         Ok(())
+    }
+
+    pub async fn sentry_alert(&self) -> () {
+        //todo refactor with daemon module
+
+        let pipeline = self.get_run_metadata().read().await.clone();
+
+        let response_inner = InnerInfoResponse::try_from(pipeline).ok();
+
+        let preview = self.ebpf_watcher.get_n_monitored_processes(10).await;
+        let number_of_monitored_processes =
+            self.ebpf_watcher.get_number_of_monitored_processes().await;
+        
+        if let Some(inner) = response_inner {
+            Sentry::add_context("Run Details", json!({
+                "name": inner.run_name.clone(),
+                "id": inner.run_id.clone(),
+                "runtime": inner.formatted_runtime(),
+                "Monitored Processes": number_of_monitored_processes,
+            }));
+            Sentry::add_extra("Monitored Processes", json!(preview));
+        }
+
     }
 }

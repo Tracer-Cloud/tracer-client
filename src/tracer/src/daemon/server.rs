@@ -9,6 +9,7 @@ use crate::client::TracerClient;
 use crate::config;
 use crate::daemon::app::get_app;
 use crate::daemon::daemon_run::monitor_processes;
+use crate::utils::Sentry;
 use std::borrow::BorrowMut;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
@@ -100,11 +101,13 @@ impl DaemonServer {
                     let guard = tracer_client.lock().await;
 
                     guard.poll_metrics_data().await?;
+                    guard.sentry_alert().await;
                 }
                 _ = process_metrics_interval.tick() => {
                     debug!("DaemonServer monitor interval ticked");
                     monitor_processes(tracer_client.lock().await.borrow_mut())
                     .await?;
+                    tracer_client.lock().await.sentry_alert().await;
                 }
 
             }
