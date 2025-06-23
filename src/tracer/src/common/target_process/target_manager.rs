@@ -16,14 +16,29 @@ impl TargetManager {
     pub fn get_target_match(&self, process: &ProcessStartTrigger) -> Option<String> {
         // exclude rules take precedence over rules
         // if one of the exclude rules matches, return None, because we want to exclude the process
-        if self.exclude.iter().any(|target| target.matches(process)) {
+        if self.exclude.iter().any(|target| target.matches(process).0) {
             return None;
         }
 
         self.targets
             .iter()
-            .find(|target| target.matches(process))
-            .map(|target| target.get_display_name())
+            .find_map(|target| {
+                let (matched, subcommand) = target.matches(process);
+                if matched {
+                    let mut display_name = target.get_display_name();
+                    
+                    // Replace {subcommand} if present and subcommand is Some
+                    if subcommand.is_some() {
+                        let subcommand = subcommand.unwrap();
+                        display_name = display_name.replace("{subcommand}", &subcommand);
+                        
+                    }
+
+                    return Some(display_name);
+                } else {
+                    None
+                }
+            })
     }
 }
 

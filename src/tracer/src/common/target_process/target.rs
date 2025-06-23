@@ -22,7 +22,7 @@ impl Target {
     }
 
     /// Simple matching logic
-    pub fn matches(&self, process: &ProcessStartTrigger) -> bool {
+    pub fn matches(&self, process: &ProcessStartTrigger) -> (bool, Option<String>) {
         // Check if the process matches the primary condition
         matches_target(&self.match_type, process)
     }
