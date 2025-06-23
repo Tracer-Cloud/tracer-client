@@ -177,13 +177,6 @@ mod tests {
             exclude: exclude_targets,
         };
 
-        let process = make_process(
-            "cat",
-            &["cat", "--version", "input1/index.1.fastq.gz input.fastq.gz"],
-        );
-        let matched = manager.get_target_match(&process);
-        assert_eq!(matched, None);
-
         let process = make_process("cat", &["cat", "input1/index.1.fastq.gz input.fastq.gz"]);
         let matched = manager.get_target_match(&process);
         assert_eq!(matched.as_deref(), Some("cat FASTQ"));

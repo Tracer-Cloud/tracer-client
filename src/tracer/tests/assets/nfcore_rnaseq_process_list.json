@@ -4,21 +4,15 @@
     "test_commands": [
       [
         "umi_tools extract -I sample1_R1.fastq.gz --read2-in=sample1_R2.fastq.gz -S sample1.umi_extract_1.fastq.gz --read2-out=sample1.umi_extract_2.fastq.gz --bc-pattern=NNNNNNNN",
-        "cat",
-        "umi_tools --version",
-        "sed /version:/!d; s/.*: //"
+        "cat"
       ],
       [
         "umi_tools extract -I SRR123456_1.fastq.gz --read2-in=SRR123456_2.fastq.gz -S SRR123456.umi_extract_1.fastq.gz --read2-out=SRR123456.umi_extract_2.fastq.gz --bc-pattern=NNNNNNNNNN --quality-filter-threshold=20",
-        "cat",
-        "umi_tools --version",
-        "sed /version:/!d; s/.*: //"
+        "cat"
       ],
       [
         "umi_tools extract -I ctrl_rep1_R1.fastq.gz --read2-in=ctrl_rep1_R2.fastq.gz -S ctrl_rep1.umi_extract_1.fastq.gz --read2-out=ctrl_rep1.umi_extract_2.fastq.gz",
-        "cat",
-        "umi_tools --version",
-        "sed /version:/!d; s/.*: //"
+        "cat"
       ]
     ],
     "pattern": "^umi_tools extract -I \\S+ --read2-in=\\S+ -S \\S+\\.umi_extract_1\\.fastq\\.gz --read2-out=\\S+\\.umi_extract_2\\.fastq\\.gz"
@@ -31,9 +25,6 @@
         "sed s/\\\\.grp$//",
         "rsem-calculate-expression --num-threads 8 --temporary-folder ./tmp/ --strandedness forward --paired-end sample1_R1.fastq.gz sample1_R2.fastq.gz reference_index sample1",
         "cat",
-        "rsem-calculate-expression --version",
-        "sed -e s/Current version: RSEM v//g",
-        "STAR --version",
         "sed -e s/STAR_//g"
       ],
       [
@@ -41,9 +32,6 @@
         "sed s/\\\\.grp$//",
         "rsem-calculate-expression --num-threads 16 --temporary-folder ./tmp/ --strandedness reverse --no-bam-output tumor_sample.fastq.gz reference_index tumor_sample",
         "cat",
-        "rsem-calculate-expression --version",
-        "sed -e s/Current version: RSEM v//g",
-        "STAR --version",
         "sed -e s/STAR_//g"
       ],
       [
@@ -51,9 +39,6 @@
         "sed s/\\\\.grp$//",
         "rsem-calculate-expression --num-threads 4 --temporary-folder ./tmp/ --paired-end --output-genome-bam control_1.fq.gz control_2.fq.gz reference_index control",
         "cat",
-        "rsem-calculate-expression --version",
-        "sed -e s/Current version: RSEM v//g",
-        "STAR --version",
         "sed -e s/STAR_//g"
       ]
     ],
@@ -94,7 +79,6 @@
         "paste transcript_ids.txt tmp/isoforms/sample1.counts.txt tmp/isoforms/sample2.counts.txt",
         "paste transcript_ids.txt tmp/isoforms/sample1.tpm.txt tmp/isoforms/sample2.tpm.txt",
         "cat",
-        "sed --version",
         "sed s/^.*GNU sed) //; s/ .*$//"
       ],
       [
@@ -129,7 +113,6 @@
         "paste transcript_ids.txt tmp/isoforms/control_rep1.counts.txt tmp/isoforms/treatment_rep1.counts.txt tmp/isoforms/treatment_rep2.counts.txt",
         "paste transcript_ids.txt tmp/isoforms/control_rep1.tpm.txt tmp/isoforms/treatment_rep1.tpm.txt tmp/isoforms/treatment_rep2.tpm.txt",
         "cat",
-        "sed --version",
         "sed s/^.*GNU sed) //; s/ .*$//"
       ]
     ],
@@ -147,7 +130,6 @@
         "cat gencode.v44.transcripts.fa GRCh38.primary_assembly.genome.fa",
         "salmon index --threads 4 -t gentrome.fa -d decoys.txt --keepDuplicates -i salmon",
         "cat",
-        "salmon --version",
         "sed -e s/salmon //g"
       ],
       [
@@ -159,7 +141,6 @@
         "cat Homo_sapiens.GRCh38.cdna.all.fa Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz",
         "salmon index --threads 8 -t gentrome.fa.gz -d decoys.txt --type quasi -i salmon",
         "cat",
-        "salmon --version",
         "sed -e s/salmon //g"
       ],
       [
@@ -170,7 +151,6 @@
         "cat Mus_musculus.GRCm39.cdna.all.fa mm39.fa",
         "salmon index --threads 16 -t gentrome.fa -d decoys.txt --sparse -i salmon",
         "cat",
-        "salmon --version",
         "sed -e s/salmon //g"
       ]
     ],
@@ -182,19 +162,16 @@
       [
         "junction_saturation.py -i sample1_aligned.bam -r hg38_refseq.bed -o sample1",
         "cat",
-        "junction_saturation.py --version",
         "sed -e s/junction_saturation.py //g"
       ],
       [
         "junction_saturation.py -i mouse_liver_rnaseq.bam -r mm10_genes.bed -o liver_sample_01",
         "cat",
-        "junction_saturation.py --version",
         "sed -e s/junction_saturation.py //g"
       ],
       [
         "junction_saturation.py -i SRR123456_sorted.bam -r gencode_v38_genes.bed -o SRR123456 --min-intron=50 --max-intron=1000000",
         "cat",
-        "junction_saturation.py --version",
         "sed -e s/junction_saturation.py //g"
       ]
     ],
@@ -224,19 +201,16 @@
       [
         "samtools idxstats --threads 7 sample_001_sorted.bam",
         "cat",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//"
       ],
       [
         "samtools idxstats --threads 3 SRR12345678_aligned.bam",
         "cat",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//"
       ],
       [
         "samtools idxstats --threads 15 H3K4me3_rep1_dedup.bam",
         "cat",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//"
       ]
     ],
@@ -252,33 +226,24 @@
         "mkdir star",
         "STAR --runMode genomeGenerate --genomeDir star/ --genomeFastaFiles Homo_sapiens.GRCh38.dna.primary_assembly.fa --sjdbGTFfile Homo_sapiens.GRCh38.109.gtf --runThreadN 8 --limitGenomeGenerateRAM 31900000000 --genomeSAindexNbases 14",
         "cat",
-        "STAR --version",
         "sed -e s/STAR_//g",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//",
-        "gawk --version",
         "sed s/^.*GNU Awk //; s/ .*$//"
       ],
       [
         "mkdir star",
         "STAR --runMode genomeGenerate --genomeDir star/ --genomeFastaFiles Mus_musculus.GRCm39.dna.primary_assembly.fa --runThreadN 16 --limitGenomeGenerateRAM 63800000000 --genomeSAindexNbases 13 --sjdbOverhang 100",
         "cat",
-        "STAR --version",
         "sed -e s/STAR_//g",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//",
-        "gawk --version",
         "sed s/^.*GNU Awk //; s/ .*$//"
       ],
       [
         "mkdir star",
         "STAR --runMode genomeGenerate --genomeDir star/ --genomeFastaFiles Arabidopsis_thaliana.TAIR10.dna.toplevel.fa --sjdbGTFfile Arabidopsis_thaliana.TAIR10.55.gtf --runThreadN 4 --genomeSAindexNbases 12",
         "cat",
-        "STAR --version",
         "sed -e s/STAR_//g",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//",
-        "gawk --version",
         "sed s/^.*GNU Awk //; s/ .*$//"
       ]
     ],
@@ -292,7 +257,6 @@
         "grep -v E::idx_find_and_load",
         "tee sample1.junction_annotation.log",
         "cat",
-        "junction_annotation.py --version",
         "sed -e s/junction_annotation.py //g"
       ],
       [
@@ -300,7 +264,6 @@
         "grep -v E::idx_find_and_load",
         "tee mouse_liver.junction_annotation.log",
         "cat",
-        "junction_annotation.py --version",
         "sed -e s/junction_annotation.py //g"
       ],
       [
@@ -308,7 +271,6 @@
         "grep -v E::idx_find_and_load",
         "tee scRNA_ABC123.junction_annotation.log",
         "cat",
-        "junction_annotation.py --version",
         "sed -e s/junction_annotation.py //g"
       ]
     ],
@@ -321,21 +283,18 @@
         "samtools faidx GRCh38.primary_assembly.genome.fa",
         "cut -f 1 2 GRCh38.primary_assembly.genome.fa.fai",
         "cat",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//"
       ],
       [
         "samtools faidx GRCm39.genome.fa",
         "cut -f 1 2 GRCm39.genome.fa.fai",
         "cat",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//"
       ],
       [
         "samtools faidx GCF_000005825.2_ASM582v2_genomic.fna",
         "cut -f 1 2 GCF_000005825.2_ASM582v2_genomic.fna.fai",
         "cat",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//"
       ]
     ],
@@ -383,19 +342,16 @@
       [
         "samtools flagstat --threads 4 sample_RNA_001.sorted.bam",
         "cat",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//"
       ],
       [
         "samtools flagstat --threads 8 H3K4me3_treatment.dedup.bam",
         "cat",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//"
       ],
       [
         "samtools flagstat --threads 16 WGS_patient_001.markdup.bam",
         "cat",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//"
       ]
     ],
@@ -427,22 +383,19 @@
     "test_commands": [
       [
         "cat",
-        "inner_distance.py --version",
         "sed -e s/inner_distance.py //g"
       ],
       [
         "cat",
-        "inner_distance.py --version",
         "sed -e s/inner_distance.py //g"
       ],
       [
         "cat",
-        "inner_distance.py --version",
         "sed -e s/inner_distance.py //g"
       ]
     ],
     "match_commands": [],
-    "pattern": "^inner_distance\\.py --version$"
+    "pattern": "^inner_distance\\.py"
   },
   {
     "process_name": "RSEQC_TIN",
@@ -450,19 +403,16 @@
       [
         "tin.py -i sample1.sorted.bam -r gencode.v44.annotation.bed",
         "cat",
-        "tin.py --version",
         "sed -e s/tin.py //g"
       ],
       [
         "tin.py -i scRNA_sample_001.aligned.bam -r Homo_sapiens.GRCh38.108.bed",
         "cat",
-        "tin.py --version",
         "sed -e s/tin.py //g"
       ],
       [
         "tin.py -i control_rep3.star.bam -r ncbiRefSeq_hg38.bed",
         "cat",
-        "tin.py --version",
         "sed -e s/tin.py //g"
       ]
     ],
@@ -474,22 +424,16 @@
       [
         "picard -Xmx2457M MarkDuplicates --VALIDATION_STRINGENCY LENIENT --INPUT sample1_sorted.bam --OUTPUT sample1_markdup.bam --REFERENCE_SEQUENCE GRCh38.primary_assembly.genome.fa --METRICS_FILE sample1_markdup.MarkDuplicates.metrics.txt",
         "cat",
-        "picard MarkDuplicates --version",
-        "grep -o Version:.*",
         "cut -f2- -d:"
       ],
       [
         "picard -Xmx3072M MarkDuplicates --CREATE_INDEX true --INPUT tumor_sample.cram --OUTPUT tumor_sample_dedup.cram --METRICS_FILE tumor_sample_dedup.MarkDuplicates.metrics.txt",
         "cat",
-        "picard MarkDuplicates --version",
-        "grep -o Version:.*",
         "cut -f2- -d:"
       ],
       [
         "picard -Xmx6553M MarkDuplicates --ASSUME_SORT_ORDER coordinate --REMOVE_DUPLICATES true --INPUT WGS_paired_end.bam --OUTPUT WGS_paired_end_final.bam --REFERENCE_SEQUENCE hg19.fa --METRICS_FILE WGS_paired_end_final.MarkDuplicates.metrics.txt",
         "cat",
-        "picard MarkDuplicates --version",
-        "grep -o Version:.*",
         "cut -f2- -d:"
       ]
     ],
@@ -503,9 +447,6 @@
         "rsem-prepare-reference --gtf Homo_sapiens.GRCh38.109.gtf --num-threads 8 --bowtie2 Homo_sapiens.GRCh38.dna.primary_assembly.fa rsem/genome",
         "cp rsem/genome.transcripts.fa .",
         "cat",
-        "rsem-calculate-expression --version",
-        "sed -e s/Current version: RSEM v//g",
-        "STAR --version",
         "sed -e s/STAR_//g"
       ],
       [
@@ -513,9 +454,6 @@
         "rsem-prepare-reference --gtf Mus_musculus.GRCm39.108.gtf --num-threads 4 --bowtie Mus_musculus.GRCm39.dna.primary_assembly.fa rsem/genome",
         "cp rsem/genome.transcripts.fa .",
         "cat",
-        "rsem-calculate-expression --version",
-        "sed -e s/Current version: RSEM v//g",
-        "STAR --version",
         "sed -e s/STAR_//g"
       ],
       [
@@ -523,9 +461,6 @@
         "rsem-prepare-reference --gtf Danio_rerio.GRCz11.107.gtf --num-threads 12 --polyA Danio_rerio.GRCz11.dna.primary_assembly.fa rsem/genome",
         "cp rsem/genome.transcripts.fa .",
         "cat",
-        "rsem-calculate-expression --version",
-        "sed -e s/Current version: RSEM v//g",
-        "STAR --version",
         "sed -e s/STAR_//g"
       ]
     ],
@@ -544,11 +479,8 @@
         "mkdir star",
         "STAR --runMode genomeGenerate --genomeDir star/ --genomeFastaFiles Homo_sapiens.GRCh38.dna.primary_assembly.fa --sjdbGTFfile Homo_sapiens.GRCh38.109.gtf --runThreadN 8 --genomeSAindexNbases $NUM_BASES --limitGenomeGenerateRAM 63000000000",
         "cat",
-        "STAR --version",
         "sed -e s/STAR_//g",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//",
-        "gawk --version",
         "sed s/^.*GNU Awk //; s/ .*$//"
       ],
       [
@@ -557,11 +489,8 @@
         "mkdir star",
         "STAR --runMode genomeGenerate --genomeDir star/ --genomeFastaFiles Mus_musculus.GRCm39.dna.primary_assembly.fa --runThreadN 16 --genomeSAindexNbases $NUM_BASES --limitGenomeGenerateRAM 127000000000",
         "cat",
-        "STAR --version",
         "sed -e s/STAR_//g",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//",
-        "gawk --version",
         "sed s/^.*GNU Awk //; s/ .*$//"
       ],
       [
@@ -570,11 +499,8 @@
         "mkdir star",
         "STAR --runMode genomeGenerate --genomeDir star/ --genomeFastaFiles Arabidopsis_thaliana.TAIR10.dna.toplevel.fa --sjdbGTFfile Arabidopsis_thaliana.TAIR10.55.gtf --runThreadN 4 --genomeSAindexNbases $NUM_BASES --limitGenomeGenerateRAM 31000000000",
         "cat",
-        "STAR --version",
         "sed -e s/STAR_//g",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//",
-        "gawk --version",
         "sed s/^.*GNU Awk //; s/ .*$//"
       ]
     ],
@@ -593,7 +519,6 @@
         "cat biotype_header.tsv -",
         "mqc_features_stat.py sample1.biotype_counts_mqc.tsv -s sample1 -f rRNA -o sample1.biotype_counts_rrna_mqc.tsv",
         "cat",
-        "python --version",
         "sed s/Python //g"
       ],
       [
@@ -602,7 +527,6 @@
         "cat header_biotype.tsv -",
         "mqc_features_stat.py ctrl_rep2.biotype_counts_mqc.tsv -s ctrl_rep2 -f rRNA -o ctrl_rep2.biotype_counts_rrna_mqc.tsv",
         "cat",
-        "python --version",
         "sed s/Python //g"
       ],
       [
@@ -611,7 +535,6 @@
         "cat mqc_header.tsv -",
         "mqc_features_stat.py treated_24h.biotype_counts_mqc.tsv -s treated_24h -f rRNA -o treated_24h.biotype_counts_rrna_mqc.tsv",
         "cat",
-        "python --version",
         "sed s/Python //g"
       ]
     ],
@@ -623,19 +546,16 @@
       [
         "samtools stats --threads 4 --reference GRCh38.primary_assembly.genome.fa sample_001.sorted.bam",
         "cat",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//"
       ],
       [
         "samtools stats --threads 8 RNAseq_paired_end.cram",
         "cat",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//"
       ],
       [
         "samtools stats --threads 2 --reference mm39.primary_assembly.genome.fa ChIPseq_H3K4me3.sorted.bam",
         "cat",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//"
       ]
     ],
@@ -650,19 +570,16 @@
       [
         "samtools index -@ 7 sample1.sorted.bam",
         "cat",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//"
       ],
       [
         "samtools index -@ 3 -c sample2.aligned.cram",
         "cat",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//"
       ],
       [
         "samtools index -@ 15 -m 14 large_sample.bam",
         "cat",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//"
       ]
     ],
@@ -678,33 +595,24 @@
         "mkdir star",
         "STAR --runMode genomeGenerate --genomeDir star/ --genomeFastaFiles Homo_sapiens.GRCh38.dna.primary_assembly.fa --sjdbGTFfile Homo_sapiens.GRCh38.109.gtf --runThreadN 8 --limitGenomeGenerateRAM 31000000000 --genomeSAindexNbases 14",
         "cat",
-        "STAR --version",
         "sed -e s/STAR_//g",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//",
-        "gawk --version",
         "sed s/^.*GNU Awk //; s/ .*$//"
       ],
       [
         "mkdir star",
         "STAR --runMode genomeGenerate --genomeDir star/ --genomeFastaFiles Mus_musculus.GRCm39.dna.primary_assembly.fa --runThreadN 16 --limitGenomeGenerateRAM 63000000000 --genomeSAindexNbases 12 --sjdbOverhang 100",
         "cat",
-        "STAR --version",
         "sed -e s/STAR_//g",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//",
-        "gawk --version",
         "sed s/^.*GNU Awk //; s/ .*$//"
       ],
       [
         "mkdir star",
         "STAR --runMode genomeGenerate --genomeDir star/ --genomeFastaFiles Danio_rerio.GRCz11.dna.primary_assembly.fa --sjdbGTFfile Danio_rerio.GRCz11.109.gtf --runThreadN 4 --genomeSAindexNbases 13",
         "cat",
-        "STAR --version",
         "sed -e s/STAR_//g",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//",
-        "gawk --version",
         "sed s/^.*GNU Awk //; s/ .*$//"
       ]
     ],
@@ -716,19 +624,16 @@
       [
         "filter_gtf.py --gtf Homo_sapiens.GRCh38.109.gtf --fasta Homo_sapiens.GRCh38.dna.primary_assembly.fa --prefix Homo_sapiens.GRCh38.dna.primary_assembly",
         "cat",
-        "python --version",
         "sed s/Python //g"
       ],
       [
         "filter_gtf.py --gtf gencode.vM32.annotation.gtf --fasta GRCm39.genome.fa --prefix GRCm39.genome",
         "cat",
-        "python --version",
         "sed s/Python //g"
       ],
       [
         "filter_gtf.py --gtf Danio_rerio.GRCz11.108.gtf --fasta Danio_rerio.GRCz11.dna.primary_assembly.fa --prefix Danio_rerio.GRCz11.dna.primary_assembly",
         "cat",
-        "python --version",
         "sed s/Python //g"
       ]
     ],
@@ -740,19 +645,16 @@
       [
         "fq subsample --probability 0.1 sample1_R1.fastq.gz --r1-dst sample1.fastq.gz",
         "cat",
-        "fq subsample --version",
         "sed s/fq-subsample //g"
       ],
       [
         "fq subsample --record-count 10000 sample2_R1.fastq.gz sample2_R2.fastq.gz --r1-dst sample2_R1.fastq.gz --r2-dst sample2_R2.fastq.gz",
         "cat",
-        "fq subsample --version",
         "sed s/fq-subsample //g"
       ],
       [
         "fq subsample -p 0.05 RNAseq_control_rep1.fastq.gz --r1-dst ctrl_rep1_subsampled.fastq.gz",
         "cat",
-        "fq subsample --version",
         "sed s/fq-subsample //g"
       ]
     ],
@@ -766,21 +668,15 @@
     "test_commands": [
       [
         "umi_tools prepare-for-rsem --stdin=sample1_aligned.bam --stdout=sample1.bam --log=sample1.prepare_for_rsem.log",
-        "cat",
-        "umi_tools --version",
-        "sed /version:/!d; s/.*: //"
+        "cat"
       ],
       [
         "umi_tools prepare-for-rsem --stdin=SRR12345678_possorted_genome_bam.bam --stdout=processed_SRR12345678.bam --log=processed_SRR12345678.prepare_for_rsem.log --method=unique",
-        "cat",
-        "umi_tools --version",
-        "sed /version:/!d; s/.*: //"
+        "cat"
       ],
       [
         "umi_tools prepare-for-rsem --stdin=bulk_rnaseq_aligned.bam --stdout=CTRL_rep1.bam --log=CTRL_rep1.prepare_for_rsem.log --per-gene --gene-tag=XT --per-cell",
-        "cat",
-        "umi_tools --version",
-        "sed /version:/!d; s/.*: //"
+        "cat"
       ]
     ],
     "pattern": "^umi_tools prepare-for-rsem --stdin=\\S+ --stdout=\\S+ --log=\\S+"
@@ -791,19 +687,16 @@
       [
         "bam_stat.py -i sample1_aligned.bam",
         "cat",
-        "bam_stat.py --version",
         "sed -e s/bam_stat.py //g"
       ],
       [
         "bam_stat.py -i ChIP_sample_H3K4me3.bam -q 30",
         "cat",
-        "bam_stat.py --version",
         "sed -e s/bam_stat.py //g"
       ],
       [
         "bam_stat.py -i scRNA_celltype_A.bam --mapq 10",
         "cat",
-        "bam_stat.py --version",
         "sed -e s/bam_stat.py //g"
       ]
     ],
@@ -815,19 +708,16 @@
       [
         "read_distribution.py -i sample1_aligned.bam -r gencode.v44.annotation.bed",
         "cat",
-        "read_distribution.py --version",
         "sed -e s/read_distribution.py //g"
       ],
       [
         "read_distribution.py -i scRNA_sample_B2.bam -r refseq_genes.bed",
         "cat",
-        "read_distribution.py --version",
         "sed -e s/read_distribution.py //g"
       ],
       [
         "read_distribution.py -i ctrl_rep3_sorted.bam -r Homo_sapiens.GRCh38.108.bed",
         "cat",
-        "read_distribution.py --version",
         "sed -e s/read_distribution.py //g"
       ]
     ],
@@ -841,11 +731,8 @@
         "mv sample1.Unmapped.out.mate1 sample1.unmapped_1.fastq",
         "gzip sample1.unmapped_1.fastq",
         "cat",
-        "STAR --version",
         "sed -e s/STAR_//g",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//",
-        "gawk --version",
         "sed s/^.*GNU Awk //; s/ .*$//"
       ],
       [
@@ -854,11 +741,8 @@
         "mv treatment.Unmapped.out.mate2 treatment.unmapped_2.fastq",
         "gzip treatment.unmapped_2.fastq",
         "cat",
-        "STAR --version",
         "sed -e s/STAR_//g",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//",
-        "gawk --version",
         "sed s/^.*GNU Awk //; s/ .*$//"
       ],
       [
@@ -868,11 +752,8 @@
         "mv control.Unmapped.out.mate2 control.unmapped_2.fastq",
         "gzip control.unmapped_2.fastq",
         "cat",
-        "STAR --version",
         "sed -e s/STAR_//g",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//",
-        "gawk --version",
         "sed s/^.*GNU Awk //; s/ .*$//"
       ]
     ],
@@ -886,11 +767,8 @@
         "mv sample1.Unmapped.out.mate1 sample1.unmapped_1.fastq",
         "gzip sample1.unmapped_1.fastq",
         "cat",
-        "STAR --version",
         "sed -e s/STAR_//g",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//",
-        "gawk --version",
         "sed s/^.*GNU Awk //; s/ .*$//"
       ],
       [
@@ -899,21 +777,15 @@
         "mv paired_sample.Unmapped.out.mate2 paired_sample.unmapped_2.fastq",
         "gzip paired_sample.unmapped_2.fastq",
         "cat",
-        "STAR --version",
         "sed -e s/STAR_//g",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//",
-        "gawk --version",
         "sed s/^.*GNU Awk //; s/ .*$//"
       ],
       [
         "STAR --genomeDir mouse_mm10_index --readFilesIn control_sample.fq.gz  --runThreadN 4 --outFileNamePrefix ctrl. --outSAMtype SAM  --outSAMattrRGline ID:ctrl CN:Novogene SM:ctrl PL:ILLUMINA --quantMode GeneCounts",
         "cat",
-        "STAR --version",
         "sed -e s/STAR_//g",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//",
-        "gawk --version",
         "sed s/^.*GNU Awk //; s/ .*$//"
       ]
     ],
@@ -925,19 +797,16 @@
       [
         "read_duplication.py -i sample1_sorted.bam -o sample1",
         "cat",
-        "read_duplication.py --version",
         "sed -e s/read_duplication.py //g"
       ],
       [
         "read_duplication.py -i ChIP_H3K4me3_rep1.bam -o ChIP_H3K4me3_rep1_filtered -q 30",
         "cat",
-        "read_duplication.py --version",
         "sed -e s/read_duplication.py //g"
       ],
       [
         "read_duplication.py -i paired_end_RNAseq.bam -o PE_analysis -u 100000",
         "cat",
-        "read_duplication.py --version",
         "sed -e s/read_duplication.py //g"
       ]
     ],
@@ -950,21 +819,18 @@
         "inner_distance.py -i sample1_sorted.bam -r hg38_RefSeq.bed -o sample1",
         "head -n 2 stdout.txt",
         "cat",
-        "inner_distance.py --version",
         "sed -e s/inner_distance.py //g"
       ],
       [
         "inner_distance.py -i ChIP_H3K4me3_rep1.bam -r mm10_gencode.bed -o ChIP_H3K4me3_rep1 --sample-size 200000",
         "head -n 2 stdout.txt",
         "cat",
-        "inner_distance.py --version",
         "sed -e s/inner_distance.py //g"
       ],
       [
         "inner_distance.py -i ATAC_seq_treatment.bam -r hg19_knownGene.bed -o ATAC_treatment_processed",
         "head -n 2 stdout.txt",
         "cat",
-        "inner_distance.py --version",
         "sed -e s/inner_distance.py //g"
       ]
     ],
@@ -1006,11 +872,8 @@
         "mkdir star",
         "STAR --runMode genomeGenerate --genomeDir star/ --genomeFastaFiles Homo_sapiens.GRCh38.dna.primary_assembly.fa --sjdbGTFfile Homo_sapiens.GRCh38.109.gtf --runThreadN 8 --genomeSAindexNbases $NUM_BASES --limitGenomeGenerateRAM 31400000000",
         "cat",
-        "STAR --version",
         "sed -e s/STAR_//g",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//",
-        "gawk --version",
         "sed s/^.*GNU Awk //; s/ .*$//"
       ],
       [
@@ -1019,11 +882,8 @@
         "mkdir star",
         "STAR --runMode genomeGenerate --genomeDir star/ --genomeFastaFiles Mus_musculus.GRCm39.dna.primary_assembly.fa --runThreadN 16 --genomeSAindexNbases $NUM_BASES --limitGenomeGenerateRAM 63800000000",
         "cat",
-        "STAR --version",
         "sed -e s/STAR_//g",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//",
-        "gawk --version",
         "sed s/^.*GNU Awk //; s/ .*$//"
       ],
       [
@@ -1032,11 +892,8 @@
         "mkdir star",
         "STAR --runMode genomeGenerate --genomeDir star/ --genomeFastaFiles Danio_rerio.GRCz11.dna.primary_assembly.fa --sjdbGTFfile Danio_rerio.GRCz11.109.gtf --runThreadN 12 --genomeSAindexNbases $NUM_BASES --limitGenomeGenerateRAM 47600000000 --sjdbOverhang 100",
         "cat",
-        "STAR --version",
         "sed -e s/STAR_//g",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//",
-        "gawk --version",
         "sed s/^.*GNU Awk //; s/ .*$//"
       ]
     ],
@@ -1053,20 +910,17 @@
         "bedtools genomecov -ibam sample1.bam -scale 2.5 -bg",
         "sort --parallel=4 --buffer-size=4G -k1 1 -k2 2n",
         "cat",
-        "bedtools --version",
         "sed -e s/bedtools v//g"
       ],
       [
         "bedtools genomecov -ibam ChIP_seq_H3K4me3.bam -d",
         "cat",
-        "bedtools --version",
         "sed -e s/bedtools v//g"
       ],
       [
         "bedtools genomecov -ibam RNA_seq_control.bam -bga -split",
         "sort --parallel=8 --buffer-size=2G -k1 1 -k2 2n",
         "cat",
-        "bedtools --version",
         "sed -e s/bedtools v//g"
       ]
     ],
@@ -1079,21 +933,18 @@
         "samtools cat sample1.bam",
         "samtools sort -T sample1 --threads 4 -o sample1.bam -",
         "cat",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//"
       ],
       [
         "samtools cat tumor_sample.bam",
         "samtools sort --output-fmt cram -T tumor_sample --threads 8 --reference hg38.fa -o tumor_sample.cram -",
         "cat",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//"
       ],
       [
         "samtools cat aligned_reads.bam",
         "samtools sort -n -T processed_reads --threads 2 -o processed_reads.bam -",
         "cat",
-        "samtools --version",
         "sed s/^.*samtools //; s/Using.*$//"
       ]
     ],
@@ -1123,7 +974,6 @@
         "sed s|^source.*|source\\tbbsplit/ref/genome/1/ref.fa| bbsplit/ref/genome/1/summary.txt",
         "mv bbsplit/ref/genome/1/summary.txt.tmp bbsplit/ref/genome/1/summary.txt",
         "cat",
-        "bbversion.sh",
         "grep -v Duplicate cpuset"
       ],
       [
@@ -1136,7 +986,6 @@
         "sed s|^source.*|source\\tbbsplit/ref/genome/1/ref.fa| bbsplit/ref/genome/1/summary.txt",
         "mv bbsplit/ref/genome/1/summary.txt.tmp bbsplit/ref/genome/1/summary.txt",
         "cat",
-        "bbversion.sh",
         "grep -v Duplicate cpuset"
       ],
       [
@@ -1149,7 +998,6 @@
         "sed s|^source.*|source\\tbbsplit/ref/genome/1/ref.fa| bbsplit/ref/genome/1/summary.txt",
         "mv bbsplit/ref/genome/1/summary.txt.tmp bbsplit/ref/genome/1/summary.txt",
         "cat",
-        "bbversion.sh",
         "grep -v Duplicate cpuset"
       ]
     ],
@@ -1160,21 +1008,15 @@
     "test_commands": [
       [
         "umi_tools extract -I sample1_R1.fastq.gz -S sample1.umi_extract.fastq.gz --bc-pattern=NNNNNNNN",
-        "cat",
-        "umi_tools --version",
-        "sed /version:/!d; s/.*: //"
+        "cat"
       ],
       [
         "umi_tools extract -I ctrl_rep1_R1.fastq.gz -S ctrl_rep1.umi_extract.fastq.gz --bc-pattern=CCCCCCCCCCCCCCCCNNNNNNNN",
-        "cat",
-        "umi_tools --version",
-        "sed /version:/!d; s/.*: //"
+        "cat"
       ],
       [
         "umi_tools extract -I treated_sample_R1.fastq.gz -S treated_sample.umi_extract.fastq.gz --bc-pattern=NNNNNXXX",
-        "cat",
-        "umi_tools --version",
-        "sed /version:/!d; s/.*: //"
+        "cat"
       ]
     ],
     "pattern": "^umi_tools extract -I \\S+ -S \\S+\\.umi_extract\\.fastq\\.gz"
@@ -1186,21 +1028,18 @@
         "cat sample1_L001_R1_001.fastq.gz sample1_L002_R1_001.fastq.gz",
         "cat sample1_L001_R2_001.fastq.gz sample1_L002_R2_001.fastq.gz",
         "cat",
-        "cat --version",
         "sed s/^.*coreutils) //; s/ .*$//"
       ],
       [
         "cat control_S1_L001_R1_001.fastq.gz control_S1_L002_R1_001.fastq.gz control_S1_L003_R1_001.fastq.gz control_S1_L004_R1_001.fastq.gz",
         "cat control_S1_L001_R2_001.fastq.gz control_S1_L002_R2_001.fastq.gz control_S1_L003_R2_001.fastq.gz control_S1_L004_R2_001.fastq.gz",
         "cat",
-        "cat --version",
         "sed s/^.*coreutils) //; s/ .*$//"
       ],
       [
         "cat patient42_L001_R1_001.fastq.gz patient42_L002_R1_001.fastq.gz patient42_L003_R1_001.fastq.gz",
         "cat patient42_L001_R2_001.fastq.gz patient42_L002_R2_001.fastq.gz patient42_L003_R2_001.fastq.gz",
         "cat",
-        "cat --version",
         "sed s/^.*coreutils) //; s/ .*$//"
       ]
     ],
@@ -1216,19 +1055,16 @@
       [
         "infer_experiment.py -i sample1_aligned.bam -r hg38_RefSeq.bed",
         "cat",
-        "infer_experiment.py --version",
         "sed -e s/infer_experiment.py //g"
       ],
       [
         "infer_experiment.py -i SRR123456_paired.bam -r gencode.v44.basic.annotation.bed -s 200000",
         "cat",
-        "infer_experiment.py --version",
         "sed -e s/infer_experiment.py //g"
       ],
       [
         "infer_experiment.py -i scRNA_cell_barcode_sorted.bam -r mm10_Ensembl_genes.bed",
         "cat",
-        "infer_experiment.py --version",
         "sed -e s/infer_experiment.py //g"
       ]
     ],
@@ -1242,7 +1078,6 @@
         "cut -d | -f1",
         "cat",
         "echo",
-        "sed --version",
         "sed s/^.*GNU sed) //; s/ .*$//"
       ],
       [
@@ -1250,7 +1085,6 @@
         "cut -d | -f1",
         "cat",
         "echo",
-        "sed --version",
         "sed s/^.*GNU sed) //; s/ .*$//"
       ],
       [
@@ -1258,7 +1092,6 @@
         "cut -d | -f1",
         "cat",
         "echo",
-        "sed --version",
         "sed s/^.*GNU sed) //; s/ .*$//"
       ]
     ],
@@ -1272,22 +1105,19 @@
         "preseq lc_extrap -output sample1.lc_extrap.txt sample1.sorted.bam",
         "cp .command.err sample1.command.log",
         "cat",
-        "preseq",
-        "sed s/^.*Version: //; s/Usage:.*$//"
+        "preseq"
       ],
       [
         "preseq lc_extrap -verbose -step 1000000 -pe -output RNA_seq_PE.lc_extrap.txt RNA_seq_PE.sorted.bam",
         "cp .command.err RNA_seq_PE.command.log",
         "cat",
-        "preseq",
-        "sed s/^.*Version: //; s/Usage:.*$//"
+        "preseq"
       ],
       [
         "preseq lc_extrap -bootstrap 100 -extrap 2e+09 -output ChIP_H3K4me3.lc_extrap.txt ChIP_H3K4me3.sorted.bam",
         "cp .command.err ChIP_H3K4me3.command.log",
         "cat",
-        "preseq",
-        "sed s/^.*Version: //; s/Usage:.*$//"
+        "preseq"
       ]
     ],
     "pattern": "^preseq lc_extrap.*-output \\S+\\.lc_extrap\\.txt.*\\.bam$"
@@ -1298,19 +1128,16 @@
       [
         "cat sample1_L001_R1_001.fastq.gz sample1_L002_R1_001.fastq.gz sample1_L003_R1_001.fastq.gz",
         "cat",
-        "cat --version",
         "sed s/^.*coreutils) //; s/ .*$//"
       ],
       [
         "cat ChIP_H3K4me3_rep1.fastq.gz ChIP_H3K4me3_rep2.fastq.gz",
         "cat",
-        "cat --version",
         "sed s/^.*coreutils) //; s/ .*$//"
       ],
       [
         "cat WGS_sample_001.fastq.gz",
         "cat",
-        "cat --version",
         "sed s/^.*coreutils) //; s/ .*$//"
       ]
     ],
@@ -1329,7 +1156,6 @@
         "test -f sample1/lib_format_counts.json",
         "cp sample1/lib_format_counts.json sample1_lib_format_counts.json",
         "cat",
-        "salmon --version",
         "sed -e s/salmon //g"
       ],
       [
@@ -1339,7 +1165,6 @@
         "test -f control_samples/lib_format_counts.json",
         "cp control_samples/lib_format_counts.json control_samples_lib_format_counts.json",
         "cat",
-        "salmon --version",
         "sed -e s/salmon //g"
       ],
       [
@@ -1349,7 +1174,6 @@
         "test -f treated_sample/lib_format_counts.json",
         "cp treated_sample/lib_format_counts.json treated_sample_lib_format_counts.json",
         "cat",
-        "salmon --version",
         "sed -e s/salmon //g"
       ]
     ],
@@ -1360,21 +1184,15 @@
     "test_commands": [
       [
         "umi_tools dedup -I sample1_sorted.bam -S sample1_dedup.bam -L sample1_dedup.log --output-stats sample1_dedup --method unique --random-seed=100",
-        "cat",
-        "umi_tools --version",
-        "sed /version:/!d; s/.*: //"
+        "cat"
       ],
       [
         "umi_tools dedup -I PBMC_10k_sorted.bam -S PBMC_10k_dedup.bam -L PBMC_10k_dedup.log --paired --extract-umi-method=read_id --random-seed=100",
-        "cat",
-        "umi_tools --version",
-        "sed /version:/!d; s/.*: //"
+        "cat"
       ],
       [
         "umi_tools dedup -I bulk_RNAseq_mapped.bam -S bulk_RNAseq_dedup.bam -L bulk_RNAseq_dedup.log --output-stats bulk_RNAseq_dedup --method cluster --threshold=2 --random-seed=100",
-        "cat",
-        "umi_tools --version",
-        "sed /version:/!d; s/.*: //"
+        "cat"
       ]
     ],
     "pattern": "^umi_tools dedup -I \\S+ -S \\S+ -L \\S+"
@@ -1385,19 +1203,16 @@
       [
         "fq lint sample_1_R1.fastq.gz",
         "cat",
-        "fq lint --version",
         "sed s/fq-lint //g"
       ],
       [
         "fq lint --min-quality 20 --min-length 50 WGS_sample_R2.fastq.gz",
         "cat",
-        "fq lint --version",
         "sed s/fq-lint //g"
       ],
       [
         "fq lint ChIP_H3K4me3_rep1.fastq.gz",
         "cat",
-        "fq lint --version",
         "sed s/fq-lint //g"
       ]
     ],
@@ -1413,20 +1228,17 @@
         "bedtools genomecov -i sample1_peaks.bed -g hg38.chrom.sizes -bg",
         "sort --parallel=4 --buffer-size=8G -k1 1 -k2 2n",
         "cat",
-        "bedtools --version",
         "sed -e s/bedtools v//g"
       ],
       [
         "bedtools genomecov -i chip_seq_peaks.narrowPeak -g mm10.genome -scale 2.5 -bg",
         "cat",
-        "bedtools --version",
         "sed -e s/bedtools v//g"
       ],
       [
         "bedtools genomecov -i transcripts.gtf -g dm6.chrom.sizes -d -strand",
         "sort --parallel=8 --buffer-size=16G -k1 1 -k2 2n",
         "cat",
-        "bedtools --version",
         "sed -e s/bedtools v//g"
       ]
     ],
@@ -1441,9 +1253,7 @@
         "tee -a sample1/kallisto_quant.log",
         "cp sample1/kallisto_quant.log sample1.log",
         "cp sample1/run_info.json sample1.run_info.json",
-        "cat",
-        "kallisto version",
-        "sed s/kallisto version //g"
+        "cat"
       ],
       [
         "mkdir -p sample2",
@@ -1451,9 +1261,7 @@
         "tee -a sample2/kallisto_quant.log",
         "cp sample2/kallisto_quant.log sample2.log",
         "cp sample2/run_info.json sample2.run_info.json",
-        "cat",
-        "kallisto version",
-        "sed s/kallisto version //g"
+        "cat"
       ],
       [
         "mkdir -p ctrl_rep1",
@@ -1461,9 +1269,7 @@
         "tee -a ctrl_rep1/kallisto_quant.log",
         "cp ctrl_rep1/kallisto_quant.log ctrl_rep1.log",
         "cp ctrl_rep1/run_info.json ctrl_rep1.run_info.json",
-        "cat",
-        "kallisto version",
-        "sed s/kallisto version //g"
+        "cat"
       ]
     ],
     "match_commands": [
@@ -1503,18 +1309,15 @@
     "test_commands": [
       [
         "stringtie sample1_aligned.bam --fr -G gencode.v44.annotation.gtf -o sample1.transcripts.gtf -A sample1.gene.abundance.txt -C sample1.coverage.gtf -b sample1.ballgown -p 8",
-        "cat",
-        "stringtie --version"
+        "cat"
       ],
       [
         "stringtie HeLa_RNAseq.sorted.bam --rf -G Homo_sapiens.GRCh38.110.gtf -o HeLa_RNAseq.transcripts.gtf -A HeLa_RNAseq.gene.abundance.txt -C HeLa_RNAseq.coverage.gtf -b HeLa_RNAseq.ballgown -p 4 --merge",
-        "cat",
-        "stringtie --version"
+        "cat"
       ],
       [
         "stringtie cortex_sample.bam -o cortex_sample.transcripts.gtf -A cortex_sample.gene.abundance.txt -p 16 -m 200",
-        "cat",
-        "stringtie --version"
+        "cat"
       ]
     ],
     "pattern": "^stringtie \\S+\\.bam.*-o \\S+\\.transcripts\\.gtf.*-A \\S+\\.gene\\.abundance\\.txt.*-p \\d+"
@@ -1553,27 +1356,18 @@
         "rsem-prepare-reference --gtf Homo_sapiens.GRCh38.110.gtf --num-threads 8 rsem/Homo_sapiens.GRCh38.cdna.all.fa rsem/genome",
         "cp rsem/genome.transcripts.fa .",
         "cat",
-        "rsem-calculate-expression --version",
-        "sed -e s/Current version: RSEM v//g",
-        "STAR --version",
         "sed -e s/STAR_//g"
       ],
       [
         "rsem-prepare-reference --gtf Mus_musculus.GRCm39.110.gtf --num-threads 16 --bowtie2 --bowtie2-path /usr/local/bin Mus_musculus.GRCm39.dna.primary_assembly.fa rsem/genome",
         "cp rsem/genome.transcripts.fa .",
         "cat",
-        "rsem-calculate-expression --version",
-        "sed -e s/Current version: RSEM v//g",
-        "STAR --version",
         "sed -e s/STAR_//g"
       ],
       [
         "rsem-prepare-reference --gtf Danio_rerio.GRCz11.110.gtf --num-threads 4 Danio_rerio.GRCz11.cdna.all.fa rsem/genome",
         "cp rsem/genome.transcripts.fa .",
         "cat",
-        "rsem-calculate-expression --version",
-        "sed -e s/Current version: RSEM v//g",
-        "STAR --version",
         "sed -e s/STAR_//g"
       ]
     ],

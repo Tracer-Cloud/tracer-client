@@ -1,14 +1,7 @@
 rules:
-  - rule_name: "Exclude version"
-    display_name: "Exclude version"
-    condition:
-      or:
-        - command_contains: "--version"
-        - command_contains: "-version"
-
-  - rule_name: "Exclude help"
-    display_name: "Exclude help"
-    condition:
-      or:
-        - command_contains: "--help"
-        - command_contains: "-help"
+- rule_name: "Exclude help"
+  display_name: "Exclude help"
+  condition:
+    or:
+      - command_contains: "--help"
+      - command_contains: "-help"
