@@ -193,7 +193,7 @@ impl PartialOrd for FullVersion {
                     (None, None) => Some(Ordering::Equal),
                     (None, Some(_)) => Some(Ordering::Less),
                     (Some(_), None) => Some(Ordering::Greater),
-                    (Some(hash1), Some(hash2)) => match hash1.cmp(&hash2) {
+                    (Some(hash1), Some(hash2)) => match hash1.cmp(hash2) {
                         Ordering::Equal if self.dirty == other.dirty => Some(Ordering::Equal),
                         Ordering::Equal if self.dirty.unwrap_or(false) => Some(Ordering::Greater),
                         Ordering::Equal if other.dirty.unwrap_or(false) => Some(Ordering::Less),
