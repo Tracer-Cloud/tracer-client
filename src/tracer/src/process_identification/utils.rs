@@ -60,7 +60,8 @@ pub fn log_matched_process(trigger: &ProcessStartTrigger, matched_rule: &str, is
     let matched_string = if is_matched { "MATCHED" } else { "NOT MATCHED" };
 
     let log_line = format!(
-        "{} | {} | {} | {}\n\n\n",
+        "{} | {} | {} | {} | {}\n\n\n",
+        trigger.pid,
         trigger.clone().comm,
         trigger.clone().argv.join(" "),
         matched_string,

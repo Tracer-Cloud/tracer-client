@@ -110,5 +110,15 @@ fn parse_condition(yaml: &Yaml) -> Result<Condition, Box<dyn std::error::Error>>
         }));
     }
 
+    if let Some(val) = yaml["subcommand_is_one_of"].as_vec() {
+        let subcommands = val
+            .iter()
+            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+            .collect();
+        return Ok(Condition::Simple(SimpleCondition::SubcommandIsOneOf {
+            subcommands,
+        }));
+    }
+
     Err("Invalid condition".into())
 }
