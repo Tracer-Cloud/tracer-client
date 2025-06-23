@@ -1,6 +1,6 @@
-use crate::process_identification::constants::{LOG_FILE, STDERR_FILE, STDOUT_FILE};
 use crate::config::Config;
 use crate::daemon::structs::{InfoResponse, InnerInfoResponse};
+use crate::process_identification::constants::{LOG_FILE, STDERR_FILE, STDOUT_FILE};
 use crate::utils::version::Version;
 use anyhow::Result;
 use colored::Colorize;

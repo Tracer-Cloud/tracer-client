@@ -1,8 +1,4 @@
 use crate::commands::{Cli, Commands};
-use crate::process_identification::constants::{
-    DEFAULT_DAEMON_PORT, PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR,
-};
-use crate::process_identification::debug_log::Logger;
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::daemon_run::run;
@@ -14,6 +10,10 @@ use crate::nondaemon_commands::{
     clean_up_after_daemon, print_config_info, print_install_readiness, setup_config, update_tracer,
     wait,
 };
+use crate::process_identification::constants::{
+    DEFAULT_DAEMON_PORT, PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR,
+};
+use crate::process_identification::debug_log::Logger;
 use crate::utils::analytics::emit_analytic_event;
 use crate::utils::file_system::ensure_file_can_be_created;
 use crate::utils::system_info::check_sudo_privileges;
