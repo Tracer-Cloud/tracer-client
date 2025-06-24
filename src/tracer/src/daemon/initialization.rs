@@ -35,8 +35,7 @@ async fn get_db_client(init_args: &FinalizedInitArgs, config: &Config) -> LogWri
     }
 }
 
-#[tokio::main]
-pub async fn create_server(cli_config_args: FinalizedInitArgs, config: Config) -> DaemonServer {
+async fn create_server(cli_config_args: FinalizedInitArgs, config: Config) -> DaemonServer {
     // create the conn pool to aurora
     let db_client = get_db_client(&cli_config_args, &config).await;
 
@@ -60,7 +59,8 @@ pub async fn create_server(cli_config_args: FinalizedInitArgs, config: Config) -
     server
 }
 
+#[tokio::main]
 pub async fn create_and_run_server(cli_config_args: FinalizedInitArgs, config: Config) {
-    let server = create_server(cli_config_args, config);
+    let server = create_server(cli_config_args, config).await;
     server.run().await.unwrap();
 }
