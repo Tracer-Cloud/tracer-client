@@ -46,7 +46,6 @@ impl Sentry {
         if cfg!(debug_assertions) {
             return;
         }
-
         // Only accept flat JSON objects
         let map = match value {
             Value::Object(obj) => obj
@@ -67,7 +66,6 @@ impl Sentry {
         if cfg!(debug_assertions) {
             return;
         }
-
         sentry::configure_scope(|scope| {
             scope.set_extra(key, value);
         });

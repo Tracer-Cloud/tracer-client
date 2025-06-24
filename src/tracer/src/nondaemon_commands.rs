@@ -3,9 +3,11 @@ use std::process::Command;
 #[cfg(target_os = "linux")]
 use crate::utils::system_info::get_kernel_version;
 
-use crate::common::constants::{FILE_CACHE_DIR, PID_FILE, STDERR_FILE, STDOUT_FILE};
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
+use crate::process_identification::constants::{
+    FILE_CACHE_DIR, PID_FILE, STDERR_FILE, STDOUT_FILE,
+};
 use crate::utils::InfoFormatter;
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
@@ -166,7 +168,7 @@ pub fn print_install_readiness() -> Result<()> {
 }
 
 pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Result<()> {
-    let mut formatter = InfoFormatter::new(90);
+    let mut formatter = InfoFormatter::new(140);
     let info = match api_client.send_info_request().await {
         Ok(info) => info,
         Err(e) => {
@@ -183,7 +185,7 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Re
     formatter.print_daemon_status()?;
 
     if let Some(inner) = &info.inner {
-        formatter.print_pipeline_info(inner, &info)?;
+        formatter.print_pipeline_info(inner, &info, config)?;
     }
 
     formatter.print_config_and_logs(config)?;

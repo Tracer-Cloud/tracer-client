@@ -7,6 +7,8 @@ homepage = { workspace = true }
 repository = { workspace = true }
 authors = { workspace = true }
 
+default-run = "tracer"
+
 build = "build.rs"
 
 [dependencies]
@@ -27,7 +29,7 @@ sysinfo = { workspace = true }
 tracer_ebpf = { path = "../ebpf" }
 itertools = { workspace = true }
 once_cell = { workspace = true }
-mockall = {workspace = true}
+mockall = { workspace = true }
 log = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
@@ -52,9 +54,17 @@ regex = { workspace = true }
 rustls = { workspace = true }
 yaml-rust2 = { workspace = true }
 lazy_static = { workspace = true }
+shlex = { workspace = true }
+bollard = { workspace = true }
+futures-util = { workspace = true }
 
 [dev-dependencies]
 sqlx = { workspace = true }
 dotenv = { workspace = true }
 serial_test = { workspace = true }
 uuid = { workspace = true }
+rstest = { workspace = true }
+pretty_assertions_sorted = { workspace = true }
+
+[build-dependencies]
+built = { workspace = true }

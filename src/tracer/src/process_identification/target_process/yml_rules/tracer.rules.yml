@@ -1,0 +1,638 @@
+rules:
+  - rule_name: FastQC java process
+    display_name: FastQC
+    condition:
+      and:
+        - process_name_is: java
+        - command_contains: uk.ac.babraham.FastQC.FastQCApplication
+  - rule_name: STAR process
+    display_name: STAR
+    condition:
+      and:
+        - process_name_is: STAR
+        - command_contains: STAR
+  - rule_name: bowtie2 process
+    display_name: bowtie2
+    condition:
+      process_name_is: bowtie2
+  - rule_name: bowtie2-build-s process
+    display_name: bowtie2-build-s
+    condition:
+      process_name_is: bowtie2-build-s
+  - rule_name: bowtie2-align-s process
+    display_name: bowtie2-align-s
+    condition:
+      process_name_is: bowtie2-align-s
+  - rule_name: bowtie2-build process
+    display_name: bowtie2-build
+    condition:
+      process_name_is: bowtie2-build
+  - rule_name: bwa process
+    display_name: bwa
+    condition:
+      process_name_is: bwa
+  - rule_name: salmon process
+    display_name: salmon
+    condition:
+      process_name_is: salmon
+  - rule_name: hisat2 process
+    display_name: HISAT2
+    condition:
+      process_name_is: hisat2
+  - rule_name: hisat2-build process
+    display_name: HISAT2_BUILD
+    condition:
+      process_name_is: hisat2-build
+  - rule_name: stringtie process
+    display_name: stringtie
+    condition:
+      process_name_is: stringtie
+  - rule_name: featureCounts process
+    display_name: featureCounts
+    condition:
+      and:
+        - process_name_is: featureCounts
+        - args_not_contain: -v
+  - rule_name: HOMER process
+    display_name: HOMER
+    condition:
+      process_name_is: HOMER
+  - rule_name: seasmoke process
+    display_name: seasmoke
+    condition:
+      process_name_is: seasmoke
+  - rule_name: alphafold process
+    display_name: alphafold
+    condition:
+      process_name_is: alphafold
+  - rule_name: bedtools process
+    display_name: bedtools
+    condition:
+      process_name_is: bedtools
+  - rule_name: deeptools process
+    display_name: deeptools
+    condition:
+      process_name_is: deeptools
+  - rule_name: macs3 process
+    display_name: macs3
+    condition:
+      process_name_is: macs3
+  - rule_name: plotCoverage process
+    display_name: plotCoverage
+    condition:
+      process_name_is: plotCoverage
+  - rule_name: plotPCA process
+    display_name: plotPCA
+    condition:
+      process_name_is: plotPCA
+  - rule_name: plotFingerprint process
+    display_name: plotFingerprint
+    condition:
+      process_name_is: plotFingerprint
+  - rule_name: MACS33 process
+    display_name: MACS33
+    condition:
+      process_name_is: MACS33
+  - rule_name: Genrich process
+    display_name: Genrich
+    condition:
+      process_name_is: Genrich
+  - rule_name: TopHat process
+    display_name: TopHat
+    condition:
+      process_name_is: TopHat
+  - rule_name: JAMM process
+    display_name: JAMM
+    condition:
+      process_name_is: JAMM
+  - rule_name: multiqc process
+    display_name: multiqc
+    condition:
+      process_name_is: multiqc
+  - rule_name: fastp process
+    display_name: fastp
+    condition:
+      process_name_is: fastp
+  - rule_name: PEAR process
+    display_name: PEAR
+    condition:
+      process_name_is: PEAR
+  - rule_name: Trimmomatic process
+    display_name: Trimmomatic
+    condition:
+      process_name_is: Trimmomatic
+  - rule_name: sra-toolkit process
+    display_name: sra-toolkit
+    condition:
+      process_name_is: sra-toolkit
+  - rule_name: cutadapt process
+    display_name: cutadapt
+    condition:
+      process_name_is: cutadapt
+  - rule_name: cellranger process
+    display_name: cellranger
+    condition:
+      process_name_is: cellranger
+  - rule_name: STATsolo process
+    display_name: STATsolo
+    condition:
+      process_name_is: STATsolo
+  - rule_name: scTE process
+    display_name: scTE
+    condition:
+      process_name_is: scTE
+  - rule_name: scanpy process
+    display_name: scanpy
+    condition:
+      process_name_is: scanpy
+  - rule_name: Seurat process
+    display_name: Seurat
+    condition:
+      process_name_is: Seurat
+  - rule_name: LIGER process
+    display_name: LIGER
+    condition:
+      process_name_is: LIGER
+  - rule_name: SC3 process
+    display_name: SC3
+    condition:
+      process_name_is: SC3
+  - rule_name: Louvain process
+    display_name: Louvain
+    condition:
+      process_name_is: Louvain
+  - rule_name: Leiden process
+    display_name: Leiden
+    condition:
+      process_name_is: Leiden
+  - rule_name: Garnett process
+    display_name: Garnett
+    condition:
+      process_name_is: Garnett
+  - rule_name: Monocle process
+    display_name: Monocle
+    condition:
+      process_name_is: Monocle
+  - rule_name: Harmony process
+    display_name: Harmony
+    condition:
+      process_name_is: Harmony
+  - rule_name: PAGA process
+    display_name: PAGA
+    condition:
+      process_name_is: PAGA
+  - rule_name: Palantir process
+    display_name: Palantir
+    condition:
+      process_name_is: Palantir
+  - rule_name: velocity process
+    display_name: velocity
+    condition:
+      process_name_is: velocity
+  - rule_name: CellPhoneDB process
+    display_name: CellPhoneDB
+    condition:
+      process_name_is: CellPhoneDB
+  - rule_name: CellChat process
+    display_name: CellChat
+    condition:
+      process_name_is: CellChat
+  - rule_name: NicheNet process
+    display_name: NicheNet
+    condition:
+      process_name_is: NicheNet
+  - rule_name: FIt-SNE process
+    display_name: FIt-SNE
+    condition:
+      process_name_is: FIt-SNE
+  - rule_name: umap process
+    display_name: umap
+    condition:
+      process_name_is: umap
+  - rule_name: bbmap process
+    display_name: bbmap
+    condition:
+      process_name_is: bbmap
+  - rule_name: cuffdiff process
+    display_name: cuffdiff
+    condition:
+      process_name_is: cuffdiff
+  - rule_name: RNA-SeQC process
+    display_name: RNA-SeQC
+    condition:
+      process_name_is: RNA-SeQC
+  - rule_name: RSeQC process
+    display_name: RSeQC
+    condition:
+      process_name_is: RSeQC
+  - rule_name: Trimgalore process
+    display_name: Trimgalore
+    condition:
+      process_name_is: Trimgalore
+  - rule_name: UCHIME process
+    display_name: UCHIME
+    condition:
+      process_name_is: UCHIME
+  - rule_name: Erange process
+    display_name: Erange
+    condition:
+      process_name_is: Erange
+  - rule_name: X-Mate process
+    display_name: X-Mate
+    condition:
+      process_name_is: X-Mate
+  - rule_name: SpliceSeq process
+    display_name: SpliceSeq
+    condition:
+      process_name_is: SpliceSeq
+  - rule_name: casper process
+    display_name: casper
+    condition:
+      process_name_is: casper
+  - rule_name: DESeq process
+    display_name: DESeq
+    condition:
+      process_name_is: DESeq
+  - rule_name: EdgeR process
+    display_name: EdgeR
+    condition:
+      process_name_is: EdgeR
+  - rule_name: bamSummary process
+    display_name: bamSummary
+    condition:
+      process_name_is: bamSummary
+  - rule_name: pairtools process
+    display_name: pairtools
+    condition:
+      process_name_is: pairtools
+  - rule_name: HiCExplorer process
+    display_name: HiCExplorer
+    condition:
+      process_name_is: HiCExplorer
+  - rule_name: GITAR process
+    display_name: GITAR
+    condition:
+      process_name_is: GITAR
+  - rule_name: TADbit process
+    display_name: TADbit
+    condition:
+      process_name_is: TADbit
+  - rule_name: Juicer process
+    display_name: Juicer
+    condition:
+      process_name_is: Juicer
+  - rule_name: HiC-Pro process
+    display_name: HiC-Pro
+    condition:
+      process_name_is: HiC-Pro
+  - rule_name: cooler process
+    display_name: cooler
+    condition:
+      process_name_is: cooler
+  - rule_name: cooltools process
+    display_name: cooltools
+    condition:
+      process_name_is: cooltools
+  - rule_name: runHiC process
+    display_name: runHiC
+    condition:
+      process_name_is: runHiC
+  - rule_name: HTSlib process
+    display_name: HTSlib
+    condition:
+      process_name_is: HTSlib
+  - rule_name: htslib process
+    display_name: htslib
+    condition:
+      process_name_is: htslib
+  - rule_name: zlib process
+    display_name: zlib
+    condition:
+      process_name_is: zlib
+  - rule_name: libbz2 process
+    display_name: libbz2
+    condition:
+      process_name_is: libbz2
+  - rule_name: liblzma process
+    display_name: liblzma
+    condition:
+      process_name_is: liblzma
+  - rule_name: libcurl process
+    display_name: libcurl
+    condition:
+      process_name_is: libcurl
+  - rule_name: libdeflate process
+    display_name: libdeflate
+    condition:
+      process_name_is: libdeflate
+  - rule_name: ncurses process
+    display_name: ncurses
+    condition:
+      process_name_is: ncurses
+  - rule_name: pthread process
+    display_name: pthread
+    condition:
+      process_name_is: pthread
+  - rule_name: oom_example_c process
+    display_name: oom_example_c
+    condition:
+      process_name_is: oom_example_c
+  - rule_name: bracken-build command
+    display_name: bracken
+    condition:
+      command_contains: bracken-build
+  - rule_name: bracken command
+    display_name: bracken
+    condition:
+      and:
+        - command_contains: bracken
+        - args_not_contain: -v
+  - rule_name: kraken2 command
+    display_name: kraken2
+    condition:
+      command_contains: kraken2
+  - rule_name: kraken2-build command
+    display_name: kraken2
+    condition:
+      command_contains: kraken2-build
+  - rule_name: umi_tools command
+    display_name: umi_tools
+    condition:
+      command_contains: umi_tools
+  - rule_name: fastp command
+    display_name: fastp
+    condition:
+      command_contains: fastp
+  - rule_name: multiqc command
+    display_name: multiqc
+    condition:
+      command_contains: multiqc
+  - rule_name: qualimap command
+    display_name: qualimap
+    condition:
+      and:
+        - command_contains: qualimap
+        - min_args: 1
+  - rule_name: fq subsample command
+    display_name: fq subsample
+    condition:
+      and:
+        - process_name_is: fq
+        - first_arg_is: subsample
+  - rule_name: fq lint command
+    display_name: fq lint
+    condition:
+      and:
+        - process_name_is: fq
+        - first_arg_is: lint
+  - rule_name: dupradar command
+    display_name: dupRadar
+    condition:
+      command_contains: dupradar
+  - rule_name: deseq command
+    display_name: DESeq2
+    condition:
+      command_contains: deseq
+  - rule_name: preseq command
+    display_name: preseq
+    condition:
+      and:
+        - command_contains: preseq
+        - min_args: 1
+  - rule_name: bedGraphToBigWig command
+    display_name: bedGraphToBigWig
+    condition:
+      process_name_is: bedGraphToBigWig
+  - rule_name: kallisto index command
+    display_name: kallisto index
+    condition:
+      and:
+        - process_name_is: kallisto
+        - first_arg_is: index
+  - rule_name: kallisto quant command
+    display_name: kallisto quant
+    condition:
+      and:
+        - process_name_is: kallisto
+        - first_arg_is: quant
+  - rule_name: dupradar command
+    display_name: dupRadar
+    condition:
+      command_contains: dupradar
+  - rule_name: cat FASTQ command
+    display_name: cat FASTQ
+    condition:
+      and:
+        - process_name_is: cat
+        - command_matches_regex: "(.*\\.f(ast)?q(\\.gz)?)+"
+  - rule_name: sortmerna command
+    display_name: SortMeRNA
+    condition:
+      command_contains: sortmerna
+  - rule_name: rseqc bam_stat.py command
+    display_name: bam_stat.py
+    condition:
+      and:
+        - process_name_contains: python
+        - min_args: 1
+        - first_arg_is: bam_stat.py
+  - rule_name: rseqc inner_distance command
+    display_name: inner_distance.py
+    condition:
+      and:
+        - process_name_contains: python
+        - min_args: 1
+        - first_arg_is: inner_distance.py
+  - rule_name: rseqc read_distribution command
+    display_name: read_distribution.py
+    condition:
+      and:
+        - process_name_contains: python
+        - min_args: 1
+        - first_arg_is: read_distribution.py
+  - rule_name: rseqc read_duplication command
+    display_name: read_duplication.py
+    condition:
+      and:
+        - process_name_contains: python
+        - min_args: 1
+        - first_arg_is: read_duplication.py
+  - rule_name: rseqc infer_experiment command
+    display_name: infer_experiment.py
+    condition:
+      and:
+        - process_name_contains: python
+        - min_args: 1
+        - first_arg_is: infer_experiment.py
+  - rule_name: rseqc junction_saturation command
+    display_name: junction_saturation.py
+    condition:
+      and:
+        - process_name_contains: python
+        - min_args: 1
+        - first_arg_is: junction_saturation.py
+  - rule_name: rseqc junction_annotation command
+    display_name: junction_annotation.py
+    condition:
+      and:
+        - process_name_contains: python
+        - min_args: 1
+        - first_arg_is: junction_annotation.py
+  - rule_name: rseqc tin command
+    display_name: tin.py
+    condition:
+      and:
+        - process_name_contains: python
+        - min_args: 1
+        - first_arg_is: tin.py
+  - rule_name: bbsplit command
+    display_name: bbsplit.sh
+    condition:
+      process_name_is: bbsplit.sh
+  - rule_name: rsem-merge-expression-files command
+    display_name: rsem-merge-expression-files
+    condition:
+      process_name_is: rsem-merge-expression-files
+  - rule_name: rsem-prepare-reference command
+    display_name: rsem-prepare-reference
+    condition:
+      process_name_is: rsem-prepare-reference
+  - rule_name: rsem-calculate-expression command
+    display_name: rsem-calculate-expression
+    condition:
+      process_name_is: rsem-calculate-expression
+  - rule_name: bedClip command
+    display_name: bedClip
+    condition:
+      process_name_is: bedClip
+  - rule_name: filter_gtf command
+    display_name: filter_gtf.py
+    condition:
+      and:
+        - process_name_contains: python
+        - min_args: 1
+        - first_arg_is: filter_gtf.py
+  - rule_name: mqc_features_stat command
+    display_name: mqc_features_stat.py
+    condition:
+      and:
+        - process_name_contains: python
+        - min_args: 1
+        - first_arg_is: mqc_features_stat.py
+
+  # samtools rules
+  - rule_name: samtools process
+    display_name: samtools {subcommand}
+    condition:
+      and:
+        - process_name_is: samtools
+        - subcommand_is_one_of: [sort, view, idxstats, cat, index, stats, flagstat, faidx]
+
+  # picard
+  - rule_name: picard command
+    display_name: picard
+    condition:
+      or:
+        - and:
+            - process_name_contains: picard
+            - command_contains: picard
+        - and:
+            - process_name_contains: java
+            - command_contains: picard
+      and:
+        - subcommand_is_one_of: [
+            AddCommentsToBam,
+            AddOrReplaceReadGroups,
+            BaitDesigner,
+            BamToBfq,
+            BamIndexStats,
+            BedToIntervalList,
+            BuildBamIndex,
+            CalculateReadGroupChecksum,
+            CleanSam,
+            CollectAlignmentSummaryMetrics,
+            CollectBaseDistributionByCycle,
+            CollectGcBiasMetrics,
+            CollectHiSeqXPfFailMetrics,
+            CollectHsMetrics,
+            CollectIlluminaBasecallingMetrics,
+            CollectIlluminaLaneMetrics,
+            CollectInsertSizeMetrics,
+            CollectJumpingLibraryMetrics,
+            CollectMultipleMetrics,
+            CollectOxoGMetrics,
+            CollectQualityYieldMetrics,
+            CollectRawWgsMetrics,
+            CollectTargetedPcrMetrics,
+            CollectRnaSeqMetrics,
+            CollectRrbsMetrics,
+            CollectSequencingArtifactMetrics,
+            CollectVariantCallingMetrics,
+            CollectWgsMetrics,
+            CollectWgsMetricsWithNonZeroCoverage,
+            CompareMetrics,
+            CompareSAMs,
+            ConvertSequencingArtifactToOxoG,
+            CreateSequenceDictionary,
+            DownsampleSam,
+            ExtractIlluminaBarcodes,
+            EstimateLibraryComplexity,
+            FastqToSam,
+            FifoBuffer,
+            FindMendelianViolations,
+            CrosscheckFingerprints,
+            ClusterCrosscheckMetrics,
+            CheckFingerprint,
+            FilterSamReads,
+            FilterVcf,
+            FixMateInformation,
+            GatherBamFiles,
+            GatherVcfs,
+            GenotypeConcordance,
+            IlluminaBasecallsToFastq,
+            IlluminaBasecallsToSam,
+            CheckIlluminaDirectory,
+            CheckTerminatorBlock,
+            IntervalListTools,
+            LiftOverIntervalList,
+            LiftoverVcf,
+            MakeSitesOnlyVcf,
+            MarkDuplicates,
+            MarkDuplicatesWithMateCigar,
+            MeanQualityByCycle,
+            MergeBamAlignment,
+            MergeSamFiles,
+            MergeVcfs,
+            NormalizeFasta,
+            PositionBasedDownsampleSam,
+            ExtractSequences,
+            QualityScoreDistribution,
+            RenameSampleInVcf,
+            ReorderSam,
+            ReplaceSamHeader,
+            RevertSam,
+            RevertOriginalBaseQualitiesAndAddMateCigar,
+            SamFormatConverter,
+            SamToFastq,
+            ScatterIntervalsByNs,
+            SetNmMdAndUqTags,
+            SortSam,
+            SortVcf,
+            SplitSamByLibrary,
+            UmiAwareMarkDuplicatesWithMateCigar,
+            UpdateVcfSequenceDictionary,
+            VcfFormatConverter,
+            MarkIlluminaAdapters,
+            SplitVcfs,
+            ValidateSamFile,
+            ViewSam,
+            VcfToIntervalList,
+          ]
+
+  # GATK
+  - rule_name: gatk command
+    display_name: GATK
+    condition:
+      and:
+        - process_name_contains: gatk
+        - command_contains: gatk

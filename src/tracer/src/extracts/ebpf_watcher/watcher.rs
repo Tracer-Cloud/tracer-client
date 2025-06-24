@@ -1,11 +1,11 @@
-use crate::common::recorder::LogRecorder;
-use crate::common::target_process::target::Target;
-use crate::common::target_process::target_manager::TargetManager;
+use crate::extracts::containers::DockerWatcher;
 use crate::extracts::ebpf_watcher::handler::trigger::trigger_processor::TriggerProcessor;
 use crate::extracts::process::process_manager::ProcessManager;
 use crate::extracts::process::process_utils::get_process_argv;
+use crate::process_identification::recorder::LogRecorder;
+use crate::process_identification::target_process::target::Target;
+use crate::process_identification::target_process::target_manager::TargetManager;
 use anyhow::{Error, Result};
-use chrono::Utc;
 use std::collections::HashSet;
 use std::fs::{self};
 use std::path::Path;
@@ -21,6 +21,7 @@ use tracing::{debug, error, info};
 pub struct EbpfWatcher {
     ebpf: once_cell::sync::OnceCell<()>, // not tokio, because ebpf initialisation is sync
     process_manager: Arc<RwLock<ProcessManager>>,
+    docker: once_cell::sync::OnceCell<()>, // NEW
     trigger_processor: TriggerProcessor,
     // here will go the file manager for dataset recognition operations
 }
@@ -37,6 +38,7 @@ impl EbpfWatcher {
             ebpf: once_cell::sync::OnceCell::new(),
             trigger_processor: TriggerProcessor::new(Arc::clone(&process_manager)),
             process_manager,
+            docker: once_cell::sync::OnceCell::new(),
         }
     }
 
@@ -87,14 +89,12 @@ impl EbpfWatcher {
                         }
 
                         // New process detected
-                        let start_trigger = ProcessStartTrigger {
-                            pid: pid_u32 as usize,
-                            ppid: process.parent().map(|p| p.as_u32()).unwrap_or(0) as usize,
-                            comm: process.name().to_string(),
-                            argv,
-                            file_name: "".to_string(),
-                            started_at: Utc::now(),
-                        };
+                        let start_trigger = ProcessStartTrigger::from_name_and_args(
+                            pid_u32 as usize,
+                            process.parent().map(|p| p.as_u32()).unwrap_or(0) as usize,
+                            process.name(),
+                            &argv,
+                        );
 
                         if let Err(e) = watcher
                             .process_triggers(vec![Trigger::ProcessStart(start_trigger)])
@@ -172,6 +172,24 @@ impl EbpfWatcher {
                 return Err(Error::msg("Failed to initialize eBPF monitoring task"));
             }
         }
+
+        Ok(())
+    }
+
+    pub async fn initialize_docker_watcher(
+        self: &Arc<Self>,
+        log_recorder: LogRecorder,
+    ) -> Result<()> {
+        self.docker.get_or_try_init(|| {
+            let watcher = DockerWatcher::new(log_recorder)?;
+            tokio::spawn(async move {
+                if let Err(e) = watcher.start().await {
+                    tracing::error!("Docker watcher failed: {:?}", e);
+                }
+            });
+
+            Ok::<(), anyhow::Error>(())
+        })?;
 
         Ok(())
     }

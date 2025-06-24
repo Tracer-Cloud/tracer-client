@@ -1,7 +1,11 @@
 use anyhow::Result;
+use chrono::{DateTime, Utc};
+use once_cell::sync::Lazy;
 use std::cmp::Ordering;
 use std::fmt;
 use std::str::FromStr;
+
+include!(concat!(env!("OUT_DIR"), "/built.rs"));
 
 #[derive(Debug)]
 pub struct Version {
@@ -13,10 +17,13 @@ pub struct Version {
 
 impl Version {
     pub fn current_str() -> &'static str {
-        env!("CARGO_PKG_VERSION")
+        PKG_VERSION
     }
-    pub fn current() -> Self {
-        Self::from_str(Self::current_str()).unwrap()
+
+    pub fn current() -> &'static Self {
+        static VERSION: Lazy<Version> =
+            Lazy::new(|| Version::from_str(Version::current_str()).unwrap());
+        &VERSION
     }
 }
 
@@ -93,6 +100,108 @@ impl PartialOrd for Version {
             other.patch,
             other.build,
         )))
+    }
+}
+
+/// Version of the software including
+/// - Cargo package version
+/// - Git commit hash, if package was built from a git repository
+/// - Git dirty info (whether the repo had uncommitted changes)
+pub struct FullVersion {
+    pub version: &'static Version,
+    pub date: Option<DateTime<Utc>>,
+    pub hash: Option<String>,
+    pub dirty: Option<bool>,
+}
+
+impl FullVersion {
+    pub fn current() -> &'static Self {
+        static VERSION: Lazy<FullVersion> = Lazy::new(|| {
+            let (date, hash, dirty) = if PROFILE != "release" {
+                let date = DateTime::parse_from_rfc2822(BUILT_TIME_UTC)
+                    .unwrap()
+                    .with_timezone(&Utc);
+                (
+                    Some(date),
+                    Some(GIT_COMMIT_HASH_SHORT.unwrap().to_string()),
+                    Some(GIT_DIRTY.unwrap_or(false)),
+                )
+            } else {
+                (None, None, None)
+            };
+            FullVersion {
+                version: Version::current(),
+                date,
+                hash,
+                dirty,
+            }
+        });
+        &VERSION
+    }
+}
+
+impl fmt::Display for FullVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match (
+            &self.date.map(|d| d.format("%Y.%m.%d-%H.%M").to_string()),
+            &self.hash,
+            self.dirty,
+        ) {
+            (Some(date), Some(hash), Some(true)) => {
+                write!(f, "{}-{}-{}-dirty", self.version, date, hash)
+            }
+            (Some(date), Some(hash), Some(false) | None) => {
+                write!(f, "{}-{}-{}", self.version, date, hash)
+            }
+            (None, Some(hash), Some(true)) => {
+                write!(f, "{}-{}-dirty", self.version, hash)
+            }
+            (None, Some(hash), Some(false) | None) => {
+                write!(f, "{}-{}", self.version, hash)
+            }
+            (Some(date), None, _) => {
+                write!(f, "{}-{}", self.version, date)
+            }
+            (None, _, _) => self.version.fmt(f),
+        }
+    }
+}
+
+// Implement PartialEq for == and !=
+impl PartialEq for FullVersion {
+    fn eq(&self, other: &Self) -> bool {
+        self.version == other.version
+            && self.date == other.date
+            && self.hash == other.hash
+            && self.dirty == other.dirty
+    }
+}
+
+// Implement PartialOrd for <, <=, >, >=
+impl PartialOrd for FullVersion {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let version_cmp = self.version.partial_cmp(other.version);
+        if version_cmp
+            .map(|ord| ord != Ordering::Equal)
+            .unwrap_or(false)
+        {
+            version_cmp
+        } else {
+            Some(self.date.cmp(&other.date))
+                .filter(|ord| *ord != Ordering::Equal)
+                .or_else(|| match (&self.hash, &other.hash) {
+                    (None, None) => Some(Ordering::Equal),
+                    (None, Some(_)) => Some(Ordering::Less),
+                    (Some(_), None) => Some(Ordering::Greater),
+                    (Some(hash1), Some(hash2)) => match hash1.cmp(hash2) {
+                        Ordering::Equal if self.dirty == other.dirty => Some(Ordering::Equal),
+                        Ordering::Equal if self.dirty.unwrap_or(false) => Some(Ordering::Greater),
+                        Ordering::Equal if other.dirty.unwrap_or(false) => Some(Ordering::Less),
+                        _ => None, // no good way to order different hashes
+                    },
+                })
+                .or(version_cmp)
+        }
     }
 }
 

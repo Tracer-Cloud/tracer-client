@@ -2,12 +2,18 @@ name: Development Release On S3
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    types: [opened, synchronize, reopened]
     branches:
       - "main"
+    paths:
+      - "src/**"
+      - ".github/workflows/cross-platform-release-and-assets-upload-on-s3.yml"
   push:
     branches:
       - "main"
+    paths:
+      - "src/**"
+      - ".github/workflows/cross-platform-release-and-assets-upload-on-s3.yml"
 
 jobs:
   build-and-release:
@@ -20,7 +26,7 @@ jobs:
             runner: ubuntu-22.04
           - arch: aarch64
             target: aarch64-unknown-linux-gnu
-            runner: ubuntu-22.04-arm  # Native ARM runner
+            runner: ubuntu-22.04-arm # Native ARM runner
           - arch: macos-arm64
             target: aarch64-apple-darwin
             runner: macos-latest
@@ -34,27 +40,8 @@ jobs:
       - name: Check out repository with submodules
         uses: actions/checkout@v4.1.4
         with:
-          submodules: recursive  # This will fetch all submodules recursively
-          fetch-depth: 0  # Fetch all history for versioning
-
-      - name: Update version in Cargo.toml
-        run: |
-          # Get current date in YYYY.MM.DD format
-          DATE=$(date +'%Y.%-m.%-d')
-          # Get short commit hash
-          COMMIT_HASH=$(git rev-parse --short HEAD)
-          # Get time in HH.MM format
-          TIME=$(date +'%H.%M')
-          # Create new version string
-          NEW_VERSION="${DATE}+${TIME}.${COMMIT_HASH}"
-          # Update version in Cargo.toml (compatible with both macOS and Linux)
-          if [[ "${{ matrix.runner }}" == *"macos"* ]]; then
-            sed -i '' "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
-          else
-            sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
-          fi
-          # Print the new version for verification
-          echo "Updated version to: ${NEW_VERSION}"
+          submodules: recursive # This will fetch all submodules recursively
+          fetch-depth: 0 # Fetch all history for versioning
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -92,34 +79,33 @@ jobs:
       - name: Install build dependencies
         run: |
           rustup toolchain install nightly-2025-04-15 --component rust-src
-          
+
            if [[ "${{ matrix.runner }}" == *"ubuntu"* ]]; then
             # Install necessary eBPF dependencies for Linux
             sudo apt-get update
             sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm libelf-dev
-          fi  
+          fi
 
       # Verify submodules are properly loaded
       - name: Verify submodule content
         run: |
           # Find all vmlinux.h files
           vmlinux_files=$(find vendor -name "vmlinux.h")
-          
+
           # Check if any vmlinux.h files exist
           if [ -z "$vmlinux_files" ]; then
             echo "ERROR: No vmlinux.h files found in vendor directory"
             exit 1
           fi
-          
+
           # Print out the found vmlinux.h files for debugging
           echo "Found vmlinux.h files:"
           echo "$vmlinux_files"
-          
+
           # Optional: Check for specific directories or files you expect
           if [ ! -d "vendor/bpftool" ] || [ ! -d "vendor/libbpf" ]; then
             echo "WARNING: Expected vendor subdirectories are missing"
           fi
-  
 
       - name: Build the binary
         run: cargo build --release --target ${{ matrix.target }}
@@ -156,7 +142,6 @@ jobs:
           yum groupinstall -y "Development Tools"
           yum  install -y kernel-devel kernel-headers clang llvm libbpf-devel
 
-
       - name: Install Rust
         run: |
           curl https://sh.rustup.rs -sSf | sh -s -- -y
@@ -168,8 +153,8 @@ jobs:
       - name: Check out repository with submodules
         uses: actions/checkout@v4.1.4
         with:
-          submodules: recursive  # This will fetch all submodules recursively
-          fetch-depth: 0  # Fetch all history for versioning
+          submodules: recursive # This will fetch all submodules recursively
+          fetch-depth: 0 # Fetch all history for versioning
 
       - name: Configure Git safe directory
         run: git config --global --add safe.directory $GITHUB_WORKSPACE

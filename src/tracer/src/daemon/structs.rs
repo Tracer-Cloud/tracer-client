@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
-use crate::common::types::current_run::PipelineMetadata;
-use crate::common::types::pipeline_tags::PipelineTags;
+use crate::process_identification::types::current_run::PipelineMetadata;
+use crate::process_identification::types::pipeline_tags::PipelineTags;
 use chrono::{DateTime, TimeDelta, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
