@@ -167,8 +167,12 @@ pub fn print_install_readiness() -> Result<()> {
     Ok(())
 }
 
-pub async fn print_config_info(api_client: &DaemonClient, config: &Config, json: bool) -> Result<()> {
-    let mut formatter = InfoFormatter::new(60);
+pub async fn print_config_info(
+    api_client: &DaemonClient,
+    config: &Config,
+    json: bool,
+) -> Result<()> {
+    let mut formatter = InfoFormatter::new(70);
     let info = match api_client.send_info_request().await {
         Ok(info) => info,
         Err(e) => {
@@ -176,8 +180,7 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config, json:
             if !json {
                 formatter.print_error_state()?;
                 println!("{}", formatter.get_output());
-            }
-            else{
+            } else {
                 println!("serde_json::to_string_pretty(&info)?");
             }
             return Ok(());
@@ -187,7 +190,6 @@ pub async fn print_config_info(api_client: &DaemonClient, config: &Config, json:
         println!("{}", serde_json::to_string_pretty(&info)?);
         return Ok(());
     }
-    
 
     formatter.add_header("TRACER INFO")?;
     formatter.add_empty_line()?;

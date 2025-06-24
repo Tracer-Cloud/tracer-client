@@ -363,8 +363,8 @@ pub async fn run_async_command(
             )
             .await?
         }
-        Commands::Info {json} => {
-            print_config_info(api_client, config,json).await?;
+        Commands::Info { json } => {
+            print_config_info(api_client, config, json).await?;
         }
         Commands::CleanupPort { port } => {
             let port = port.unwrap_or(DEFAULT_DAEMON_PORT); // Default Tracer port

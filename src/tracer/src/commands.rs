@@ -52,7 +52,6 @@ pub enum Commands {
         json: bool,
     },
 
-
     /// Update the daemon to the latest version
     Update,
 

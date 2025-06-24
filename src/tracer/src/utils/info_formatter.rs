@@ -1,5 +1,8 @@
 use crate::config::Config;
-use crate::constants::{GRAFANA_PIPELINE_DASHBOARD_BASE, GRAFANA_RUN_DASHBOARD_BASE, GRAFANA_WORKSPACE_DASHBOARD, TRACER_SANDBOX_URL};
+use crate::constants::{
+    GRAFANA_PIPELINE_DASHBOARD_BASE, GRAFANA_RUN_DASHBOARD_BASE, GRAFANA_WORKSPACE_DASHBOARD,
+    TRACER_SANDBOX_URL,
+};
 use crate::daemon::structs::{InfoResponse, InnerInfoResponse};
 use crate::process_identification::constants::{LOG_FILE, STDERR_FILE, STDOUT_FILE};
 use crate::utils::version::FullVersion;
@@ -173,16 +176,13 @@ impl InfoFormatter {
             inner.tags.user_operator.as_deref().unwrap_or("Not Set"),
             "magenta",
         )?;
-        
+
         // Replace long URL with hyperlink
         let pipeline_dashboard_url = format!(
             "{}?var-pipeline_name={}",
             GRAFANA_PIPELINE_DASHBOARD_BASE, inner.pipeline_name
         );
-        self.add_hyperlink(
-            "Pipeline Dashboard",
-            &pipeline_dashboard_url,
-            "View")?;
+        self.add_hyperlink("Pipeline Dashboard", &pipeline_dashboard_url, "View")?;
 
         self.add_empty_line()?;
 
@@ -209,11 +209,7 @@ impl InfoFormatter {
             "{}?var-run_name={}&var-pipeline_name={}",
             GRAFANA_RUN_DASHBOARD_BASE, inner.run_name, inner.pipeline_name
         );
-        self.add_hyperlink(
-            "Run Dashboard",
-            &run_dashboard_url,
-            "View"
-        )?;
+        self.add_hyperlink("Run Dashboard", &run_dashboard_url, "View")?;
 
         self.add_empty_line()?;
         Ok(())
@@ -224,17 +220,9 @@ impl InfoFormatter {
         self.add_empty_line()?;
 
         // Replace long URLs with hyperlinks
-        self.add_hyperlink(
-            "Sandbox Workspace",
-            TRACER_SANDBOX_URL, 
-            "View"
-        )?;
-        
-        self.add_hyperlink(
-            "Workspace Dashboard", 
-            GRAFANA_WORKSPACE_DASHBOARD, 
-            "View"
-        )?;
+        self.add_hyperlink("Sandbox Workspace", TRACER_SANDBOX_URL, "View")?;
+
+        self.add_hyperlink("Workspace Dashboard", GRAFANA_WORKSPACE_DASHBOARD, "View")?;
 
         self.add_field(
             "Polling Interval",
@@ -258,18 +246,14 @@ impl InfoFormatter {
     pub fn add_hyperlink(&mut self, label: &str, url: &str, display_text: &str) -> Result<()> {
         // Add a visual indicator like 🔗 or 🌐 to show it's a link
         let display_with_indicator = format!("🔗 {}", display_text);
-        
+
         // Format using ANSI escape sequences for hyperlinks
         let hyperlink = format!("\x1B]8;;{}\x07{}\x1B]8;;\x07", url, display_with_indicator);
-        
+
         // Always make hyperlinks blue
         let blue_link = hyperlink.blue();
-        
-        writeln!(
-            &mut self.output,
-            "│ {:<20} │ {}  ",
-            label, blue_link
-        )?;
+
+        writeln!(&mut self.output, "│ {:<20} │ {}  ", label, blue_link)?;
         Ok(())
     }
 }
