@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        chunk: [0, 1, 2, 3, 4] # Split into 5 chunks
+        chunk: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19] # Split into 20 chunks
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -19,8 +19,7 @@ jobs:
           sudo apt-get install -y jq
           curl -L https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj -C /usr/local/bin --strip-components=1 bin/micromamba
           export MAMBA_ROOT_PREFIX=$HOME/micromamba
-          micromamba shell init -s bash -p $MAMBA_ROOT_PREFIX
-          source ~/.bashrc
+          export PATH="$MAMBA_ROOT_PREFIX/bin:$PATH"
           micromamba create -y -n bioenv -c conda-forge -c bioconda mamba
 
       - name: Setup environment
@@ -36,10 +35,20 @@ jobs:
           set -euo pipefail
           
           echo "Fetching Bioconda packages..."
-          mamba search -c bioconda --json | jq 'keys[]' -r | sort | head -n 100 > packages.txt
+
+          # Download repodata for linux64
+          echo "Download repodata for linux64..."
+          curl -s https://conda.anaconda.org/bioconda/linux-64/repodata.json -o linux64.json
+
+          # Extract tool names from both, combine, and deduplicate
+          echo "Extract tool names from both, combine, and deduplicate..."
+          jq -r '.packages | keys[]' linux64.json \
+            | sed 's/-[0-9][^-]*-[^-]*\.tar\.bz2$//' \
+            | sed 's/-[0-9][^-]*-[^-]*\.conda$//' \
+            | sort -u > packages.txt
           
           echo "Splitting package list..."
-          split -n l/5 packages.txt chunk_
+          split -n l/20 packages.txt chunk_
 
           CHUNK_FILE=$(ls chunk_* | sed -n "${{ matrix.chunk }}p")
           TIMEOUT=10
