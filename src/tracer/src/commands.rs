@@ -68,7 +68,7 @@ pub enum Commands {
 
     /// Change the tags of the current pipeline run
     Tag { tags: Vec<String> },
-    
+
     /// Log a message to the service for a short-lived process.
     LogShortLivedProcess { command: String },
 
