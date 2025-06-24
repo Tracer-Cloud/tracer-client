@@ -8,74 +8,74 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        chunk: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19] # Split into 20 chunks
+        chunk: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]  # ✅ remove '19g'
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Install mamba
+      - name: Install micromamba
         run: |
           sudo apt-get update
-          sudo apt-get install -y jq
-          curl -L https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj -C /usr/local/bin --strip-components=1 bin/micromamba
+          sudo apt-get install -y jq curl
+          curl -L https://micro.mamba.pm/api/micromamba/linux-64/latest \
+            | tar -xvj -C /usr/local/bin --strip-components=1 bin/micromamba
           export MAMBA_ROOT_PREFIX=$HOME/micromamba
           export PATH="$MAMBA_ROOT_PREFIX/bin:$PATH"
           micromamba create -y -n bioenv -c conda-forge -c bioconda mamba
 
       - name: Setup environment
         run: |
-          echo "export MAMBA_ROOT_PREFIX=$HOME/micromamba" >> $GITHUB_ENV
-          echo "export PATH=$HOME/micromamba/bin:$PATH" >> $GITHUB_ENV
+          echo "MAMBA_ROOT_PREFIX=$HOME/micromamba" >> $GITHUB_ENV
+          echo "PATH=$HOME/micromamba/bin:$PATH" >> $GITHUB_ENV
+          echo "CHUNK_INDEX=${{ matrix.chunk }}" >> $GITHUB_ENV
 
-      - name: Run Bioconda version check (chunk ${{ matrix.chunk }})
+      - name: Run Bioconda version check
         run: |
           set -euo pipefail
           mkdir -p logs
-          micromamba run -n bioenv bash <<'EOF'
-          set -euo pipefail
-          
-          echo "Fetching Bioconda packages..."
 
-          # Download repodata for linux64
-          echo "Download repodata for linux64..."
+          micromamba run -n bioenv bash <<EOF
+          set -euo pipefail
+
+          echo "Fetching Bioconda packages..."
           curl -s https://conda.anaconda.org/bioconda/linux-64/repodata.json -o linux64.json
 
-          # Extract tool names from both, combine, and deduplicate
-          echo "Extract tool names from both, combine, and deduplicate..."
+          echo "Extracting unique tool names..."
           jq -r '.packages | keys[]' linux64.json \
             | sed 's/-[0-9][^-]*-[^-]*\.tar\.bz2$//' \
             | sed 's/-[0-9][^-]*-[^-]*\.conda$//' \
             | sort -u > packages.txt
-          
-          echo "Splitting package list..."
+
+          echo "Splitting into chunks..."
           split -n l/20 packages.txt chunk_
 
-          CHUNK_FILE=$(ls chunk_* | sed -n "${{ matrix.chunk }}p")
+          CHUNK_LINE=\$((CHUNK_INDEX + 1))
+          CHUNK_FILE=\$(find . -maxdepth 1 -name 'chunk_*' | sort | sed -n "\${CHUNK_LINE}p")
+          echo "Processing \$CHUNK_FILE"
+
           TIMEOUT=10
-          
+
           while read -r pkg; do
-            echo "Installing $pkg"
-            ENV_NAME="biochk_${pkg}"
-            
-            if ! micromamba create -y -n "$ENV_NAME" -c conda-forge -c bioconda "$pkg" >/dev/null 2>&1; then
-              echo "$pkg: install failed" >> logs/errors_${{ matrix.chunk }}.txt
+            echo "Installing \$pkg"
+            ENV_NAME="biochk_\$pkg"
+
+            if ! micromamba create -y -n "\$ENV_NAME" -c conda-forge -c bioconda "\$pkg" >/dev/null 2>&1; then
+              echo "\$pkg: install failed" >> logs/errors_${{ matrix.chunk }}.txt
               continue
             fi
 
-            CMD_LIST=("$pkg --version" "$pkg -v" "$pkg -V")
-            SUCCESS=0
-            for CMD in "${CMD_LIST[@]}"; do
-              if timeout $TIMEOUT micromamba run -n "$ENV_NAME" $CMD >/dev/null 2>&1; then
-                echo "$pkg: version check success with '$CMD'" >> logs/results_${{ matrix.chunk }}.txt
+            for CMD in "\$pkg --version" "\$pkg -v" "\$pkg -V"; do
+              if timeout \$TIMEOUT micromamba run -n "\$ENV_NAME" \$CMD >/dev/null 2>&1; then
+                echo "\$pkg: version check success with '\$CMD'" >> logs/results_${{ matrix.chunk }}.txt
                 SUCCESS=1
                 break
               fi
             done
 
-            if [[ "$SUCCESS" -eq 0 ]]; then
-              echo "$pkg: version check failed" >> logs/errors_${{ matrix.chunk }}.txt
+            if [[ "\${SUCCESS:-0}" -eq 0 ]]; then
+              echo "\$pkg: version check failed" >> logs/errors_${{ matrix.chunk }}.txt
             fi
 
-            micromamba remove -y -n "$ENV_NAME" --all >/dev/null 2>&1
-          done < "$CHUNK_FILE"
+            micromamba remove -y -n "\$ENV_NAME" --all >/dev/null 2>&1
+          done < "\$CHUNK_FILE"
           EOF
