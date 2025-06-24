@@ -73,8 +73,8 @@ jobs:
             fi
 
             set +e
-            # CMD_LIST=("\$pkg --version" "\$pkg -v" "\$pkg -V" "\$pkg --help" "\$pkg -h")
-            CMD_LIST=("\$pkg")
+            CMD_LIST=("\$pkg --help" "\$pkg -h")
+            # CMD_LIST=("\$pkg")
             SUCCESS=0
 
             for CMD in "\${CMD_LIST[@]}"; do
