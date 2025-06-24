@@ -13,7 +13,7 @@ use sysinfo::System;
 use tracing::info;
 
 // FIXME: How should this be handled with the new architecture?
-pub fn send_log_event(_api_key: &str, message: &str) -> Result<()> {
+pub async fn send_log_event(_api_key: &str, message: &str) -> Result<()> {
     let _log_entry = json!({
         "message": message,
         "process_type": "pipeline",
@@ -27,7 +27,7 @@ pub fn send_log_event(_api_key: &str, message: &str) -> Result<()> {
 }
 
 // FIXME: same with other events, how should it be handled now?
-pub fn send_alert_event(message: &str) -> Result<()> {
+pub async fn send_alert_event(message: &str) -> Result<()> {
     let _alert_entry = json!({
         "message": message,
         "process_type": "pipeline",

@@ -13,13 +13,14 @@ pub async fn tag(
     Json(payload): Json<TagData>,
 ) -> axum::response::Result<impl IntoResponse> {
     let guard = state.get_tracer_client().await;
-    send_update(&guard, payload)?;
+    send_update(&guard, payload).await?;
     Ok(StatusCode::ACCEPTED)
 }
 
-fn send_update(client: &TracerClient, payload: TagData) -> Result<(), StatusCode> {
+async fn send_update(client: &TracerClient, payload: TagData) -> Result<(), StatusCode> {
     client
         .send_update_tags_event(payload.names)
+        .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(())
 }
