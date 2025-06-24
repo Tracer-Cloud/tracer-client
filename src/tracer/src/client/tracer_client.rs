@@ -15,7 +15,6 @@ use crate::process_identification::types::current_run::{PipelineMetadata, Run};
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::{Event, ProcessStatus};
 use chrono::{DateTime, Utc};
-use itertools::Itertools;
 use serde_json::json;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -23,10 +22,8 @@ use sysinfo::System;
 use tokio::sync::{mpsc, RwLock};
 use tracing::{error, info};
 
-use crate::daemon::structs::InnerInfoResponse;
 #[cfg(target_os = "linux")]
 use crate::utils::system_info::get_kernel_version;
-use crate::utils::Sentry;
 #[cfg(target_os = "linux")]
 use tracing::warn;
 
@@ -41,7 +38,7 @@ pub struct TracerClient {
     pipeline: Arc<RwLock<PipelineMetadata>>,
 
     pub pricing_client: PricingSource,
-    pub config: Config,
+    config: Config,
 
     log_recorder: LogRecorder,
     pub exporter: Arc<ExporterManager>,
@@ -194,7 +191,7 @@ impl TracerClient {
             info!("Starting process polling monitoring on non-Linux platform");
             match self
                 .ebpf_watcher
-                .start_process_polling(self.config.process_polling_interval_ms)
+                .start_process_polling(self.get_config().process_polling_interval_ms)
                 .await
             {
                 Ok(_) => {
@@ -296,7 +293,7 @@ impl TracerClient {
     }
 
     pub fn get_api_key(&self) -> &str {
-        &self.config.api_key
+        &self.get_config().api_key
     }
 
     pub async fn send_log_event(&self, payload: String) -> Result<()> {
@@ -342,30 +339,10 @@ impl TracerClient {
         Ok(())
     }
 
-    pub async fn sentry_alert(&self) {
-        //todo refactor with daemon module
-
-        let pipeline = self.get_run_metadata().read().await.clone();
-
-        let response_inner = InnerInfoResponse::try_from(pipeline).ok();
-
-        let preview = self.ebpf_watcher.get_n_monitored_processes(10).await;
-        let number_of_monitored_processes =
-            self.ebpf_watcher.get_number_of_monitored_processes().await;
-
-        if let Some(inner) = response_inner {
-            Sentry::add_context(
-                "Run Details",
-                json!({
-                    "name": inner.run_name.clone(),
-                    "id": inner.run_id.clone(),
-                    "runtime": inner.formatted_runtime(),
-                    "no. processes": number_of_monitored_processes,
-                    "preview processes(<10)": preview.iter().join(", "),
-                }),
-            );
-        }
+    pub fn get_config(&self) -> &Config {
+        &self.config
     }
+
     async fn start_docker_monitoring(&self) {
         let log_recorder = self.log_recorder.clone();
         let ebpf_watcher = self.ebpf_watcher.clone();
