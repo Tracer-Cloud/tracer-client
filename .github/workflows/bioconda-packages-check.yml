@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        chunk: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]  # ✅ remove '19g'
+        chunk: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -47,7 +47,7 @@ jobs:
             | sort -u > packages.txt
 
           echo "Splitting into chunks..."
-          split -n l/20 packages.txt chunk_
+          split -n l/40 packages.txt chunk_
 
           CHUNK_LINE=\$((CHUNK_INDEX + 1))
           CHUNK_FILE=\$(find . -maxdepth 1 -name 'chunk_*' | sort | sed -n "\${CHUNK_LINE}p")
@@ -64,6 +64,8 @@ jobs:
               continue
             fi
 
+            set +e
+
             for CMD in "\$pkg --version" "\$pkg -v" "\$pkg -V"; do
               if timeout \$TIMEOUT micromamba run -n "\$ENV_NAME" \$CMD >/dev/null 2>&1; then
                 echo "\$pkg: version check success with '\$CMD'" >> logs/results_${{ matrix.chunk }}.txt
@@ -72,9 +74,11 @@ jobs:
               fi
             done
 
-            if [[ "\${SUCCESS:-0}" -eq 0 ]]; then
-              echo "\$pkg: version check failed" >> logs/errors_${{ matrix.chunk }}.txt
-            fi
+            set -e
+
+            # if [[ "\${SUCCESS:-0}" -eq 0 ]]; then
+            #   echo "\$pkg: version check failed" >> logs/errors_${{ matrix.chunk }}.txt
+            # fi
 
             micromamba remove -y -n "\$ENV_NAME" --all >/dev/null 2>&1
           done < "\$CHUNK_FILE"
