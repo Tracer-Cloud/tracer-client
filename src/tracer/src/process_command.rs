@@ -5,7 +5,7 @@ use crate::common::constants::{
 use crate::common::debug_log::Logger;
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
-use crate::daemon::daemon_run::run;
+use crate::daemon::initialization::create_and_run_server;
 use crate::daemon::structs::{Message, TagData};
 use crate::init_command_interactive_mode;
 #[cfg(target_os = "linux")]
@@ -255,7 +255,7 @@ pub fn process_cli() -> Result<()> {
                 }
             }
 
-            run(args, config)?;
+            create_and_run_server(args, config);
             clean_up_after_daemon()
         }
         //TODO: figure out what test should do now

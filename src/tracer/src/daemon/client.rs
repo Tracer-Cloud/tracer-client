@@ -1,9 +1,8 @@
-use super::structs::{InfoResponse, LogData, Message, RunData, TagData};
+use super::structs::{InfoResponse, Message, RunData, TagData};
 use crate::daemon::handlers::alert::ALERT_ENDPOINT;
 use crate::daemon::handlers::end::END_ENDPOINT;
 use crate::daemon::handlers::info::INFO_ENDPOINT;
 use crate::daemon::handlers::log::LOG_ENDPOINT;
-use crate::daemon::handlers::log_short_lived_process::LOG_SHORT_LIVED_PROCESS_ENDPOINT;
 use crate::daemon::handlers::refresh_config::REFRESH_CONFIG_ENDPOINT;
 use crate::daemon::handlers::start::START_ENDPOINT;
 use crate::daemon::handlers::tag::TAG_ENDPOINT;
@@ -30,7 +29,7 @@ impl DaemonClient {
         }
     }
 
-    pub fn get_url(&self, path: &str) -> String {
+    fn get_url(&self, path: &str) -> String {
         format!("{}{}", self.base_uri, path)
     }
 
@@ -84,21 +83,13 @@ impl DaemonClient {
         Ok(())
     }
 
-    pub async fn send_info_request(&self) -> Result<InfoResponse> {        
-        let data: InfoResponse =
-            self.send_info()
-            .await?
-            .error_for_status()?
-            .json()
-            .await?;
+    pub async fn send_info_request(&self) -> Result<InfoResponse> {
+        let data: InfoResponse = self.send_info().await?.error_for_status()?.json().await?;
         Ok(data)
     }
-    
-    pub async fn send_info(&self) -> Result<Response,Error> { 
-        self.client
-            .get(self.get_url(INFO_ENDPOINT))
-            .send()
-            .await
+
+    pub async fn send_info(&self) -> Result<Response, Error> {
+        self.client.get(self.get_url(INFO_ENDPOINT)).send().await
     }
     pub async fn send_refresh_config_request(&self) -> Result<()> {
         self.client
@@ -112,16 +103,6 @@ impl DaemonClient {
     pub async fn send_update_tags_request(&self, payload: TagData) -> Result<()> {
         self.client
             .post(self.get_url(TAG_ENDPOINT))
-            .json(&payload)
-            .send()
-            .await?
-            .error_for_status()?;
-        Ok(())
-    }
-
-    pub async fn send_log_short_lived_process_request(&self, payload: LogData) -> Result<()> {
-        self.client
-            .put(self.get_url(LOG_SHORT_LIVED_PROCESS_ENDPOINT))
             .json(&payload)
             .send()
             .await?

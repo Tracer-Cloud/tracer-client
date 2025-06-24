@@ -20,7 +20,8 @@ pub async fn alert(
 
 async fn send_alert(client: &TracerClient, message: Message) -> Result<(), StatusCode> {
     client
-        .send_alert_event(message.payload).await
+        .send_alert_event(message.payload)
+        .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(())
 }

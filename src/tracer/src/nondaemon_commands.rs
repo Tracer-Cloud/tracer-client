@@ -23,8 +23,7 @@ pub fn clean_up_after_daemon() -> Result<()> {
 
 pub async fn wait(api_client: &DaemonClient) -> Result<()> {
     for n in 0..5 {
-        match api_client.send_info().await
-        {
+        match api_client.send_info().await {
             // if timeout, retry
             Err(e) => {
                 if !(e.is_timeout() || e.is_connect()) {

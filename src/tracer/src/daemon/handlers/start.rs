@@ -19,7 +19,8 @@ async fn start_run(client: &TracerClient) -> Option<RunData> {
     client
         .start_new_run(None)
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR).ok();
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+        .ok();
 
     let metadata = client.get_run_metadata();
 

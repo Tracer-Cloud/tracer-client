@@ -20,7 +20,8 @@ pub async fn log(
 
 async fn send_log(client: &TracerClient, message: Message) -> Result<(), StatusCode> {
     client
-        .send_log_event(message.payload).await
+        .send_log_event(message.payload)
+        .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(())
 }
