@@ -34,6 +34,9 @@ jobs:
           set -euo pipefail
           mkdir -p logs
 
+          # Inject this variable into the heredoc using Bash string interpolation:
+          CHUNK_INDEX=${CHUNK_INDEX:-0}  # fallback to 0 if not set
+
           micromamba run -n bioenv bash <<EOF
           set -euo pipefail
 
@@ -42,67 +45,57 @@ jobs:
 
           echo "Extracting unique tool names..."
           jq -r '.packages | keys[]' linux64.json \
-            | sed 's/-[0-9][^-]*-[^-]*\.tar\.bz2$//' \
-            | sed 's/-[0-9][^-]*-[^-]*\.conda$//' \
+            | sed -E 's/-[0-9][^-]*-[^-]*\\.(tar\\.bz2|conda)\$//' \
             | sort -u > packages.txt
 
           echo "Splitting into chunks..."
           split -n l/40 packages.txt chunk_
 
-          CHUNK_LINE=\$((CHUNK_INDEX + 1))
+          CHUNK_LINE=\$(( $CHUNK_INDEX + 1 ))
           CHUNK_FILE=\$(find . -maxdepth 1 -name 'chunk_*' | sort | sed -n "\${CHUNK_LINE}p")
           echo "Processing \$CHUNK_FILE"
 
           TIMEOUT=20
 
-          if [[ ! -f "$CHUNK_FILE" ]]; then
-            echo "Chunk file $CHUNK_FILE not found"
+          if [[ ! -f "\$CHUNK_FILE" ]]; then
+            echo "Chunk file \$CHUNK_FILE not found"
             exit 1
           fi
-
 
           while read -r pkg; do
             echo "Installing \$pkg"
             ENV_NAME="biochk_\$pkg"
 
             if ! micromamba create -y -n "\$ENV_NAME" -c conda-forge -c bioconda "\$pkg" >/dev/null 2>&1; then
-              echo "\$pkg: install failed" >> logs/errors_${{ matrix.chunk }}.txt
+              echo "\$pkg: install failed" >> logs/errors_$CHUNK_INDEX.txt
               continue
             fi
 
             set +e
-
-            
-
-            CMD_LIST=("$pkg --version" "$pkg -v" "$pkg -V")
+            CMD_LIST=("\$pkg --version" "\$pkg -v" "\$pkg -V")
             SUCCESS=0
 
-            for CMD in "${CMD_LIST[@]}"; do
-              echo "Trying: $CMD"
-              OUTPUT=$(timeout $TIMEOUT micromamba run -n "$ENV_NAME" $CMD 2>&1)
-              STATUS=$?
+            for CMD in "\${CMD_LIST[@]}"; do
+              echo "Trying: \$CMD"
+              OUTPUT=\$(timeout \$TIMEOUT micromamba run -n "\$ENV_NAME" \$CMD 2>&1)
+              STATUS=\$?
 
-              if [[ $STATUS -eq 0 && -n "$OUTPUT" ]]; then
-                echo "$pkg: version check success with '$CMD'" >> logs/results_${{ matrix.chunk }}.txt
-                echo "$OUTPUT" >> logs/results_${{ matrix.chunk }}.txt
+              if [[ \$STATUS -eq 0 && -n "\$OUTPUT" ]]; then
+                echo "\$pkg: version check success with '\$CMD'" >> logs/results_$CHUNK_INDEX.txt
+                echo "\$OUTPUT" >> logs/results_$CHUNK_INDEX.txt
                 SUCCESS=1
                 break
               else
-                echo "$pkg: version check failed with '$CMD'" >> logs/errors_${{ matrix.chunk }}.txt
-                echo "$OUTPUT" >> logs/errors_${{ matrix.chunk }}.txt
+                echo "\$pkg: version check failed with '\$CMD'" >> logs/errors_$CHUNK_INDEX.txt
+                echo "\$OUTPUT" >> logs/errors_$CHUNK_INDEX.txt
               fi
             done
 
-            if [[ "$SUCCESS" -eq 0 ]]; then
-              echo "$pkg: all version checks failed"
+            if [[ "\$SUCCESS" -eq 0 ]]; then
+              echo "\$pkg: all version checks failed"
             fi
 
-
-
             set -e
-
-            
-
             micromamba remove -y -n "\$ENV_NAME" --all >/dev/null 2>&1
           done < "\$CHUNK_FILE"
           EOF
