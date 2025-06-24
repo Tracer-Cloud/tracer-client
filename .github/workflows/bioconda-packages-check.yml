@@ -53,7 +53,13 @@ jobs:
           CHUNK_FILE=\$(find . -maxdepth 1 -name 'chunk_*' | sort | sed -n "\${CHUNK_LINE}p")
           echo "Processing \$CHUNK_FILE"
 
-          TIMEOUT=10
+          TIMEOUT=20
+
+          if [[ ! -f "$CHUNK_FILE" ]]; then
+            echo "Chunk file $CHUNK_FILE not found"
+            exit 1
+          fi
+
 
           while read -r pkg; do
             echo "Installing \$pkg"
