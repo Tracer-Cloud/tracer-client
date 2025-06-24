@@ -1,0 +1,72 @@
+name: Bioconda Tool Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bioconda-check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        chunk: [0, 1, 2, 3, 4] # Split into 5 chunks
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install mamba
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+          curl -L https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj -C /usr/local/bin --strip-components=1 bin/micromamba
+          export MAMBA_ROOT_PREFIX=$HOME/micromamba
+          micromamba shell init -s bash -p $MAMBA_ROOT_PREFIX
+          source ~/.bashrc
+          micromamba create -y -n bioenv -c conda-forge -c bioconda mamba
+
+      - name: Setup environment
+        run: |
+          echo "export MAMBA_ROOT_PREFIX=$HOME/micromamba" >> $GITHUB_ENV
+          echo "export PATH=$HOME/micromamba/bin:$PATH" >> $GITHUB_ENV
+
+      - name: Run Bioconda version check (chunk ${{ matrix.chunk }})
+        run: |
+          set -euo pipefail
+          mkdir -p logs
+          micromamba run -n bioenv bash <<'EOF'
+          set -euo pipefail
+          
+          echo "Fetching Bioconda packages..."
+          mamba search -c bioconda --json | jq 'keys[]' -r | sort | head -n 100 > packages.txt
+          
+          echo "Splitting package list..."
+          split -n l/5 packages.txt chunk_
+
+          CHUNK_FILE=$(ls chunk_* | sed -n "${{ matrix.chunk }}p")
+          TIMEOUT=10
+          
+          while read -r pkg; do
+            echo "Installing $pkg"
+            ENV_NAME="biochk_${pkg}"
+            
+            if ! micromamba create -y -n "$ENV_NAME" -c conda-forge -c bioconda "$pkg" >/dev/null 2>&1; then
+              echo "$pkg: install failed" >> logs/errors_${{ matrix.chunk }}.txt
+              continue
+            fi
+
+            CMD_LIST=("$pkg --version" "$pkg -v" "$pkg -V")
+            SUCCESS=0
+            for CMD in "${CMD_LIST[@]}"; do
+              if timeout $TIMEOUT micromamba run -n "$ENV_NAME" $CMD >/dev/null 2>&1; then
+                echo "$pkg: version check success with '$CMD'" >> logs/results_${{ matrix.chunk }}.txt
+                SUCCESS=1
+                break
+              fi
+            done
+
+            if [[ "$SUCCESS" -eq 0 ]]; then
+              echo "$pkg: version check failed" >> logs/errors_${{ matrix.chunk }}.txt
+            fi
+
+            micromamba remove -y -n "$ENV_NAME" --all >/dev/null 2>&1
+          done < "$CHUNK_FILE"
+          EOF

@@ -631,7 +631,7 @@ rules:
 
   # GATK
   - rule_name: gatk command
-    display_name: GATK {subcommand}
+    display_name: GATK
     condition:
       and:
         - process_name_contains: gatk
