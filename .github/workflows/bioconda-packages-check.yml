@@ -80,18 +80,6 @@ jobs:
             for CMD in "\${CMD_LIST[@]}"; do
               echo "Trying: \$CMD"
               OUTPUT=\$(timeout \$TIMEOUT micromamba run -n "\$ENV_NAME" \$CMD 2>&1)
-              STATUS=\$?
-
-              if [[ \$STATUS -eq 0 && -n "\$OUTPUT" ]]; then
-                echo "\$pkg: version check success with '\$CMD'" >> logs/results_$CHUNK_INDEX.txt
-                echo "\$OUTPUT" >> logs/results_$CHUNK_INDEX.txt
-                SUCCESS=1
-                break
-              else
-                echo "\$pkg: version check failed with '\$CMD'" >> logs/errors_$CHUNK_INDEX.txt
-                echo "\$OUTPUT" >> logs/errors_$CHUNK_INDEX.txt
-                echo ""
-              fi
 
               echo "\$OUTPUT"
             done
