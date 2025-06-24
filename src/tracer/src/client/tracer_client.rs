@@ -15,6 +15,7 @@ use crate::process_identification::types::current_run::{PipelineMetadata, Run};
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::{Event, ProcessStatus};
 use chrono::{DateTime, Utc};
+use itertools::Itertools;
 use serde_json::json;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -359,10 +360,10 @@ impl TracerClient {
                     "name": inner.run_name.clone(),
                     "id": inner.run_id.clone(),
                     "runtime": inner.formatted_runtime(),
-                    "monitored processes": number_of_monitored_processes,
+                    "no. processes": number_of_monitored_processes,
+                    "preview processes(<10)": preview.iter().join(", "),
                 }),
             );
-            Sentry::add_extra("Monitored Processes", json!(preview));
         }
     }
     async fn start_docker_monitoring(&self) {
