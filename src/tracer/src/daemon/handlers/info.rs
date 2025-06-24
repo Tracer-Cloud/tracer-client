@@ -12,7 +12,7 @@ pub async fn info(State(state): State<DaemonState>) -> axum::response::Result<im
     Ok(Json(get_info_response(&guard).await))
 }
 
-async fn get_info_response(client: &TracerClient) -> InfoResponse {
+pub async fn get_info_response(client: &TracerClient) -> InfoResponse {
     let pipeline = client.get_run_metadata().read().await.clone();
 
     let response_inner = InnerInfoResponse::try_from(pipeline).ok();

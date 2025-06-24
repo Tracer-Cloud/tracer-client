@@ -3,10 +3,10 @@ mod tests {
     use crate::client::exporters::log_forward::LogForward;
     use crate::client::exporters::log_writer::LogWriterEnum;
     use crate::client::TracerClient;
-    use crate::common::types::cli::interactive::InteractiveInitArgs;
-    use crate::common::types::cli::params::TracerCliInitArgs;
     use crate::config::Config;
     use crate::daemon::server::process_monitor::monitor_processes;
+    use crate::process_identification::types::cli::interactive::InteractiveInitArgs;
+    use crate::process_identification::types::cli::params::TracerCliInitArgs;
     use dotenv::dotenv;
 
     fn load_test_config() -> Config {

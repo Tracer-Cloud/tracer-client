@@ -93,3 +93,4 @@ yaml-rust2 = "0.10.3"
 pretty_assertions_sorted = "1.2.3"
 bollard = "0.19.0"
 built = { version = "0.8.0", features = ["chrono", "git2"] }
+lazy_static = "1.5.0"

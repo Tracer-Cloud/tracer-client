@@ -1,5 +1,8 @@
 use crate::client::TracerClient;
+use crate::daemon::handlers::info::get_info_response;
+use crate::utils::Sentry;
 use anyhow::Result;
+use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
@@ -63,13 +66,32 @@ pub async fn monitor(
                 let guard = client.lock().await;
 
                 guard.poll_metrics_data().await.unwrap();
+                sentry_alert(&guard).await;
             }
             _ = process_metrics_interval.tick() => {
                 debug!("DaemonServer monitor interval ticked");
                 let mut guard = client.lock().await;
                 monitor_processes(&mut guard).await.unwrap();
+                sentry_alert(&guard).await;
             }
 
         }
+    }
+}
+
+async fn sentry_alert(client: &TracerClient) {
+    let info_response = get_info_response(client).await;
+    let preview = info_response.watched_processes_preview();
+    if let Some(inner) = info_response.inner {
+        Sentry::add_context(
+            "Run Details",
+            json!({
+                "name": inner.run_name.clone(),
+                "id": inner.run_id.clone(),
+                "runtime": inner.formatted_runtime(),
+                "no. processes": &info_response.watched_processes_count,
+                "preview processes(<10)": preview,
+            }),
+        );
     }
 }
