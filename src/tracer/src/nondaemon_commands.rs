@@ -167,17 +167,27 @@ pub fn print_install_readiness() -> Result<()> {
     Ok(())
 }
 
-pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Result<()> {
-    let mut formatter = InfoFormatter::new(140);
+pub async fn print_config_info(api_client: &DaemonClient, config: &Config, json: bool) -> Result<()> {
+    let mut formatter = InfoFormatter::new(60);
     let info = match api_client.send_info_request().await {
         Ok(info) => info,
         Err(e) => {
             tracing::error!("Error getting info response: {e}");
-            formatter.print_error_state()?;
-            println!("{}", formatter.get_output());
+            if !json {
+                formatter.print_error_state()?;
+                println!("{}", formatter.get_output());
+            }
+            else{
+                println!("serde_json::to_string_pretty(&info)?");
+            }
             return Ok(());
         }
     };
+    if json {
+        println!("{}", serde_json::to_string_pretty(&info)?);
+        return Ok(());
+    }
+    
 
     formatter.add_header("TRACER INFO")?;
     formatter.add_empty_line()?;

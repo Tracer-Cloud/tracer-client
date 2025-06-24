@@ -231,7 +231,7 @@ pub fn process_cli() -> Result<()> {
                         let _ = print_install_readiness();
                         wait(&api_client).await?;
 
-                        print_config_info(&api_client, &config).await
+                        print_config_info(&api_client, &config,false).await
                     })?;
 
                     return Ok(());
@@ -251,7 +251,7 @@ pub fn process_cli() -> Result<()> {
                             let _ = print_install_readiness();
                             wait(&api_client).await?;
 
-                            print_config_info(&api_client, &config).await
+                            print_config_info(&api_client, &config,false).await
                         })?;
 
                         return Ok(());
@@ -363,8 +363,8 @@ pub async fn run_async_command(
             )
             .await?
         }
-        Commands::Info => {
-            print_config_info(api_client, config).await?;
+        Commands::Info {json} => {
+            print_config_info(api_client, config,json).await?;
         }
         Commands::CleanupPort { port } => {
             let port = port.unwrap_or(DEFAULT_DAEMON_PORT); // Default Tracer port
