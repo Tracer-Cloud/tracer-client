@@ -1,17 +1,22 @@
 use super::pipeline::{Dependencies, Job, Pipeline, Step, Subworkflow, Version};
-use crate::utils::yaml::{self, Yaml, YamlExt};
+use crate::utils::yaml::{Yaml, YamlExt, YamlVecLoader};
 use anyhow::{anyhow, bail, Result};
 use once_cell::sync::Lazy;
 use std::path::Path;
 
-static GLOBAL_DEPENDENCIES: Lazy<Option<Dependencies>> = Lazy::new(|| None);
+static GLOBAL_DEPENDENCIES: Lazy<Dependencies> = Lazy::new(|| Dependencies::default());
 
-pub fn load_yaml_pipelines<P: AsRef<Path>>(path: P) -> Result<Vec<Pipeline>> {
-    yaml::load_from_yaml_array_file(path, "pipelines")
-}
-
-pub fn load_yaml_pipelines_from_str(yaml_str: &str) -> Result<Vec<Pipeline>> {
-    yaml::load_from_yaml_array_file(yaml_str, "pipelines")
+pub fn load_yaml_pipelines<P: AsRef<Path>>(
+    embedded_yaml: Option<&str>,
+    fallback_paths: &[P],
+) -> Vec<Pipeline> {
+    YamlVecLoader {
+        module: "PipelineManager",
+        key: "pipelines",
+        embedded_yaml,
+        fallback_paths,
+    }
+    .load()
 }
 
 impl TryFrom<Yaml> for Pipeline {
@@ -40,15 +45,9 @@ impl TryFrom<Yaml> for Pipeline {
             })
             .transpose()?;
         let dependencies = if subworkflows.is_none() && jobs.is_none() {
-            GLOBAL_DEPENDENCIES
-                .as_ref()
-                .map(|dependencies| dependencies.clone())
+            GLOBAL_DEPENDENCIES.clone()
         } else {
-            Some(Dependencies::new(
-                subworkflows,
-                jobs,
-                GLOBAL_DEPENDENCIES.as_ref(),
-            ))
+            Dependencies::new(subworkflows, jobs, Some(&GLOBAL_DEPENDENCIES))
         };
         let steps = yaml
             .optional_vec("steps")?

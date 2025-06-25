@@ -2,27 +2,21 @@ use crate::process_identification::target_process::parser::conditions::{
     CompoundCondition, Condition, SimpleCondition,
 };
 use crate::process_identification::target_process::parser::rule::Rule;
-use crate::process_identification::target_process::target::Target;
-use crate::utils::yaml::{self, Yaml, YamlExt};
+use crate::utils::yaml::{Yaml, YamlExt, YamlVecLoader};
 use anyhow::{anyhow, bail, Result};
 use std::path::Path;
 
-pub fn load_yaml_rules<P: AsRef<Path>>(path: P) -> Result<Vec<Target>> {
-    let rules: Vec<Rule> = yaml::load_from_yaml_array_file(path, "rules")?;
-    let targets: Vec<Target> = rules
-        .into_iter()
-        .map(|rule| rule.clone().into_target())
-        .collect();
-    Ok(targets)
-}
-
-pub fn load_yaml_rules_from_str(yaml_str: &str) -> Result<Vec<Target>> {
-    let rules: Vec<Rule> = yaml::load_from_yaml_array_str(yaml_str, "rules")?;
-    let targets: Vec<Target> = rules
-        .into_iter()
-        .map(|rule| rule.clone().into_target())
-        .collect();
-    Ok(targets)
+pub fn load_yaml_rules<P: AsRef<Path>>(
+    embedded_yaml: Option<&str>,
+    fallback_paths: &[P],
+) -> Vec<Rule> {
+    YamlVecLoader {
+        module: "TargetManager",
+        key: "rules",
+        embedded_yaml,
+        fallback_paths,
+    }
+    .load()
 }
 
 impl TryFrom<Yaml> for Rule {

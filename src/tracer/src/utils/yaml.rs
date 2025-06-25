@@ -3,11 +3,12 @@ use std::fs;
 use std::path::Path;
 use yaml_rust2::YamlLoader;
 // re-export Yaml for convenience
+use tracing::trace;
 pub use yaml_rust2::Yaml;
 
 pub fn load_from_yaml_array_file<P: AsRef<Path>, T: TryFrom<Yaml, Error = anyhow::Error>>(
     path: P,
-    key: &'static str,
+    key: &str,
 ) -> Result<Vec<T>> {
     let yaml_str = fs::read_to_string(path.as_ref())?;
     load_from_yaml_array_str(&yaml_str, key)
@@ -15,7 +16,7 @@ pub fn load_from_yaml_array_file<P: AsRef<Path>, T: TryFrom<Yaml, Error = anyhow
 
 pub fn load_from_yaml_array_str<T: TryFrom<Yaml, Error = anyhow::Error>>(
     yaml_str: &str,
-    key: &'static str,
+    key: &str,
 ) -> Result<Vec<T>> {
     let docs = YamlLoader::load_from_str(yaml_str)?;
     docs.into_iter()
@@ -28,6 +29,46 @@ pub fn load_from_yaml_array_str<T: TryFrom<Yaml, Error = anyhow::Error>>(
         .into_iter()
         .map(|yaml| yaml.try_into())
         .collect()
+}
+
+pub struct YamlVecLoader<'a, P: AsRef<Path>> {
+    pub module: &'a str,
+    pub key: &'a str,
+    pub fallback_paths: &'a [P],
+    pub embedded_yaml: Option<&'a str>,
+}
+
+impl<'a, P: AsRef<Path>> YamlVecLoader<'a, P> {
+    pub fn load<T: TryFrom<Yaml, Error = anyhow::Error>>(&self) -> Vec<T> {
+        if let Some(embedded_str) = self.embedded_yaml {
+            match load_from_yaml_array_str(embedded_str, self.key) {
+                Ok(loaded) if !loaded.is_empty() => return loaded,
+                Ok(_) => {
+                    trace!("Embedded YAML is empty");
+                }
+                Err(e) => {
+                    trace!("[{}] Failed to load embedded YAML: {}", self.module, e);
+                }
+            }
+        }
+        for path in self.fallback_paths.iter() {
+            match load_from_yaml_array_file(path, self.key) {
+                Ok(loaded) if !loaded.is_empty() => return loaded,
+                Ok(_) => {
+                    trace!("YAML file is empty: {}", path.as_ref().display());
+                }
+                Err(e) => {
+                    trace!(
+                        "[{}] Failed to load YAML from {:?}: {}",
+                        self.module,
+                        path.as_ref(),
+                        e
+                    );
+                }
+            }
+        }
+        Vec::new()
+    }
 }
 
 pub trait YamlExt: Sized {

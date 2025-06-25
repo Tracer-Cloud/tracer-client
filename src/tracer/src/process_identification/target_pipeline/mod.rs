@@ -19,4 +19,5 @@
 //! started but not matched. A score is computed for each process set for each step, and if the
 //! score is above a threshold, the step matches. If the pipeline ID is known ahead of time, it
 //! can be used to narrow the set of steps to consider.
+mod pipeline_manager;
 mod parser;
