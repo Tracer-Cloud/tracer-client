@@ -68,23 +68,54 @@ jobs:
 
             if ! micromamba create -y -n "\$ENV_NAME" -c conda-forge -c bioconda "\$pkg" >/dev/null 2>&1; then
               echo "Installing \$pkg failed"
-              echo "\$pkg: install failed" >> logs/errors_$CHUNK_INDEX.txt
+              echo "\$pkg: install failed" >> "logs/errors_${CHUNK_INDEX}.txt"
               continue
             fi
 
             set +e
             CMD_LIST=("\$pkg --help" "\$pkg -h")
-            # CMD_LIST=("\$pkg")
             SUCCESS=0
 
             for CMD in "\${CMD_LIST[@]}"; do
               echo "Trying: \$CMD"
-              OUTPUT=\$(timeout \$TIMEOUT micromamba run -n "\$ENV_NAME" \$CMD 2>&1)
-
-              echo "\$OUTPUT"
+              if timeout \$TIMEOUT micromamba run -n "\$ENV_NAME" \$CMD >/dev/null 2>&1; then
+                echo "\$pkg" >> "logs/successful_packages_${CHUNK_INDEX}.txt"
+                SUCCESS=1
+                break
+              fi
             done
 
             set -e
             micromamba remove -y -n "\$ENV_NAME" --all >/dev/null 2>&1
           done < "\$CHUNK_FILE"
           EOF
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: bioconda-check-logs-${{ matrix.chunk }}
+          path: logs/
+
+  process-results:
+    runs-on: ubuntu-latest
+    needs: bioconda-check
+    if: always()
+
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Download all logs
+        uses: actions/download-artifact@v4
+        with:
+          path: all-logs
+
+      - name: Upload chunk results to S3
+        run: |
+          find all-logs -type f \( -name 'successful_packages_*.txt' -o -name 'errors_*.txt' \) | while read -r file; do
+            FILENAME=$(basename "$file")
+            aws s3 cp "$file" "s3://tracer-releases/bioconda-checks/$FILENAME"
+          done
