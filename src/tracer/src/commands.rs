@@ -69,9 +69,6 @@ pub enum Commands {
     /// Change the tags of the current pipeline run
     Tag { tags: Vec<String> },
 
-    /// Configure .bashrc file to include aliases for short-lived processes commands. To use them, a new terminal session must be started.
-    ApplyBashrc,
-
     /// Log a message to the service for a short-lived process.
     LogShortLivedProcess { command: String },
 
