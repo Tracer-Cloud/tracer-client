@@ -72,6 +72,7 @@ jobs:
             if ! micromamba create -y -n "\$ENV_NAME" -c conda-forge -c bioconda "\$pkg" >/dev/null 2>&1; then
               echo "Installing \$pkg failed"
               echo "\$pkg: install failed" >> "logs/errors_${CHUNK_INDEX}.txt"
+              echo "Installation of \$pkg failed."
               continue
             fi
 
@@ -91,6 +92,25 @@ jobs:
             set -e
             micromamba remove -y -n "\$ENV_NAME" --all >/dev/null 2>&1
           done < "\$CHUNK_FILE"
+
+          # Print summary statistics
+          echo "--- Summary for $CHUNK_FILE ---"
+          TOTAL_PKGS=$(wc -l < "$CHUNK_FILE")
+          if [ -f "logs/errors_${CHUNK_INDEX}.txt" ]; then
+            FAILED_INSTALLS=$(wc -l < "logs/errors_${CHUNK_INDEX}.txt")
+          else
+            FAILED_INSTALLS=0
+          fi
+          SUCCESSFUL_INSTALLS=$((TOTAL_PKGS - FAILED_INSTALLS))
+          echo "Total packages in chunk: $TOTAL_PKGS"
+          echo "Failed installations: $FAILED_INSTALLS"
+          echo "Successful installations: $SUCCESSFUL_INSTALLS"
+          # Successful command recognition is the same as before
+          if [ -f "logs/successful_packages_${CHUNK_INDEX}.txt" ]; then
+            echo "Successful command recognition: $(wc -l < "logs/successful_packages_${CHUNK_INDEX}.txt")"
+          else
+            echo "Successful command recognition: 0"
+          fi
           EOF
       - name: Upload logs
         uses: actions/upload-artifact@v4
