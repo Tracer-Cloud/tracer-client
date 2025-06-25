@@ -13,4 +13,4 @@ END $$;
 DROP INDEX IF EXISTS idx_query_stats_collected_at;
 DROP TABLE IF EXISTS query_stats_snapshots;
 
-DROP EXTENSION IF EXISTS pg_cron;
+-- DROP EXTENSION IF EXISTS pg_cron;

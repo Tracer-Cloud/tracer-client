@@ -1,7 +1,7 @@
 -- === UP MIGRATION ===
 
 -- 1. Enable pg_cron extension
-CREATE EXTENSION IF NOT EXISTS pg_cron;
+-- CREATE EXTENSION IF NOT EXISTS pg_cron;
 
 -- 2. Create snapshot table
 CREATE TABLE IF NOT EXISTS query_stats_snapshots (
