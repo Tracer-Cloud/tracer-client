@@ -43,7 +43,7 @@ jobs:
           submodules: recursive # This will fetch all submodules recursively
           fetch-depth: 0 # Fetch all history for versioning
       
-            - name: Update version in Cargo.toml
+      - name: Update version in Cargo.toml
         run: |
           # Get current date in YYYY.MM.DD format
           DATE=$(date +'%Y.%-m.%-d')
