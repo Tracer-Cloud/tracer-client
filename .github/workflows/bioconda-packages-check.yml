@@ -36,27 +36,27 @@ jobs:
           set -euo pipefail
           mkdir -p logs
 
-          # Inject this variable into the heredoc using Bash string interpolation:
-          CHUNK_INDEX=${CHUNK_INDEX:-0}  # fallback to 0 if not set
-
-          micromamba run -n bioenv bash <<EOF
-          set -euo pipefail
-
           echo "Fetching Bioconda packages..."
           curl -s https://conda.anaconda.org/bioconda/linux-64/repodata.json -o linux64.json
 
           echo "Extracting unique tool names..."
-          jq -r '.packages[] .name' linux64.json \
-            | sort -u > packages.txt
+          jq -r '.packages[] .name' linux64.json | sort -u > packages.txt
 
           echo "Splitting into chunks..."
           split -n l/200 packages.txt chunk_
 
-          CHUNK_LINE=$(( $CHUNK_INDEX + 1 ))
-          CHUNK_FILE=$(find . -maxdepth 1 -name 'chunk_*' | sort | sed -n "${CHUNK_LINE}p")
+          # Set default for CHUNK_INDEX if not set
+          CHUNK_INDEX="${CHUNK_INDEX:-0}"
 
-          if [[ -z "$CHUNK_FILE" || ! -f "$CHUNK_FILE" ]]; then
-            echo "Chunk file $CHUNK_FILE not found"
+          # Calculate CHUNK_LINE safely
+          CHUNK_LINE=$((CHUNK_INDEX + 1))
+
+          # Find the chunk file, but don't error if not found
+          CHUNK_FILE=$(find . -maxdepth 1 -name 'chunk_*' | sort | sed -n "${CHUNK_LINE}p" || true)
+
+          # Check if CHUNK_FILE is set and exists
+          if [[ -z "${CHUNK_FILE:-}" || ! -f "$CHUNK_FILE" ]]; then
+            echo "Chunk file '$CHUNK_FILE' not found (CHUNK_INDEX=$CHUNK_INDEX, CHUNK_LINE=$CHUNK_LINE)"
             exit 1
           fi
 
@@ -112,7 +112,6 @@ jobs:
           else
             echo "Successful command recognition: 0"
           fi
-          EOF
       - name: Upload logs
         uses: actions/upload-artifact@v4
         with:
