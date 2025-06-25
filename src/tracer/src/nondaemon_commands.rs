@@ -8,7 +8,7 @@ use crate::daemon::client::DaemonClient;
 use crate::process_identification::constants::{
     FILE_CACHE_DIR, PID_FILE, STDERR_FILE, STDOUT_FILE,
 };
-use crate::utils::InfoFormatter;
+use crate::utils::InfoDisplay;
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use std::result::Result::Ok;
@@ -172,37 +172,16 @@ pub async fn print_config_info(
     config: &Config,
     json: bool,
 ) -> Result<()> {
-    let mut formatter = InfoFormatter::new(70);
+    let mut display = InfoDisplay::new(70, json);
     let info = match api_client.send_info_request().await {
         Ok(info) => info,
         Err(e) => {
             tracing::error!("Error getting info response: {e}");
-            if !json {
-                formatter.print_error_state()?;
-                println!("{}", formatter.get_output());
-            } else {
-                println!("serde_json::to_string_pretty(&info)?");
-            }
+            display.print_error();
             return Ok(());
         }
     };
-    if json {
-        println!("{}", serde_json::to_string_pretty(&info)?);
-        return Ok(());
-    }
-
-    formatter.add_header("TRACER INFO")?;
-    formatter.add_empty_line()?;
-
-    formatter.print_daemon_status()?;
-
-    if let Some(inner) = &info.inner {
-        formatter.print_pipeline_info(inner, &info, config)?;
-    }
-
-    formatter.print_config_and_logs(config)?;
-    formatter.add_footer()?;
-    println!("{}", formatter.get_output());
+    display.print(info, config);
     Ok(())
 }
 
