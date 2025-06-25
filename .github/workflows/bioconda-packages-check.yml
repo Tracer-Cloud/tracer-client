@@ -52,46 +52,47 @@ jobs:
           echo "Splitting into chunks..."
           split -n l/200 packages.txt chunk_
 
-          CHUNK_LINE=\$(( $CHUNK_INDEX + 1 ))
-          CHUNK_FILE=\$(find . -maxdepth 1 -name 'chunk_*' | sort | sed -n "\${CHUNK_LINE}p")
-          echo "Processing \$CHUNK_FILE"
-          PKG_COUNT=\$(wc -l < "\$CHUNK_FILE")
-          echo "Number of packages in \$CHUNK_FILE: \$PKG_COUNT"
+          CHUNK_LINE=$(( $CHUNK_INDEX + 1 ))
+          CHUNK_FILE=$(find . -maxdepth 1 -name 'chunk_*' | sort | sed -n "${CHUNK_LINE}p")
 
-          TIMEOUT=20
-
-          if [[ ! -f "\$CHUNK_FILE" ]]; then
-            echo "Chunk file \$CHUNK_FILE not found"
+          if [[ -z "$CHUNK_FILE" || ! -f "$CHUNK_FILE" ]]; then
+            echo "Chunk file $CHUNK_FILE not found"
             exit 1
           fi
 
-          while read -r pkg; do
-            echo "Installing \$pkg"
-            ENV_NAME="biochk_\$pkg"
+          echo "Processing $CHUNK_FILE"
+          PKG_COUNT=$(wc -l < "$CHUNK_FILE")
+          echo "Number of packages in $CHUNK_FILE: $PKG_COUNT"
 
-            if ! micromamba create -y -n "\$ENV_NAME" -c conda-forge -c bioconda "\$pkg" >/dev/null 2>&1; then
-              echo "Installing \$pkg failed"
-              echo "\$pkg: install failed" >> "logs/errors_${CHUNK_INDEX}.txt"
-              echo "Installation of \$pkg failed."
+          TIMEOUT=20
+
+          while read -r pkg; do
+            echo "Installing $pkg"
+            ENV_NAME="biochk_$pkg"
+
+            if ! micromamba create -y -n "$ENV_NAME" -c conda-forge -c bioconda "$pkg" >/dev/null 2>&1; then
+              echo "Installing $pkg failed"
+              echo "$pkg: install failed" >> "logs/errors_${CHUNK_INDEX}.txt"
+              echo "Installation of $pkg failed."
               continue
             fi
 
             set +e
-            CMD_LIST=("\$pkg --help" "\$pkg -h" "\$pkg")
+            CMD_LIST=("$pkg --help" "$pkg -h" "$pkg")
             SUCCESS=0
 
-            for CMD in "\${CMD_LIST[@]}"; do
-              echo "Trying: \$CMD"
-              if timeout \$TIMEOUT micromamba run -n "\$ENV_NAME" \$CMD >/dev/null 2>&1; then
-                echo "\$pkg" >> "logs/successful_packages_${CHUNK_INDEX}.txt"
+            for CMD in "${CMD_LIST[@]}"; do
+              echo "Trying: $CMD"
+              if timeout $TIMEOUT micromamba run -n "$ENV_NAME" $CMD >/dev/null 2>&1; then
+                echo "$pkg" >> "logs/successful_packages_${CHUNK_INDEX}.txt"
                 SUCCESS=1
                 break
               fi
             done
 
             set -e
-            micromamba remove -y -n "\$ENV_NAME" --all >/dev/null 2>&1
-          done < "\$CHUNK_FILE"
+            micromamba remove -y -n "$ENV_NAME" --all >/dev/null 2>&1
+          done < "$CHUNK_FILE"
 
           # Print summary statistics
           echo "--- Summary for $CHUNK_FILE ---"
