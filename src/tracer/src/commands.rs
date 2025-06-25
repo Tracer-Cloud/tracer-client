@@ -46,7 +46,11 @@ pub enum Commands {
     Cleanup,
 
     /// Shows the current configuration and the daemon status
-    Info,
+    Info {
+        /// Output information in JSON format
+        #[clap(long)]
+        json: bool,
+    },
 
     /// Update the daemon to the latest version
     Update,
