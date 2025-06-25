@@ -55,6 +55,8 @@ jobs:
           CHUNK_LINE=\$(( $CHUNK_INDEX + 1 ))
           CHUNK_FILE=\$(find . -maxdepth 1 -name 'chunk_*' | sort | sed -n "\${CHUNK_LINE}p")
           echo "Processing \$CHUNK_FILE"
+          PKG_COUNT=\$(wc -l < "\$CHUNK_FILE")
+          echo "Number of packages in \$CHUNK_FILE: \$PKG_COUNT"
 
           TIMEOUT=20
 
@@ -74,7 +76,7 @@ jobs:
             fi
 
             set +e
-            CMD_LIST=("\$pkg --help" "\$pkg -h")
+            CMD_LIST=("\$pkg --help" "\$pkg -h" "\$pkg")
             SUCCESS=0
 
             for CMD in "\${CMD_LIST[@]}"; do
