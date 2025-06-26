@@ -148,13 +148,33 @@ impl ExtractProcessData {
         tracing::error!("Got content : {}\n\n", &content);
 
         for line in content.lines() {
-            // Common pattern: <hierarchy_id>:<controllers>:<path>
+            // cgroup v1 format: <hierarchy_id>:<controllers>:<path>
+            // cgroup v2 format (single unified hierarchy): 0::/path
             let fields: Vec<&str> = line.split(':').collect();
-            if fields.len() == 3 {
-                let path = fields[2];
-                // Example: /docker/<container_id>
-                if let Some(container_id) = path.split('/').find(|part| part.len() >= 64) {
-                    return Some(container_id.to_string());
+            if fields.len() != 3 {
+                continue;
+            }
+
+            let path = fields[2];
+
+            // Try to match full container ID (64 hex chars)
+            if let Some(id) = path
+                .split('/')
+                .find(|part| part.len() == 64 && part.chars().all(|c| c.is_ascii_hexdigit()))
+            {
+                return Some(id.to_string());
+            }
+
+            // Fallback: check for systemd slice format: docker-<container_id>.scope
+            if let Some(slice) = path
+                .split('/')
+                .find(|part| part.starts_with("docker-") && part.ends_with(".scope"))
+            {
+                let id = slice
+                    .trim_start_matches("docker-")
+                    .trim_end_matches(".scope");
+                if id.len() == 64 && id.chars().all(|c| c.is_ascii_hexdigit()) {
+                    return Some(id.to_string());
                 }
             }
         }
