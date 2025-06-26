@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-
+      
     steps:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -21,7 +21,7 @@ jobs:
       - name: Delete entire branch folder in S3
         env:
           S3_BUCKET: tracer-releases
-          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+          BRANCH_NAME: ${{ github.event.ref }}
         run: |
           FOLDER="s3://${S3_BUCKET}/${BRANCH_NAME}/"
 
