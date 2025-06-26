@@ -17,6 +17,7 @@ on:
 
 jobs:
   update-version:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -101,20 +102,13 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     steps:
-      - name: Check out repository with submodules (updated version)
+      - name: Check out repository with submodules
         uses: actions/checkout@v4.1.4
         with:
           submodules: recursive # This will fetch all submodules recursively
           fetch-depth: 0 # Fetch all history for versioning
           ref: ${{ github.head_ref || github.ref_name }} # Get the updated branch with new version
-      
-      - name: Verify version from update job
-        run: |
-          # Get current version from Cargo.toml (should be updated by update-version job)
-          CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
-          echo "Building with version: $CURRENT_VERSION"
-          echo "Expected version from update job: ${{ needs.update-version.outputs.version }}"
-
+    
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -232,13 +226,6 @@ jobs:
 
       - name: Configure Git safe directory
         run: git config --global --add safe.directory $GITHUB_WORKSPACE
-
-      - name: Verify version from update job
-        run: |
-          # Get current version from Cargo.toml (should be updated by update-version job)
-          CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
-          echo "Building with version: $CURRENT_VERSION"
-          echo "Expected version from update job: ${{ needs.update-version.outputs.version }}"
 
       - name: Build the binary
         run: |
