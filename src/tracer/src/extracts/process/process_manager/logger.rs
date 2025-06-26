@@ -1,9 +1,14 @@
-use crate::extracts::process::extract_process_data::ExtractProcessData;
+use std::sync::Arc;
+
 use crate::extracts::process::process_utils::create_short_lived_process_object;
 use crate::extracts::process::types::process_result::ProcessResult;
+use crate::extracts::{
+    containers::DockerWatcher, process::extract_process_data::ExtractProcessData,
+};
 use crate::process_identification::recorder::LogRecorder;
-use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::ProcessStatus as TracerProcessStatus;
+use crate::process_identification::types::event::attributes::EventAttributes;
+use crate::process_identification::types::event::attributes::process::ProcessProperties;
 use anyhow::Result;
 use chrono::Utc;
 use sysinfo::Process;
@@ -13,11 +18,15 @@ use tracing::debug;
 /// Handles logging of process-related events
 pub struct ProcessLogger {
     log_recorder: LogRecorder,
+    docker_watcher: Arc<DockerWatcher>,
 }
 
 impl ProcessLogger {
-    pub fn new(log_recorder: LogRecorder) -> Self {
-        Self { log_recorder }
+    pub fn new(log_recorder: LogRecorder, docker_watcher: Arc<DockerWatcher>) -> Self {
+        Self {
+            log_recorder,
+            docker_watcher,
+        }
     }
 
     /// Logs information about a newly detected process
@@ -31,7 +40,7 @@ impl ProcessLogger {
 
         let display_name = target;
 
-        let properties = match system_process {
+        let mut properties = match system_process {
             Some(system_process) => {
                 ExtractProcessData::gather_process_data(
                     system_process,
@@ -46,6 +55,16 @@ impl ProcessLogger {
                 create_short_lived_process_object(process, display_name.clone())
             }
         };
+        let ProcessProperties::Full(full) = &mut properties;
+
+        // If we have a container ID, fetch and attach the container event
+        if let Some(container_id) = &full.container_id {
+            if let Some(container_event) =
+                self.docker_watcher.get_container_event(container_id).await
+            {
+                full.container_event = Some(container_event);
+            }
+        }
 
         self.log_recorder
             .log(

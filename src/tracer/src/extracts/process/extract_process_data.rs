@@ -130,6 +130,7 @@ impl ExtractProcessData {
             job_id,
             working_directory,
             trace_id,
+            container_event: None,
         }))
     }
 }

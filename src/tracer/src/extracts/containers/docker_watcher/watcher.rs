@@ -1,60 +1,89 @@
 use crate::extracts::containers::docker_watcher::event::{ContainerEvent, ContainerState};
 use crate::process_identification::recorder::LogRecorder;
 use anyhow::Result;
+use bollard::Docker;
 use bollard::models::EventMessage;
 use bollard::query_parameters::{EventsOptionsBuilder, InspectContainerOptions};
-use bollard::Docker;
 use chrono::{TimeZone, Utc};
 use futures_util::StreamExt;
 use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 use tracer_ebpf::ebpf_trigger::ExitReason;
 
+#[derive(Clone)]
 pub struct DockerWatcher {
-    docker: Docker,
+    docker: Option<Docker>,
     recorder: LogRecorder,
+    container_state: Arc<RwLock<HashMap<String, ContainerEvent>>>, // Keyed by container name
 }
 
 impl DockerWatcher {
-    pub fn new(recorder: LogRecorder) -> Result<Self> {
-        let docker = Docker::connect_with_unix_defaults()?;
-        Ok(Self { docker, recorder })
+    pub fn new(recorder: LogRecorder) -> Self {
+        let docker = Docker::connect_with_unix_defaults().ok(); // returns Option<Docker>
+
+        if docker.is_none() {
+            tracing::warn!("Docker not available — container events will not be captured.");
+        }
+        let container_state = Arc::new(RwLock::new(HashMap::new()));
+
+        Self {
+            docker,
+            recorder,
+            container_state,
+        }
     }
 
-    pub async fn start(self) -> Result<()> {
-        let filters = HashMap::from_iter([("type", vec!["container".to_string()])]);
-        let events_options = EventsOptionsBuilder::default().filters(&filters).build();
-        let mut events_stream = self.docker.events(Some(events_options));
+    pub async fn start(&self) -> Result<()> {
+        if let Some(ref docker) = self.docker {
+            let filters = HashMap::from_iter([("type", vec!["container".to_string()])]);
+            let events_options = EventsOptionsBuilder::default().filters(&filters).build();
+            let mut events_stream = docker.events(Some(events_options));
 
-        let docker = self.docker.clone();
-        let recorder = self.recorder.clone();
+            let docker = docker.clone();
+            let recorder = self.recorder.clone();
 
-        tokio::spawn(async move {
-            while let Some(Ok(event)) = events_stream.next().await {
-                if let Some(container_event) = Self::process_event(&docker, event).await {
-                    tracing::debug!("Container event: {:?}", container_event);
+            let container_state = Arc::clone(&self.container_state);
 
-                    if let Err(e) = recorder
+            tokio::spawn(async move {
+                while let Some(Ok(event)) = events_stream.next().await {
+                    if let Some(container_event) = Self::process_event(&docker, event).await {
+                        tracing::debug!("Container event: {:?}", container_event);
+
+                        let name = container_event.name.clone();
+                        let mut state = container_state.write().await;
+
+                        match container_event.state {
+                            ContainerState::Started => {
+                                state.insert(name, container_event.clone());
+                            }
+                            ContainerState::Exited { .. } | ContainerState::Died => {
+                                state.remove(&name);
+                            }
+                        }
+
+                        // Log the container event
+                        if let Err(e) = recorder
                         .log(
                             crate::process_identification::types::event::ProcessStatus::ContainerExecution,
-                            format!(
-                                "[container] {} - {:?}",
-                                container_event.name, container_event.state
-                            ),
+                            format!("[container] {} - {:?}",
+                            container_event.name, container_event.state
+                        ),
                             Some(
                                 crate::process_identification::types::event::attributes::EventAttributes::ContainerEvents(
-                                    container_event.clone().into(),
-                                ),
+                                container_event.clone().into(),
                             ),
+                        ),
                             Some(container_event.timestamp),
                         )
                         .await
                     {
                         tracing::error!("Failed to log container event: {:?}", e);
                     }
+                    }
                 }
-            }
-        });
-
+            });
+        }
         Ok(())
     }
 
@@ -115,5 +144,9 @@ impl DockerWatcher {
             timestamp: time,
             state,
         })
+    }
+
+    pub async fn get_container_event(&self, name: &str) -> Option<ContainerEvent> {
+        self.container_state.read().await.get(name).cloned()
     }
 }

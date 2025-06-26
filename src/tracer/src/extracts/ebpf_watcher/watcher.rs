@@ -10,7 +10,7 @@ use std::collections::HashSet;
 use std::fs::{self};
 use std::path::Path;
 use std::sync::Arc;
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{RwLock, mpsc};
 use tracer_ebpf::binding::start_processing_events;
 use tracer_ebpf::ebpf_trigger::{
     OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger, Trigger,
@@ -21,24 +21,27 @@ use tracing::{debug, error, info};
 pub struct EbpfWatcher {
     ebpf: once_cell::sync::OnceCell<()>, // not tokio, because ebpf initialisation is sync
     process_manager: Arc<RwLock<ProcessManager>>,
-    docker: once_cell::sync::OnceCell<()>, // NEW
     trigger_processor: TriggerProcessor,
     // here will go the file manager for dataset recognition operations
 }
 
 impl EbpfWatcher {
-    pub fn new(target_manager: TargetManager, log_recorder: LogRecorder) -> Self {
+    pub fn new(
+        target_manager: TargetManager,
+        log_recorder: LogRecorder,
+        docker_watcher: Arc<DockerWatcher>,
+    ) -> Self {
         // instantiate the process manager
         let process_manager = Arc::new(RwLock::new(ProcessManager::new(
             target_manager.clone(),
             log_recorder.clone(),
+            docker_watcher,
         )));
 
         EbpfWatcher {
             ebpf: once_cell::sync::OnceCell::new(),
             trigger_processor: TriggerProcessor::new(Arc::clone(&process_manager)),
             process_manager,
-            docker: once_cell::sync::OnceCell::new(),
         }
     }
 
@@ -172,24 +175,6 @@ impl EbpfWatcher {
                 return Err(Error::msg("Failed to initialize eBPF monitoring task"));
             }
         }
-
-        Ok(())
-    }
-
-    pub async fn initialize_docker_watcher(
-        self: &Arc<Self>,
-        log_recorder: LogRecorder,
-    ) -> Result<()> {
-        self.docker.get_or_try_init(|| {
-            let watcher = DockerWatcher::new(log_recorder)?;
-            tokio::spawn(async move {
-                if let Err(e) = watcher.start().await {
-                    tracing::error!("Docker watcher failed: {:?}", e);
-                }
-            });
-
-            Ok::<(), anyhow::Error>(())
-        })?;
 
         Ok(())
     }

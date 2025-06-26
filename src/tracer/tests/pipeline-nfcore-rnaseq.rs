@@ -6,14 +6,15 @@ use rstest::*;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
-use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::RwLock;
+use tokio::sync::mpsc::{self, Sender};
+use tracer::extracts::containers::DockerWatcher;
 use tracer::extracts::ebpf_watcher::watcher::EbpfWatcher;
 use tracer::process_identification::recorder::LogRecorder;
 use tracer::process_identification::target_process::target_manager::TargetManager;
 use tracer::process_identification::types::current_run::{PipelineMetadata, Run};
-use tracer::process_identification::types::event::attributes::process::ProcessProperties;
 use tracer::process_identification::types::event::attributes::EventAttributes;
+use tracer::process_identification::types::event::attributes::process::ProcessProperties;
 use tracer::process_identification::types::event::{Event, ProcessStatus};
 use tracer::process_identification::types::pipeline_tags::PipelineTags;
 use tracer_ebpf::ebpf_trigger::Trigger;
@@ -60,7 +61,12 @@ fn watcher(
     event_sender: Sender<Event>,
 ) -> Arc<EbpfWatcher> {
     let log_recorder = LogRecorder::new(Arc::new(RwLock::new(pipeline.clone())), event_sender);
-    Arc::new(EbpfWatcher::new(target_manager.clone(), log_recorder))
+    let docker_watcher = DockerWatcher::new(log_recorder.clone());
+    Arc::new(EbpfWatcher::new(
+        target_manager.clone(),
+        log_recorder,
+        Arc::new(docker_watcher),
+    ))
 }
 
 #[rstest]
