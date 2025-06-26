@@ -1,4 +1,5 @@
 use crate::extracts::process::process_utils::process_status_to_string;
+use crate::process_identification::debug_log::Logger;
 use crate::process_identification::types::event::attributes::process::{
     FullProcessProperties, ProcessProperties,
 };
@@ -85,7 +86,8 @@ impl ExtractProcessData {
         }
         let container_id = Self::get_container_id_from_cgroup(proc.pid().as_u32());
 
-        println!("Got container_ID from cgroup: {:?}", container_id);
+        let message = format!("Got container_ID from cgroup: {:?}", container_id);
+        Logger::new().log_blocking(&message, None);
 
         (container_id, job_id, trace_id)
     }
