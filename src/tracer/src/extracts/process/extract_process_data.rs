@@ -68,7 +68,7 @@ impl ExtractProcessData {
     pub fn get_process_environment_variables<P: ProcessTrait>(
         proc: &P,
     ) -> (Option<String>, Option<String>, Option<String>) {
-        let mut container_id = None;
+        // let mut container_id = None;
         let mut job_id = None;
         let mut trace_id = None;
 
@@ -77,12 +77,15 @@ impl ExtractProcessData {
             if let Some((key, value)) = process_environment_variable.split_once('=') {
                 match key {
                     "AWS_BATCH_JOB_ID" => job_id = Some(value.to_string()),
-                    "HOSTNAME" => container_id = Some(value.to_string()),
+                    // "HOSTNAME" => container_id = Some(value.to_string()), // deprecating ..
                     "TRACER_TRACE_ID" => trace_id = Some(value.to_string()),
                     _ => continue,
                 }
             }
         }
+        let container_id = Self::get_container_id_from_cgroup(proc.pid().as_u32());
+
+        println!("Got container_ID from cgroup: {:?}", container_id);
 
         (container_id, job_id, trace_id)
     }
@@ -132,6 +135,27 @@ impl ExtractProcessData {
             trace_id,
             container_event: None,
         }))
+    }
+
+    /// Extracts the container ID (if any) from a process's cgroup file
+    /// Returns `Some(container_id)` if found, else `None`
+    pub fn get_container_id_from_cgroup(pid: u32) -> Option<String> {
+        let cgroup_path = PathBuf::from(format!("/proc/{}/cgroup", pid));
+        let content = std::fs::read_to_string(cgroup_path).ok()?;
+
+        for line in content.lines() {
+            // Common pattern: <hierarchy_id>:<controllers>:<path>
+            let fields: Vec<&str> = line.split(':').collect();
+            if fields.len() == 3 {
+                let path = fields[2];
+                // Example: /docker/<container_id>
+                if let Some(container_id) = path.split('/').find(|part| part.len() >= 64) {
+                    return Some(container_id.to_string());
+                }
+            }
+        }
+
+        None
     }
 }
 
