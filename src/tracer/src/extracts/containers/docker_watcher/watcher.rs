@@ -1,4 +1,6 @@
-use crate::extracts::containers::docker_watcher::event::{ContainerEvent, ContainerState};
+use crate::extracts::containers::docker_watcher::event::{
+    ContainerEvent, ContainerId, ContainerState,
+};
 use crate::process_identification::recorder::LogRecorder;
 use anyhow::Result;
 use bollard::models::EventMessage;
@@ -15,7 +17,7 @@ use tracer_ebpf::ebpf_trigger::ExitReason;
 pub struct DockerWatcher {
     docker: Option<Docker>,
     recorder: LogRecorder,
-    container_state: Arc<RwLock<HashMap<String, ContainerEvent>>>, // Keyed by container name
+    container_state: Arc<RwLock<HashMap<ContainerId, ContainerEvent>>>, // Keyed by container ID
 }
 
 impl DockerWatcher {
@@ -50,18 +52,17 @@ impl DockerWatcher {
                     if let Some(container_event) = Self::process_event(&docker, event).await {
                         tracing::debug!("Container event: {:?}", container_event);
 
-                        let name = container_event.name.clone();
+                        let container_id = ContainerId(container_event.id.clone());
                         let mut state = container_state.write().await;
 
                         match container_event.state {
                             ContainerState::Started => {
-                                state.insert(name, container_event.clone());
+                                state.insert(container_id, container_event.clone());
                             }
                             ContainerState::Exited { .. } | ContainerState::Died => {
-                                state.remove(&name);
+                                state.remove(&container_id);
                             }
                         }
-
                         // Log the container event
                         if let Err(e) = recorder
                         .log(
@@ -146,7 +147,17 @@ impl DockerWatcher {
         })
     }
 
-    pub async fn get_container_event(&self, name: &str) -> Option<ContainerEvent> {
-        self.container_state.read().await.get(name).cloned()
+    pub async fn get_container_event(&self, id: &str) -> Option<ContainerEvent> {
+        let container_id = ContainerId(id.to_string());
+        let state = self.container_state.read().await;
+
+        // Log all keys (container IDs) currently stored
+        tracing::error!(
+            "Looking for container ID: {:?} | Currently stored IDs: {:?}",
+            container_id,
+            state.keys().collect::<Vec<&ContainerId>>()
+        );
+
+        state.get(&container_id).cloned()
     }
 }
