@@ -2,8 +2,8 @@ use std::process::Command;
 use tracing::error;
 
 pub fn check_sudo_privileges() {
-    if std::env::var("SUDO_USER").is_err() {
-        println!("Warning: Running without sudo privileges. Some operations may fail.");
+    if !is_sudo() {
+        println!("⚠️ Warning: Running without sudo privileges. Some operations may fail.");
         // Get the current executable path and arguments
         let current_exe =
             std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("tracer"));
@@ -23,7 +23,9 @@ pub fn is_root() -> bool {
         })
         .unwrap_or(false)
 }
-
+pub fn is_sudo() -> bool {
+    std::env::var("SUDO_USER").is_ok()
+}
 pub fn is_sudo_installed() -> bool {
     Command::new("which")
         .arg("sudo")
