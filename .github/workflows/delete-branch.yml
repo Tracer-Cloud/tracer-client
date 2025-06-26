@@ -1,0 +1,87 @@
+name: Delete Branch S3 Assets
+
+on:
+  delete:
+    # This triggers when any branch or tag is deleted
+
+jobs:
+  cleanup-s3-assets:
+    # Only run if a branch (not tag) was deleted and it's not the main branch
+    if: github.event.ref_type == 'branch' && github.event.ref != 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Delete branch-specific S3 assets
+        run: |
+          BRANCH_NAME="${{ github.event.ref }}"
+          S3_BUCKET="tracer-releases"
+          
+          echo "🗑️  Cleaning up S3 assets for deleted branch: $BRANCH_NAME"
+          
+          # List of all target files that would have been uploaded for this branch
+          TARGETS=(
+            "tracer-x86_64-unknown-linux-gnu.tar.gz"
+            "tracer-aarch64-unknown-linux-gnu.tar.gz"
+            "tracer-aarch64-apple-darwin.tar.gz"
+            "tracer-x86_64-apple-darwin.tar.gz"
+            "tracer-x86_64-amazon-linux-gnu.tar.gz"
+          )
+          
+          # Check if the branch folder exists in S3
+          if aws s3 ls "s3://${S3_BUCKET}/${BRANCH_NAME}/" >/dev/null 2>&1; then
+            echo "📁 Found S3 folder for branch: ${BRANCH_NAME}"
+            
+            # List all files in the branch folder
+            echo "📋 Files in s3://${S3_BUCKET}/${BRANCH_NAME}/:"
+            aws s3 ls "s3://${S3_BUCKET}/${BRANCH_NAME}/" --recursive
+            
+            # Delete each target file if it exists
+            for target in "${TARGETS[@]}"; do
+              S3_PATH="s3://${S3_BUCKET}/${BRANCH_NAME}/${target}"
+              
+              if aws s3 ls "$S3_PATH" >/dev/null 2>&1; then
+                echo "🗑️  Deleting: $S3_PATH"
+                aws s3 rm "$S3_PATH"
+              else
+                echo "⚠️  File not found (skipping): $S3_PATH"
+              fi
+            done
+            
+            # Check if the folder is now empty and remove it if so
+            REMAINING_FILES=$(aws s3 ls "s3://${S3_BUCKET}/${BRANCH_NAME}/" --recursive | wc -l)
+            
+            if [ "$REMAINING_FILES" -eq 0 ]; then
+              echo "📂 Branch folder is empty, removing folder marker if it exists"
+              # Try to remove any folder marker objects
+              aws s3 rm "s3://${S3_BUCKET}/${BRANCH_NAME}/" --recursive || true
+              echo "✅ Successfully cleaned up all assets for branch: ${BRANCH_NAME}"
+            else
+              echo "⚠️  Branch folder still contains $REMAINING_FILES files, keeping folder"
+              echo "📋 Remaining files:"
+              aws s3 ls "s3://${S3_BUCKET}/${BRANCH_NAME}/" --recursive
+            fi
+            
+          else
+            echo "ℹ️  No S3 folder found for branch: ${BRANCH_NAME}"
+            echo "   This is normal if the branch never had successful builds uploaded to S3"
+          fi
+
+      - name: Summary
+        run: |
+          BRANCH_NAME="${{ github.event.ref }}"
+          echo "🎯 Cleanup Summary:"
+          echo "   - Branch deleted: ${BRANCH_NAME}"
+          echo "   - S3 bucket: tracer-releases"
+          echo "   - Cleaned up branch-specific release assets"
+          echo ""
+          echo "ℹ️  Note: This only removes files uploaded with branch-specific paths."
+          echo "   Main release files (without branch prefix) are preserved."
