@@ -66,7 +66,7 @@ impl Version {
             .parse::<u32>()
             .map_err(|_| err_msg.clone())?;
         let build = caps.get(4).and_then(|m| m.as_str().parse::<u32>().ok());
-        let commit = if PROFILE == "release" && build.is_some() {
+        let commit = if PROFILE != "release" && build.is_some() {
             GIT_COMMIT_HASH_SHORT.map(|s| s.to_string())
         } else {
             None
