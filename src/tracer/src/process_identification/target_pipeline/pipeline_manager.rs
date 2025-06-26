@@ -138,6 +138,7 @@ impl TargetPipelineManager {
     }
 }
 
+/// A bi-directional many-to-many mapping between jobs and PIDs.
 #[derive(MultiIndexMap, Debug)]
 struct JobPid {
     #[multi_index(hashed_non_unique)]
