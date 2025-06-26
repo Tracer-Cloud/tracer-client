@@ -13,6 +13,24 @@ pub fn check_sudo_privileges() {
     }
 }
 
+pub fn is_root() -> bool {
+    Command::new("id")
+        .arg("-u")
+        .output()
+        .map(|output| {
+            let uid = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            uid == "0"
+        })
+        .unwrap_or(false)
+}
+
+pub fn is_sudo_installed() -> bool {
+    Command::new("which")
+        .arg("sudo")
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false)
+}
 pub fn get_kernel_version() -> Option<(u32, u32)> {
     let kernel_version = Command::new("uname")
         .arg("-r")
