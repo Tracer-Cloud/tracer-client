@@ -16,72 +16,7 @@ on:
       - ".github/workflows/cross-platform-release-and-assets-upload-on-s3.yml"
 
 jobs:
-  update-version:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-      version_changed: ${{ steps.version.outputs.changed }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4.1.4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Configure Git
-        run: |
-          git config --global --add safe.directory $GITHUB_WORKSPACE
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Generate and update version
-        id: version
-        run: |
-
-          # Get current date in YYYY.MM.DD format
-          DATE=$(date +'%Y.%-m.%-d')
-          # Get time in HH.MM format
-          TIME=$(date +'%H%M')
-
-          # Get current version from Cargo.toml
-          CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
-          echo "Current version: $CURRENT_VERSION"
-
-          # Create new development version string
-          NEW_VERSION="${DATE}+${TIME}"
-          echo "New version: $NEW_VERSION"
-
-          # Update version in Cargo.toml
-          sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
-
-          # Check if version actually changed
-          if git diff --quiet Cargo.toml; then
-            echo "No version changes detected"
-            echo "changed=false" >> $GITHUB_OUTPUT
-          else
-            echo "Version changes detected"
-            echo "changed=true" >> $GITHUB_OUTPUT
-
-            # Commit the version change
-            git add Cargo.toml
-            git commit -m "chore: update version to ${NEW_VERSION} for development build
-
-            Auto-generated version update for S3 development release
-
-            - Previous version: ${CURRENT_VERSION}
-            - New version: ${NEW_VERSION}
-            - Branch: ${{ github.head_ref || github.ref_name }}"
-
-            git push origin HEAD:${{ github.head_ref || github.ref_name }}
-          fi
-
-          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-
   build-and-release:
-    needs: update-version
     permissions: write-all
     strategy:
       matrix:
@@ -107,8 +42,26 @@ jobs:
         with:
           submodules: recursive # This will fetch all submodules recursively
           fetch-depth: 0 # Fetch all history for versioning
-          ref: ${{ github.head_ref || github.ref_name }} # Get the updated branch with new version
-    
+
+      - name: Update version in Cargo.toml
+        run: |
+          # Get current date in YYYY.MM.DD format
+          DATE=$(date +'%Y.%-m.%-d')
+          # Get short commit hash
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          # Get time in HH.MM format
+          TIME=$(date +'%H%M')
+          # Create new version string
+          NEW_VERSION="${DATE}+${TIME}"
+          # Update version in Cargo.toml (compatible with both macOS and Linux)
+          if [[ "${{ matrix.runner }}" == *"macos"* ]]; then
+            sed -i '' "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
+          else
+            sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
+          fi
+          # Print the new version for verification
+          echo "Updated version to: ${NEW_VERSION}"
+
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -196,7 +149,6 @@ jobs:
           aws s3 cp release-files/tracer-${{ matrix.target }}.tar.gz s3://tracer-releases/${{ github.head_ref || github.ref_name }}/tracer-${{ matrix.target }}.tar.gz
 
   build-and-release-amazon-linux:
-    needs: update-version
     permissions: write-all
     runs-on: ubuntu-latest
     container:
@@ -217,15 +169,33 @@ jobs:
           rustup target add x86_64-unknown-linux-gnu
           rustup toolchain install nightly-2025-04-15 --component rust-src
 
-      - name: Check out repository with submodules (updated version)
+      - name: Check out repository with submodules
         uses: actions/checkout@v4.1.4
         with:
           submodules: recursive # This will fetch all submodules recursively
           fetch-depth: 0 # Fetch all history for versioning
-          ref: ${{ github.head_ref || github.ref_name }} # Get the updated branch with new version
 
       - name: Configure Git safe directory
         run: git config --global --add safe.directory $GITHUB_WORKSPACE
+
+      - name: Update version in Cargo.toml
+        run: |
+          # Get current date in YYYY.MM.DD format
+          DATE=$(date +'%Y.%-m.%-d')
+          # Get short commit hash
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          # Get time in HH.MM format
+          TIME=$(date +'%H.%M')
+          # Create new version string
+          NEW_VERSION="${DATE}+${TIME}.${COMMIT_HASH}"
+          # Update version in Cargo.toml (compatible with both macOS and Linux)
+          if [[ "${{ matrix.runner }}" == *"macos"* ]]; then
+            sed -i '' "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
+          else
+            sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
+          fi
+          # Print the new version for verification
+          echo "Updated version to: ${NEW_VERSION}"
 
       - name: Build the binary
         run: |
