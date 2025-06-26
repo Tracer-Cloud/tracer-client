@@ -10,7 +10,6 @@ include!(concat!(env!("OUT_DIR"), "/built.rs"));
 /// - The version reflects the date of its build.
 /// - Release builds: `1.2.3`
 /// - Non-release builds: `1.2.3+123`
-/// - Dirty state is indicated by the `dirty` flag.
 /// - The `commit` field is set for non-release builds if available.
 #[derive(Debug)]
 pub struct Version {
@@ -18,8 +17,7 @@ pub struct Version {
     minor: u32,
     patch: u32,
     build: Option<u32>,
-    commit: Option<String>,
-    dirty: bool,
+    commit: Option<String>
 }
 
 impl Version {
@@ -71,15 +69,13 @@ impl Version {
         } else {
             None
         };
-        let dirty = GIT_DIRTY.unwrap_or(false);
 
         Ok(Self {
             major,
             minor,
             patch,
             build,
-            commit,
-            dirty,
+            commit
         })
     }
 }
@@ -92,9 +88,6 @@ impl fmt::Display for Version {
         }
         if let Some(commit) = &self.commit {
             write!(f, ".{}", commit)?;
-        }
-        if self.dirty {
-            write!(f, "-dirty")?;
         }
         Ok(())
     }
@@ -165,8 +158,7 @@ mod tests {
             minor: 5,
             patch: 9,
             build: None,
-            commit: None,
-            dirty: false,
+            commit: None
         };
         assert_eq!(version_without_build.to_string(), "2.5.9");
 
@@ -175,8 +167,7 @@ mod tests {
             minor: 5,
             patch: 9,
             build: Some(42),
-            commit: None,
-            dirty: false,
+            commit: None
         };
         assert_eq!(version_with_build.to_string(), "2.5.9+42");
     }
@@ -188,56 +179,49 @@ mod tests {
             minor: 0,
             patch: 0,
             build: None,
-            commit: None,
-            dirty: false,
+            commit: None
         };
         let v2 = Version {
             major: 1,
             minor: 0,
             patch: 1,
             build: None,
-            commit: None,
-            dirty: false,
+            commit: None
         };
         let v3 = Version {
             major: 1,
             minor: 1,
             patch: 0,
             build: None,
-            commit: None,
-            dirty: false,
+            commit: None
         };
         let v4 = Version {
             major: 2,
             minor: 0,
             patch: 0,
             build: None,
-            commit: None,
-            dirty: false,
+            commit: None
         };
         let v5 = Version {
             major: 1,
             minor: 0,
             patch: 0,
             build: None,
-            commit: None,
-            dirty: false,
+            commit: None
         };
         let v6 = Version {
             major: 1,
             minor: 0,
             patch: 0,
             build: Some(1),
-            commit: None,
-            dirty: false,
+            commit: None
         };
         let v7 = Version {
             major: 1,
             minor: 0,
             patch: 0,
             build: Some(2),
-            commit: None,
-            dirty: false,
+            commit: None
         };
 
         // Equality without build
