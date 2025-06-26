@@ -17,7 +17,7 @@ pub struct Version {
     minor: u32,
     patch: u32,
     build: Option<u32>,
-    commit: Option<String>
+    commit: Option<String>,
 }
 
 impl Version {
@@ -75,7 +75,7 @@ impl Version {
             minor,
             patch,
             build,
-            commit
+            commit,
         })
     }
 }
@@ -158,7 +158,7 @@ mod tests {
             minor: 5,
             patch: 9,
             build: None,
-            commit: None
+            commit: None,
         };
         assert_eq!(version_without_build.to_string(), "2.5.9");
 
@@ -167,7 +167,7 @@ mod tests {
             minor: 5,
             patch: 9,
             build: Some(42),
-            commit: None
+            commit: None,
         };
         assert_eq!(version_with_build.to_string(), "2.5.9+42");
     }
@@ -179,49 +179,49 @@ mod tests {
             minor: 0,
             patch: 0,
             build: None,
-            commit: None
+            commit: None,
         };
         let v2 = Version {
             major: 1,
             minor: 0,
             patch: 1,
             build: None,
-            commit: None
+            commit: None,
         };
         let v3 = Version {
             major: 1,
             minor: 1,
             patch: 0,
             build: None,
-            commit: None
+            commit: None,
         };
         let v4 = Version {
             major: 2,
             minor: 0,
             patch: 0,
             build: None,
-            commit: None
+            commit: None,
         };
         let v5 = Version {
             major: 1,
             minor: 0,
             patch: 0,
             build: None,
-            commit: None
+            commit: None,
         };
         let v6 = Version {
             major: 1,
             minor: 0,
             patch: 0,
             build: Some(1),
-            commit: None
+            commit: None,
         };
         let v7 = Version {
             major: 1,
             minor: 0,
             patch: 0,
             build: Some(2),
-            commit: None
+            commit: None,
         };
 
         // Equality without build
