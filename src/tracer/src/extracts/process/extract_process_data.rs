@@ -1,5 +1,4 @@
 use crate::extracts::process::process_utils::process_status_to_string;
-use crate::process_identification::debug_log::Logger;
 use crate::process_identification::types::event::attributes::process::{
     FullProcessProperties, ProcessProperties,
 };
@@ -86,8 +85,7 @@ impl ExtractProcessData {
         }
         let container_id = Self::get_container_id_from_cgroup(proc.pid().as_u32());
 
-        let message = format!("Got container_ID from cgroup: {:?}", container_id);
-        Logger::new().log_blocking(&message, None);
+        tracing::error!("Got container_ID from cgroup: {:?}", container_id);
 
         (container_id, job_id, trace_id)
     }
@@ -142,13 +140,12 @@ impl ExtractProcessData {
     /// Extracts the container ID (if any) from a process's cgroup file
     /// Returns `Some(container_id)` if found, else `None`
     pub fn get_container_id_from_cgroup(pid: u32) -> Option<String> {
-        let message = format!("Calling get_container id for pid: {}\n\n", pid);
-        Logger::new().log_blocking(&message, None);
+        tracing::error!("Calling get_container id for pid: {}\n\n", pid);
+
         let cgroup_path = PathBuf::from(format!("/proc/{}/cgroup", pid));
         let content = std::fs::read_to_string(cgroup_path).ok()?;
 
-        let message = format!("Got content : {}\n\n", &content);
-        Logger::new().log_blocking(&message, None);
+        tracing::error!("Got content : {}\n\n", &content);
 
         for line in content.lines() {
             // Common pattern: <hierarchy_id>:<controllers>:<path>
