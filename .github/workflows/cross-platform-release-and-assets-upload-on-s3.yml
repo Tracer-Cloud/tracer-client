@@ -50,7 +50,7 @@ jobs:
           # Get short commit hash
           COMMIT_HASH=$(git rev-parse --short HEAD)
           # Get time in HH.MM format
-          TIME=$(date +'%H.%M')
+          TIME=$(date +'%H%M')
           # Create new version string
           NEW_VERSION="${DATE}+${TIME}.${COMMIT_HASH}"
           # Update version in Cargo.toml (compatible with both macOS and Linux)
@@ -185,7 +185,7 @@ jobs:
           # Get short commit hash
           COMMIT_HASH=$(git rev-parse --short HEAD)
           # Get time in HH.MM format
-          TIME=$(date +'%H.%M')
+          TIME=$(date +'%H%M')
           # Create new version string
           NEW_VERSION="${DATE}+${TIME}.${COMMIT_HASH}"
           # Update version in Cargo.toml (compatible with both macOS and Linux)

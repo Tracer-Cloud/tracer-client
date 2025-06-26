@@ -17,7 +17,7 @@ use crate::process_identification::debug_log::Logger;
 use crate::utils::analytics::emit_analytic_event;
 use crate::utils::file_system::ensure_file_can_be_created;
 use crate::utils::system_info::check_sudo_privileges;
-use crate::utils::{FullVersion, Sentry};
+use crate::utils::{Sentry, Version};
 use anyhow::{Context, Result};
 use clap::Parser;
 use daemonize::{Daemonize, Outcome};
@@ -371,7 +371,7 @@ pub async fn run_async_command(
             handle_port_conflict(port).await?;
         }
         Commands::Version => {
-            println!("{}", FullVersion::current());
+            println!("{}", Version::current());
         }
         _ => {
             println!("Command not implemented yet");

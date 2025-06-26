@@ -3,7 +3,7 @@ use crate::constants::{GRAFANA_WORKSPACE_DASHBOARD, TRACER_SANDBOX_URL};
 use crate::daemon::structs::InfoResponse;
 use crate::process_identification::constants::{LOG_FILE, STDERR_FILE, STDOUT_FILE};
 use crate::utils::cli::BoxFormatter;
-use crate::utils::FullVersion;
+use crate::utils::Version;
 
 pub struct InfoDisplay {
     width: usize,
@@ -37,7 +37,7 @@ impl InfoDisplay {
         let mut json = serde_json::json!({});
         json["daemon_status"] = serde_json::json!({
             "status": "Running",
-            "version": FullVersion::current().to_string(),
+            "version": Version::current().to_string(),
         });
         if let Some(inner) = &info.inner {
             json["pipeline"] = serde_json::json!({
@@ -86,7 +86,7 @@ impl InfoDisplay {
         formatter.add_section_header("DAEMON STATUS");
         formatter.add_empty_line();
         formatter.add_status_field("Status", "Running", "active");
-        formatter.add_field("Version", &FullVersion::current().to_string(), "bold");
+        formatter.add_field("Version", &Version::current().to_string(), "bold");
         formatter.add_empty_line();
     }
 
@@ -149,7 +149,7 @@ impl InfoDisplay {
         formatter.add_header("TRACER CLI STATUS");
         formatter.add_empty_line();
         formatter.add_status_field("Daemon Status", "Not Started", "inactive");
-        formatter.add_field("Version", &FullVersion::current().to_string(), "bold");
+        formatter.add_field("Version", &Version::current().to_string(), "bold");
         formatter.add_empty_line();
         formatter.add_section_header("NEXT STEPS");
         formatter.add_empty_line();
