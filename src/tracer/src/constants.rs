@@ -9,14 +9,14 @@ pub const PROCESS_METRICS_SEND_INTERVAL_MS: u64 = 500;
 pub const FILE_SIZE_NOT_CHANGING_PERIOD_MS: u64 = 1000 * 60;
 pub const LOG_FORWARD_ENDPOINT_DEV: &str = "https://sandbox.tracer.cloud/api/logs-forward/dev";
 pub const LOG_FORWARD_ENDPOINT_PROD: &str = "https://sandbox.tracer.cloud/api/logs-forward/prod";
-pub const SENTRY_DSN: &str = "https://35e0843e6748d2c93dfd56716f2eecfe@o4509281671380992.ingest.us.sentry.io/4509281680949248";
+// pub const SENTRY_DSN: &str = "https://35e0843e6748d2c93dfd56716f2eecfe@o4509281671380992.ingest.us.sentry.io/4509281680949248";
 pub const GRAFANA_RUN_DASHBOARD_BASE: &str =
     "https://tracerbio.grafana.net/d/ceix2cvmb3bi8e/run-details";
 pub const GRAFANA_PIPELINE_DASHBOARD_BASE: &str =
     "https://tracerbio.grafana.net/d/deklznatbxd1of/runs";
 pub const GRAFANA_WORKSPACE_DASHBOARD: &str =
     "https://tracerbio.grafana.net/goto/7gISE1EHg?orgId=1";
-// pub const SENTRY_DSN: &str = "https://add417a1c944b1b2110b4f3ea8d7fbea@o4509525906948096.ingest.de.sentry.io/4509530452328528"; // todo remove - used for testing new alerts
+pub const SENTRY_DSN: &str = "https://add417a1c944b1b2110b4f3ea8d7fbea@o4509525906948096.ingest.de.sentry.io/4509530452328528"; // todo remove - used for testing new alerts
 
 pub const AWS_REGION: AwsRegion = UsEast2;
 
