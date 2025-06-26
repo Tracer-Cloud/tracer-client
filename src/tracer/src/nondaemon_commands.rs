@@ -8,6 +8,7 @@ use crate::daemon::client::DaemonClient;
 use crate::process_identification::constants::{
     FILE_CACHE_DIR, PID_FILE, STDERR_FILE, STDOUT_FILE,
 };
+use crate::utils::system_info::{is_root, is_sudo_installed};
 use crate::utils::InfoDisplay;
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
@@ -245,8 +246,17 @@ pub async fn update_tracer() -> Result<()> {
     //
     // println!("\nUpdating Tracer to version {}...", latest_ver);
 
+    let install_cmd = if is_sudo_installed() {
+        "curl -sSL https://install.tracer.cloud/ | sudo bash && source ~/.bashrc && source ~/.zshrc"
+    } else {
+        if !is_root() {
+            println!("Warning: Running without root privileges. Some operations may fail.");
+        }
+        "curl -sSL https://install.tracer.cloud/ | bash && source ~/.bashrc && source ~/.zshrc"
+    };
+
     let mut command = Command::new("bash");
-    command.arg("-c").arg("curl -sSL https://install.tracer.cloud/ | sudo bash && source ~/.bashrc && source ~/.zshrc");
+    command.arg("-c").arg(install_cmd);
     let status = command
         .status()
         .context("Failed to update Tracer. Please try again.")?;
