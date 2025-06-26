@@ -73,9 +73,9 @@ jobs:
             - Previous version: ${CURRENT_VERSION}
             - New version: ${NEW_VERSION}
             - Commit: ${COMMIT_HASH}
-            - Branch: ${{ github.head_ref || github.ref_name }}"
+            - Branch: ${{BRANCH_NAME}}"
 
-            git push origin ${{ github.head_ref || github.ref_name }}
+            git push origin ${{BRANCH_NAME}}
           fi
 
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
