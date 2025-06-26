@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 
 use tracer_ebpf::ebpf_trigger::ExitReason;
 
+use crate::extracts::containers::docker_watcher::event::ContainerEvent;
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct InputFile {
     pub file_name: String,
@@ -33,6 +35,7 @@ pub struct FullProcessProperties {
     pub job_id: Option<String>,
     pub working_directory: Option<String>,
     pub trace_id: Option<String>,
+    pub container_event: Option<ContainerEvent>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
