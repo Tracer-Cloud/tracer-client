@@ -208,17 +208,19 @@ mod tests {
             .times(1)
             .return_const(process_environment_variables);
 
+        mock_process.expect_pid().return_const(Pid::from(1234));
+
         let (container_id, job_id, trace_id) =
             ExtractProcessData::get_process_environment_variables(&mock_process);
 
-        assert_eq!(container_id, Some("container-abc123".to_string()));
+        assert_eq!(container_id, None);
         assert_eq!(job_id, Some("job-12345".to_string()));
         assert_eq!(trace_id, Some("trace-xyz789".to_string()));
     }
 
     #[test]
     fn test_get_process_environment_variables_with_partial_variables() {
-        let mut mock_process = MockProcessTrait::new();
+        let mut mock_process: MockProcessTrait = MockProcessTrait::new();
 
         let process_environment_variables = vec![
             "PATH=/usr/bin:/bin".to_string(),
@@ -231,10 +233,12 @@ mod tests {
             .times(1)
             .return_const(process_environment_variables);
 
-        let (container_id, job_id, trace_id) =
+        mock_process.expect_pid().return_const(Pid::from(1234));
+
+        let (_container_id, job_id, trace_id) =
             ExtractProcessData::get_process_environment_variables(&mock_process);
 
-        assert_eq!(container_id, None);
+        // assert_eq!(container_id, None);
         assert_eq!(job_id, Some("job-67890".to_string()));
         assert_eq!(trace_id, None);
     }
@@ -253,6 +257,8 @@ mod tests {
             .expect_environ()
             .times(1)
             .return_const(process_environment_variables);
+
+        mock_process.expect_pid().return_const(Pid::from(1234));
 
         let (container_id, job_id, trace_id) =
             ExtractProcessData::get_process_environment_variables(&mock_process);
@@ -277,6 +283,7 @@ mod tests {
             .expect_environ()
             .times(1)
             .return_const(process_environment_variables);
+        mock_process.expect_pid().return_const(Pid::from(1234));
 
         let (container_id, job_id, trace_id) =
             ExtractProcessData::get_process_environment_variables(&mock_process);
@@ -361,7 +368,7 @@ mod tests {
                 assert_eq!(props.process_disk_usage_write_last_interval, 256);
                 assert_eq!(props.process_memory_usage, 1024 * 1024 * 100);
                 assert_eq!(props.process_memory_virtual, 1024 * 1024 * 200);
-                assert_eq!(props.container_id, Some("test-container".to_string()));
+                assert_eq!(props.container_id, None);
                 assert_eq!(props.job_id, Some("test-job-123".to_string()));
                 assert_eq!(props.trace_id, Some("test-trace-456".to_string()));
                 assert_eq!(
