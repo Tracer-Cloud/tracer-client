@@ -20,7 +20,7 @@ use serde_json::json;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use sysinfo::System;
-use tokio::sync::{RwLock, mpsc};
+use tokio::sync::{mpsc, RwLock};
 use tracing::{error, info};
 
 #[cfg(target_os = "linux")]

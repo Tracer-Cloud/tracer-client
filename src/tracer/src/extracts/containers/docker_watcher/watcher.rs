@@ -1,9 +1,9 @@
 use crate::extracts::containers::docker_watcher::event::{ContainerEvent, ContainerState};
 use crate::process_identification::recorder::LogRecorder;
 use anyhow::Result;
-use bollard::Docker;
 use bollard::models::EventMessage;
 use bollard::query_parameters::{EventsOptionsBuilder, InspectContainerOptions};
+use bollard::Docker;
 use chrono::{TimeZone, Utc};
 use futures_util::StreamExt;
 use std::collections::HashMap;
