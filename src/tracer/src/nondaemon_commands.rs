@@ -244,9 +244,21 @@ pub async fn update_tracer() -> Result<()> {
     // }
     //
     // println!("\nUpdating Tracer to version {}...", latest_ver);
+    let sudo_works = Command::new("sudo")
+        .arg("-n")
+        .arg("true")
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false);
+
+    let install_cmd = if sudo_works {
+        "curl -sSL https://install.tracer.cloud/ | sudo bash && source ~/.bashrc && source ~/.zshrc"
+    } else {
+        "curl -sSL https://install.tracer.cloud/ | bash && source ~/.bashrc && source ~/.zshrc"
+    };
 
     let mut command = Command::new("bash");
-    command.arg("-c").arg("curl -sSL https://install.tracer.cloud/ | sudo bash && source ~/.bashrc && source ~/.zshrc");
+    command.arg("-c").arg(install_cmd);
     let status = command
         .status()
         .context("Failed to update Tracer. Please try again.")?;
