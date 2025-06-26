@@ -10,15 +10,23 @@ const STATUS_INFO: Emoji<'_, '_> = Emoji("ℹ️ ", "ℹ️ ");
 pub struct BoxFormatter {
     output: String,
     width: usize,
+    macos_terminal: bool,
 }
 
 /// Formats a box like interface in the command line.
 /// create with `BoxFormatter::new(width)`
 impl BoxFormatter {
     pub fn new(width: usize) -> Self {
+        // Check if running in Terminal.app
+        let macos_terminal = matches!(
+            std::env::var("TERM_PROGRAM").as_deref(),
+            Ok("Apple_Terminal")
+        );
+        let width = if macos_terminal { width + 100 } else { width };
         Self {
             output: String::new(),
             width,
+            macos_terminal,
         }
     }
 
@@ -111,17 +119,17 @@ impl BoxFormatter {
     pub fn get_output(&self) -> &str {
         &self.output
     }
-
     pub fn add_hyperlink(&mut self, label: &str, url: &str, display_text: &str) {
-        // Add a visual indicator like 🔗 or 🌐 to show it's a link
-        let display_with_indicator = format!("🔗 {}", display_text);
+        let link = if self.macos_terminal {
+            // Terminal.app: show plain blue URL
+            format!("🔗 {}", url).blue().to_string()
+        } else {
+            // Other terminals: clickable hyperlink
+            let display_with_indicator = format!("🔗 {}", display_text);
+            let hyperlink = format!("\x1B]8;;{}\x07{}\x1B]8;;\x07", url, display_with_indicator);
+            hyperlink.blue().to_string()
+        };
 
-        // Format using ANSI escape sequences for hyperlinks
-        let hyperlink = format!("\x1B]8;;{}\x07{}\x1B]8;;\x07", url, display_with_indicator);
-
-        // Always make hyperlinks blue
-        let blue_link = hyperlink.blue();
-
-        writeln!(&mut self.output, "│ {:<20} │ {}  ", label, blue_link).unwrap();
+        writeln!(&mut self.output, "│ {:<20} │ {}  ", label, link).unwrap();
     }
 }
