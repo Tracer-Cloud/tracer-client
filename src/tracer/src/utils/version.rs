@@ -1,17 +1,17 @@
 use anyhow::Result;
 use once_cell::sync::Lazy;
+use regex::Regex;
 use std::cmp::Ordering;
 use std::fmt;
 
 include!(concat!(env!("OUT_DIR"), "/built.rs"));
 
-
-/// Version struct used for comparing versions
-/// Current workflow is:
-/// - main branch: 1.2.3
-/// - custom branch: 1.2.3+123
-/// - custom branch with changes: 1.2.3+123-dirty
-/// major.minor.patch reflects the date on its checkout and build can either represent the time or the commit number
+/// Represents a semantic version with optional build metadata, commit hash, dirty state, and build date.
+/// - The version reflects the date of its build.
+/// - Release builds: `1.2.3`
+/// - Non-release builds: `1.2.3+123`
+/// - Dirty state is indicated by the `dirty` flag.
+/// - The `commit` field is set for non-release builds if available.
 #[derive(Debug)]
 pub struct Version {
     major: u32,
@@ -19,7 +19,7 @@ pub struct Version {
     patch: u32,
     build: Option<u32>,
     commit: Option<String>,
-    dirty: bool
+    dirty: bool,
 }
 
 impl Version {
@@ -35,60 +35,58 @@ impl Version {
 
     /// Parses a version string from:
     /// - the main branch / release: "1.2.3" or "1.2.3+123"
-    /// - custom branch: "1.2.3+213.ej2nr"
+    /// - custom branch: "1.2.3+213"
     ///
     /// syntax: major.minor.patch[+build][.commit]
     /// Returns an error if the string is not in the correct format
     /// or any part is not a valid number.
     pub(super) fn from_str(s: &str) -> Result<Self, String> {
+        static RE: Lazy<Regex> =
+            Lazy::new(|| Regex::new(r"^(\d+)\.(\d+)\.(\d+)(?:\+(\d+))?$").unwrap());
+
         let err_msg = format!("Failed to parse version string: {}", s);
-        // Split on '+' to get version and optional build
-        let mut parts_iter = s.splitn(2, '+');
-        let version = parts_iter.next().ok_or_else(|| err_msg.clone())?;
-        let build = parts_iter.next().map(String::from);
+        let caps = RE.captures(s).ok_or(err_msg.clone())?;
 
-        let parts: Vec<&str> = version.split('.').collect();
-        if parts.len() != 3 {
-            return Err(err_msg.clone());
-        }
-
-        let major = parts[0].parse::<u32>().ok();
-        let minor = parts[1].parse::<u32>().ok();
-        let patch = parts[2].parse::<u32>().ok();
-        let build = match build {
-            Some(b) if !b.is_empty() => Some(b.parse::<u32>().map_err(|_| err_msg.clone())?),
-            _ => None,
-        };
-        let commit = if PROFILE == "release" {
-            None
+        let major = caps
+            .get(1)
+            .unwrap()
+            .as_str()
+            .parse::<u32>()
+            .map_err(|_| err_msg.clone())?;
+        let minor = caps
+            .get(2)
+            .unwrap()
+            .as_str()
+            .parse::<u32>()
+            .map_err(|_| err_msg.clone())?;
+        let patch = caps
+            .get(3)
+            .unwrap()
+            .as_str()
+            .parse::<u32>()
+            .map_err(|_| err_msg.clone())?;
+        let build = caps.get(4).and_then(|m| m.as_str().parse::<u32>().ok());
+        let commit = if PROFILE == "release" && build.is_some() {
+            GIT_COMMIT_HASH_SHORT.map(|s| s.to_string())
         } else {
-            GIT_COMMIT_HASH_SHORT.map(String::from)
+            None
         };
         let dirty = GIT_DIRTY.unwrap_or(false);
 
-        match (major, minor, patch) {
-            (Some(major), Some(minor), Some(patch)) => Ok(Self {
-                major,
-                minor,
-                patch,
-                build,
-                commit,
-                dirty
-            }),
-            _ => Err(err_msg),
-        }
+        Ok(Self {
+            major,
+            minor,
+            patch,
+            build,
+            commit,
+            dirty,
+        })
     }
 }
 
 impl fmt::Display for Version {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}.{}.{}",
-            self.major,
-            self.minor,
-            self.patch
-        )?;
+        write!(f, "{}.{}.{}", self.major, self.minor, self.patch)?;
         if let Some(build) = self.build {
             write!(f, "+{}", build)?;
         }
