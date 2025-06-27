@@ -1,0 +1,31 @@
+pipelines:
+  - id: nf-core/rnaseq
+    description: RNA sequencing analysis pipeline for gene/isoform quantification and extensive quality control.
+    repo: https://github.com/nf-core/rnaseq
+    language: nextflow
+    version:
+      min: 3.19.0
+    subworkflows:
+      - id: PREPARE_GENOME
+        description: Create genome indexes for RNA-seq analysis.
+        steps:
+          - or:
+              - job: GUNZIP_GTF
+              - and:
+                  - optional_job: GUNZIP_GFF
+                  - job: GFFREAD
+    jobs:
+      - id: GUNZIP_GTF
+        description: Unzip the GTF file.
+        rules:
+          - gunzip_gtf
+      - id: GUNZIP_GFF
+        description: Unzip the GFF file.
+        rules:
+          - gunzip_gff
+      - id: GFFREAD
+        description: Read the GFF file.
+        rules:
+          - gffread
+    steps:
+      - subworkflow: PREPARE_GENOME
