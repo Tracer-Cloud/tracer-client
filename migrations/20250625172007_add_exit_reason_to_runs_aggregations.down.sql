@@ -1,4 +1,6 @@
 -- Add down migration script here
+ALTER TABLE runs_aggregations DROP COLUMN IF EXISTS exit_reasons;
+ALTER TABLE runs_aggregations DROP COLUMN IF EXISTS system_disk_total; 
 
 -- Remove the trigger from the batch_jobs_logs table
 DROP TRIGGER IF EXISTS trigger_update_runs_aggregation ON batch_jobs_logs;

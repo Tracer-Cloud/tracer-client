@@ -1,6 +1,7 @@
 -- Add up migration script here
 -- adding new column for the exit_reason
-alter table runs_aggregations add column exit_reasons text;
+ALTER TABLE runs_aggregations ADD COLUMN IF NOT EXISTS exit_reasons text;
+ALTER TABLE runs_aggregations ADD COLUMN IF NOT EXISTS system_disk_total bigint DEFAULT 0;
 
 CREATE OR REPLACE FUNCTION update_runs_aggregation()
 RETURNS TRIGGER AS $$
@@ -31,7 +32,8 @@ BEGIN
             system_cpu_cores,
             tags,
             run_name,
-            exit_reasons
+            exit_reasons,
+            system_disk_total
         ) VALUES (
             new.trace_id,
             new.run_id,
@@ -54,7 +56,8 @@ BEGIN
             COALESCE((new.resource_attributes->>'system_properties.num_cpus')::integer, 0),
             new.tags,
             new.run_name,
-            ''
+            '',
+            COALESCE((resource_attributes->>'system_properties.system_disk_io./dev/root.disk_total_space')::BIGINT, 0) --to be fixed
         )
         ON CONFLICT (trace_id, run_id) DO NOTHING; -- Avoid duplication if exists already
 
@@ -95,7 +98,9 @@ BEGIN
         -- Extract and append exit reason
         IF NEW.attributes ? 'completed_process.exit_reason' THEN
             exit_reason_value := TRIM(NEW.attributes ->> 'completed_process.exit_reason');
+        END IF;
 
+        IF exit_reason_value IS NOT NULL THEN
             -- Only proceed if exit_reason_value is not empty
             IF exit_reason_value != '' THEN
                 UPDATE runs_aggregations
@@ -110,7 +115,6 @@ BEGIN
                 WHERE trace_id = NEW.trace_id;
             END IF;
         END IF;
-
     END IF;
 
     UPDATE runs_aggregations
