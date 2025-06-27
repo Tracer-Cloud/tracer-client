@@ -1,4 +1,6 @@
+use crate::client::exporters::client_export_manager::ExporterManager;
 use crate::client::TracerClient;
+use crate::config::Config;
 use crate::daemon::handlers::info::get_info_response;
 use crate::utils::Sentry;
 use anyhow::Result;
@@ -6,6 +8,7 @@ use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
+use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
@@ -59,7 +62,9 @@ pub async fn monitor(
 
             _ = submission_interval.tick() => {
                 debug!("DaemonServer submission interval ticked");
-                exporter.submit_batched_data().await.unwrap();
+                let guard = client.lock().await;
+                let config = guard.get_config();
+                try_submit_with_retries(config,exporter.clone()).await;
             }
             _ = system_metrics_interval.tick() => {
                 debug!("DaemonServer metrics interval ticked");
@@ -93,5 +98,34 @@ async fn sentry_alert(client: &TracerClient) {
                 "preview processes(<10)": preview,
             }),
         );
+    }
+}
+
+async fn try_submit_with_retries(config: &Config, exporter: Arc<ExporterManager>) {
+    let mut attempts = 0;
+    let max_attempts = config.batch_submission_retries;
+    while attempts < max_attempts {
+        match exporter.submit_batched_data().await {
+            Ok(_) => return,
+            Err(e) => {
+                attempts += 1;
+                debug!(
+                    "Failed to submit batched data (attempt {}): {:?}",
+                    attempts, e
+                );
+                if attempts < max_attempts {
+                    sleep(Duration::from_millis(
+                        config.batch_submission_retry_delay_ms,
+                    ))
+                    .await;
+                } else {
+                    debug!(
+                        "Giving up after {} attempts to submit batched data",
+                        max_attempts
+                    );
+                    //todo mechanism for failure after attempts
+                }
+            }
+        }
     }
 }
