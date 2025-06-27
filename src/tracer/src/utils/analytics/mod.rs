@@ -1,9 +1,19 @@
+pub mod types;
+
 use crate::constants::TRACER_ANALYTICS_ENDPOINT;
-use crate::process_identification::types::analytics::{AnalyticsEventType, AnalyticsPayload};
+use crate::utils::analytics::types::{AnalyticsEventType, AnalyticsPayload};
 use reqwest::Client;
 use std::collections::HashMap;
 
-pub async fn emit_analytic_event(
+pub fn spawn_event(
+    explicit_user_id: Option<String>,
+    event: AnalyticsEventType,
+    metadata: Option<HashMap<String, String>>,
+) {
+    tokio::spawn(emit_event(explicit_user_id, event, metadata));
+}
+
+async fn emit_event(
     explicit_user_id: Option<String>,
     event: AnalyticsEventType,
     metadata: Option<HashMap<String, String>>,
