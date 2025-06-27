@@ -8,7 +8,8 @@ use crate::daemon::client::DaemonClient;
 use crate::process_identification::constants::{
     FILE_CACHE_DIR, PID_FILE, STDERR_FILE, STDOUT_FILE,
 };
-use crate::utils::InfoFormatter;
+use crate::utils::system_info::{is_root, is_sudo_installed};
+use crate::utils::InfoDisplay;
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use std::result::Result::Ok;
@@ -25,12 +26,7 @@ pub fn clean_up_after_daemon() -> Result<()> {
 
 pub async fn wait(api_client: &DaemonClient) -> Result<()> {
     for n in 0..5 {
-        match api_client
-            .client
-            .get(api_client.get_url("/info"))
-            .send()
-            .await
-        {
+        match api_client.send_info().await {
             // if timeout, retry
             Err(e) => {
                 if !(e.is_timeout() || e.is_connect()) {
@@ -172,30 +168,21 @@ pub fn print_install_readiness() -> Result<()> {
     Ok(())
 }
 
-pub async fn print_config_info(api_client: &DaemonClient, config: &Config) -> Result<()> {
-    let mut formatter = InfoFormatter::new(140);
+pub async fn print_config_info(
+    api_client: &DaemonClient,
+    config: &Config,
+    json: bool,
+) -> Result<()> {
+    let mut display = InfoDisplay::new(70, json);
     let info = match api_client.send_info_request().await {
         Ok(info) => info,
         Err(e) => {
             tracing::error!("Error getting info response: {e}");
-            formatter.print_error_state()?;
-            println!("{}", formatter.get_output());
+            display.print_error();
             return Ok(());
         }
     };
-
-    formatter.add_header("TRACER INFO")?;
-    formatter.add_empty_line()?;
-
-    formatter.print_daemon_status()?;
-
-    if let Some(inner) = &info.inner {
-        formatter.print_pipeline_info(inner, &info, config)?;
-    }
-
-    formatter.print_config_and_logs(config)?;
-    formatter.add_footer()?;
-    println!("{}", formatter.get_output());
+    display.print(info, config);
     Ok(())
 }
 
@@ -259,8 +246,17 @@ pub async fn update_tracer() -> Result<()> {
     //
     // println!("\nUpdating Tracer to version {}...", latest_ver);
 
+    let install_cmd = if is_sudo_installed() {
+        "curl -sSL https://install.tracer.cloud/ | sudo bash && source ~/.bashrc && source ~/.zshrc"
+    } else {
+        if !is_root() {
+            println!("Warning: Running without root privileges. Some operations may fail.");
+        }
+        "curl -sSL https://install.tracer.cloud/ | bash && source ~/.bashrc && source ~/.zshrc"
+    };
+
     let mut command = Command::new("bash");
-    command.arg("-c").arg("curl -sSL https://install.tracer.cloud/ | sudo bash && source ~/.bashrc && source ~/.zshrc");
+    command.arg("-c").arg(install_cmd);
     let status = command
         .status()
         .context("Failed to update Tracer. Please try again.")?;

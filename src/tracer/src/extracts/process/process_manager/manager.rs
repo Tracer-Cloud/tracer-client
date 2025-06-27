@@ -1,4 +1,3 @@
-use crate::extracts::process::process_manager::handlers::oom::OomHandler;
 use crate::extracts::process::process_manager::handlers::process_starts::ProcessStartHandler;
 use crate::extracts::process::process_manager::handlers::process_terminations::ProcessTerminationHandler;
 use crate::extracts::process::process_manager::logger::ProcessLogger;
@@ -6,11 +5,17 @@ use crate::extracts::process::process_manager::matcher::Filter;
 use crate::extracts::process::process_manager::metrics::ProcessMetricsHandler;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
+use crate::extracts::{
+    containers::DockerWatcher, process::process_manager::handlers::oom::OomHandler,
+};
 use crate::process_identification::recorder::LogRecorder;
 use crate::process_identification::target_process::target::Target;
 use crate::process_identification::target_process::target_manager::TargetManager;
 use anyhow::Result;
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 use tokio::task::JoinHandle;
 use tracer_ebpf::ebpf_trigger::{OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger};
 
@@ -24,9 +29,13 @@ pub struct ProcessManager {
 }
 
 impl ProcessManager {
-    pub fn new(target_manager: TargetManager, log_recorder: LogRecorder) -> Self {
+    pub fn new(
+        target_manager: TargetManager,
+        log_recorder: LogRecorder,
+        docker_watcher: Arc<DockerWatcher>,
+    ) -> Self {
         let state_manager = StateManager::new(target_manager);
-        let logger = ProcessLogger::new(log_recorder);
+        let logger = ProcessLogger::new(log_recorder, docker_watcher);
         let matcher = Filter::new();
         let system_refresher = SystemRefresher::new();
 

@@ -1,0 +1,32 @@
+name: Delete Branch S3 Assets
+
+on:
+  delete:               # fires when any branch or tag is deleted
+    # No filters needed; we’ll bail out for tags inside the job
+
+jobs:
+  cleanup-s3-folder:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Delete entire branch folder in S3
+        env:
+          S3_BUCKET: tracer-releases
+          BRANCH_NAME: ${{ github.event.ref }}
+        run: |
+          FOLDER="s3://${S3_BUCKET}/${BRANCH_NAME}/"
+
+          echo "🗑️  Deleting entire folder: $FOLDER"
+          # --recursive removes everything inside; --quiet suppresses 404 chatter
+          aws s3 rm "$FOLDER" --recursive --quiet || true
+
+          echo "✅ Finished deleting $FOLDER"

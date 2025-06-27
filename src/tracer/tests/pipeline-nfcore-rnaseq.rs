@@ -8,6 +8,7 @@ use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::RwLock;
+use tracer::extracts::containers::DockerWatcher;
 use tracer::extracts::ebpf_watcher::watcher::EbpfWatcher;
 use tracer::process_identification::recorder::LogRecorder;
 use tracer::process_identification::target_process::target_manager::TargetManager;
@@ -60,7 +61,12 @@ fn watcher(
     event_sender: Sender<Event>,
 ) -> Arc<EbpfWatcher> {
     let log_recorder = LogRecorder::new(Arc::new(RwLock::new(pipeline.clone())), event_sender);
-    Arc::new(EbpfWatcher::new(target_manager.clone(), log_recorder))
+    let docker_watcher = DockerWatcher::new(log_recorder.clone());
+    Arc::new(EbpfWatcher::new(
+        target_manager.clone(),
+        log_recorder,
+        Arc::new(docker_watcher),
+    ))
 }
 
 #[rstest]

@@ -51,6 +51,7 @@ pub fn create_short_lived_process_object(
         job_id: None,
         working_directory: None,
         trace_id: None,
+        container_event: None,
     }))
 }
 

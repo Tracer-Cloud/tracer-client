@@ -31,6 +31,22 @@ jobs:
           submodules: recursive # This will fetch all submodules recursively
           fetch-depth: 0 # Fetch all history for versioning
 
+      - name: Update version in Cargo.toml
+        run: |
+          # Extract version from git tag (remove 'v' prefix)
+          TAG_VERSION=${{ github.ref_name }}
+          NEW_VERSION=${TAG_VERSION#v}
+
+          # Update version in Cargo.toml (compatible with both macOS and Linux)
+          if [[ "${{ matrix.runner }}" == *"macos"* ]]; then
+            sed -i '' "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
+          else
+            sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
+          fi
+
+          # Print the new version for verification
+          echo "Updated version to: ${NEW_VERSION} (from tag: ${TAG_VERSION})"
+
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:

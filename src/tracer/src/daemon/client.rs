@@ -1,7 +1,15 @@
+use super::structs::{InfoResponse, Message, RunData, TagData};
+use crate::daemon::handlers::alert::ALERT_ENDPOINT;
+use crate::daemon::handlers::end::END_ENDPOINT;
+use crate::daemon::handlers::info::INFO_ENDPOINT;
+use crate::daemon::handlers::log::LOG_ENDPOINT;
+use crate::daemon::handlers::refresh_config::REFRESH_CONFIG_ENDPOINT;
+use crate::daemon::handlers::start::START_ENDPOINT;
+use crate::daemon::handlers::tag::TAG_ENDPOINT;
+use crate::daemon::handlers::terminate::TERMINATE_ENDPOINT;
 // src/cli.rs
 use anyhow::Result;
-
-use super::structs::{InfoResponse, LogData, Message, RunData, TagData};
+use reqwest::{Error, Response};
 
 pub struct DaemonClient {
     base_uri: String,
@@ -21,13 +29,13 @@ impl DaemonClient {
         }
     }
 
-    pub fn get_url(&self, path: &str) -> String {
+    fn get_url(&self, path: &str) -> String {
         format!("{}{}", self.base_uri, path)
     }
 
     pub async fn send_log_request(&self, payload: Message) -> Result<()> {
         self.client
-            .post(self.get_url("/log"))
+            .post(self.get_url(LOG_ENDPOINT))
             .json(&payload)
             .send()
             .await?
@@ -37,7 +45,7 @@ impl DaemonClient {
 
     pub async fn send_alert_request(&self, payload: Message) -> Result<()> {
         self.client
-            .post(self.get_url("/alert"))
+            .post(self.get_url(ALERT_ENDPOINT))
             .json(&payload)
             .send()
             .await?
@@ -48,7 +56,7 @@ impl DaemonClient {
     pub async fn send_start_run_request(&self) -> Result<Option<RunData>> {
         let data: Option<RunData> = self
             .client
-            .post(self.get_url("/start"))
+            .post(self.get_url(START_ENDPOINT))
             .send()
             .await?
             .error_for_status()?
@@ -59,7 +67,7 @@ impl DaemonClient {
 
     pub async fn send_terminate_request(&self) -> Result<()> {
         self.client
-            .post(self.get_url("/terminate"))
+            .post(self.get_url(TERMINATE_ENDPOINT))
             .send()
             .await?
             .error_for_status()?;
@@ -68,7 +76,7 @@ impl DaemonClient {
 
     pub async fn send_end_request(&self) -> Result<()> {
         self.client
-            .post(self.get_url("/end"))
+            .post(self.get_url(END_ENDPOINT))
             .send()
             .await?
             .error_for_status()?;
@@ -76,20 +84,16 @@ impl DaemonClient {
     }
 
     pub async fn send_info_request(&self) -> Result<InfoResponse> {
-        let data: InfoResponse = self
-            .client
-            .get(self.get_url("/info"))
-            .send()
-            .await?
-            .error_for_status()?
-            .json()
-            .await?;
+        let data: InfoResponse = self.send_info().await?.error_for_status()?.json().await?;
         Ok(data)
     }
 
+    pub async fn send_info(&self) -> Result<Response, Error> {
+        self.client.get(self.get_url(INFO_ENDPOINT)).send().await
+    }
     pub async fn send_refresh_config_request(&self) -> Result<()> {
         self.client
-            .post(self.get_url("/refresh-config"))
+            .post(self.get_url(REFRESH_CONFIG_ENDPOINT))
             .send()
             .await?
             .error_for_status()?;
@@ -98,17 +102,7 @@ impl DaemonClient {
 
     pub async fn send_update_tags_request(&self, payload: TagData) -> Result<()> {
         self.client
-            .post(self.get_url("/tag"))
-            .json(&payload)
-            .send()
-            .await?
-            .error_for_status()?;
-        Ok(())
-    }
-
-    pub async fn send_log_short_lived_process_request(&self, payload: LogData) -> Result<()> {
-        self.client
-            .put(self.get_url("/log-short-lived-process"))
+            .post(self.get_url(TAG_ENDPOINT))
             .json(&payload)
             .send()
             .await?

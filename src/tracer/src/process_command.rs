@@ -1,7 +1,7 @@
 use crate::commands::{Cli, Commands};
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
-use crate::daemon::daemon_run::run;
+use crate::daemon::initialization::create_and_run_server;
 use crate::daemon::structs::{Message, TagData};
 use crate::init_command_interactive_mode;
 #[cfg(target_os = "linux")]
@@ -17,7 +17,7 @@ use crate::process_identification::debug_log::Logger;
 use crate::utils::analytics::emit_analytic_event;
 use crate::utils::file_system::ensure_file_can_be_created;
 use crate::utils::system_info::check_sudo_privileges;
-use crate::utils::{FullVersion, Sentry};
+use crate::utils::{Sentry, Version};
 use anyhow::{Context, Result};
 use clap::Parser;
 use daemonize::{Daemonize, Outcome};
@@ -231,7 +231,7 @@ pub fn process_cli() -> Result<()> {
                         let _ = print_install_readiness();
                         wait(&api_client).await?;
 
-                        print_config_info(&api_client, &config).await
+                        print_config_info(&api_client, &config,false).await
                     })?;
 
                     return Ok(());
@@ -251,7 +251,7 @@ pub fn process_cli() -> Result<()> {
                             let _ = print_install_readiness();
                             wait(&api_client).await?;
 
-                            print_config_info(&api_client, &config).await
+                            print_config_info(&api_client, &config,false).await
                         })?;
 
                         return Ok(());
@@ -273,7 +273,7 @@ pub fn process_cli() -> Result<()> {
                 }
             }
 
-            run(args, config)?;
+            create_and_run_server(args, config);
             clean_up_after_daemon()
         }
         //TODO: figure out what test should do now
@@ -363,15 +363,15 @@ pub async fn run_async_command(
             )
             .await?
         }
-        Commands::Info => {
-            print_config_info(api_client, config).await?;
+        Commands::Info { json } => {
+            print_config_info(api_client, config, json).await?;
         }
         Commands::CleanupPort { port } => {
             let port = port.unwrap_or(DEFAULT_DAEMON_PORT); // Default Tracer port
             handle_port_conflict(port).await?;
         }
         Commands::Version => {
-            println!("{}", FullVersion::current());
+            println!("{}", Version::current());
         }
         _ => {
             println!("Command not implemented yet");

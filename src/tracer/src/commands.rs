@@ -46,7 +46,11 @@ pub enum Commands {
     Cleanup,
 
     /// Shows the current configuration and the daemon status
-    Info,
+    Info {
+        /// Output information in JSON format
+        #[clap(long)]
+        json: bool,
+    },
 
     /// Update the daemon to the latest version
     Update,
@@ -68,9 +72,6 @@ pub enum Commands {
 
     /// Change the tags of the current pipeline run
     Tag { tags: Vec<String> },
-
-    /// Configure .bashrc file to include aliases for short-lived processes commands. To use them, a new terminal session must be started.
-    ApplyBashrc,
 
     /// Log a message to the service for a short-lived process.
     LogShortLivedProcess { command: String },

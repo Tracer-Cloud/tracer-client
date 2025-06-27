@@ -1,6 +1,7 @@
 use crate::config::Config;
 
 use crate::cloud_providers::aws::pricing::PricingSource;
+use crate::extracts::containers::DockerWatcher;
 use crate::process_identification::target_process::target_manager::TargetManager;
 use crate::process_identification::types::cli::params::FinalizedInitArgs;
 use anyhow::{Context, Result};
@@ -22,10 +23,8 @@ use sysinfo::System;
 use tokio::sync::{mpsc, RwLock};
 use tracing::{error, info};
 
-use crate::daemon::structs::InnerInfoResponse;
 #[cfg(target_os = "linux")]
 use crate::utils::system_info::get_kernel_version;
-use crate::utils::Sentry;
 #[cfg(target_os = "linux")]
 use tracing::warn;
 
@@ -34,13 +33,14 @@ pub struct TracerClient {
     interval: Duration,
 
     pub ebpf_watcher: Arc<EbpfWatcher>,
+    docker_watcher: Arc<DockerWatcher>,
 
     metrics_collector: SystemMetricsCollector,
 
     pipeline: Arc<RwLock<PipelineMetadata>>,
 
     pub pricing_client: PricingSource,
-    pub config: Config,
+    config: Config,
 
     log_recorder: LogRecorder,
     pub exporter: Arc<ExporterManager>,
@@ -67,7 +67,9 @@ impl TracerClient {
         let (log_recorder, rx) = Self::init_log_recorder(&pipeline);
         let system = Arc::new(RwLock::new(System::new_all()));
 
-        let ebpf_watcher = Self::init_ebpf_watcher(&log_recorder);
+        let docker_watcher = Arc::new(DockerWatcher::new(log_recorder.clone()));
+
+        let ebpf_watcher = Self::init_ebpf_watcher(&log_recorder, docker_watcher.clone());
 
         let exporter = Arc::new(ExporterManager::new(db_client, rx, pipeline.clone()));
 
@@ -90,6 +92,7 @@ impl TracerClient {
             pipeline_name: cli_args.pipeline_name,
             initialization_id: cli_args.run_id,
             user_id: cli_args.user_id,
+            docker_watcher,
         })
     }
 
@@ -113,9 +116,16 @@ impl TracerClient {
         (log_recorder, rx)
     }
 
-    fn init_ebpf_watcher(log_recorder: &LogRecorder) -> Arc<EbpfWatcher> {
+    fn init_ebpf_watcher(
+        log_recorder: &LogRecorder,
+        docker_watcher: Arc<DockerWatcher>,
+    ) -> Arc<EbpfWatcher> {
         let target_manager = TargetManager::default(); //TODO add possibility to pass in targets
-        Arc::new(EbpfWatcher::new(target_manager, log_recorder.clone()))
+        Arc::new(EbpfWatcher::new(
+            target_manager,
+            log_recorder.clone(),
+            docker_watcher,
+        ))
     }
 
     fn init_watchers(
@@ -157,7 +167,10 @@ impl TracerClient {
                             Ok(())
                         }
                         Err(e) => {
-                            error!("Failed to start eBPF monitoring: {}. Falling back to process polling.", e);
+                            error!(
+                                "Failed to start eBPF monitoring: {}. Falling back to process polling.",
+                                e
+                            );
                             info!("Starting process polling monitoring (eBPF fallback)");
                             self.ebpf_watcher
                                 .start_process_polling(self.config.process_polling_interval_ms)
@@ -193,7 +206,7 @@ impl TracerClient {
             info!("Starting process polling monitoring on non-Linux platform");
             match self
                 .ebpf_watcher
-                .start_process_polling(self.config.process_polling_interval_ms)
+                .start_process_polling(self.get_config().process_polling_interval_ms)
                 .await
             {
                 Ok(_) => {
@@ -295,7 +308,7 @@ impl TracerClient {
     }
 
     pub fn get_api_key(&self) -> &str {
-        &self.config.api_key
+        &self.get_config().api_key
     }
 
     pub async fn send_log_event(&self, payload: String) -> Result<()> {
@@ -341,37 +354,16 @@ impl TracerClient {
         Ok(())
     }
 
-    pub async fn sentry_alert(&self) {
-        //todo refactor with daemon module
-
-        let pipeline = self.get_run_metadata().read().await.clone();
-
-        let response_inner = InnerInfoResponse::try_from(pipeline).ok();
-
-        let preview = self.ebpf_watcher.get_n_monitored_processes(10).await;
-        let number_of_monitored_processes =
-            self.ebpf_watcher.get_number_of_monitored_processes().await;
-
-        if let Some(inner) = response_inner {
-            Sentry::add_context(
-                "Run Details",
-                json!({
-                    "name": inner.run_name.clone(),
-                    "id": inner.run_id.clone(),
-                    "runtime": inner.formatted_runtime(),
-                    "monitored processes": number_of_monitored_processes,
-                }),
-            );
-            Sentry::add_extra("Monitored Processes", json!(preview));
-        }
+    pub fn get_config(&self) -> &Config {
+        &self.config
     }
+
     async fn start_docker_monitoring(&self) {
-        let log_recorder = self.log_recorder.clone();
-        let ebpf_watcher = self.ebpf_watcher.clone();
+        let docker_watcher = self.docker_watcher.clone();
 
         tokio::spawn(async move {
-            if let Err(e) = ebpf_watcher.initialize_docker_watcher(log_recorder).await {
-                tracing::error!("Failed to initialize Docker watcher: {:?}", e);
+            if let Err(e) = docker_watcher.start().await {
+                tracing::error!("Docker watcher failed: {:?}", e);
             }
         });
     }

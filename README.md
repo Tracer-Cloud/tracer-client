@@ -83,13 +83,6 @@ You’ll see real-time execution metrics, stages, and status updates.
 
 <br />
 
-## Table of Contents
-
-- [🔍 Examples](docs/EXAMPLES.md) – Explore real-world use cases
-- [🤝 Contributing](docs/CONTRIBUTING.md) – Join the community and contribute
-
-<br />
-
 ## Mission
 
 > _"The goal of Tracer's Rust agent is to equip scientists and engineers with DevOps intelligence to efficiently harness massive computational power for humanity's most critical challenges."_

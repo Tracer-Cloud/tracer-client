@@ -1,18 +1,23 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use once_cell::sync::Lazy;
+use regex::Regex;
 use std::cmp::Ordering;
 use std::fmt;
-use std::str::FromStr;
 
 include!(concat!(env!("OUT_DIR"), "/built.rs"));
 
+/// Represents a semantic version with optional build metadata, commit hash, dirty state, and build date.
+/// - The version reflects the date of its build.
+/// - Release builds: `1.2.3`
+/// - Non-release builds: `1.2.3+123`
+/// - The `commit` field is set for non-release builds if available.
 #[derive(Debug)]
 pub struct Version {
     major: u32,
     minor: u32,
     patch: u32,
     build: Option<u32>,
+    commit: Option<String>,
 }
 
 impl Version {
@@ -25,59 +30,66 @@ impl Version {
             Lazy::new(|| Version::from_str(Version::current_str()).unwrap());
         &VERSION
     }
-}
 
-impl FromStr for Version {
-    type Err = String;
-
-    /// Parses a version string like "1.2.3" or "v1.2.3+4" into a `Version`.
+    /// Parses a version string from:
+    /// - the main branch / release: "1.2.3" or "1.2.3+123"
+    /// - custom branch: "1.2.3+213"
     ///
+    /// syntax: major.minor.patch[+build][.commit]
     /// Returns an error if the string is not in the correct format
     /// or any part is not a valid number.
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    pub(super) fn from_str(s: &str) -> Result<Self, String> {
+        static RE: Lazy<Regex> =
+            Lazy::new(|| Regex::new(r"^(\d+)\.(\d+)\.(\d+)(?:\+(\d+))?$").unwrap());
+
         let err_msg = format!("Failed to parse version string: {}", s);
+        let caps = RE.captures(s).ok_or(err_msg.clone())?;
 
-        let s = s.trim_start_matches('v');
-
-        // Split on '+' to get version and optional build
-        let mut parts_iter = s.splitn(2, '+');
-        let version = parts_iter.next().ok_or_else(|| err_msg.clone())?;
-        let build = parts_iter.next().map(String::from);
-
-        let parts: Vec<&str> = version.split('.').collect();
-        if parts.len() != 3 {
-            return Err(err_msg.clone());
-        }
-
-        let major = parts[0].parse::<u32>().ok();
-        let minor = parts[1].parse::<u32>().ok();
-        let patch = parts[2].parse::<u32>().ok();
-        let build = match build {
-            Some(b) if !b.is_empty() => Some(b.parse::<u32>().map_err(|_| err_msg.clone())?),
-            _ => None,
+        let major = caps
+            .get(1)
+            .unwrap()
+            .as_str()
+            .parse::<u32>()
+            .map_err(|_| err_msg.clone())?;
+        let minor = caps
+            .get(2)
+            .unwrap()
+            .as_str()
+            .parse::<u32>()
+            .map_err(|_| err_msg.clone())?;
+        let patch = caps
+            .get(3)
+            .unwrap()
+            .as_str()
+            .parse::<u32>()
+            .map_err(|_| err_msg.clone())?;
+        let build = caps.get(4).and_then(|m| m.as_str().parse::<u32>().ok());
+        let commit = if PROFILE != "release" && build.is_some() {
+            GIT_COMMIT_HASH_SHORT.map(|s| s.to_string())
+        } else {
+            None
         };
-        match (major, minor, patch) {
-            (Some(major), Some(minor), Some(patch)) => Ok(Self {
-                major,
-                minor,
-                patch,
-                build,
-            }),
-            _ => Err(err_msg),
-        }
+
+        Ok(Self {
+            major,
+            minor,
+            patch,
+            build,
+            commit,
+        })
     }
 }
 
 impl fmt::Display for Version {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}.{}.{}{}",
-            self.major,
-            self.minor,
-            self.patch,
-            self.build.map_or(String::new(), |b| format!("+{}", b))
-        )
+        write!(f, "{}.{}.{}", self.major, self.minor, self.patch)?;
+        if let Some(build) = self.build {
+            write!(f, "+{}", build)?;
+        }
+        if let Some(commit) = &self.commit {
+            write!(f, ".{}", commit)?;
+        }
+        Ok(())
     }
 }
 
@@ -103,112 +115,9 @@ impl PartialOrd for Version {
     }
 }
 
-/// Version of the software including
-/// - Cargo package version
-/// - Git commit hash, if package was built from a git repository
-/// - Git dirty info (whether the repo had uncommitted changes)
-pub struct FullVersion {
-    pub version: &'static Version,
-    pub date: Option<DateTime<Utc>>,
-    pub hash: Option<String>,
-    pub dirty: Option<bool>,
-}
-
-impl FullVersion {
-    pub fn current() -> &'static Self {
-        static VERSION: Lazy<FullVersion> = Lazy::new(|| {
-            let (date, hash, dirty) = if PROFILE != "release" {
-                let date = DateTime::parse_from_rfc2822(BUILT_TIME_UTC)
-                    .unwrap()
-                    .with_timezone(&Utc);
-                (
-                    Some(date),
-                    Some(GIT_COMMIT_HASH_SHORT.unwrap().to_string()),
-                    Some(GIT_DIRTY.unwrap_or(false)),
-                )
-            } else {
-                (None, None, None)
-            };
-            FullVersion {
-                version: Version::current(),
-                date,
-                hash,
-                dirty,
-            }
-        });
-        &VERSION
-    }
-}
-
-impl fmt::Display for FullVersion {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match (
-            &self.date.map(|d| d.format("%Y.%m.%d-%H.%M").to_string()),
-            &self.hash,
-            self.dirty,
-        ) {
-            (Some(date), Some(hash), Some(true)) => {
-                write!(f, "{}-{}-{}-dirty", self.version, date, hash)
-            }
-            (Some(date), Some(hash), Some(false) | None) => {
-                write!(f, "{}-{}-{}", self.version, date, hash)
-            }
-            (None, Some(hash), Some(true)) => {
-                write!(f, "{}-{}-dirty", self.version, hash)
-            }
-            (None, Some(hash), Some(false) | None) => {
-                write!(f, "{}-{}", self.version, hash)
-            }
-            (Some(date), None, _) => {
-                write!(f, "{}-{}", self.version, date)
-            }
-            (None, _, _) => self.version.fmt(f),
-        }
-    }
-}
-
-// Implement PartialEq for == and !=
-impl PartialEq for FullVersion {
-    fn eq(&self, other: &Self) -> bool {
-        self.version == other.version
-            && self.date == other.date
-            && self.hash == other.hash
-            && self.dirty == other.dirty
-    }
-}
-
-// Implement PartialOrd for <, <=, >, >=
-impl PartialOrd for FullVersion {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        let version_cmp = self.version.partial_cmp(other.version);
-        if version_cmp
-            .map(|ord| ord != Ordering::Equal)
-            .unwrap_or(false)
-        {
-            version_cmp
-        } else {
-            Some(self.date.cmp(&other.date))
-                .filter(|ord| *ord != Ordering::Equal)
-                .or_else(|| match (&self.hash, &other.hash) {
-                    (None, None) => Some(Ordering::Equal),
-                    (None, Some(_)) => Some(Ordering::Less),
-                    (Some(_), None) => Some(Ordering::Greater),
-                    (Some(hash1), Some(hash2)) => match hash1.cmp(hash2) {
-                        Ordering::Equal if self.dirty == other.dirty => Some(Ordering::Equal),
-                        Ordering::Equal if self.dirty.unwrap_or(false) => Some(Ordering::Greater),
-                        Ordering::Equal if other.dirty.unwrap_or(false) => Some(Ordering::Less),
-                        _ => None, // no good way to order different hashes
-                    },
-                })
-                .or(version_cmp)
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::str::FromStr;
 
     #[test]
     fn test_parse_valid_versions() {
@@ -224,7 +133,7 @@ mod tests {
         assert_eq!(v2.patch, 3);
         assert_eq!(v2.build, Some(123));
 
-        let v4 = Version::from_str("v1.2.3+0").unwrap();
+        let v4 = Version::from_str("1.2.3+0").unwrap();
         assert_eq!(v4.major, 1);
         assert_eq!(v4.minor, 2);
         assert_eq!(v4.patch, 3);
@@ -249,6 +158,7 @@ mod tests {
             minor: 5,
             patch: 9,
             build: None,
+            commit: None,
         };
         assert_eq!(version_without_build.to_string(), "2.5.9");
 
@@ -257,6 +167,7 @@ mod tests {
             minor: 5,
             patch: 9,
             build: Some(42),
+            commit: None,
         };
         assert_eq!(version_with_build.to_string(), "2.5.9+42");
     }
@@ -268,42 +179,49 @@ mod tests {
             minor: 0,
             patch: 0,
             build: None,
+            commit: None,
         };
         let v2 = Version {
             major: 1,
             minor: 0,
             patch: 1,
             build: None,
+            commit: None,
         };
         let v3 = Version {
             major: 1,
             minor: 1,
             patch: 0,
             build: None,
+            commit: None,
         };
         let v4 = Version {
             major: 2,
             minor: 0,
             patch: 0,
             build: None,
+            commit: None,
         };
         let v5 = Version {
             major: 1,
             minor: 0,
             patch: 0,
             build: None,
+            commit: None,
         };
         let v6 = Version {
             major: 1,
             minor: 0,
             patch: 0,
             build: Some(1),
+            commit: None,
         };
         let v7 = Version {
             major: 1,
             minor: 0,
             patch: 0,
             build: Some(2),
+            commit: None,
         };
 
         // Equality without build

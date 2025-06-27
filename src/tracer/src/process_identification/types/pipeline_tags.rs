@@ -2,7 +2,7 @@ use clap::Args;
 
 #[derive(Args, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PipelineTags {
-    /// Enviroment: Execution Context. E.g: ci-cd, sandbox, local
+    /// Environment: Execution Context. E.g: ci-cd, sandbox, local
     #[clap(long, short)]
     pub environment: Option<String>,
 
