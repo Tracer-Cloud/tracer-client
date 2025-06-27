@@ -38,7 +38,7 @@ pub struct YamlVecLoader<'a, P: AsRef<Path>> {
     pub embedded_yaml: Option<&'a str>,
 }
 
-impl<'a, P: AsRef<Path>> YamlVecLoader<'a, P> {
+impl<P: AsRef<Path>> YamlVecLoader<'_, P> {
     pub fn load<T: TryFrom<Yaml, Error = anyhow::Error>>(&self) -> Vec<T> {
         if let Some(embedded_str) = self.embedded_yaml {
             match load_from_yaml_array_str(embedded_str, self.key) {
