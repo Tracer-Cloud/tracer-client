@@ -109,21 +109,32 @@ async fn try_submit_with_retries(config: &Config, exporter: Arc<ExporterManager>
             Ok(_) => return,
             Err(e) => {
                 attempts += 1;
+                
+                // Check if the error is a connection reset
+                let is_connection_reset = e.to_string().contains("ConnectionReset") || 
+                                         e.to_string().contains("Connection reset by peer");
+                
                 debug!(
                     "Failed to submit batched data (attempt {}): {:?}",
                     attempts, e
                 );
-                if attempts < max_attempts {
+                
+                if is_connection_reset && attempts < max_attempts {
+                    debug!("Connection reset detected, retrying...");
                     sleep(Duration::from_millis(
                         config.batch_submission_retry_delay_ms,
                     ))
                     .await;
+                } else if !is_connection_reset {
+                    // If it's not a connection reset error, don't retry
+                    panic!("Non-connection reset error occurred: {:?}", e);
                 } else {
                     debug!(
                         "Giving up after {} attempts to submit batched data",
                         max_attempts
                     );
-                    //todo mechanism for failure after attempts
+                    // Panic after max attempts
+                    panic!("Failed to submit batched data after {} attempts: {:?}", max_attempts, e);
                 }
             }
         }
