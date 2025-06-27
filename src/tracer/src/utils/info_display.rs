@@ -154,11 +154,11 @@ impl InfoDisplay {
         formatter.add_section_header("NEXT STEPS");
         formatter.add_empty_line();
         formatter.add_field("Interactive Setup", "tracer init", "cyan");
-        formatter.add_field("Visualize Data", "https://sandbox.tracer.cloud", "blue");
-        formatter.add_field(
+        formatter.add_hyperlink("Visualize Data", "https://sandbox.tracer.cloud", "View");
+        formatter.add_hyperlink(
             "Documentation",
             "https://github.com/Tracer-Cloud/tracer-client",
-            "blue",
+            "View",
         );
         formatter.add_field("Support", "support@tracer.cloud", "blue");
         formatter.add_empty_line();
