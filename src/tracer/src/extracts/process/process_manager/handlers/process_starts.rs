@@ -28,11 +28,10 @@ impl ProcessStartHandler {
         if matched_processes.is_empty() {
             debug!("No matching processes found; exiting early.");
         } else {
-            // Refresh system data for matched processes
             Self::refresh_process_data(system_refresher, &matched_processes).await?;
-            // Log data for each matched process
+
             Self::log_matched_processes(logger, system_refresher, &matched_processes).await?;
-            // 
+
             Self::update_monitoring(state_manager, matched_processes).await?;
 
             debug!("Process start handling completed successfully.");
