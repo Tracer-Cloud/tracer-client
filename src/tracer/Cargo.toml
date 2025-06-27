@@ -57,6 +57,7 @@ lazy_static = { workspace = true }
 shlex = { workspace = true }
 bollard = { workspace = true }
 futures-util = { workspace = true }
+multi_index_map = { workspace = true }
 
 [dev-dependencies]
 sqlx = { workspace = true }

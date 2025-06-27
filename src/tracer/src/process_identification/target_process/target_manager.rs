@@ -1,9 +1,7 @@
-use crate::process_identification::target_process::parser::yaml_rules_parser::{
-    load_yaml_rules, load_yaml_rules_from_str,
-};
+use crate::process_identification::target_process::parser::yaml_rules_parser::load_yaml_rules;
 use crate::process_identification::target_process::target::Target;
+use std::path::Path;
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
-use tracing::trace;
 
 #[derive(Clone)]
 pub struct TargetManager {
@@ -12,36 +10,22 @@ pub struct TargetManager {
 }
 
 impl TargetManager {
-    /// Helper to load targets from embedded YAML or fallback file paths
-    fn load_targets_with_fallback(
-        embedded_yaml: Option<&str>,
-        fallback_paths: &[&str],
-    ) -> Vec<Target> {
-        let mut targets = Vec::new();
-        if let Some(embedded_str) = embedded_yaml {
-            match load_yaml_rules_from_str(embedded_str) {
-                Ok(loaded_targets) => {
-                    targets = loaded_targets;
-                }
-                Err(e) => {
-                    trace!("[TargetManager] Failed to load embedded rules: {}", e);
-                }
-            }
+    fn new<P: AsRef<Path>>(
+        targets_embedded_yaml: Option<&str>,
+        targets_fallback_paths: &[P],
+        exclude_embedded_yaml: Option<&str>,
+        exclude_fallback_paths: &[P],
+    ) -> Self {
+        Self {
+            targets: load_yaml_rules(targets_embedded_yaml, targets_fallback_paths)
+                .into_iter()
+                .map(|rule| rule.into_target())
+                .collect(),
+            exclude: load_yaml_rules(exclude_embedded_yaml, exclude_fallback_paths)
+                .into_iter()
+                .map(|rule| rule.into_target())
+                .collect(),
         }
-        if targets.is_empty() {
-            for path in fallback_paths.iter() {
-                match load_yaml_rules(path) {
-                    Ok(loaded_targets) => {
-                        targets = loaded_targets;
-                        break;
-                    }
-                    Err(e) => {
-                        trace!("[TargetManager] Failed to load YAML from {}: {}", path, e);
-                    }
-                }
-            }
-        }
-        targets
     }
 
     /// Match a process against all targets and return the first matching target name
@@ -77,22 +61,14 @@ impl TargetManager {
 
 impl Default for TargetManager {
     fn default() -> Self {
-        let possible_paths_rules = ["yml_rules/tracer.rules.yml"];
-        let possible_paths_exclude = ["yml_rules/tracer.exclude.yml"];
-
-        let rules_targets = Self::load_targets_with_fallback(
+        const POSSIBLE_PATHS_RULES: &[&str] = &["yml_rules/tracer.rules.yml"];
+        const POSSIBLE_PATHS_EXCLUDE: &[&str] = &["yml_rules/tracer.exclude.yml"];
+        Self::new(
             Some(include_str!("yml_rules/tracer.rules.yml")),
-            &possible_paths_rules,
-        );
-        let exclude_targets = Self::load_targets_with_fallback(
+            POSSIBLE_PATHS_RULES,
             Some(include_str!("yml_rules/tracer.exclude.yml")),
-            &possible_paths_exclude,
-        );
-
-        Self {
-            exclude: exclude_targets,
-            targets: rules_targets,
-        }
+            POSSIBLE_PATHS_EXCLUDE,
+        )
     }
 }
 
@@ -112,11 +88,7 @@ mod tests {
         let rules_path = "src/process_identification/target_process/yml_rules/tracer.rules.yml";
         let rules_content =
             fs::read_to_string(rules_path).expect("Failed to read tracer.rules.yml");
-        let targets = load_yaml_rules_from_str(&rules_content).expect("Failed to parse rules");
-        let manager = TargetManager {
-            targets,
-            exclude: Vec::new(),
-        };
+        let manager = TargetManager::new::<&str>(Some(&rules_content), &[], None, &[]);
 
         // Should match: process_name is 'cat' and command contains 'fastq'
         let process = make_process("cat", &["cat", "input1/index.1.fastq.gz"]);
@@ -145,19 +117,13 @@ mod tests {
         let rules_path = "src/process_identification/target_process/yml_rules/tracer.rules.yml";
         let rules_content =
             fs::read_to_string(rules_path).expect("Failed to read tracer.rules.yml");
-        let rules_targets =
-            load_yaml_rules_from_str(&rules_content).expect("Failed to parse rules");
 
         let exclude_path = "src/process_identification/target_process/yml_rules/tracer.exclude.yml";
         let exclude_content =
             fs::read_to_string(exclude_path).expect("Failed to read tracer.exclude.yml");
-        let exclude_targets =
-            load_yaml_rules_from_str(&exclude_content).expect("Failed to parse exclude");
 
-        let manager = TargetManager {
-            targets: rules_targets,
-            exclude: exclude_targets,
-        };
+        let manager =
+            TargetManager::new::<&str>(Some(&rules_content), &[], Some(&exclude_content), &[]);
 
         let process = make_process("cat", &["cat", "input1/index.1.fastq.gz input.fastq.gz"]);
         let matched = manager.get_target_match(&process);
@@ -177,12 +143,7 @@ mod tests {
         let rules_path = "src/process_identification/target_process/yml_rules/tracer.rules.yml";
         let rules_content =
             fs::read_to_string(rules_path).expect("Failed to read tracer.rules.yml");
-        let targets = load_yaml_rules_from_str(&rules_content).expect("Failed to parse rules");
-
-        let target_manager = TargetManager {
-            targets,
-            exclude: Vec::new(),
-        };
+        let target_manager = TargetManager::new::<&str>(Some(&rules_content), &[], None, &[]);
 
         let process = make_process("samtools", &["samtools", "sort", "file.bam"]);
         let matched = target_manager.get_target_match(&process);

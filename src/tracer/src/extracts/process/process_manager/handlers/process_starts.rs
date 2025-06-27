@@ -23,21 +23,19 @@ impl ProcessStartHandler {
 
         Self::store_triggers(state_manager, triggers.clone()).await;
 
-        let matched_processes = Self::match_processes(state_manager, matcher, triggers).await?;
+        let matched_processes = Self::match_processes(state_manager, matcher, triggers).await;
 
         if matched_processes.is_empty() {
             debug!("No matching processes found; exiting early.");
-            return Ok(());
+        } else {
+            Self::refresh_process_data(system_refresher, &matched_processes).await?;
+
+            Self::log_matched_processes(logger, system_refresher, &matched_processes).await?;
+
+            Self::update_monitoring(state_manager, matched_processes).await?;
+
+            debug!("Process start handling completed successfully.");
         }
-
-        let refreshed_processes =
-            Self::refresh_process_data(system_refresher, matched_processes).await?;
-
-        Self::log_matched_processes(logger, system_refresher, &refreshed_processes).await?;
-
-        Self::update_monitoring(state_manager, refreshed_processes).await?;
-
-        debug!("Process start handling completed successfully.");
 
         Ok(())
     }
@@ -57,7 +55,7 @@ impl ProcessStartHandler {
         state_manager: &StateManager,
         matcher: &Filter,
         triggers: Vec<ProcessStartTrigger>,
-    ) -> Result<HashMap<String, HashSet<ProcessStartTrigger>>> {
+    ) -> HashMap<String, HashSet<ProcessStartTrigger>> {
         debug!(
             "Matching {} stored triggers against targets.",
             triggers.len()
@@ -69,8 +67,8 @@ impl ProcessStartHandler {
     /// Step 3: Refresh system data for matched processes.
     async fn refresh_process_data(
         system_refresher: &SystemRefresher,
-        matched_processes: HashMap<String, HashSet<ProcessStartTrigger>>,
-    ) -> Result<HashMap<String, HashSet<ProcessStartTrigger>>> {
+        matched_processes: &HashMap<String, HashSet<ProcessStartTrigger>>,
+    ) -> Result<()> {
         let pids: HashSet<usize> = matched_processes
             .values()
             .flatten()
@@ -79,8 +77,7 @@ impl ProcessStartHandler {
 
         debug!("Refreshing system data for {} PIDs.", pids.len());
         system_refresher.refresh_system(&pids).await?;
-
-        Ok(matched_processes)
+        Ok(())
     }
 
     /// Step 4: Log data for each matched process.
@@ -92,11 +89,11 @@ impl ProcessStartHandler {
         let mut count = 0;
 
         for (target, processes) in matched_processes {
+            count += processes.len();
             for process in processes {
                 let system = system_refresher.get_system().read().await;
                 let sys_proc = system.process(process.pid.into());
                 logger.log_new_process(target, process, sys_proc).await?;
-                count += 1;
             }
         }
 

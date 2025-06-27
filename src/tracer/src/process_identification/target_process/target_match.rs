@@ -22,6 +22,7 @@ pub struct ProcessMatch {
     pub is_match: bool,
     pub sub_command: Option<String>,
 }
+
 /// Simple target matching function
 /// It returns (bool, Option<String>), the Option<String> is useful when a subcommand is matched to dinamically update the display name
 pub fn matches_target(target_match: &MatchType, process: &ProcessStartTrigger) -> ProcessMatch {
