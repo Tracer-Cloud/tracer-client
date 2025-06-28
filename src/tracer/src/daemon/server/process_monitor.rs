@@ -9,6 +9,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::time::sleep;
+use tokio_retry::strategy::{jitter, ExponentialBackoff};
+use tokio_retry::Retry;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
@@ -102,44 +104,27 @@ async fn sentry_alert(client: &TracerClient) {
 }
 
 async fn try_submit_with_retries(config: &Config, exporter: Arc<ExporterManager>) {
-    let mut attempts = 0;
     let max_attempts = config.batch_submission_retries;
-    while attempts < max_attempts {
+    
+    let retry_strategy = ExponentialBackoff::from_millis(500)
+        .map(jitter)
+        .take(max_attempts as usize);
+
+    let result = Retry::spawn(retry_strategy, || async {
         match exporter.submit_batched_data().await {
-            Ok(_) => return,
+            Ok(_) => Ok(()),
             Err(e) => {
-                attempts += 1;
-
-                // Check if the error is a connection reset
-                let is_connection_reset = e.to_string().contains("ConnectionReset")
-                    || e.to_string().contains("Connection reset by peer");
-
-                debug!(
-                    "Failed to submit batched data (attempt {}): {:?}",
-                    attempts, e
-                );
-
-                if is_connection_reset && attempts < max_attempts {
-                    debug!("Connection reset detected, retrying...");
-                    sleep(Duration::from_millis(
-                        config.batch_submission_retry_delay_ms,
-                    ))
-                    .await;
-                } else if !is_connection_reset {
-                    // If it's not a connection reset error, don't retry
-                    panic!("Non-connection reset error occurred: {:?}", e);
-                } else {
-                    debug!(
-                        "Giving up after {} attempts to submit batched data",
-                        max_attempts
-                    );
-                    // Panic after max attempts
-                    panic!(
-                        "Failed to submit batched data after {} attempts: {:?}",
-                        max_attempts, e
-                    );
-                }
+                debug!("Failed to submit batched data, retrying: {:?}", e);
+                Err(e) // Return the error to trigger a retry
             }
         }
+    }).await;
+    
+    if let Err(e) = result {
+        debug!(
+            "Giving up after {} attempts to submit batched data with error: {:?}",
+            max_attempts,e
+        );
+        //todo implement dead letter queue system
     }
 }
