@@ -149,13 +149,15 @@ jobs:
             all_successful_packages.txt
             all_successful_commands.txt
 
-      - name: Join all unsuccessful packages and commands
-        run: |
-          find all-logs -type f -name 'errors_*.txt' -exec cat {} + | sort -u > all_errors.txt
+      # These cause an out of disk space error
+      #- name: Join all unsuccessful packages and commands
+      #  run: |
+      #    find all-logs -type f -name 'errors_*.txt' -exec cat {} + | sort -u > all_errors.txt
 
-      - name: Upload combined errors
-        uses: actions/upload-artifact@v4
-        with:
-          name: bioconda-check-all-errors
-          path: |
-            all_errors.txt
+      #
+      #- name: Upload combined errors
+      #  uses: actions/upload-artifact@v4
+      #  with:
+      #    name: bioconda-check-all-errors
+      #    path: |
+      #      all_errors.txt
