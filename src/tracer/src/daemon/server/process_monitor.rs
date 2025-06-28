@@ -105,7 +105,7 @@ async fn sentry_alert(client: &TracerClient) {
 async fn try_submit_with_retries(config: &Config, exporter: Arc<ExporterManager>) {
     let max_attempts = config.batch_submission_retries;
 
-    let retry_strategy = ExponentialBackoff::from_millis(500)
+    let retry_strategy = ExponentialBackoff::from_millis(config.batch_submission_retry_delay_ms)
         .map(jitter)
         .take(max_attempts as usize);
 
@@ -114,7 +114,7 @@ async fn try_submit_with_retries(config: &Config, exporter: Arc<ExporterManager>
             Ok(_) => Ok(()),
             Err(e) => {
                 debug!("Failed to submit batched data, retrying: {:?}", e);
-                Err(e) // Return the error to trigger a retry
+                Err(e)
             }
         }
     })
