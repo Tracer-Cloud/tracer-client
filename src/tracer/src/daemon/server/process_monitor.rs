@@ -8,7 +8,6 @@ use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
-use tokio::time::sleep;
 use tokio_retry::strategy::{jitter, ExponentialBackoff};
 use tokio_retry::Retry;
 use tokio_util::sync::CancellationToken;
@@ -105,7 +104,7 @@ async fn sentry_alert(client: &TracerClient) {
 
 async fn try_submit_with_retries(config: &Config, exporter: Arc<ExporterManager>) {
     let max_attempts = config.batch_submission_retries;
-    
+
     let retry_strategy = ExponentialBackoff::from_millis(500)
         .map(jitter)
         .take(max_attempts as usize);
@@ -118,12 +117,13 @@ async fn try_submit_with_retries(config: &Config, exporter: Arc<ExporterManager>
                 Err(e) // Return the error to trigger a retry
             }
         }
-    }).await;
-    
+    })
+    .await;
+
     if let Err(e) = result {
         debug!(
             "Giving up after {} attempts to submit batched data with error: {:?}",
-            max_attempts,e
+            max_attempts, e
         );
         //todo implement dead letter queue system
     }
