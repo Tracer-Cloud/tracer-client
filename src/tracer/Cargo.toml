@@ -17,6 +17,7 @@ clap = { workspace = true }
 daemonize = { workspace = true }
 octocrab = { workspace = true }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
+tokio-retry = { workspace = true }
 tracing = { workspace = true }
 sqlx = { workspace = true }
 colored = { workspace = true }

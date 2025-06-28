@@ -4952,6 +4952,7 @@ dependencies = [
  "sqlx",
  "sysinfo",
  "tokio",
+ "tokio-retry",
  "tokio-util",
  "tracer_ebpf",
  "tracing",
