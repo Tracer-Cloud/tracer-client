@@ -46,6 +46,7 @@ def parse_meta_yaml(
     unresolved_packages: list,
     errors: list[str],
     warnings: list[str],
+    timeout: int,
 ) -> None:
     """
     Parse a meta.yaml file and extract package information.
@@ -127,7 +128,10 @@ def parse_meta_yaml(
                     for command in test_commands:
                         pixi_command = f"pixi run --manifest-path {env} {command}"
                         proc = subprocess.run(
-                            pixi_command, shell=True, capture_output=True
+                            pixi_command,
+                            shell=True,
+                            capture_output=True,
+                            timeout=timeout,
                         )
                         if proc.returncode == 0:
                             successful_commands.append(command)
@@ -186,10 +190,24 @@ def main():
     )
     parser.add_argument(
         "-d",
-        "--recipes_dir",
+        "--recipes-dir",
         type=Path,
         help="Path to recipes directory",
         default=Path("recipes"),
+    )
+    parser.add_argument(
+        "-o",
+        "--output-dir",
+        type=Path,
+        help="Path to output directory",
+        default=None,
+    )
+    parser.add_argument(
+        "-t",
+        "--timeout",
+        type=int,
+        help="Timeout in seconds for pixi commands",
+        default=20,
     )
     parser.add_argument("chunk", type=int, help="Current chunk number (0-based)")
     parser.add_argument("total_chunks", type=int, help="Total number of chunks")
@@ -244,15 +262,21 @@ def main():
             unresolved_packages,
             errors,
             warnings,
+            args.timeout,
         )
 
+    if args.output_dir is None:
+        output_dir = Path(".")
+    else:
+        output_dir = args.output_dir
+
     # Write results to YAML file
-    output_file = f"bioconda.rules.{chunk}.yml"
-    importable_file = f"bioconda.importable.{chunk}.yml"
-    missing_meta_yaml_file = f"missing_meta_yaml.{chunk}.txt"
-    unresolved_packages_file = f"unresolved_packages.{chunk}.txt"
-    errors_file = f"errors.{chunk}.txt"
-    warnings_file = f"warnings.{chunk}.txt"
+    output_file = output_dir / f"bioconda.rules.{chunk}.yml"
+    importable_file = output_dir / f"bioconda.importable.{chunk}.yml"
+    unresolved_packages_file = output_dir / f"bioconda.unresolved.{chunk}.yml"
+    missing_meta_yaml_file = output_dir / f"missing_meta_yaml.{chunk}.txt"
+    errors_file = output_dir / f"errors.{chunk}.txt"
+    warnings_file = output_dir / f"warnings.{chunk}.txt"
     try:
         with open(missing_meta_yaml_file, "w", encoding="utf-8") as f:
             f.write("\n".join(missing_meta_yaml))
