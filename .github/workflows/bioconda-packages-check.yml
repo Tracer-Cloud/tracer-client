@@ -37,8 +37,6 @@ jobs:
         run: |
           pip install PyYAML
           pip install jinja2
-          sudo apt-get update
-          sudo apt-get install -y yq
 
       - name: Setup environment
         run: |
@@ -69,6 +67,13 @@ jobs:
     if: always()
 
     steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget
+          sudo wget -qO yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          chmod +x yq
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -83,12 +88,12 @@ jobs:
 
       - name: Join all chunk files
         run: |
-          find all-logs -type f -name 'bioconda.rules.*.yml' \
-            -exec yq eval-all '. as $item ireduce ({}; . *+ $item)' {} + > bioconda.rules.yml
-          find all-logs -type f -name 'bioconda.importable.*.yml' \
-            -exec yq eval-all '. as $item ireduce ({}; . *+ $item)' {} + > bioconda.importable.yml
-          find all-logs -type f -name 'bioconda.unresolved.*.yml' \
-            -exec yq eval-all '. as $item ireduce ({}; . *+ $item)' {} + > bioconda.unresolved.yml
+          ./yq eval-all '. as $item ireduce ({}; . *+ $item)' \
+            $(find all-logs -type f -name 'bioconda.rules.*.yml' > bioconda.rules.yml
+          ./yq eval-all '. as $item ireduce ({}; . *+ $item)' \
+            $(find all-logs -type f -name 'bioconda.importable.*.yml') > bioconda.importable.yml
+          ./yq eval-all '. as $item ireduce ({}; . *+ $item)' \
+            $(find all-logs -type f -name 'bioconda.unresolved.*.yml') > bioconda.unresolved.yml
           find all-logs -type f -name '*.txt' -exec cat {} > all_errors.txt \;
 
       - uses: actions/upload-artifact@v4
