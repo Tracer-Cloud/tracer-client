@@ -270,6 +270,9 @@ def main():
     else:
         output_dir = args.output_dir
 
+    if not output_dir.exists():
+        output_dir.mkdir(parents=True, exist_ok=True)
+
     # Write results to YAML file
     output_file = output_dir / f"bioconda.rules.{chunk}.yml"
     importable_file = output_dir / f"bioconda.importable.{chunk}.yml"

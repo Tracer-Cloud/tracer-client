@@ -44,7 +44,7 @@ jobs:
         run: |
           echo "CHUNK_INDEX=${{ matrix.chunk }}" >> $GITHUB_ENV
 
-      - name: Run Bioconda version check
+      - name: Ingest Bioconda packages
         run: |
           set -euo pipefail
           mkdir -p logs
