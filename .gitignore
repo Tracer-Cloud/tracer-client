@@ -75,3 +75,7 @@ script-second-script.sh
 # Private notes / terminal snippets
 README.local.md
 .idea/vcs.xml
+
+# pixi environments
+.pixi
+*.egg-info

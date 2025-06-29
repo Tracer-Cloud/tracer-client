@@ -10,6 +10,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import textwrap
 from pathlib import Path
 
 import yaml
@@ -161,17 +162,32 @@ def parse_meta_yaml(
                     # check all the commands in an environment where the package is installed;
                     # if exactly one works, use that as the command, otherwise store in a separate
                     # list for manual resolution
-                    env_commands = [
-                        f"pixi init -c bioconda -c conda-forge {env}",
-                        f"pixi add --manifest-path {env} {spec}",
-                    ]
-                    for command in env_commands:
-                        proc = subprocess.run(command, shell=True, capture_output=True)
-                        if proc.returncode != 0:
-                            errors.append(
-                                f"Error creating environment for package {name}: {proc.stderr.decode('utf-8')}"
+                    env_dir = Path(env)
+                    env_dir.mkdir(parents=True, exist_ok=True)
+                    manifest_file = env_dir / "pixi.toml"
+                    with open(manifest_file, "w", encoding="utf-8") as f:
+                        f.write(
+                            textwrap.dedent(
+                                f"""
+                                [workspace]
+                                name = "{env}"
+                                channels = ["conda-forge", "bioconda"]
+                                platforms = ["linux-64"]
+                                channel-priority = "disabled"
+                                """
                             )
-                            return
+                        )
+
+                    proc = subprocess.run(
+                        f"pixi add --manifest-path {env} {spec}",
+                        shell=True,
+                        capture_output=True,
+                    )
+                    if proc.returncode != 0:
+                        errors.append(
+                            f"Error creating environment for package {name}: {proc.stderr.decode('utf-8')}"
+                        )
+                        return
 
                     successful_commands = []
                     for command in test_commands:
