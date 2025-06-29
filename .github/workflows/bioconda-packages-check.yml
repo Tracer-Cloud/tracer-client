@@ -89,7 +89,7 @@ jobs:
       - name: Join all chunk files
         run: |
           ./yq eval-all '. as $item ireduce ({}; . *+ $item)' \
-            $(find all-logs -type f -name 'bioconda.rules.*.yml' > bioconda.rules.yml
+            $(find all-logs -type f -name 'bioconda.rules.*.yml') > bioconda.rules.yml
           ./yq eval-all '. as $item ireduce ({}; . *+ $item)' \
             $(find all-logs -type f -name 'bioconda.importable.*.yml') > bioconda.importable.yml
           ./yq eval-all '. as $item ireduce ({}; . *+ $item)' \
