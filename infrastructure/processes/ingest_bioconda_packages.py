@@ -113,7 +113,7 @@ def parse_meta_yaml(
                     # if exactly one works, use that as the command, otherwise store in a separate
                     # list for manual resolution
                     env_commands = [
-                        f"pixi init -c conda-forge -c bioconda {env}",
+                        f"pixi init -c bioconda -c conda-forge {env}",
                         f"pixi add --manifest-path {env} {spec}",
                     ]
                     for command in env_commands:
