@@ -38,12 +38,61 @@ def noop(*args, **kwargs):
     return ""
 
 
+def invalid_command(arg: str) -> bool:
+    return (
+        arg.startswith("-") or arg[0] in "{}<>&|;'\"$=" or arg in ("grep", "/dev/null")
+    )
+
+
+def resolve_commands(name: str, commands: str, executable_packages: list) -> bool:
+    resolved_commands = set()
+    for command in commands:
+        args = [arg for arg in shlex.split(command) if not invalid_command(arg)]
+        if len(args) == 0:
+            continue
+        found = False
+        if len(args) > 1:
+            for arg in args:
+                if name.lower() in arg.lower():
+                    resolved_commands.append(arg)
+                    found = True
+                    break
+        if not found:
+            resolved_commands.append(args[0])
+
+    if len(resolved_commands) == 0:
+        return False
+
+    for command in resolved_commands:
+        if name == command:
+            rule_name = f"{command} process"
+        else:
+            rule_name = f"{name} {command} process"
+        if ".py" in command:
+            condition = {
+                "and": [
+                    {"process_name_contains": "python"},
+                    {"min_args": 1},
+                    {"first_arg_is": command},
+                ]
+            }
+        else:
+            condition = {
+                "process_name_is": command,
+            }
+        executable_packages.append(
+            {"rule_name": rule_name, "display_name": command, "condition": condition}
+        )
+
+    return True
+
+
 def parse_meta_yaml(
     package: str,
     file_path: Path,
     executable_packages: list,
     importable_packages: list,
-    unresolved_packages: list,
+    ambiguous_packages: list,
     errors: list[str],
     warnings: list[str],
     timeout: int,
@@ -107,7 +156,7 @@ def parse_meta_yaml(
                 else:
                     spec = f"{name}={version}"
                 test_commands = yaml_data["test"]["commands"]
-                resolved_command = None
+                command = None
                 try:
                     # check all the commands in an environment where the package is installed;
                     # if exactly one works, use that as the command, otherwise store in a separate
@@ -139,26 +188,20 @@ def parse_meta_yaml(
                     if Path(env).exists():
                         shutil.rmtree(env)
 
-                if len(successful_commands) == 1:
-                    resolved_command = shlex.split(successful_commands[0])[0]
-                    executable_packages.append(
-                        {
-                            "rule_name": f"{resolved_command} process",
-                            "display_name": resolved_command,
-                            "condition": {
-                                "process_name_is": resolved_command,
-                            },
-                        }
-                    )
-                else:
-                    unresolved_packages.append(
-                        {
-                            "name": name,
-                            "version": version,
-                            "test_commands": test_commands,
-                            "recipe_dir": package,
-                        }
-                    )
+                if len(successful_commands) > 0 and resolve_commands(
+                    name, successful_commands, executable_packages
+                ):
+                    return
+
+                ambiguous_packages.append(
+                    {
+                        "name": name,
+                        "version": version,
+                        "test_commands": test_commands,
+                        "successful_commands": successful_commands,
+                        "recipe_dir": package,
+                    }
+                )
             elif "imports" in yaml_data["test"]:
                 importable_packages.append(
                     {
@@ -248,7 +291,7 @@ def main():
 
     executable_packages = []
     importable_packages = []
-    unresolved_packages = []
+    ambiguous_packages = []
     errors = []
     warnings = []
 
@@ -259,7 +302,7 @@ def main():
             meta_file,
             executable_packages,
             importable_packages,
-            unresolved_packages,
+            ambiguous_packages,
             errors,
             warnings,
             args.timeout,
@@ -276,7 +319,7 @@ def main():
     # Write results to YAML file
     output_file = output_dir / f"bioconda.rules.{chunk}.yml"
     importable_file = output_dir / f"bioconda.importable.{chunk}.yml"
-    unresolved_packages_file = output_dir / f"bioconda.unresolved.{chunk}.yml"
+    ambiguous_packages_file = output_dir / f"bioconda.ambiguous.{chunk}.yml"
     missing_meta_yaml_file = output_dir / f"missing_meta_yaml.{chunk}.txt"
     errors_file = output_dir / f"errors.{chunk}.txt"
     warnings_file = output_dir / f"warnings.{chunk}.txt"
@@ -289,8 +332,8 @@ def main():
             )
         with open(importable_file, "w", encoding="utf-8") as f:
             yaml.dump(importable_packages, f, default_flow_style=False, indent=2)
-        with open(unresolved_packages_file, "w", encoding="utf-8") as f:
-            yaml.dump(unresolved_packages, f, default_flow_style=False, indent=2)
+        with open(ambiguous_packages_file, "w", encoding="utf-8") as f:
+            yaml.dump(ambiguous_packages, f, default_flow_style=False, indent=2)
         with open(errors_file, "w", encoding="utf-8") as f:
             f.write("\n".join(errors))
         with open(warnings_file, "w", encoding="utf-8") as f:
@@ -301,11 +344,11 @@ def main():
     print(f"Missing meta.yaml for {len(missing_meta_yaml)} packages")
     print(f"Successfully processed {len(executable_packages)} executable packages")
     print(f"Successfully processed {len(importable_packages)} importable packages")
-    print(f"Unresolved packages: {len(unresolved_packages)}")
+    print(f"Unresolved packages: {len(ambiguous_packages)}")
     print(f"Encountered errors in {len(errors)} packages")
     print(f"Executable packages written to {output_file}")
     print(f"Importable packages written to {importable_file}")
-    print(f"Unresolved packages written to {unresolved_packages_file}")
+    print(f"Unresolved packages written to {ambiguous_packages_file}")
     print(f"Packages with missing meta.yaml written to {missing_meta_yaml_file}")
     print(f"Errors written to {errors_file}")
     print(f"Warnings written to {warnings_file}")
