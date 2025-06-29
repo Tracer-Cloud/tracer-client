@@ -88,13 +88,12 @@ jobs:
 
       - name: Join all chunk files
         run: |
-          tree all-logs
           ./yq eval-all '. as $item ireduce ({}; . *+ $item)' \
             $(find all-logs -type f -name 'bioconda.rules.*.yml') > all_bioconda.rules.yml
           ./yq eval-all '. as $item ireduce ({}; . *+ $item)' \
-            $(find all-logs -type f -name 'bioconda.ambiguous.*.yml') > all_bioconda.ambiguous.yml
+            $(find all-logs -type f -name 'bioconda.importable.*.yml') > all_bioconda.importable.yml
           ./yq eval-all '. as $item ireduce ({}; . *+ $item)' \
-            $(find all-logs -type f -name 'bioconda.unresolved.*.yml') > all_bioconda.unresolved.yml
+            $(find all-logs -type f -name 'bioconda.ambiguous.*.yml') > all_bioconda.ambiguous.yml
           find all-logs -type f -name '*.txt' -exec cat {} > all_errors.txt \;
 
       - uses: actions/upload-artifact@v4
