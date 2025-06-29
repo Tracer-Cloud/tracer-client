@@ -347,9 +347,13 @@ def main():
                 {"rules": executable_packages}, f, default_flow_style=False, indent=2
             )
         with open(importable_file, "w", encoding="utf-8") as f:
-            yaml.dump(importable_packages, f, default_flow_style=False, indent=2)
+            yaml.dump(
+                {"packages": importable_packages}, f, default_flow_style=False, indent=2
+            )
         with open(ambiguous_packages_file, "w", encoding="utf-8") as f:
-            yaml.dump(ambiguous_packages, f, default_flow_style=False, indent=2)
+            yaml.dump(
+                {"packages": ambiguous_packages}, f, default_flow_style=False, indent=2
+            )
         with open(errors_file, "w", encoding="utf-8") as f:
             f.write("\n".join(errors))
         with open(warnings_file, "w", encoding="utf-8") as f:
