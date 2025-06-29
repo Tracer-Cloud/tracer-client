@@ -88,25 +88,26 @@ jobs:
 
       - name: Join all chunk files
         run: |
+          tree all-logs
           ./yq eval-all '. as $item ireduce ({}; . *+ $item)' \
-            $(find all-logs -type f -name 'bioconda.rules.*.yml') > all-bioconda.rules.yml
+            $(find all-logs -type f -name 'bioconda.rules.*.yml') > all_bioconda.rules.yml
           ./yq eval-all '. as $item ireduce ({}; . *+ $item)' \
-            $(find all-logs -type f -name 'bioconda.ambiguous.*.yml') > all-bioconda.ambiguous.yml
+            $(find all-logs -type f -name 'bioconda.ambiguous.*.yml') > all_bioconda.ambiguous.yml
           ./yq eval-all '. as $item ireduce ({}; . *+ $item)' \
-            $(find all-logs -type f -name 'bioconda.unresolved.*.yml') > all-bioconda.unresolved.yml
+            $(find all-logs -type f -name 'bioconda.unresolved.*.yml') > all_bioconda.unresolved.yml
           find all-logs -type f -name '*.txt' -exec cat {} > all_errors.txt \;
 
       - uses: actions/upload-artifact@v4
         with:
-          path: bioconda.rules.yml
+          path: all_bioconda.rules.yml
 
       - uses: actions/upload-artifact@v4
         with:
-          path: bioconda.importable.yml
+          path: all_bioconda.importable.yml
 
       - uses: actions/upload-artifact@v4
         with:
-          path: bioconda.ambiguous.yml
+          path: all_bioconda.ambiguous.yml
 
       - uses: actions/upload-artifact@v4
         with:
