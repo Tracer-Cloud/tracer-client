@@ -54,11 +54,11 @@ def resolve_commands(name: str, commands: str, executable_packages: list) -> boo
         if len(args) > 1:
             for arg in args:
                 if name.lower() in arg.lower():
-                    resolved_commands.append(arg)
+                    resolved_commands.add(arg)
                     found = True
                     break
         if not found:
-            resolved_commands.append(args[0])
+            resolved_commands.add(args[0])
 
     if len(resolved_commands) == 0:
         return False
