@@ -99,18 +99,22 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
+          name: bioconda.rules.yml
           path: all_bioconda.rules.yml
 
       - uses: actions/upload-artifact@v4
         with:
+          name: bioconda.importable.yml
           path: all_bioconda.importable.yml
 
       - uses: actions/upload-artifact@v4
         with:
+          name: bioconda.ambiguous.yml
           path: all_bioconda.ambiguous.yml
 
       - uses: actions/upload-artifact@v4
         with:
+          name: errors.txt
           path: all_errors.txt
 
 
