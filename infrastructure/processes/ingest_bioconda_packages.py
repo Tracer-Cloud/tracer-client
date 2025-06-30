@@ -237,7 +237,6 @@ def parse_meta_yaml(
                                     "type": "warning",
                                 }
                             )
-                            pass
                 finally:
                     if Path(env).exists():
                         shutil.rmtree(env)
