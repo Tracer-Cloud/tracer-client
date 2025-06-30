@@ -214,6 +214,7 @@ def parse_meta_yaml(
                         return
 
                     successful_commands = []
+                    failed_commands = []
                     for i, command in enumerate(test_commands):
                         print(
                             f"Executing {name} command {i} of {len(test_commands)}: {command}"
@@ -230,14 +231,21 @@ def parse_meta_yaml(
                                 print("  success")
                                 successful_commands.append(command)
                             else:
+                                failed_commands.append(
+                                    {
+                                        "command": pixi_command,
+                                        "stderr": proc.stderr.decode("utf-8"),
+                                        "returncode": proc.returncode,
+                                    }
+                                )
                                 print("  failure")
                         except subprocess.TimeoutExpired:
                             print("  timeout")
-                            errors.append(
+                            failed_commands.append(
                                 {
-                                    "package": name,
-                                    "message": "Timed out executing command {pixi_command}",
-                                    "type": "warning",
+                                    "command": pixi_command,
+                                    "stderr": f"Timed out executing command {pixi_command}",
+                                    "returncode": None,
                                 }
                             )
                 finally:
@@ -253,8 +261,7 @@ def parse_meta_yaml(
                     {
                         "name": name,
                         "version": version,
-                        "test_commands": test_commands,
-                        "successful_commands": successful_commands,
+                        "test_commands": failed_commands,
                         "recipe_dir": package,
                     }
                 )
