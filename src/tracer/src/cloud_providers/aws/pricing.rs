@@ -89,12 +89,15 @@ impl PricingClient {
                 .unwrap_or_default(),
             None => vec![],
         };
+        tracing::info!(?volume_types, "Got volume information from ec2");
 
         let ebs_filters = EBSFilterBuilder {
             region: metadata.region.clone(),
             volume_types,
         }
         .to_filter();
+
+        tracing::info!(?ebs_filters, "EBS Filters");
 
         self.get_instance_pricing_context(Some(ec2_filters), Some(ebs_filters))
             .await
@@ -120,6 +123,8 @@ impl PricingClient {
         let ebs_data = self
             .get_price_with_retry(ServiceCode::Ebs, ebs_filters)
             .await;
+
+        tracing::info!("Got response for ebs data {:?}", ebs_data);
 
         let total =
             ec2_data.price_per_unit + ebs_data.as_ref().map(|e| e.price_per_unit).unwrap_or(0.0);
