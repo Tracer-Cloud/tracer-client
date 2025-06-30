@@ -250,7 +250,7 @@ pub fn process_cli() -> Result<()> {
                             let _ = print_install_readiness();
                             wait(&api_client).await?;
 
-                            print_info(&api_client, &config, false).await
+                            print_info(&api_client, false).await
                         })?;
 
                         return Ok(());
