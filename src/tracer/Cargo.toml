@@ -54,7 +54,6 @@ dialoguer = { workspace = true }
 regex = { workspace = true }
 rustls = { workspace = true }
 yaml-rust2 = { workspace = true }
-lazy_static = { workspace = true }
 shlex = { workspace = true }
 bollard = { workspace = true }
 futures-util = { workspace = true }
