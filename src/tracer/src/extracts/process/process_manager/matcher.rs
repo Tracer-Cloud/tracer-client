@@ -1,7 +1,6 @@
 use crate::extracts::process::types::process_state::ProcessState;
 use crate::process_identification::target_process::target::Target;
 use crate::process_identification::utils::log_matched_process;
-use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 
@@ -19,24 +18,29 @@ impl Filter {
         &self,
         triggers: Vec<ProcessStartTrigger>,
         state: &ProcessState,
-    ) -> Result<HashMap<String, HashSet<ProcessStartTrigger>>> {
-        let mut matched_processes = HashMap::new();
-
-        for trigger in triggers {
-            if let Some(matched_target) = state.get_target_manager().get_target_match(&trigger) {
-                log_matched_process(&trigger, &matched_target, true);
-
-                let matched_target = matched_target.clone();
-                matched_processes
-                    .entry(matched_target)
-                    .or_insert(HashSet::new())
-                    .insert(trigger);
-            } else {
-                log_matched_process(&trigger, "", false);
-            }
-        }
-
-        Ok(matched_processes)
+    ) -> HashMap<String, HashSet<ProcessStartTrigger>> {
+        triggers
+            .into_iter()
+            .flat_map(|trigger| {
+                let target = state.get_target_manager().get_target_match(&trigger);
+                if let Some(matched_target) = target {
+                    log_matched_process(&trigger, &matched_target, true);
+                    Some((trigger, matched_target))
+                } else {
+                    log_matched_process(&trigger, "", false);
+                    None
+                }
+            })
+            .fold(
+                HashMap::new(),
+                |mut matched_processes, (trigger, matched_target)| {
+                    matched_processes
+                        .entry(matched_target)
+                        .or_default()
+                        .insert(trigger);
+                    matched_processes
+                },
+            )
     }
 
     /// Collects all PIDs from the filtered target processes map
@@ -50,6 +54,7 @@ impl Filter {
             .collect()
     }
 }
+
 impl Default for Filter {
     fn default() -> Self {
         Self::new()

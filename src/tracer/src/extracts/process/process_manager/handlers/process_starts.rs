@@ -23,13 +23,15 @@ impl ProcessStartHandler {
 
         Self::store_triggers(state_manager, triggers.clone()).await;
 
-        let matched_processes = Self::match_processes(state_manager, matcher, triggers).await?;
+        let matched_processes = Self::match_processes(state_manager, matcher, triggers).await;
 
         if matched_processes.is_empty() {
             debug!("No matching processes found; exiting early.");
             return Ok(());
         }
 
+        // TODO: refresh_process_data doesn't modify matched_processes - it should take a reference
+        // and not return anything
         let refreshed_processes =
             Self::refresh_process_data(system_refresher, matched_processes).await?;
 
@@ -57,7 +59,7 @@ impl ProcessStartHandler {
         state_manager: &StateManager,
         matcher: &Filter,
         triggers: Vec<ProcessStartTrigger>,
-    ) -> Result<HashMap<String, HashSet<ProcessStartTrigger>>> {
+    ) -> HashMap<String, HashSet<ProcessStartTrigger>> {
         debug!(
             "Matching {} stored triggers against targets.",
             triggers.len()
@@ -92,11 +94,11 @@ impl ProcessStartHandler {
         let mut count = 0;
 
         for (target, processes) in matched_processes {
+            count += processes.len();
             for process in processes {
                 let system = system_refresher.get_system().read().await;
                 let sys_proc = system.process(process.pid.into());
                 logger.log_new_process(target, process, sys_proc).await?;
-                count += 1;
             }
         }
 
