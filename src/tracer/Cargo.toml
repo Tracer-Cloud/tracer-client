@@ -45,6 +45,7 @@ aws-sdk-s3 = { workspace = true }
 aws-sdk-pricing = { workspace = true }
 aws-credential-types = { workspace = true }
 aws-sdk-secretsmanager = { workspace = true }
+aws-sdk-ec2 = { workspace = true }
 serde-query = { workspace = true }
 config = { workspace = true }
 ec2_instance_metadata = { workspace = true }

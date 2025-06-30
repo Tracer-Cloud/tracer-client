@@ -1,11 +1,22 @@
 use aws_sdk_pricing as pricing;
 use aws_sdk_pricing::types::Filter as PricingFilters;
-use tokio::time::{sleep, Duration};
-use tracing::{debug, error, info, trace, warn};
+use tokio_retry::strategy::ExponentialBackoff;
+use tokio_retry::Retry;
 
+use crate::cloud_providers::aws::aws_metadata::AwsInstanceMetaData;
 use crate::cloud_providers::aws::config::{resolve_available_aws_config, AwsConfig};
-use crate::cloud_providers::aws::types::pricing::{FlattenedData, PricingData};
+use crate::cloud_providers::aws::ec2::Ec2Client;
+use crate::cloud_providers::aws::types::pricing::{
+    EBSFilterBuilder, EC2FilterBuilder, FlattenedData, PricingData, ServiceCode,
+};
 use serde_query::Query;
+
+pub struct InstancePricingContext {
+    pub ec2_pricing: FlattenedData,
+    pub ebs_pricing: Option<FlattenedData>,
+    pub total_hourly_cost: f64,
+    pub source: String, // "Live" or "Static"
+}
 
 pub enum PricingSource {
     Static,
@@ -16,21 +27,27 @@ impl PricingSource {
     pub async fn new(initialization_conf: AwsConfig) -> Self {
         let client = PricingClient::new(initialization_conf, "us-east-1").await;
 
-        match client.client {
+        match client.pricing_client {
             Some(_) => PricingSource::Live(client),
             None => PricingSource::Static,
         }
     }
 
-    pub async fn get_ec2_instance_price(
+    pub async fn get_aws_price_for_instance(
         &self,
-        filters: Option<Vec<PricingFilters>>,
-    ) -> Option<FlattenedData> {
+        metadata: &AwsInstanceMetaData,
+    ) -> Option<InstancePricingContext> {
         match self {
-            PricingSource::Static => Some(FlattenedData::default()),
+            PricingSource::Static => Some(InstancePricingContext {
+                ec2_pricing: FlattenedData::default(),
+                ebs_pricing: None,
+                source: "Static".into(),
+                total_hourly_cost: 0.0,
+            }),
             PricingSource::Live(client) => {
-                let filters = filters.map_or(Vec::new(), |a| a);
-                client.get_ec2_instance_price(filters).await
+                client
+                    .get_instance_pricing_context_from_metadata(metadata)
+                    .await
             }
         }
     }
@@ -38,7 +55,8 @@ impl PricingSource {
 
 /// Client for interacting with AWS Pricing API
 pub struct PricingClient {
-    pub client: Option<pricing::client::Client>,
+    pricing_client: Option<pricing::Client>,
+    ec2_client: Option<Ec2Client>,
 }
 
 impl PricingClient {
@@ -50,147 +68,132 @@ impl PricingClient {
 
         match config {
             Some(conf) => Self {
-                client: Some(pricing::client::Client::new(&conf)),
+                pricing_client: Some(pricing::client::Client::new(&conf)),
+                ec2_client: Some(Ec2Client::new_with_config(&conf).await),
             },
-            None => Self { client: None },
+            None => Self {
+                pricing_client: None,
+                ec2_client: None,
+            },
         }
     }
 
-    /// Fetches EC2 instance pricing based on provided filters
-    /// Returns the most expensive instance that matches the filters
-    ///
-    /// This method includes retry logic with exponential backoff for handling
-    /// temporary failures or long response times
-    ///
-    /// # Arguments
-    /// * `filters` - Vector of filters to apply to the pricing query
-    ///
-    /// # Returns
-    /// * `Option<FlattenedData>` - Pricing data for the most expensive matching instance, if any
-    pub async fn get_ec2_instance_price(
+    pub async fn get_instance_pricing_context_from_metadata(
         &self,
-        filters: Vec<PricingFilters>,
-    ) -> Option<FlattenedData> {
-        // If AWS config was None during initialization, always return a zero-price result
-        if self.client.is_none() {
-            return Some(FlattenedData {
-                instance_type: "unknown".to_string(),
-                region_code: "unknown".to_string(),
-                vcpu: "unknown".to_string(),
-                memory: "unknown".to_string(),
-                price_per_unit: 0.0,
-                unit: "Hrs".to_string(),
+        metadata: &AwsInstanceMetaData,
+    ) -> Option<InstancePricingContext> {
+        let ec2_filters = EC2FilterBuilder {
+            instance_type: metadata.instance_type.clone(),
+            region: metadata.region.clone(),
+        }
+        .to_filter();
+
+        let volume_types = match &self.ec2_client {
+            Some(client) => client
+                .get_volume_types(&metadata.instance_id)
+                .await
+                .unwrap_or_default(),
+            None => vec![],
+        };
+
+        let ebs_filters = EBSFilterBuilder {
+            region: metadata.region.clone(),
+            volume_types,
+        }
+        .to_filter();
+
+        self.get_instance_pricing_context(Some(ec2_filters), Some(ebs_filters))
+            .await
+    }
+
+    pub async fn get_instance_pricing_context(
+        &self,
+        ec2_filters: Option<Vec<PricingFilters>>,
+        ebs_filters: Option<Vec<PricingFilters>>,
+    ) -> Option<InstancePricingContext> {
+        if self.pricing_client.is_none() {
+            return Some(InstancePricingContext {
+                ec2_pricing: FlattenedData::default(),
+                ebs_pricing: None,
+                total_hourly_cost: 0.0,
+                source: "Static".to_string(),
             });
         }
 
-        // Retry configuration
-        const MAX_RETRIES: u32 = 3;
-        const INITIAL_RETRY_DELAY: u64 = 1; // seconds
+        let ec2_data = self
+            .get_price_with_retry(ServiceCode::Ec2, ec2_filters)
+            .await?;
+        let ebs_data = self
+            .get_price_with_retry(ServiceCode::Ebs, ebs_filters)
+            .await;
 
-        let mut retry_count = 0;
-        let mut last_error = None;
+        let total =
+            ec2_data.price_per_unit + ebs_data.as_ref().map(|e| e.price_per_unit).unwrap_or(0.0);
 
-        // Retry loop with exponential backoff
-        while retry_count < MAX_RETRIES {
-            if retry_count > 0 {
-                let delay = INITIAL_RETRY_DELAY * (2_u64.pow(retry_count - 1)); // Exponential backoff
-                debug!("Retry {} after {} seconds", retry_count, delay);
-                sleep(Duration::from_secs(delay)).await;
-            }
-
-            // Attempt to get pricing data
-            match self.attempt_get_ec2_price(filters.clone()).await {
-                Ok(Some(data)) => {
-                    debug!("Successfully retrieved pricing data.");
-                    return Some(data);
-                }
-                Ok(None) => {
-                    debug!("No matching data found, don't retry.");
-                    return None; // No matching data found, don't retry
-                }
-                Err(e) => {
-                    last_error = Some(e);
-                    retry_count += 1;
-                    warn!("Attempt {} failed, will retry", retry_count);
-                }
-            }
-        }
-
-        error!("All retries failed. Last error: {:?}", last_error);
-        None
+        Some(InstancePricingContext {
+            ec2_pricing: ec2_data,
+            ebs_pricing: ebs_data,
+            total_hourly_cost: total,
+            source: "Live".to_string(),
+        })
     }
 
-    /// Single attempt to fetch EC2 pricing data
-    ///
-    /// # Arguments
-    /// * `filters` - Vector of filters to apply to the pricing query
-    ///
-    /// # Returns
-    /// * `Result<Option<FlattenedData>, Box<dyn Error>>` - Result containing either:
-    ///   - Ok(Some(data)) - Successfully found pricing data
-    ///   - Ok(None) - No matching instances found
-    ///   - Err(e) - An error occurred during the request
-    async fn attempt_get_ec2_price(
+    async fn get_price_with_retry(
         &self,
-        filters: Vec<PricingFilters>,
-    ) -> Result<Option<FlattenedData>, Box<dyn std::error::Error + Send + Sync>> {
-        // Create paginated request to AWS Pricing API
+        service_code: ServiceCode,
+        filters: Option<Vec<PricingFilters>>,
+    ) -> Option<FlattenedData> {
+        if self.pricing_client.is_none() {
+            return None;
+        }
 
-        debug!("Filters being applied: {:?}", filters); // Print statement
+        let strategy = ExponentialBackoff::from_millis(500).take(3);
 
+        let result = Retry::spawn(strategy, {
+            let filters = filters.clone();
+            let service_code = service_code.clone();
+
+            move || {
+                let filters = filters.clone();
+                let service_code = service_code.clone();
+                async move { self.fetch_price(service_code, filters).await }
+            }
+        })
+        .await;
+
+        result.ok()
+    }
+
+    async fn fetch_price(
+        &self,
+        service_code: ServiceCode,
+        filters: Option<Vec<PricingFilters>>,
+    ) -> Result<FlattenedData, Box<dyn std::error::Error + Send + Sync>> {
         let mut response = self
-            .client
-            .clone()
+            .pricing_client
+            .as_ref()
             .unwrap()
             .get_products()
-            .service_code("AmazonEC2".to_string()) // Specifically query EC2 prices
-            .set_filters(Some(filters)) // Apply the filters (instance type, OS, etc)
-            .into_paginator() // Handle pagination of results
+            .service_code(service_code.as_str())
+            .set_filters(filters)
+            .into_paginator()
             .send();
 
-        trace!("API Request: {:?}", response); // Print statement (may need adjustment based on actual request)
+        let mut highest_price = FlattenedData::default();
 
-        let mut data = Vec::new();
-
-        // Process each page of results
         while let Some(output) = response.next().await {
-            // Propagate any AWS API errors
-            // Useful for retrying the request in the method get_ec2_instance_price()
             let output = output?;
-
-            // Print the raw API response
-            info!("API Response: {:?}", output);
-
-            // Process each product in the current page
             for product in output.price_list() {
-                // Parse the JSON pricing data using serde_query
-                match serde_json::from_str::<Query<PricingData>>(product) {
-                    Ok(pricing) => {
-                        // Print and log the parsed pricing data
-                        // Convert the complex pricing data into a flattened format
-                        let flat_data = FlattenedData::flatten_data(&pricing.into());
-                        info!("Flattened pricing data: {:?}", flat_data); // Print statement
-                        data.push(flat_data);
-                    }
-                    Err(e) => {
-                        error!("Failed to parse product data: {:?}", e);
-                        continue; // Skip invalid products
+                if let Ok(pricing) = serde_json::from_str::<Query<PricingData>>(product) {
+                    let flat = FlattenedData::flatten_data(&pricing.into());
+                    if flat.price_per_unit > highest_price.price_per_unit {
+                        highest_price = flat;
                     }
                 }
             }
         }
 
-        debug!("Processed pricing data length: {}", data.len());
-
-        // Return the most expensive instance from the results
-        // if data is empty the reduce will return OK(None)
-        Ok(data.into_iter().reduce(|a, b| {
-            if a.price_per_unit > b.price_per_unit {
-                a
-            } else {
-                b
-            }
-        }))
+        Ok(highest_price)
     }
 }
 
@@ -198,41 +201,34 @@ impl PricingClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aws_sdk_pricing::types::{Filter, FilterType};
     use std::time::Duration;
-    use tokio;
     use tokio::time::timeout;
-
-    // async fn setup_client() -> PricingClient {
-    //     dotenv().ok();
-    //     let config = AwsConfig::Env;
-    //     PricingClient::new(config, "us-east-1").await
-    // }
 
     async fn setup_client() -> PricingSource {
         PricingSource::Static
+    }
+
+    fn mock_metadata() -> AwsInstanceMetaData {
+        AwsInstanceMetaData {
+            region: "us-east-1".to_string(),
+            availability_zone: "us-east-1a".to_string(),
+            instance_id: "i-mockinstance".to_string(),
+            account_id: "123456789012".to_string(),
+            ami_id: "ami-12345678".to_string(),
+            instance_type: "t2.micro".to_string(),
+            local_hostname: "ip-172-31-0-1.ec2.internal".to_string(),
+            hostname: "ip-172-31-0-1.ec2.internal".to_string(),
+            public_hostname: Some("ec2-54-".into()),
+        }
     }
 
     // Basic functionality test
     #[tokio::test]
     async fn test_get_ec2_instance_price_with_specific_instance() {
         let client = setup_client().await;
-        let filters = vec![
-            Filter::builder()
-                .field("instanceType")
-                .value("t2.micro")
-                .r#type(FilterType::TermMatch)
-                .build()
-                .unwrap(),
-            Filter::builder()
-                .field("regionCode")
-                .value("us-east-1")
-                .r#type(FilterType::TermMatch)
-                .build()
-                .unwrap(),
-        ];
+        let metadata = mock_metadata();
 
-        let result = client.get_ec2_instance_price(Some(filters)).await;
+        let result = client.get_aws_price_for_instance(&metadata).await;
         assert!(result.is_some());
 
         // let price_data = result.unwrap();
@@ -246,14 +242,10 @@ mod tests {
     #[ignore = "Default Implementation returns tests for now"]
     async fn test_no_matching_instances() {
         let client = setup_client().await;
-        let filters = vec![Filter::builder()
-            .field("instanceType")
-            .value("non_existent_instance_type")
-            .r#type(FilterType::TermMatch)
-            .build()
-            .unwrap()];
+        let mut metadata = mock_metadata();
+        metadata.instance_type = "non_existent_instance_type".to_string();
 
-        let result = client.get_ec2_instance_price(Some(filters)).await;
+        let result = client.get_aws_price_for_instance(&metadata).await;
         assert!(result.is_none());
     }
 
@@ -261,34 +253,9 @@ mod tests {
     #[tokio::test]
     async fn test_multiple_instance_types_with_shared_tenancy() {
         let client = setup_client().await;
-        let filters = vec![
-            Filter::builder()
-                .field("instanceType")
-                .value("t2.micro")
-                .r#type(FilterType::TermMatch)
-                .build()
-                .unwrap(),
-            Filter::builder()
-                .field("operatingSystem")
-                .value("Linux")
-                .r#type(FilterType::TermMatch)
-                .build()
-                .unwrap(),
-            Filter::builder()
-                .field("tenancy")
-                .value("Shared")
-                .r#type(FilterType::TermMatch)
-                .build()
-                .unwrap(),
-            Filter::builder()
-                .field("location")
-                .value("US East (N. Virginia)")
-                .r#type(FilterType::TermMatch)
-                .build()
-                .unwrap(),
-        ];
+        let metadata = mock_metadata();
 
-        let result = client.get_ec2_instance_price(Some(filters)).await;
+        let result = client.get_aws_price_for_instance(&metadata).await;
         assert!(result.is_some());
     }
 
@@ -296,28 +263,9 @@ mod tests {
     #[tokio::test]
     async fn test_multiple_instance_types_with_shared_and_reserved_tenancy() {
         let client = setup_client().await;
-        let filters = vec![
-            Filter::builder()
-                .field("instanceType")
-                .value("t2.micro")
-                .r#type(FilterType::TermMatch)
-                .build()
-                .unwrap(),
-            Filter::builder()
-                .field("operatingSystem")
-                .value("Linux")
-                .r#type(FilterType::TermMatch)
-                .build()
-                .unwrap(),
-            Filter::builder()
-                .field("location")
-                .value("US East (N. Virginia)")
-                .r#type(FilterType::TermMatch)
-                .build()
-                .unwrap(),
-        ];
+        let metadata = mock_metadata();
 
-        let result = client.get_ec2_instance_price(Some(filters)).await;
+        let result = client.get_aws_price_for_instance(&metadata).await;
         assert!(result.is_some());
     }
 
@@ -326,28 +274,10 @@ mod tests {
     #[ignore = "Default Implementation returns tests for now"]
     async fn test_multiple_instance_types_with_reserved_tenancy() {
         let client = setup_client().await;
-        let filters = vec![
-            Filter::builder()
-                .field("operatingSystem")
-                .value("Linux")
-                .r#type(FilterType::TermMatch)
-                .build()
-                .unwrap(),
-            Filter::builder()
-                .field("location")
-                .value("US East (N. Virginia)")
-                .r#type(FilterType::TermMatch)
-                .build()
-                .unwrap(),
-            Filter::builder()
-                .field("tenancy")
-                .value("Reserved")
-                .r#type(FilterType::TermMatch)
-                .build()
-                .unwrap(),
-        ];
+        let mut metadata = mock_metadata();
+        metadata.instance_type = "reserved-type".to_string();
 
-        let result = client.get_ec2_instance_price(Some(filters)).await;
+        let result = client.get_aws_price_for_instance(&metadata).await;
         assert!(result.is_none());
     }
 
@@ -355,37 +285,12 @@ mod tests {
     #[tokio::test]
     async fn test_retry_behavior() {
         let client = setup_client().await;
-        let filters = vec![
-            Filter::builder()
-                .field("instanceType")
-                .value("t2.micro")
-                .r#type(FilterType::TermMatch)
-                .build()
-                .unwrap(),
-            Filter::builder()
-                .field("operatingSystem")
-                .value("Linux")
-                .r#type(FilterType::TermMatch)
-                .build()
-                .unwrap(),
-            Filter::builder()
-                .field("tenancy")
-                .value("Shared")
-                .r#type(FilterType::TermMatch)
-                .build()
-                .unwrap(),
-            Filter::builder()
-                .field("location")
-                .value("US East (N. Virginia)")
-                .r#type(FilterType::TermMatch)
-                .build()
-                .unwrap(),
-        ];
+        let metadata = mock_metadata();
 
         // Test with a reasonable timeout that allows for retries
         let result = timeout(
             Duration::from_secs(15), // Longer timeout to account for retries
-            client.get_ec2_instance_price(Some(filters)),
+            client.get_aws_price_for_instance(&metadata),
         )
         .await;
 

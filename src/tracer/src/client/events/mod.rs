@@ -1,7 +1,6 @@
 mod run_details;
 use crate::cloud_providers::aws::aws_metadata::get_aws_instance_metadata;
 use crate::cloud_providers::aws::pricing::PricingSource;
-use crate::cloud_providers::aws::types::pricing::EC2FilterBuilder;
 use crate::extracts::metrics::system_metrics_collector::SystemMetricsCollector;
 use crate::process_identification::debug_log::Logger;
 use crate::process_identification::types::event::attributes::system_metrics::SystemProperties;
@@ -54,15 +53,10 @@ async fn gather_system_properties(
     let is_aws_instance = aws_metadata.is_some();
 
     let ec2_cost_analysis = if let Some(ref metadata) = &aws_metadata {
-        let filters = EC2FilterBuilder {
-            instance_type: metadata.instance_type.clone(),
-            region: metadata.region.clone(),
-        }
-        .to_filter();
         pricing_client
-            .get_ec2_instance_price(Some(filters))
+            .get_aws_price_for_instance(metadata)
             .await
-            .map(|v| v.price_per_unit)
+            .map(|v| v.total_hourly_cost)
     } else {
         None
     };
