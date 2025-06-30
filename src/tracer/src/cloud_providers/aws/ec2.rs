@@ -22,6 +22,7 @@ impl Ec2Client {
             tracing::error!("EC2 Client not initialized");
             return Ok(vec![]);
         };
+        tracing::info!(instance_id, "Fetching volume attachments for instance");
 
         let reservations = client
             .describe_instances()
@@ -51,6 +52,7 @@ impl Ec2Client {
             tracing::warn!("No volumes attached to ec2 instance: {}", instance_id);
             return Ok(vec![]); // no volumes attached
         }
+        tracing::info!(?volume_ids, "Found volume IDs for instance");
 
         let volumes = client
             .describe_volumes()
@@ -64,6 +66,8 @@ impl Ec2Client {
             .into_iter()
             .filter_map(|vol| vol.volume_type().map(|vt| vt.as_str().to_string()))
             .collect();
+
+        tracing::info!(?volume_types, "Resolved EBS volume types for instance");
 
         Ok(volume_types)
     }
