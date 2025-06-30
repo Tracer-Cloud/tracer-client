@@ -1,6 +1,8 @@
 use aws_config::SdkConfig;
 use aws_sdk_ec2 as ec2_client;
 
+use crate::cloud_providers::aws::types::pricing::VolumeMetadata;
+
 pub struct Ec2Client {
     pub client: Option<ec2_client::Client>,
 }
@@ -17,7 +19,7 @@ impl Ec2Client {
     pub async fn get_volume_types(
         &self,
         instance_id: &str,
-    ) -> Result<Vec<String>, ec2_client::Error> {
+    ) -> Result<Vec<VolumeMetadata>, ec2_client::Error> {
         let Some(client) = self.client.as_ref() else {
             tracing::error!("EC2 Client not initialized");
             return Ok(vec![]);
@@ -60,15 +62,24 @@ impl Ec2Client {
             .send()
             .await?;
 
-        let volume_types = volumes
+        let volume_metadata: Vec<VolumeMetadata> = volumes
             .volumes
             .unwrap_or_default()
             .into_iter()
-            .filter_map(|vol| vol.volume_type().map(|vt| vt.as_str().to_string()))
+            .filter_map(|ref vol| {
+                Some(VolumeMetadata {
+                    volume_id: vol.volume_id.clone()?,
+                    volume_type: vol.volume_type()?.as_str().to_string(),
+                    size_gib: vol.size?,
+                })
+            })
             .collect();
 
-        tracing::info!(?volume_types, "Resolved EBS volume types for instance");
+        tracing::info!(
+            ?volume_metadata,
+            "Resolved EBS volume metadata for instance"
+        );
 
-        Ok(volume_types)
+        Ok(volume_metadata)
     }
 }
