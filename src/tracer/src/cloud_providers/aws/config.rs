@@ -48,15 +48,20 @@ impl From<AwsConfig> for ValueKind {
     }
 }
 
+//AWS SDK may fallback to IMDS if running inside EC2.
 pub async fn get_initialized_aws_conf(
     initialization_conf: AwsConfig,
     region: &'static str,
 ) -> Option<SdkConfig> {
     let config_loader = aws_config::defaults(BehaviorVersion::latest());
-    let config = match initialization_conf {
-        AwsConfig::Profile(profile) => config_loader.profile_name(profile),
+    let loader = match initialization_conf {
+        AwsConfig::Profile(profile) => {
+            tracing::debug!("Trying to load AWS config using profile '{}'", profile);
+            config_loader.profile_name(profile)
+        }
         AwsConfig::RoleArn(arn) => {
-            let assumed_role_provider = aws_config::sts::AssumeRoleProvider::builder(arn)
+            tracing::debug!("Trying to assume role '{}'", &arn);
+            let assumed_role_provider = aws_config::sts::AssumeRoleProvider::builder(&arn)
                 .session_name("tracer-client-session")
                 .build()
                 .await;
@@ -64,48 +69,58 @@ pub async fn get_initialized_aws_conf(
             let assumed_credentials_provider =
                 match assumed_role_provider.provide_credentials().await {
                     Ok(creds) => creds,
-                    Err(_) => return None,
+                    Err(err) => {
+                        tracing::warn!("Failed to assume role '{}': {:?}", arn, err);
+                        return None;
+                    }
                 };
 
             config_loader.credentials_provider(assumed_credentials_provider)
         }
-        AwsConfig::Env => aws_config::from_env(),
-    }
-    .region(region)
-    .load()
-    .await;
+        AwsConfig::Env => {
+            tracing::debug!("Trying to load AWS config from environment (EC2/IMDS)");
+            aws_config::from_env()
+        }
+    };
 
+    let config = loader.region(region).load().await;
     let credentials_provider = config.credentials_provider()?;
 
     match credentials_provider.provide_credentials().await {
-        Ok(_) => {}
-        Err(_) => return None,
-    };
-
-    Some(config)
+        Ok(_) => {
+            tracing::debug!("Successfully retrieved AWS credentials");
+            Some(config)
+        }
+        Err(err) => {
+            tracing::warn!("Failed to get AWS credentials: {:?}", err);
+            None
+        }
+    }
 }
 
 pub async fn resolve_available_aws_config(
     profile: AwsConfig,
     region: &'static str,
 ) -> Option<SdkConfig> {
-    // First, try with explicit profile which is the default value for config now
-    let profile_conf = get_initialized_aws_conf(profile.clone(), region).await;
-
-    if profile_conf.is_some() {
-        tracing::info!("Resolved AWS credentials using profile '{}'", profile);
-        return profile_conf;
+    if let AwsConfig::Profile(profile_name) = &profile {
+        let profile_conf = get_initialized_aws_conf(profile.clone(), region).await;
+        if profile_conf.is_some() {
+            tracing::info!("Resolved AWS credentials using profile '{}'", profile_name);
+            return profile_conf;
+        } else {
+            tracing::warn!(
+                "Failed to resolve credentials using profile '{}'",
+                profile_name
+            );
+        }
     }
 
-    // Next, try with environment (works for EC2 / IAM role)
     let env_conf = get_initialized_aws_conf(AwsConfig::Env, region).await;
-
     if env_conf.is_some() {
-        tracing::info!("Resolved AWS credentials using environment/EC2 role");
+        tracing::info!("Resolved AWS credentials using environment.");
         return env_conf;
     }
 
-    // Nothing worked
-    tracing::warn!("Could not resolve AWS credentials from profile or environment");
+    tracing::warn!("Could not resolve AWS credentials from profile or environment.");
     None
 }
