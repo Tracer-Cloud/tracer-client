@@ -29,7 +29,7 @@ chrono = { workspace = true }
 sysinfo = { workspace = true }
 tracer_ebpf = { path = "../ebpf" }
 itertools = { workspace = true }
-once_cell = { workspace = true }
+
 mockall = { workspace = true }
 log = { workspace = true }
 reqwest = { workspace = true }
