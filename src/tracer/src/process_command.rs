@@ -7,7 +7,7 @@ use crate::init_command_interactive_mode;
 #[cfg(target_os = "linux")]
 use crate::logging::setup_logging;
 use crate::nondaemon_commands::{
-    clean_up_after_daemon, print_info, print_install_readiness, setup_config, update_tracer, wait,
+    clean_up_after_daemon, print_info, setup_config, update_tracer, wait,
 };
 use crate::process_identification::constants::{
     DEFAULT_DAEMON_PORT, PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR,
@@ -227,7 +227,6 @@ pub fn process_cli() -> Result<()> {
                             crate::process_identification::types::analytics::AnalyticsEventType::DaemonStartAttempted,
                             None,
                         ));
-                        let _ = print_install_readiness();
                         wait(&api_client).await?;
 
                         print_info(&api_client, false).await
@@ -247,7 +246,6 @@ pub fn process_cli() -> Result<()> {
                                 crate::process_identification::types::analytics::AnalyticsEventType::DaemonStartAttempted,
                                 None,
                             ));
-                            let _ = print_install_readiness();
                             wait(&api_client).await?;
 
                             print_info(&api_client, false).await
@@ -271,7 +269,6 @@ pub fn process_cli() -> Result<()> {
                     }
                 }
             }
-
             create_and_run_server(args, config);
             clean_up_after_daemon()
         }
