@@ -26,7 +26,7 @@ pub struct OnDemandTerm {
     pub price_dimensions: HashMap<String, serde_json::Value>,
 }
 
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct FlattenedData {
     pub instance_type: String,
     pub region_code: String,
@@ -154,17 +154,11 @@ impl EBSFilterBuilder {
                 .expect("failed to build productFamily filter"),
         ];
 
-        for vt in &self.volume_types {
-            let api_name = match vt.as_str() {
-                "gp2" => "gp2",
-                "gp3" => "gp3",
-                other => other,
-            };
-
+        for volume_type in &self.volume_types {
             filters.push(
                 PricingFilters::builder()
                     .field("volumeApiName".to_string())
-                    .value(api_name.to_string())
+                    .value(volume_type)
                     .r#type(PricingFilterType::TermMatch)
                     .build()
                     .expect("failed to build volumeApiName filter"),
@@ -173,4 +167,12 @@ impl EBSFilterBuilder {
 
         filters
     }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct InstancePricingContext {
+    pub ec2_pricing: FlattenedData,
+    pub ebs_pricing: Option<FlattenedData>,
+    pub total_hourly_cost: f64,
+    pub source: String, // "Live" or "Static"
 }

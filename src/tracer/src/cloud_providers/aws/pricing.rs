@@ -7,16 +7,10 @@ use crate::cloud_providers::aws::aws_metadata::AwsInstanceMetaData;
 use crate::cloud_providers::aws::config::{resolve_available_aws_config, AwsConfig};
 use crate::cloud_providers::aws::ec2::Ec2Client;
 use crate::cloud_providers::aws::types::pricing::{
-    EBSFilterBuilder, EC2FilterBuilder, FlattenedData, PricingData, ServiceCode,
+    EBSFilterBuilder, EC2FilterBuilder, FlattenedData, InstancePricingContext, PricingData,
+    ServiceCode,
 };
 use serde_query::Query;
-
-pub struct InstancePricingContext {
-    pub ec2_pricing: FlattenedData,
-    pub ebs_pricing: Option<FlattenedData>,
-    pub total_hourly_cost: f64,
-    pub source: String, // "Live" or "Static"
-}
 
 pub enum PricingSource {
     Static,
@@ -143,9 +137,7 @@ impl PricingClient {
         service_code: ServiceCode,
         filters: Option<Vec<PricingFilters>>,
     ) -> Option<FlattenedData> {
-        if self.pricing_client.is_none() {
-            return None;
-        }
+        self.pricing_client.as_ref()?;
 
         let strategy = ExponentialBackoff::from_millis(500).take(3);
 

@@ -52,11 +52,8 @@ async fn gather_system_properties(
     let aws_metadata = get_aws_instance_metadata().await;
     let is_aws_instance = aws_metadata.is_some();
 
-    let ec2_cost_analysis = if let Some(ref metadata) = &aws_metadata {
-        pricing_client
-            .get_aws_price_for_instance(metadata)
-            .await
-            .map(|v| v.total_hourly_cost)
+    let pricing_context = if let Some(ref metadata) = &aws_metadata {
+        pricing_client.get_aws_price_for_instance(metadata).await
     } else {
         None
     };
@@ -76,7 +73,8 @@ async fn gather_system_properties(
         aws_metadata,
         is_aws_instance,
         system_disk_io,
-        ec2_cost_per_hour: ec2_cost_analysis,
+        ec2_cost_per_hour: pricing_context.as_ref().map(|c| c.total_hourly_cost),
+        pricing_context,
     }
 }
 
