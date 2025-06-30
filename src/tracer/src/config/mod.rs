@@ -10,6 +10,8 @@ pub struct Config {
     pub api_key: String,
     pub process_polling_interval_ms: u64,
     pub batch_submission_interval_ms: u64,
+    pub batch_submission_retries: u64,
+    pub batch_submission_retry_delay_ms: u64,
     pub process_metrics_send_interval_ms: u64,
     pub file_size_not_changing_period_ms: u64,
     pub new_run_pause_ms: u64,
@@ -36,6 +38,8 @@ impl Config {
         json!({
             "process_polling_interval_ms": self.process_polling_interval_ms,
             "batch_submission_interval_ms": self.batch_submission_interval_ms,
+            "batch_submission_retries": self.batch_submission_retries,
+            "batch_submission_retry_delay_ms": self.batch_submission_retry_delay_ms,
             "process_metrics_send_interval_ms": self.process_metrics_send_interval_ms,
             "file_size_not_changing_period_ms": self.file_size_not_changing_period_ms,
             "new_run_pause_ms": self.new_run_pause_ms,

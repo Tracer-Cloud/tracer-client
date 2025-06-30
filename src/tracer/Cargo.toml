@@ -17,6 +17,7 @@ clap = { workspace = true }
 daemonize = { workspace = true }
 octocrab = { workspace = true }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
+tokio-retry = { workspace = true }
 tracing = { workspace = true }
 sqlx = { workspace = true }
 colored = { workspace = true }
@@ -57,6 +58,8 @@ lazy_static = { workspace = true }
 shlex = { workspace = true }
 bollard = { workspace = true }
 futures-util = { workspace = true }
+# TODO: this is a dependency of the pipeline manager, which is currently disabled
+#multi_index_map = { workspace = true }
 
 [dev-dependencies]
 sqlx = { workspace = true }
