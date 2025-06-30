@@ -38,8 +38,7 @@ impl InfoDisplay {
                 "name": &inner.pipeline_name,
                 "type": inner.tags.pipeline_type.as_deref().unwrap_or("Not set"),
                 "environment": inner.tags.environment.as_deref().unwrap_or("Not set"),
-                "user": inner.tags.user_operator.as_deref().unwrap_or("Not set"),
-                "dashboard_url": inner.get_pipeline_url(),
+                "user": inner.tags.user_operator.as_deref().unwrap_or("Not set")
             });
             json["run"] = serde_json::json!({
                 "name": &inner.run_name,
@@ -103,7 +102,6 @@ impl InfoDisplay {
         formatter.add_field("Pipeline type", pipeline_type, "white");
         formatter.add_field("Environment", pipeline_environment, "yellow");
         formatter.add_field("User", pipeline_user, "magenta");
-        formatter.add_hyperlink("Open dashboard ↗️", "Dashboard", &inner.get_pipeline_url());
 
         formatter.add_empty_line();
         formatter.add_section_header("Run details");
