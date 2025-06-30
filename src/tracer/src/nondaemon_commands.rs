@@ -1,8 +1,5 @@
 use std::process::Command;
 
-#[cfg(target_os = "linux")]
-use crate::utils::system_info::get_kernel_version;
-
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::process_identification::constants::{
