@@ -1,4 +1,4 @@
-use crate::cloud_providers::aws::config::get_initialized_aws_conf;
+use crate::cloud_providers::aws::config::resolve_available_aws_config;
 use aws_sdk_secretsmanager::Client;
 
 pub struct SecretsClient {
@@ -8,7 +8,7 @@ pub struct SecretsClient {
 impl SecretsClient {
     pub async fn new(initialization_conf: crate::cloud_providers::aws::config::AwsConfig) -> Self {
         let region = "us-east-1";
-        let config = get_initialized_aws_conf(initialization_conf, region).await;
+        let config = resolve_available_aws_config(initialization_conf, region).await;
 
         Self {
             client: Client::new(&config.unwrap()),

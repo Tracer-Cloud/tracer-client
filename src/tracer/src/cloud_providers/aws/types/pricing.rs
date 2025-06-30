@@ -80,6 +80,12 @@ impl FlattenedData {
             unit,
         }
     }
+
+    /// Returns the EC2 price in USD per minute.
+    /// Assumes price_per_unit is in USD per hour.
+    pub fn price_per_minute(&self) -> f64 {
+        self.price_per_unit / 60.0
+    }
 }
 
 #[derive(Debug)]

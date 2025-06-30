@@ -96,8 +96,8 @@ impl TracerClient {
         })
     }
 
-    async fn init_pricing_client(_config: &Config) -> PricingSource {
-        PricingSource::Static
+    async fn init_pricing_client(config: &Config) -> PricingSource {
+        PricingSource::new(config.aws_init_type.clone()).await
     }
 
     fn init_pipeline(cli_args: &FinalizedInitArgs) -> Arc<RwLock<PipelineMetadata>> {

@@ -3,7 +3,7 @@ use aws_sdk_pricing::types::Filter as PricingFilters;
 use tokio::time::{sleep, Duration};
 use tracing::{debug, error, info, trace, warn};
 
-use crate::cloud_providers::aws::config::{get_initialized_aws_conf, AwsConfig};
+use crate::cloud_providers::aws::config::{resolve_available_aws_config, AwsConfig};
 use crate::cloud_providers::aws::types::pricing::{FlattenedData, PricingData};
 use serde_query::Query;
 
@@ -13,6 +13,15 @@ pub enum PricingSource {
 }
 
 impl PricingSource {
+    pub async fn new(initialization_conf: AwsConfig) -> Self {
+        let client = PricingClient::new(initialization_conf, "us-east-1").await;
+
+        match client.client {
+            Some(_) => PricingSource::Live(client),
+            None => PricingSource::Static,
+        }
+    }
+
     pub async fn get_ec2_instance_price(
         &self,
         filters: Option<Vec<PricingFilters>>,
@@ -37,7 +46,7 @@ impl PricingClient {
     /// Note: Currently only us-east-1 region is supported for the pricing API
     pub async fn new(initialization_conf: AwsConfig, _region: &'static str) -> Self {
         let region = "us-east-1";
-        let config = get_initialized_aws_conf(initialization_conf, region).await;
+        let config = resolve_available_aws_config(initialization_conf, region).await;
 
         match config {
             Some(conf) => Self {

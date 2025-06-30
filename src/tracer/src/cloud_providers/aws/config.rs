@@ -84,3 +84,28 @@ pub async fn get_initialized_aws_conf(
 
     Some(config)
 }
+
+pub async fn resolve_available_aws_config(
+    profile: AwsConfig,
+    region: &'static str,
+) -> Option<SdkConfig> {
+    // First, try with explicit profile which is the default value for config now
+    let profile_conf = get_initialized_aws_conf(profile.clone(), region).await;
+
+    if profile_conf.is_some() {
+        tracing::info!("Resolved AWS credentials using profile '{}'", profile);
+        return profile_conf;
+    }
+
+    // Next, try with environment (works for EC2 / IAM role)
+    let env_conf = get_initialized_aws_conf(AwsConfig::Env, region).await;
+
+    if env_conf.is_some() {
+        tracing::info!("Resolved AWS credentials using environment/EC2 role");
+        return env_conf;
+    }
+
+    // Nothing worked
+    tracing::warn!("Could not resolve AWS credentials from profile or environment");
+    None
+}
