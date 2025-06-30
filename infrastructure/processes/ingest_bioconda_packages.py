@@ -223,6 +223,13 @@ def parse_meta_yaml(
                             if proc.returncode == 0:
                                 successful_commands.append(command)
                         except subprocess.TimeoutExpired:
+                            errors.append(
+                                {
+                                    "package": name,
+                                    "message": "Timed out executing command {pixi_command}",
+                                    "type": "warning",
+                                }
+                            )
                             pass
                 finally:
                     if Path(env).exists():
@@ -312,7 +319,7 @@ def main():
         "--timeout",
         type=int,
         help="Timeout in seconds for pixi commands",
-        default=30,
+        default=20,
     )
     parser.add_argument("chunk", type=int, help="Current chunk number (0-based)")
     parser.add_argument("total_chunks", type=int, help="Total number of chunks")
