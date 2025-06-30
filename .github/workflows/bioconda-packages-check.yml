@@ -44,7 +44,7 @@ jobs:
 
       - name: Ingest Bioconda packages
         run: |
-          set -euo pipefail
+          set -euxo pipefail
           mkdir -p logs
 
           # Set default for CHUNK_INDEX if not set

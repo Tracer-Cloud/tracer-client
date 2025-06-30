@@ -303,7 +303,6 @@ def main():
     """
     Main function to process all recipes.
     """
-    print("A")
     parser = argparse.ArgumentParser(
         description="Parse bioconda recipes meta.yaml files"
     )
@@ -331,12 +330,12 @@ def main():
     parser.add_argument("chunk", type=int, help="Current chunk number (0-based)")
     parser.add_argument("total_chunks", type=int, help="Total number of chunks")
     args = parser.parse_args()
-    print("B")
+    
     recipes_dir = args.recipes_dir
 
     if not recipes_dir.exists():
         sys.exit("Recipes directory not found!")
-    print("C")
+
     recipe_dirs = sorted([d for d in recipes_dir.iterdir() if d.is_dir()])
 
     chunk = args.chunk
