@@ -199,7 +199,7 @@ def parse_meta_yaml(
                         )
 
                     proc = subprocess.run(
-                        f"pixi add --manifest-path {env} {spec}",
+                        f"pixi add --manifest-path {env} {spec} >/dev/null 2>&1",
                         shell=True,
                         capture_output=True,
                     )
@@ -219,7 +219,7 @@ def parse_meta_yaml(
                         print(
                             f"Executing {name} command {i} of {len(test_commands)}: {command}"
                         )
-                        pixi_command = f"pixi run --manifest-path {env} {command}"
+                        pixi_command = f"pixi run --manifest-path {env} {command} >/dev/null 2>&1"
                         try:
                             proc = subprocess.run(
                                 pixi_command,
