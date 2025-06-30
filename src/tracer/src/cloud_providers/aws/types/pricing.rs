@@ -115,3 +115,62 @@ impl EC2FilterBuilder {
         ]
     }
 }
+
+#[derive(Clone)]
+pub(crate) enum ServiceCode {
+    Ec2,
+    Ebs,
+}
+
+impl ServiceCode {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match self {
+            ServiceCode::Ec2 => "AmazonEC2",
+            ServiceCode::Ebs => "AmazonEC2",
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct EBSFilterBuilder {
+    pub region: String,
+    pub volume_types: Vec<String>,
+}
+
+impl EBSFilterBuilder {
+    pub fn to_filter(&self) -> Vec<PricingFilters> {
+        let mut filters = vec![
+            PricingFilters::builder()
+                .field("regionCode".to_string())
+                .value(self.region.clone())
+                .r#type(PricingFilterType::TermMatch)
+                .build()
+                .expect("failed to build region filter"),
+            PricingFilters::builder()
+                .field("productFamily".to_string())
+                .value("Storage".to_string())
+                .r#type(PricingFilterType::TermMatch)
+                .build()
+                .expect("failed to build productFamily filter"),
+        ];
+
+        for vt in &self.volume_types {
+            let api_name = match vt.as_str() {
+                "gp2" => "gp2",
+                "gp3" => "gp3",
+                other => other,
+            };
+
+            filters.push(
+                PricingFilters::builder()
+                    .field("volumeApiName".to_string())
+                    .value(api_name.to_string())
+                    .r#type(PricingFilterType::TermMatch)
+                    .build()
+                    .expect("failed to build volumeApiName filter"),
+            );
+        }
+
+        filters
+    }
+}
