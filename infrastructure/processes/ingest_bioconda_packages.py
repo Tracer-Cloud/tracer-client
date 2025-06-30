@@ -213,14 +213,17 @@ def parse_meta_yaml(
                     successful_commands = []
                     for command in test_commands:
                         pixi_command = f"pixi run --manifest-path {env} {command}"
-                        proc = subprocess.run(
-                            pixi_command,
-                            shell=True,
-                            capture_output=True,
-                            timeout=timeout,
-                        )
-                        if proc.returncode == 0:
-                            successful_commands.append(command)
+                        try:
+                            proc = subprocess.run(
+                                pixi_command,
+                                shell=True,
+                                capture_output=True,
+                                timeout=timeout,
+                            )
+                            if proc.returncode == 0:
+                                successful_commands.append(command)
+                        except subprocess.TimeoutExpired:
+                            pass
                 finally:
                     if Path(env).exists():
                         shutil.rmtree(env)
@@ -309,7 +312,7 @@ def main():
         "--timeout",
         type=int,
         help="Timeout in seconds for pixi commands",
-        default=60,
+        default=30,
     )
     parser.add_argument("chunk", type=int, help="Current chunk number (0-based)")
     parser.add_argument("total_chunks", type=int, help="Total number of chunks")
