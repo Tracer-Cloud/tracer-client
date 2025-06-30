@@ -168,11 +168,7 @@ pub fn print_install_readiness() -> Result<()> {
     Ok(())
 }
 
-pub async fn print_config_info(
-    api_client: &DaemonClient,
-    config: &Config,
-    json: bool,
-) -> Result<()> {
+pub async fn print_info(api_client: &DaemonClient, json: bool) -> Result<()> {
     let mut display = InfoDisplay::new(70, json);
     let info = match api_client.send_info_request().await {
         Ok(info) => info,
@@ -182,7 +178,7 @@ pub async fn print_config_info(
             return Ok(());
         }
     };
-    display.print(info, config);
+    display.print(info);
     Ok(())
 }
 
