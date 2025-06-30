@@ -1,8 +1,8 @@
 use anyhow::Result;
-use once_cell::sync::Lazy;
 use regex::Regex;
 use std::cmp::Ordering;
 use std::fmt;
+use std::sync::LazyLock;
 
 include!(concat!(env!("OUT_DIR"), "/built.rs"));
 
@@ -26,8 +26,8 @@ impl Version {
     }
 
     pub fn current() -> &'static Self {
-        static VERSION: Lazy<Version> =
-            Lazy::new(|| Version::from_str(Version::current_str()).unwrap());
+        static VERSION: LazyLock<Version> =
+            LazyLock::new(|| Version::from_str(Version::current_str()).unwrap());
         &VERSION
     }
 
@@ -39,8 +39,8 @@ impl Version {
     /// Returns an error if the string is not in the correct format
     /// or any part is not a valid number.
     pub(super) fn from_str(s: &str) -> Result<Self, String> {
-        static RE: Lazy<Regex> =
-            Lazy::new(|| Regex::new(r"^(\d+)\.(\d+)\.(\d+)(?:\+(\d+))?$").unwrap());
+        static RE: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r"^(\d+)\.(\d+)\.(\d+)(?:\+(\d+))?$").unwrap());
 
         let err_msg = format!("Failed to parse version string: {}", s);
         let caps = RE.captures(s).ok_or(err_msg.clone())?;
