@@ -20,6 +20,18 @@ pub struct PricingData {
     pub on_demand: HashMap<String, serde_json::Value>,
 }
 
+#[derive(Debug, serde_query::DeserializeQuery)]
+pub struct EbsPricingData {
+    #[query(".product.attributes.regionCode")]
+    pub region_code: String,
+
+    #[query(".product.attributes.volumeApiName")]
+    pub instance_type: String, // using same field for compatibility
+
+    #[query(".terms.OnDemand")]
+    pub on_demand: HashMap<String, serde_json::Value>,
+}
+
 #[derive(Debug, serde::Deserialize)]
 pub struct OnDemandTerm {
     #[serde(rename = "priceDimensions", flatten)]
@@ -61,7 +73,7 @@ impl FlattenedData {
                 }
             }
         }
-        (0.0, "".to_string()) // Default if not found
+        (0.0, "".to_string())
     }
 
     pub fn flatten_data(data: &PricingData) -> FlattenedData {
@@ -76,6 +88,23 @@ impl FlattenedData {
             region_code: data.region_code.clone(),
             vcpu: data.vcpu.clone(),
             memory: data.memory.clone(),
+            price_per_unit,
+            unit,
+        }
+    }
+
+    pub fn flatten_ebs_data(data: &EbsPricingData) -> FlattenedData {
+        let (price_per_unit, unit) = data
+            .on_demand
+            .values()
+            .next()
+            .map_or((0.0, "".to_string()), Self::extract_price_info);
+
+        FlattenedData {
+            instance_type: data.instance_type.clone(), // volumeApiName
+            region_code: data.region_code.clone(),
+            vcpu: String::new(),
+            memory: String::new(),
             price_per_unit,
             unit,
         }
@@ -175,4 +204,12 @@ pub struct InstancePricingContext {
     pub ebs_pricing: Option<FlattenedData>,
     pub total_hourly_cost: f64,
     pub source: String, // "Live" or "Static"
+}
+
+/// Metadata for a single attached storage volume
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct VolumeMetadata {
+    pub volume_id: String,
+    pub volume_type: String,
+    pub size_gib: i32,
 }

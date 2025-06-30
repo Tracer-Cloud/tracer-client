@@ -1,5 +1,7 @@
 use aws_sdk_pricing as pricing;
 use aws_sdk_pricing::types::Filter as PricingFilters;
+use serde_query::DeserializeQuery;
+use std::error::Error;
 use tokio_retry::strategy::ExponentialBackoff;
 use tokio_retry::Retry;
 
@@ -7,10 +9,9 @@ use crate::cloud_providers::aws::aws_metadata::AwsInstanceMetaData;
 use crate::cloud_providers::aws::config::{resolve_available_aws_config, AwsConfig};
 use crate::cloud_providers::aws::ec2::Ec2Client;
 use crate::cloud_providers::aws::types::pricing::{
-    EBSFilterBuilder, EC2FilterBuilder, FlattenedData, InstancePricingContext, PricingData,
-    ServiceCode,
+    EBSFilterBuilder, EC2FilterBuilder, EbsPricingData, FlattenedData, InstancePricingContext,
+    PricingData, ServiceCode, VolumeMetadata,
 };
-use serde_query::Query;
 
 pub enum PricingSource {
     Static,
@@ -76,58 +77,42 @@ impl PricingClient {
         &self,
         metadata: &AwsInstanceMetaData,
     ) -> Option<InstancePricingContext> {
-        let ec2_filters = EC2FilterBuilder {
-            instance_type: metadata.instance_type.clone(),
-            region: metadata.region.clone(),
-        }
-        .to_filter();
+        let ec2_filters = Self::build_ec2_filters(metadata);
 
-        let volume_types = match &self.ec2_client {
-            Some(client) => client
-                .get_volume_types(&metadata.instance_id)
-                .await
-                .unwrap_or_default(),
-            None => vec![],
-        };
-        tracing::info!(?volume_types, "Got volume information from ec2");
-
-        let ebs_filters = EBSFilterBuilder {
-            region: metadata.region.clone(),
-            volume_types,
-        }
-        .to_filter();
-
-        tracing::info!(?ebs_filters, "EBS Filters");
-
-        self.get_instance_pricing_context(Some(ec2_filters), Some(ebs_filters))
+        let volumes = self
+            .get_volume_metadata(&metadata.instance_id)
             .await
-    }
+            .unwrap_or_default();
 
-    pub async fn get_instance_pricing_context(
-        &self,
-        ec2_filters: Option<Vec<PricingFilters>>,
-        ebs_filters: Option<Vec<PricingFilters>>,
-    ) -> Option<InstancePricingContext> {
-        if self.pricing_client.is_none() {
-            return Some(InstancePricingContext {
-                ec2_pricing: FlattenedData::default(),
-                ebs_pricing: None,
-                total_hourly_cost: 0.0,
-                source: "Static".to_string(),
-            });
-        }
+        tracing::info!(?volumes, "Got volume information from EC2");
+
+        let ebs_total_price = self
+            .get_total_ebs_price(&metadata.region, &volumes)
+            .await
+            .unwrap_or(0.0);
 
         let ec2_data = self
-            .get_price_with_retry(ServiceCode::Ec2, ec2_filters)
+            .retry_price_fetch::<PricingData>(
+                ServiceCode::Ec2,
+                Some(ec2_filters),
+                FlattenedData::flatten_data,
+            )
             .await?;
-        let ebs_data = self
-            .get_price_with_retry(ServiceCode::Ebs, ebs_filters)
-            .await;
 
-        tracing::info!("Got response for ebs data {:?}", ebs_data);
+        let ebs_data = if ebs_total_price > 0.0 {
+            Some(FlattenedData {
+                instance_type: "EBS_TOTAL".to_string(),
+                region_code: metadata.region.clone(),
+                vcpu: String::new(),
+                memory: String::new(),
+                price_per_unit: ebs_total_price,
+                unit: "USD/hr".to_string(),
+            })
+        } else {
+            None
+        };
 
-        let total =
-            ec2_data.price_per_unit + ebs_data.as_ref().map(|e| e.price_per_unit).unwrap_or(0.0);
+        let total = ec2_data.price_per_unit + ebs_total_price;
 
         Some(InstancePricingContext {
             ec2_pricing: ec2_data,
@@ -137,12 +122,75 @@ impl PricingClient {
         })
     }
 
-    async fn get_price_with_retry(
+    /// Extracts EC2 filter logic
+    fn build_ec2_filters(metadata: &AwsInstanceMetaData) -> Vec<PricingFilters> {
+        EC2FilterBuilder {
+            instance_type: metadata.instance_type.clone(),
+            region: metadata.region.clone(),
+        }
+        .to_filter()
+    }
+
+    /// Builds EBS filters for a single volume type
+    fn build_ebs_filters(region: &str, volume_type: &str) -> Vec<PricingFilters> {
+        EBSFilterBuilder {
+            region: region.to_string(),
+            volume_types: vec![volume_type.to_string()],
+        }
+        .to_filter()
+    }
+
+    /// Fetches volume metadata (type, size, ID) for an instance
+    async fn get_volume_metadata(&self, instance_id: &str) -> Option<Vec<VolumeMetadata>> {
+        let client = self.ec2_client.as_ref()?;
+        client.get_volume_types(instance_id).await.ok()
+    }
+
+    async fn get_total_ebs_price(&self, region: &str, volumes: &[VolumeMetadata]) -> Option<f64> {
+        let mut total_price = 0.0;
+
+        for vol in volumes {
+            let cost = self.calculate_volume_cost(region, vol).await.unwrap_or(0.0);
+            total_price += cost;
+        }
+
+        Some(total_price)
+    }
+
+    /// Returns the cost for a single volume
+    async fn calculate_volume_cost(&self, region: &str, vol: &VolumeMetadata) -> Option<f64> {
+        let filters = Self::build_ebs_filters(region, &vol.volume_type);
+        let price_data = self
+            .retry_price_fetch::<EbsPricingData>(
+                ServiceCode::Ebs,
+                Some(filters),
+                FlattenedData::flatten_ebs_data,
+            )
+            .await;
+
+        price_data.map(|data| {
+            let cost = vol.size_gib as f64 * data.price_per_unit;
+            tracing::info!(
+                %cost,
+                volume=?vol.volume_id,
+                type=?vol.volume_type,
+                size=?vol.size_gib,
+                "Calculated cost for volume"
+            );
+            cost
+        })
+    }
+
+    async fn retry_price_fetch<T>(
         &self,
         service_code: ServiceCode,
         filters: Option<Vec<PricingFilters>>,
-    ) -> Option<FlattenedData> {
-        self.pricing_client.as_ref()?;
+        flatten_fn: fn(&T) -> FlattenedData,
+    ) -> Option<FlattenedData>
+    where
+        T: for<'de> DeserializeQuery<'de> + Send + Sync,
+    {
+        let _ = self.pricing_client.as_ref()?;
 
         let strategy = ExponentialBackoff::from_millis(500).take(3);
 
@@ -153,7 +201,10 @@ impl PricingClient {
             move || {
                 let filters = filters.clone();
                 let service_code = service_code.clone();
-                async move { self.fetch_price(service_code, filters).await }
+                async move {
+                    self.fetch_price::<T>(service_code, filters, flatten_fn)
+                        .await
+                }
             }
         })
         .await;
@@ -161,11 +212,15 @@ impl PricingClient {
         result.ok()
     }
 
-    async fn fetch_price(
+    async fn fetch_price<T>(
         &self,
         service_code: ServiceCode,
         filters: Option<Vec<PricingFilters>>,
-    ) -> Result<FlattenedData, Box<dyn std::error::Error + Send + Sync>> {
+        flatten_fn: fn(&T) -> FlattenedData,
+    ) -> Result<FlattenedData, Box<dyn Error + Send + Sync>>
+    where
+        T: for<'de> DeserializeQuery<'de>,
+    {
         let mut response = self
             .pricing_client
             .as_ref()
@@ -181,8 +236,8 @@ impl PricingClient {
         while let Some(output) = response.next().await {
             let output = output?;
             for product in output.price_list() {
-                if let Ok(pricing) = serde_json::from_str::<Query<PricingData>>(product) {
-                    let flat = FlattenedData::flatten_data(&pricing.into());
+                if let Ok(pricing) = serde_json::from_str::<serde_query::Query<T>>(product) {
+                    let flat = flatten_fn(&pricing.into());
                     if flat.price_per_unit > highest_price.price_per_unit {
                         highest_price = flat;
                     }
