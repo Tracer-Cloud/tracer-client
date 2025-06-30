@@ -94,26 +94,33 @@ jobs:
             $(find all-logs -type f -name 'bioconda.importable.*.yml') > all_bioconda.importable.yml
           ./yq eval-all '. as $item ireduce ({}; . *+ $item)' \
             $(find all-logs -type f -name 'bioconda.ambiguous.*.yml') > all_bioconda.ambiguous.yml
-          find all-logs -type f -name '*.txt' -exec cat {} > all_errors.txt \;
+          ./yq eval-all '. as $item ireduce ({}; . *+ $item)' \
+            $(find all-logs -type f -name 'bioconda.errors.*.yml') > all_bioconda.errors.yml
+          find all-logs -type f -name 'missing_meta_yaml.*.txt' -exec cat {} > all_missing_meta_yaml.txt \;
 
       - uses: actions/upload-artifact@v4
         with:
-          name: bioconda.rules.yml
+          name: all_rules
           path: all_bioconda.rules.yml
 
       - uses: actions/upload-artifact@v4
         with:
-          name: bioconda.importable.yml
+          name: all_importable
           path: all_bioconda.importable.yml
 
       - uses: actions/upload-artifact@v4
         with:
-          name: bioconda.ambiguous.yml
+          name: all_ambiguous
           path: all_bioconda.ambiguous.yml
 
       - uses: actions/upload-artifact@v4
         with:
-          name: errors.txt
-          path: all_errors.txt
+          name: all_errors
+          path: all_bioconda.errors.yml
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: all_missing_meta_yaml
+          path: all_missing_meta_yaml.txt
 
 

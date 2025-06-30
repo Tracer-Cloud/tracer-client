@@ -95,7 +95,6 @@ def parse_meta_yaml(
     importable_packages: list,
     ambiguous_packages: list,
     errors: list[str],
-    warnings: list[str],
     timeout: int,
 ) -> None:
     """
@@ -131,21 +130,39 @@ def parse_meta_yaml(
         yaml_data = yaml.safe_load(rendered_content)
 
         if not yaml_data:
-            errors.append(f"Error parsing meta.yaml for package {package}")
+            errors.append(
+                {
+                    "package": package,
+                    "message": f"Error parsing meta.yaml for package {package}",
+                    "type": "error",
+                }
+            )
             return
 
         # Get package name
         if "package" in yaml_data and "name" in yaml_data["package"]:
             name = yaml_data["package"]["name"]
         else:
-            errors.append(f"No package name for package {package}")
+            errors.append(
+                {
+                    "package": name,
+                    "message": f"No package name for package {package}",
+                    "type": "error",
+                }
+            )
             return
 
         # Get version from YAML data
         if "package" in yaml_data and "version" in yaml_data["package"]:
             version = yaml_data["package"]["version"]
         else:
-            warnings.append(f"No version found for package {package}")
+            errors.append(
+                {
+                    "package": name,
+                    "message": f"No version found for package {package}",
+                    "type": "warning",
+                }
+            )
             version = None
 
         # Get test commands
@@ -185,7 +202,11 @@ def parse_meta_yaml(
                     )
                     if proc.returncode != 0:
                         errors.append(
-                            f"Error creating environment for package {name}: {proc.stderr.decode('utf-8')}"
+                            {
+                                "package": name,
+                                "message": f"Error creating environment for package {name}: {proc.stderr.decode('utf-8')}",
+                                "type": "error",
+                            }
                         )
                         return
 
@@ -229,15 +250,37 @@ def parse_meta_yaml(
                 )
             else:
                 errors.append(
-                    f"No test commands or imports found for package {package}"
+                    {
+                        "package": name,
+                        "message": f"No test commands or imports found for package {package}",
+                        "type": "error",
+                    }
                 )
         else:
-            errors.append(f"No test section found for package {package}")
+            errors.append(
+                {
+                    "package": name,
+                    "message": f"No test section found for package {package}",
+                    "type": "error",
+                }
+            )
 
     except yaml.YAMLError as e:
-        errors.append(f"YAML parsing error for package {package}: {e}")
+        errors.append(
+            {
+                "package": name,
+                "message": f"YAML parsing error for package {package}: {e}",
+                "type": "error",
+            }
+        )
     except Exception as e:
-        errors.append(f"Unexpected error for package {package}: {e}")
+        errors.append(
+            {
+                "package": name,
+                "message": f"Unexpected error for package {package}: {e}",
+                "type": "error",
+            }
+        )
 
 
 def main():
@@ -266,7 +309,7 @@ def main():
         "--timeout",
         type=int,
         help="Timeout in seconds for pixi commands",
-        default=20,
+        default=60,
     )
     parser.add_argument("chunk", type=int, help="Current chunk number (0-based)")
     parser.add_argument("total_chunks", type=int, help="Total number of chunks")
@@ -309,7 +352,6 @@ def main():
     importable_packages = []
     ambiguous_packages = []
     errors = []
-    warnings = []
 
     # Iterate through all subdirectories in recipes
     for recipe_dir, meta_file in meta_files:
@@ -320,7 +362,6 @@ def main():
             importable_packages,
             ambiguous_packages,
             errors,
-            warnings,
             args.timeout,
         )
 
@@ -336,12 +377,9 @@ def main():
     output_file = output_dir / f"bioconda.rules.{chunk}.yml"
     importable_file = output_dir / f"bioconda.importable.{chunk}.yml"
     ambiguous_packages_file = output_dir / f"bioconda.ambiguous.{chunk}.yml"
+    errors_file = output_dir / f"bioconda.errors.{chunk}.yml"
     missing_meta_yaml_file = output_dir / f"missing_meta_yaml.{chunk}.txt"
-    errors_file = output_dir / f"errors.{chunk}.txt"
-    warnings_file = output_dir / f"warnings.{chunk}.txt"
     try:
-        with open(missing_meta_yaml_file, "w", encoding="utf-8") as f:
-            f.write("\n".join(missing_meta_yaml))
         with open(output_file, "w", encoding="utf-8") as f:
             yaml.dump(
                 {"rules": executable_packages}, f, default_flow_style=False, indent=2
@@ -355,9 +393,9 @@ def main():
                 {"packages": ambiguous_packages}, f, default_flow_style=False, indent=2
             )
         with open(errors_file, "w", encoding="utf-8") as f:
-            f.write("\n".join(errors))
-        with open(warnings_file, "w", encoding="utf-8") as f:
-            f.write("\n".join(warnings))
+            yaml.dump({"errors": errors}, f, default_flow_style=False, indent=2)
+        with open(missing_meta_yaml_file, "w", encoding="utf-8") as f:
+            f.write("\n".join(missing_meta_yaml))
     except Exception as e:
         sys.exit(f"Error writing output file: {e}")
 
@@ -365,13 +403,12 @@ def main():
     print(f"Successfully processed {len(executable_packages)} executable packages")
     print(f"Successfully processed {len(importable_packages)} importable packages")
     print(f"Unresolved packages: {len(ambiguous_packages)}")
-    print(f"Encountered errors in {len(errors)} packages")
+    print(f"Encountered errors/warnings in {len(errors)} packages")
     print(f"Executable packages written to {output_file}")
     print(f"Importable packages written to {importable_file}")
     print(f"Unresolved packages written to {ambiguous_packages_file}")
     print(f"Packages with missing meta.yaml written to {missing_meta_yaml_file}")
-    print(f"Errors written to {errors_file}")
-    print(f"Warnings written to {warnings_file}")
+    print(f"Errors/warnings written to {errors_file}")
 
 
 if __name__ == "__main__":
