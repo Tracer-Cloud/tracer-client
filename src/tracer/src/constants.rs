@@ -4,6 +4,8 @@ use crate::cloud_providers::aws::types::aws_region::AwsRegion::UsEast2;
 pub const DEFAULT_API_KEY: &str = "EAjg7eHtsGnP3fTURcPz1";
 pub const PROCESS_POLLING_INTERVAL_MS: u64 = 5;
 pub const BATCH_SUBMISSION_INTERVAL_MS: u64 = 5000;
+pub const BATCH_SUBMISSION_RETRIES: u64 = 3;
+pub const BATCH_SUBMISSION_RETRY_DELAY_MS: u64 = 2000;
 pub const NEW_RUN_PAUSE_MS: u64 = 10 * 60 * 1000;
 pub const PROCESS_METRICS_SEND_INTERVAL_MS: u64 = 500;
 pub const FILE_SIZE_NOT_CHANGING_PERIOD_MS: u64 = 1000 * 60;

@@ -119,17 +119,17 @@ impl BoxFormatter {
     pub fn get_output(&self) -> &str {
         &self.output
     }
-    pub fn add_hyperlink(&mut self, label: &str, url: &str, display_text: &str) {
-        let link = if self.macos_terminal {
+    pub fn add_hyperlink(&mut self, label: &str, macos_label: &str, url: &str) {
+        if self.macos_terminal {
             // Terminal.app: show plain blue URL
-            format!("🔗 {}", url).blue().to_string()
+            let link = format!("🔗 {}", url).blue().to_string();
+            writeln!(&mut self.output, "│ {:<20} │ {}  ", macos_label, link).unwrap();
         } else {
             // Other terminals: clickable hyperlink
-            let display_with_indicator = format!("🔗 {}", display_text);
-            let hyperlink = format!("\x1B]8;;{}\x07{}\x1B]8;;\x07", url, display_with_indicator);
-            hyperlink.blue().to_string()
+            let hyperlink = format!("\x1B]8;;{}\x07{}\x1B]8;;\x07", url, label);
+            let link = hyperlink.blue().to_string();
+            let label = "";
+            writeln!(&mut self.output, "│ {:<20} │ {}", label, link).unwrap();
         };
-
-        writeln!(&mut self.output, "│ {:<20} │ {}  ", label, link).unwrap();
     }
 }

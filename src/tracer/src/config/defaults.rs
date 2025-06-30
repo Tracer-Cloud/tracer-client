@@ -1,7 +1,8 @@
 use crate::cloud_providers::aws::config::AwsConfig;
 use crate::config::Config;
 use crate::constants::{
-    AWS_REGION, BATCH_SUBMISSION_INTERVAL_MS, DEFAULT_API_KEY, FILE_SIZE_NOT_CHANGING_PERIOD_MS,
+    AWS_REGION, BATCH_SUBMISSION_INTERVAL_MS, BATCH_SUBMISSION_RETRIES,
+    BATCH_SUBMISSION_RETRY_DELAY_MS, DEFAULT_API_KEY, FILE_SIZE_NOT_CHANGING_PERIOD_MS,
     LOG_FORWARD_ENDPOINT_DEV, LOG_FORWARD_ENDPOINT_PROD, NEW_RUN_PAUSE_MS,
     PROCESS_METRICS_SEND_INTERVAL_MS, PROCESS_POLLING_INTERVAL_MS, SENTRY_DSN,
 };
@@ -30,6 +31,8 @@ impl Default for Config {
             api_key: DEFAULT_API_KEY.to_string(),
             process_polling_interval_ms: PROCESS_POLLING_INTERVAL_MS,
             batch_submission_interval_ms: BATCH_SUBMISSION_INTERVAL_MS,
+            batch_submission_retries: BATCH_SUBMISSION_RETRIES,
+            batch_submission_retry_delay_ms: BATCH_SUBMISSION_RETRY_DELAY_MS,
             process_metrics_send_interval_ms: PROCESS_METRICS_SEND_INTERVAL_MS,
             file_size_not_changing_period_ms: FILE_SIZE_NOT_CHANGING_PERIOD_MS,
             new_run_pause_ms: NEW_RUN_PAUSE_MS,

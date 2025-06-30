@@ -203,6 +203,7 @@ impl TracerClient {
 
         #[cfg(not(target_os = "linux"))]
         {
+            info!("Detected MacOS. eBPF is not supported on MacOS.");
             info!("Starting process polling monitoring on non-Linux platform");
             match self
                 .ebpf_watcher
