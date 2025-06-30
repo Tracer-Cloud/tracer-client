@@ -211,7 +211,10 @@ def parse_meta_yaml(
                         return
 
                     successful_commands = []
-                    for command in test_commands:
+                    for i, command in enumerate(test_commands):
+                        print(
+                            f"Executing {name} command {i} of {len(test_commands)}: {command}"
+                        )
                         pixi_command = f"pixi run --manifest-path {env} {command}"
                         try:
                             proc = subprocess.run(
@@ -221,8 +224,12 @@ def parse_meta_yaml(
                                 timeout=timeout,
                             )
                             if proc.returncode == 0:
+                                print("  success")
                                 successful_commands.append(command)
+                            else:
+                                print("  failure")
                         except subprocess.TimeoutExpired:
+                            print("  timeout")
                             errors.append(
                                 {
                                     "package": name,
@@ -364,7 +371,8 @@ def main():
     errors = []
 
     # Iterate through all subdirectories in recipes
-    for recipe_dir, meta_file in meta_files:
+    for i, (recipe_dir, meta_file) in enumerate(meta_files):
+        print(f"Processing {i} of {len(meta_files)}")
         parse_meta_yaml(
             recipe_dir.name,
             meta_file,
