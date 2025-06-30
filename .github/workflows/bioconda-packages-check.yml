@@ -44,13 +44,15 @@ jobs:
 
       - name: Ingest Bioconda packages
         run: |
-          set -euxo pipefail
+          set -euo pipefail
           mkdir -p logs
 
           # Set default for CHUNK_INDEX if not set
           CHUNK_INDEX="${CHUNK_INDEX:-0}"
 
-          python ./tracer-client/infrastructure/processes/ingest_bioconda_packages.py \
+          echo "processing CHUNK_INDEX: $CHUNK_INDEX"
+
+          timeout 20m python ./tracer-client/infrastructure/processes/ingest_bioconda_packages.py \
             -d bioconda-recipes/recipes \
             -o logs \
             $CHUNK_INDEX 200
