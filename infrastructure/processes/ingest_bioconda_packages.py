@@ -15,6 +15,7 @@ from pathlib import Path
 
 import yaml
 from jinja2 import Environment
+from packaging.version import Version
 
 VERSION_RE = re.compile(r'{%\s*set version\s*=\s*["\']([^"\']+)["\']')
 
@@ -31,6 +32,8 @@ def find_meta_file(d: Path) -> Path:
         subdirs = [d for d in d.iterdir() if d.is_dir()]
         if len(subdirs) == 1:
             d = subdirs[0]
+        elif len(subdirs) > 1:
+            d = sorted(subdirs, key=lambda d: Version(d.name))[-1]
         else:
             break
 
@@ -330,7 +333,7 @@ def main():
     parser.add_argument("chunk", type=int, help="Current chunk number (0-based)")
     parser.add_argument("total_chunks", type=int, help="Total number of chunks")
     args = parser.parse_args()
-    
+
     recipes_dir = args.recipes_dir
 
     if not recipes_dir.exists():
@@ -413,6 +416,7 @@ def main():
             yaml.dump({"errors": errors}, f, default_flow_style=False, indent=2)
         with open(missing_meta_yaml_file, "w", encoding="utf-8") as f:
             f.write("\n".join(missing_meta_yaml))
+            f.write("\n")
     except Exception as e:
         sys.exit(f"Error writing output file: {e}")
 

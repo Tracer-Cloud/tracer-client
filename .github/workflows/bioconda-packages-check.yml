@@ -37,6 +37,7 @@ jobs:
         run: |
           pip install PyYAML
           pip install jinja2
+          pip install packaging
 
       - name: Setup environment
         run: |
