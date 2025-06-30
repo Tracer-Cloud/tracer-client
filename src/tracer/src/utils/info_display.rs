@@ -1,4 +1,3 @@
-use crate::config::Config;
 use crate::daemon::structs::InfoResponse;
 use crate::process_identification::constants::{LOG_FILE, STDERR_FILE, STDOUT_FILE};
 use crate::utils::cli::BoxFormatter;
@@ -14,21 +13,21 @@ impl InfoDisplay {
         Self { width, json }
     }
 
-    pub fn print(&self, info: InfoResponse, config: &Config) {
+    pub fn print(&self, info: InfoResponse) {
         if self.json {
-            self.print_json(info, config);
+            self.print_json(info);
             return;
         }
         let mut formatter = BoxFormatter::new(self.width);
 
         self.format_status_pipeline_info(&mut formatter, info);
 
-        self.format_config_and_logs(&mut formatter, config);
+        self.format_log_files(&mut formatter);
         formatter.add_footer();
         println!("{}", formatter.get_output());
     }
 
-    fn print_json(&self, info: InfoResponse, config: &Config) {
+    fn print_json(&self, info: InfoResponse) {
         let mut json = serde_json::json!({});
         if let Some(inner) = &info.inner {
             json["tracer_status"] = serde_json::json!({
@@ -59,15 +58,10 @@ impl InfoDisplay {
             });
             return;
         }
-
-        json["config"] = serde_json::json!({
-            "polling_interval": config.process_polling_interval_ms,
-            "batch_interval": config.batch_submission_interval_ms,
-        });
         json["log_files"] = serde_json::json!({
             "stdout": STDOUT_FILE,
             "stderr": STDERR_FILE,
-            "log": LOG_FILE,
+            "daemon": LOG_FILE,
         });
         println!("{}", serde_json::to_string_pretty(&json).unwrap());
     }
@@ -164,23 +158,12 @@ impl InfoDisplay {
         println!("{}", formatter.get_output());
     }
 
-    fn format_config_and_logs(&self, formatter: &mut BoxFormatter, config: &Config) {
-        formatter.add_section_header("Configuration & logs");
+    fn format_log_files(&self, formatter: &mut BoxFormatter) {
+        formatter.add_section_header("Log files");
         formatter.add_empty_line();
 
-        formatter.add_field(
-            "Polling interval",
-            &format!("{} ms", config.process_polling_interval_ms),
-            "yellow",
-        );
-        formatter.add_field(
-            "Batch interval",
-            &format!("{} ms", config.batch_submission_interval_ms),
-            "yellow",
-        );
-        formatter.add_field("Log files", "Standard output", "cyan");
-        formatter.add_field("", &format!("  {}", STDOUT_FILE), "white");
-        formatter.add_field("", &format!("  {}", STDERR_FILE), "white");
-        formatter.add_field("", &format!("  {}", LOG_FILE), "white");
+        formatter.add_field("Standard output", &format!("  {}", STDOUT_FILE), "white");
+        formatter.add_field("Err output", &format!("  {}", STDERR_FILE), "white");
+        formatter.add_field("Daemon output", &format!("  {}", LOG_FILE), "white");
     }
 }
