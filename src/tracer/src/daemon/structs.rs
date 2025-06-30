@@ -75,12 +75,20 @@ impl InnerInfoResponse {
 
     pub fn formatted_runtime(&self) -> String {
         let duration = self.total_runtime();
-        format!(
-            "{}h {}m {}s",
-            duration.num_hours(),
-            duration.num_minutes() % 60,
-            duration.num_seconds() % 60
-        )
+        let hours = duration.num_hours();
+        let minutes = duration.num_minutes() % 60;
+        let seconds = duration.num_seconds() % 60;
+
+        let mut parts = Vec::new();
+        if hours > 0 {
+            parts.push(format!("{}h", hours));
+        }
+        if minutes > 0 || hours > 0 {
+            parts.push(format!("{}m", minutes));
+        }
+        parts.push(format!("{}s", seconds));
+
+        parts.join(" ")
     }
 }
 
