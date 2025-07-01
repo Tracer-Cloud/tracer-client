@@ -35,7 +35,7 @@ impl YamlFile {
         dest: &mut HashSet<T>,
     ) -> Result<()> {
         match self {
-            Self::Embedded(yaml) => load_from_yaml_array_str(*yaml, key, dest),
+            Self::Embedded(yaml) => load_from_yaml_array_str(yaml, key, dest),
             Self::StaticPath(path) => load_from_yaml_array_file(path, key, dest),
             Self::DynamicPath(path) => load_from_yaml_array_file(path, key, dest),
         }
@@ -69,9 +69,8 @@ pub fn load_from_yaml_array_str<T: TryFrom<Yaml, Error = anyhow::Error> + Hash +
         .ok_or(anyhow!("Missing top-level key {}", key))?
         .into_iter()
         .try_for_each(|yaml| {
-            yaml.try_into().and_then(|t| {
+            yaml.try_into().map(|t| {
                 dest.insert(t);
-                Ok(())
             })
         })
 }
