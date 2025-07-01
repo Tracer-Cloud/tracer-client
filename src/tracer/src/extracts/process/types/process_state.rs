@@ -1,4 +1,3 @@
-use crate::process_identification::target_process::target::Target;
 use crate::process_identification::target_process::target_manager::TargetManager;
 use std::collections::{HashMap, HashSet};
 use tokio::task::JoinHandle;
@@ -65,10 +64,6 @@ impl ProcessState {
 
     pub fn insert_process(&mut self, pid: usize, process_start_trigger: ProcessStartTrigger) {
         self.processes.insert(pid, process_start_trigger);
-    }
-
-    pub fn update_targets(&mut self, targets: Vec<Target>) {
-        self.target_manager.targets = targets;
     }
 
     pub fn insert_out_of_memory_victim(

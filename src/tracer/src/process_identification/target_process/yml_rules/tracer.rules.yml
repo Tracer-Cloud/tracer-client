@@ -350,7 +350,7 @@ rules:
   - rule_name: kraken2 command
     display_name: kraken2
     condition:
-      command_contains: kraken2
+      process_name_is: kraken2
   - rule_name: kraken2-build command
     display_name: kraken2
     condition:
