@@ -8,17 +8,18 @@ use crate::daemon::handlers::tag::{tag, TAG_ENDPOINT};
 use crate::daemon::handlers::terminate::{terminate, TERMINATE_ENDPOINT};
 use crate::daemon::state::DaemonState;
 use axum::routing::{get, post, MethodRouter};
-use lazy_static::lazy_static;
+use std::sync::LazyLock;
 
-lazy_static! {
-    pub(super) static ref ROUTES: Vec<(&'static str, MethodRouter<DaemonState>)> = vec![
-        (LOG_ENDPOINT, post(log)),
-        (TERMINATE_ENDPOINT, post(terminate)),
-        (START_ENDPOINT, post(start)),
-        (END_ENDPOINT, post(end)),
-        (ALERT_ENDPOINT, post(alert)),
-        (REFRESH_CONFIG_ENDPOINT, post(refresh_config)),
-        (TAG_ENDPOINT, post(tag)),
-        (INFO_ENDPOINT, get(info)),
-    ];
-}
+pub(super) static ROUTES: LazyLock<Vec<(&'static str, MethodRouter<DaemonState>)>> =
+    LazyLock::new(|| {
+        vec![
+            (LOG_ENDPOINT, post(log)),
+            (TERMINATE_ENDPOINT, post(terminate)),
+            (START_ENDPOINT, post(start)),
+            (END_ENDPOINT, post(end)),
+            (ALERT_ENDPOINT, post(alert)),
+            (REFRESH_CONFIG_ENDPOINT, post(refresh_config)),
+            (TAG_ENDPOINT, post(tag)),
+            (INFO_ENDPOINT, get(info)),
+        ]
+    });

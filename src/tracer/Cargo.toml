@@ -29,7 +29,7 @@ chrono = { workspace = true }
 sysinfo = { workspace = true }
 tracer_ebpf = { path = "../ebpf" }
 itertools = { workspace = true }
-once_cell = { workspace = true }
+
 mockall = { workspace = true }
 log = { workspace = true }
 reqwest = { workspace = true }
@@ -54,12 +54,10 @@ dialoguer = { workspace = true }
 regex = { workspace = true }
 rustls = { workspace = true }
 yaml-rust2 = { workspace = true }
-lazy_static = { workspace = true }
 shlex = { workspace = true }
 bollard = { workspace = true }
 futures-util = { workspace = true }
-# TODO: this is a dependency of the pipeline manager, which is currently disabled
-#multi_index_map = { workspace = true }
+multi_index_map = { workspace = true }
 
 [dev-dependencies]
 sqlx = { workspace = true }

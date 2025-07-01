@@ -1,10 +1,10 @@
-use once_cell::sync::Lazy;
 use rand::seq::IndexedRandom;
 use rand::Rng;
+use std::sync::LazyLock;
 
-static ADJECTIVES: Lazy<Vec<&str>> =
-    Lazy::new(|| vec!["snowy", "silent", "desert", "mystic", "ancient"]);
-static ANIMALS: Lazy<Vec<&str>> = Lazy::new(|| {
+static ADJECTIVES: LazyLock<Vec<&str>> =
+    LazyLock::new(|| vec!["snowy", "silent", "desert", "mystic", "ancient"]);
+static ANIMALS: LazyLock<Vec<&str>> = LazyLock::new(|| {
     vec![
         "owl", "wolf", "lion", "tiger", "hawk", "eagle", "fox", "bear", "penguin", "dolphin",
         "elephant", "leopard", "giraffe", "rhino", "panther", "falcon", "lynx", "moose", "otter",

@@ -198,7 +198,7 @@ sudo chown -R "${USER_NAME}:${USER_NAME}" /workspace/
 
 # Cloning private test pipelines
 echo "Cloning private test pipelines"
-cd ~ && git clone https://github.com/Tracer-Cloud/tracer-test-pipelines-bioinformatics.git --recurse-submodules
+cd ~ && git clone https://github.com/Tracer-Cloud/nextflow-test-pipelines.git --recurse-submodules
 
-cd ~/tracer-test-pipelines-bioinformatics && git fetch
+cd ~/nextflow-test-pipelines && git fetch
 echo "Setup complete."

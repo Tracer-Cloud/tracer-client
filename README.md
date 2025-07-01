@@ -6,8 +6,7 @@ Tracer Linux Agent: Observability for Scientific HPC Workloads
 
 
 ## What Is Tracer and Why Use It? 
-- Tracer is a system-level observability platform purpose-built for scientific computing. It combines cutting-edge technological advances with the deep understanding of scientific industries to give insights into their speed and costs.
-Its one-line install Linux agent and instant dashboards allow for real-time insights into scientific computing environments.
+- Tracer is a system-level monitoring platform purpose-built for scientific computing. It is a a one-line install Linux agent and instant dashboards to give you insights into pipeline performance and cost optimization. 
 
 - Unlike industry agnostic monitoring agents, Tracer structures DevOps data for scientific pipelines, providing clear visibility into pipeline stages and execution runs. In environments like AWS Batch, where processes and containers are loosely connected, users struggle to understand which processes belong to which pipeline run, and frequently lose logs from failed containers, making debugging difficult.
 
@@ -17,7 +16,8 @@ Its one-line install Linux agent and instant dashboards allow for real-time insi
 
 <br />
 
-![image](https://github.com/user-attachments/assets/93eb5176-afb9-4ebb-b59d-feb5c7909850)
+![image](https://github.com/user-attachments/assets/c59b2db5-81c0-4d92-b614-e8733a0303b9)
+
 <br />
 
 ## Key Features
@@ -31,13 +31,16 @@ New metrics that help you speed up your pipelines and maximize your budget:
 
 <br />
 
-## Quickstart Tracer
+## Get Started
 
-We recommend using the Sandbox Environment for an easy ans quick onboarding experience: https://sandbox.tracer.cloud/
+### 1. Access the Sandbox
 
-Click the ‘Get started’ button and follow the guided steps—no AWS credentials or setup required.
+The easiest way to get started with Tracer is via our **browser-based sandbox**:  
+👉 [https://sandbox.tracer.cloud/](https://sandbox.tracer.cloud/)
 
-### 1. Install Tracer With One Line of Code
+→ Click **“Get started”** to launch a guided onboarding experience tailored to your preferred tech stack — *no AWS credentials or setup required*.
+
+### 2. Install Tracer With One Line of Code
 
 Install Tracer with this single command:
 
@@ -66,20 +69,19 @@ Click the 'Open In Github Codespaces' button to use GitHub Codespaces.
 Once in Codespaces, the environment comes with:
 Tracer pre-installed and Docker running a minimal Nextflow example. Here, you need to run the tracer init command showcased in the next step.
 
-### 2. Initialize a Pipeline
+### 3. Initialize a Pipeline
 
-Set up your RNA-seq pipeline by running the following command and run Tracer:
+Follow the sandbox instructions to launch your own pipeline or run a script to launch a **demo bioinformatics pipeline** (Nextflow, WDL, and more) from our [nextflow-test-pipelines-bioinformatics](https://github.com/Tracer-Cloud/nextflow-test-pipelines) repository.
 
-```bash
-tracer init --pipeline-name demo_username --environment demo --pipeline-type rnaseq --user-operator user_email --is-dev false
-```
+### 4. Monitor Your Pipeline With Our Grafana Dashboard
 
-Then you need to run a Nextflow command example.
+Access the Tracer monitoring dashboard on **Grafana** to watch your pipeline in action, including:
 
-### 3. Monitor your Pipeline
+- Real-time execution metrics  
+- Pipeline stages  
+- Resource usage across runs  
 
-Watch your pipeline in action via the Tracer monitoring dashboard, which you access by clicking the ‘Open Grafana Dashboard’ button.
-You’ll see real-time execution metrics, stages, and status updates.
+→ The sandbox will guide you through creating your personal account and navigating the Grafana interface.
 
 <br />
 
