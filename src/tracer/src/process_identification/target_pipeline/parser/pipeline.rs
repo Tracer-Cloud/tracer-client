@@ -32,6 +32,7 @@ pub struct Job {
     pub id: String,
     pub description: Option<String>,
     pub rules: Vec<String>,
+    pub optional_rules: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -69,10 +70,14 @@ impl Dependencies {
     }
 
     pub fn get_job(&self, id: &str) -> Option<&Job> {
-        self.jobs.get(id)
+        self.jobs
+            .get(id)
+            .or_else(|| self.parent.as_ref().and_then(|p| p.get_job(id)))
     }
 
     pub fn get_subworkflow(&self, id: &str) -> Option<&Subworkflow> {
-        self.subworkflows.get(id)
+        self.subworkflows
+            .get(id)
+            .or_else(|| self.parent.as_ref().and_then(|p| p.get_subworkflow(id)))
     }
 }
