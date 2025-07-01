@@ -145,24 +145,6 @@ impl TargetPipelineManager {
 
         None
     }
-
-    #[cfg(test)]
-    fn num_unmatched_jobs(&self) -> usize {
-        self.job_pids
-            .iter()
-            .map(|(_, job_pid)| &job_pid.job_id)
-            .collect::<HashSet<_>>()
-            .len()
-    }
-
-    #[cfg(test)]
-    fn num_unmatched_pids(&self) -> usize {
-        self.job_pids
-            .iter()
-            .map(|(_, job_pid)| &job_pid.pid)
-            .collect::<HashSet<_>>()
-            .len()
-    }
 }
 
 impl Default for TargetPipelineManager {
@@ -271,6 +253,24 @@ mod tests {
     const PIPELINE_YAML_PATH: &[YamlFile] = &[YamlFile::StaticPath(
         "src/process_identification/target_pipeline/yml_rules/tracer.pipelines.yml",
     )];
+
+    impl TargetPipelineManager {
+        fn num_unmatched_jobs(&self) -> usize {
+            self.job_pids
+                .iter()
+                .map(|(_, job_pid)| &job_pid.job_id)
+                .collect::<HashSet<_>>()
+                .len()
+        }
+
+        fn num_unmatched_pids(&self) -> usize {
+            self.job_pids
+                .iter()
+                .map(|(_, job_pid)| &job_pid.pid)
+                .collect::<HashSet<_>>()
+                .len()
+        }
+    }
 
     /// Fixture that creates test targets for the pipeline rules
     #[fixture]
