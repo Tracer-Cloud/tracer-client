@@ -112,7 +112,7 @@ impl BoxFormatter {
         &self.output
     }
     pub fn add_hyperlink(&mut self, label: &str, url: &str) {
-        let link = format!("{}", url).blue().to_string();
+        let link = url.blue().to_string();
         writeln!(&mut self.output, "│ {:<20} │ {}  ", label, link).unwrap();
     }
 }
