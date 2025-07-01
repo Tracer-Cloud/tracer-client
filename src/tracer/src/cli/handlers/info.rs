@@ -143,6 +143,7 @@ impl InfoDisplay {
                 "white",
             );
         }
+
         if let Some(summary) = &inner.cost_summary {
             formatter.add_empty_line();
             formatter.add_section_header("Cost estimation");
