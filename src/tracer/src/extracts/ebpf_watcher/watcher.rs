@@ -3,7 +3,6 @@ use crate::extracts::ebpf_watcher::handler::trigger::trigger_processor::TriggerP
 use crate::extracts::process::process_manager::ProcessManager;
 use crate::extracts::process::process_utils::get_process_argv;
 use crate::process_identification::recorder::LogRecorder;
-use crate::process_identification::target_process::target::Target;
 use crate::process_identification::target_process::target_manager::TargetManager;
 use anyhow::{Error, Result};
 use std::collections::HashSet;
@@ -43,12 +42,6 @@ impl EbpfWatcher {
             trigger_processor: TriggerProcessor::new(Arc::clone(&process_manager)),
             process_manager,
         }
-    }
-
-    pub async fn update_targets(self: &Arc<Self>, targets: Vec<Target>) -> Result<()> {
-        let process_manager = self.process_manager.write().await;
-        process_manager.update_targets(targets).await?;
-        Ok(())
     }
 
     pub async fn start_ebpf(self: &Arc<Self>) -> Result<()> {
