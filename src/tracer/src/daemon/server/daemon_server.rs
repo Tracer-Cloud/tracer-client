@@ -26,6 +26,7 @@ fn get_router(state: DaemonState) -> Router {
     }
     router.with_state(state)
 }
+
 async fn create_listener(server_url: String) -> TcpListener {
     let addr: SocketAddr = server_url.parse().unwrap();
 
@@ -70,6 +71,7 @@ impl DaemonServer {
 
         Ok(())
     }
+    
     pub async fn terminate(mut self) -> anyhow::Result<()> {
         if self.server.is_some() {
             panic!("Server not running");
