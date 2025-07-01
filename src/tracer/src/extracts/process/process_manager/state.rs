@@ -1,5 +1,5 @@
 use crate::extracts::process::types::process_state::ProcessState;
-use crate::process_identification::target_process::target_manager::TargetManager;
+use crate::process_identification::target_process::target::Target;
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -13,9 +13,9 @@ pub struct StateManager {
 }
 
 impl StateManager {
-    pub fn new(target_manager: TargetManager) -> Self {
+    pub fn new() -> Self {
         Self {
-            state: Arc::new(RwLock::new(ProcessState::new(target_manager))),
+            state: Arc::new(RwLock::new(ProcessState::new())),
         }
     }
 

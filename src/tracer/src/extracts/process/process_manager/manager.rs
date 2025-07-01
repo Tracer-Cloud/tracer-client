@@ -9,7 +9,7 @@ use crate::extracts::{
     containers::DockerWatcher, process::process_manager::handlers::oom::OomHandler,
 };
 use crate::process_identification::recorder::LogRecorder;
-use crate::process_identification::target_process::target_manager::TargetManager;
+use crate::process_identification::target_process::target::Target;
 use anyhow::Result;
 use std::{
     collections::{HashMap, HashSet},
@@ -28,12 +28,8 @@ pub struct ProcessManager {
 }
 
 impl ProcessManager {
-    pub fn new(
-        target_manager: TargetManager,
-        log_recorder: LogRecorder,
-        docker_watcher: Arc<DockerWatcher>,
-    ) -> Self {
-        let state_manager = StateManager::new(target_manager);
+    pub fn new(log_recorder: LogRecorder, docker_watcher: Arc<DockerWatcher>) -> Self {
+        let state_manager = StateManager::new();
         let logger = ProcessLogger::new(log_recorder, docker_watcher);
         let matcher = Filter::new();
         let system_refresher = SystemRefresher::new();
