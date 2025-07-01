@@ -1,4 +1,10 @@
-use crate::cli::handlers::arguments::FinalizedInitArgs;
+use crate::config::Config;
+
+use crate::cloud_providers::aws::pricing::PricingSource;
+use crate::extracts::containers::DockerWatcher;
+use crate::process_identification::types::cli::params::FinalizedInitArgs;
+use anyhow::{Context, Result};
+
 use crate::client::events::send_start_run_event;
 use crate::client::exporters::client_export_manager::ExporterManager;
 use crate::client::exporters::log_writer::LogWriterEnum;
@@ -113,12 +119,7 @@ impl TracerClient {
         log_recorder: &LogRecorder,
         docker_watcher: Arc<DockerWatcher>,
     ) -> Arc<EbpfWatcher> {
-        let target_manager = TargetManager::default(); //TODO add possibility to pass in targets
-        Arc::new(EbpfWatcher::new(
-            target_manager,
-            log_recorder.clone(),
-            docker_watcher,
-        ))
+        Arc::new(EbpfWatcher::new(log_recorder.clone(), docker_watcher))
     }
 
     fn init_watchers(
