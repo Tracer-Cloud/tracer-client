@@ -5,12 +5,18 @@ rules:
       and:
         - process_name_is: java
         - command_contains: uk.ac.babraham.FastQC.FastQCApplication
-  - rule_name: STAR process
-    display_name: STAR
+  - rule_name: STAR index process
+    display_name: STAR index
     condition:
       and:
         - process_name_is: STAR
-        - command_contains: STAR
+        - command_contains: --runMode genomeGenerate
+  - rule_name: STAR align process
+    display_name: STAR align
+    condition:
+      and:
+        - process_name_is: STAR
+        - command_contains: --runMode alignReads
   - rule_name: bowtie2 process
     display_name: bowtie2
     condition:
