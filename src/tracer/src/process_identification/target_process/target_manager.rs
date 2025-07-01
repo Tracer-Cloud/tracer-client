@@ -1,7 +1,7 @@
 use crate::process_identification::target_process::parser::yaml_rules_parser::load_yaml_rules;
 use crate::process_identification::target_process::target::Target;
-use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 use std::collections::HashSet;
+use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 
 #[derive(Clone)]
 pub struct RuleFile<'a> {
@@ -16,10 +16,7 @@ pub struct TargetManager {
 }
 
 impl TargetManager {
-    pub fn new<'a>(
-        rule_files: &[RuleFile<'a>],
-        exclude_files: &[RuleFile<'a>],
-    ) -> Self {
+    pub fn new<'a>(rule_files: &[RuleFile<'a>], exclude_files: &[RuleFile<'a>]) -> Self {
         let targets = rule_files
             .iter()
             .flat_map(|rf| {
@@ -88,14 +85,15 @@ impl Default for TargetManager {
                 embedded_yaml: Some(include_str!("yml_rules/tracer.rules.yml")),
                 path: None,
             },
-            // Add more RuleFile entries as needed
-        ];
-        let exclude_files = [
             RuleFile {
-                embedded_yaml: Some(include_str!("yml_rules/tracer.exclude.yml")),
+                embedded_yaml: Some(include_str!("yml_rules/bioconda.rules.yml")),
                 path: None,
-            },
+            }, // Add more RuleFile entries as needed
         ];
+        let exclude_files = [RuleFile {
+            embedded_yaml: Some(include_str!("yml_rules/tracer.exclude.yml")),
+            path: None,
+        }];
         Self::new(&rule_files, &exclude_files)
     }
 }
@@ -103,7 +101,6 @@ impl Default for TargetManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
     use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 
     fn make_process(comm: &str, argv: &[&str]) -> ProcessStartTrigger {
@@ -112,8 +109,11 @@ mod tests {
 
     #[test]
     fn test_cat_fastq_target_match() {
-
         let rule_files = [
+            RuleFile {
+                embedded_yaml: None,
+                path: Some("src/process_identification/target_process/yml_rules/tracer.rules.yml"),
+            },
             RuleFile {
                 embedded_yaml: None,
                 path: Some("src/process_identification/target_process/yml_rules/tracer.rules.yml"),
@@ -143,18 +143,14 @@ mod tests {
 
     #[test]
     fn test_exclude_rule() {
-        let rule_files = [
-            RuleFile {
-                embedded_yaml: None,
-                path: Some("src/process_identification/target_process/yml_rules/tracer.rules.yml"),
-            },
-        ];
-        let exclude_files = [
-            RuleFile {
-                embedded_yaml: None,
-                path: Some("src/process_identification/target_process/yml_rules/tracer.exclude.yml"),
-            },
-        ];
+        let rule_files = [RuleFile {
+            embedded_yaml: None,
+            path: Some("src/process_identification/target_process/yml_rules/tracer.rules.yml"),
+        }];
+        let exclude_files = [RuleFile {
+            embedded_yaml: None,
+            path: Some("src/process_identification/target_process/yml_rules/tracer.exclude.yml"),
+        }];
         let manager = TargetManager::new(&rule_files, &exclude_files);
         let process = make_process("cat", &["cat", "input1/index.1.fastq.gz input.fastq.gz"]);
         let matched = manager.get_target_match(&process);
@@ -171,12 +167,10 @@ mod tests {
 
     #[test]
     fn test_dynamic_display_subcommand() {
-        let rule_files = [
-            RuleFile {
-                embedded_yaml: None,
-                path: Some("src/process_identification/target_process/yml_rules/tracer.rules.yml"),
-            },
-        ];
+        let rule_files = [RuleFile {
+            embedded_yaml: None,
+            path: Some("src/process_identification/target_process/yml_rules/tracer.rules.yml"),
+        }];
         let manager = TargetManager::new(&rule_files, &[]);
         let process = make_process("samtools", &["samtools", "sort", "file.bam"]);
         let matched = manager.get_target_match(&process);

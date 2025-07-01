@@ -50,7 +50,7 @@ impl ProcessManager {
     pub async fn set_ebpf_task(&self, task: JoinHandle<()>) {
         self.state_manager.set_ebpf_task(task).await;
     }
-    
+
     /// Handles out-of-memory terminations
     pub async fn handle_out_of_memory_terminations(
         &self,
