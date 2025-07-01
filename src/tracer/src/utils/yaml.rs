@@ -1,11 +1,12 @@
 use anyhow::{anyhow, bail, Result};
-use std::fs;
-use std::path::Path;
-use yaml_rust2::YamlLoader;
-// re-export Yaml for convenience
 use std::collections::HashSet;
+use std::fs;
 use std::hash::Hash;
+use std::path::Path;
 use tracing::error;
+use yaml_rust2::YamlLoader;
+
+// re-export Yaml for convenience
 pub use yaml_rust2::Yaml;
 
 pub fn load_from_yaml_array_files<T: TryFrom<Yaml, Error = anyhow::Error> + Hash + Eq>(
