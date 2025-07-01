@@ -204,6 +204,7 @@ pub struct InstancePricingContext {
     pub ebs_pricing: Option<FlattenedData>,
     pub total_hourly_cost: f64,
     pub source: String, // "Live" or "Static"
+    pub cost_per_minute: f64,
 }
 
 /// Metadata for a single attached storage volume

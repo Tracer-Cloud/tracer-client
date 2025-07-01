@@ -38,6 +38,7 @@ impl PricingSource {
                 ebs_pricing: None,
                 source: "Static".into(),
                 total_hourly_cost: 0.0,
+                cost_per_minute: 0.0,
             }),
             PricingSource::Live(client) => {
                 client
@@ -119,6 +120,7 @@ impl PricingClient {
             ebs_pricing: ebs_data,
             total_hourly_cost: total,
             source: "Live".to_string(),
+            cost_per_minute: total / 60.0, // cost per minute
         })
     }
 

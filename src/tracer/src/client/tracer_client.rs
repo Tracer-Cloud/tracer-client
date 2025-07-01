@@ -12,7 +12,9 @@ use crate::client::exporters::log_writer::LogWriterEnum;
 use crate::extracts::ebpf_watcher::watcher::EbpfWatcher;
 use crate::extracts::metrics::system_metrics_collector::SystemMetricsCollector;
 use crate::process_identification::recorder::LogRecorder;
-use crate::process_identification::types::current_run::{PipelineMetadata, Run};
+use crate::process_identification::types::current_run::{
+    PipelineCostSummary, PipelineMetadata, Run,
+};
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::{Event, ProcessStatus};
 use chrono::{DateTime, Utc};
@@ -246,12 +248,19 @@ impl TracerClient {
         )
         .await?;
 
-        self.pipeline.write().await.run = Some(Run {
+        let mut guard = self.pipeline.write().await;
+        let start_time = timestamp.unwrap_or_else(Utc::now);
+        guard.run = Some(Run {
             last_interaction: Instant::now(),
             parent_pid: None,
-            start_time: timestamp.unwrap_or_else(Utc::now),
+            start_time,
             name: result.run_name.clone(),
             id: result.run_id.clone(),
+            cost_summary: result
+                .system_properties
+                .pricing_context
+                .as_ref()
+                .map(|ctx| PipelineCostSummary::new(start_time, ctx)),
         });
 
         // NOTE: Do we need to output a totally new event if self.initialization_id.is_some() ?

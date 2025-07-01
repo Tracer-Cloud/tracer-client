@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::constants::{GRAFANA_PIPELINE_DASHBOARD_BASE, GRAFANA_RUN_DASHBOARD_BASE};
-use crate::process_identification::types::current_run::PipelineMetadata;
+use crate::process_identification::types::current_run::{PipelineCostSummary, PipelineMetadata};
 use crate::process_identification::types::pipeline_tags::PipelineTags;
 use chrono::{DateTime, TimeDelta, Utc};
 use itertools::Itertools;
@@ -21,6 +21,7 @@ pub struct InnerInfoResponse {
     pub pipeline_name: String,
     pub start_time: DateTime<Utc>,
     pub tags: PipelineTags,
+    pub cost_summary: Option<PipelineCostSummary>,
 }
 impl InfoResponse {
     pub fn new(inner: Option<InnerInfoResponse>, processes: HashSet<String>) -> Self {
@@ -46,12 +47,17 @@ impl TryFrom<PipelineMetadata> for InnerInfoResponse {
     type Error = anyhow::Error;
     fn try_from(value: PipelineMetadata) -> Result<Self, Self::Error> {
         if let Some(run) = value.run {
+            let cost_summary = run
+                .cost_summary
+                .as_ref()
+                .map(|ctx| ctx.refresh(run.start_time));
             Ok(Self {
                 run_id: run.id,
                 run_name: run.name,
                 pipeline_name: value.pipeline_name,
                 start_time: run.start_time,
                 tags: value.tags,
+                cost_summary,
             })
         } else {
             Err(anyhow::anyhow!("No run found"))
