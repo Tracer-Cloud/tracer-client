@@ -14,6 +14,9 @@ pipelines:
               - and:
                   - optional_job: GUNZIP_GFF
                   - job: GFFREAD
+          - or:
+              - job: STAR_GENOMEGENERATE
+              - job: BBMAP_BBSPLIT
     jobs:
       - id: GUNZIP_GTF
         description: Unzip the GTF file.
@@ -27,5 +30,16 @@ pipelines:
         description: Read the GFF file.
         rules:
           - gffread
+      - id: BBMAP_BBSPLIT
+        description: Split the FASTQ file into smaller chunks.
+        rules:
+          - bbsplit
+          - jshell
+      - id: STAR_GENOMEGENERATE
+        description: Generate the genome index for STAR.
+        rules:
+          - STAR index
+        optional_rules:
+          - samtools faidx
     steps:
       - subworkflow: PREPARE_GENOME
