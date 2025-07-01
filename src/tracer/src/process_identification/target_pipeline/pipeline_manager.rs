@@ -5,6 +5,7 @@ use crate::process_identification::target_pipeline::parser::yaml_rules_parser::l
 use crate::process_identification::target_process::target::Target;
 use crate::utils::yaml::YamlFile;
 use multi_index_map::MultiIndexMap;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 use tracing::trace;
@@ -12,9 +13,9 @@ use tracing::trace;
 pub const JOB_SCORE_THRESHOLD: f64 = 0.9;
 
 /// A job that is matched to a set of processes that have been started.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct JobMatch {
-    /// The ID of the job that was matched.
+    /// The ID of the job that was matched - this is used for labeling the process group in the UI.
     pub id: String,
     /// The description of the job that was matched.
     pub description: Option<String>,
@@ -22,6 +23,16 @@ pub struct JobMatch {
     pub pids: Vec<usize>,
     /// The score of the job that was matched.
     pub score: f64,
+}
+
+impl std::fmt::Display for JobMatch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "JobMatch(id: {}, description: {:?}, pids: {:?}, score: {})",
+            self.id, self.description, self.pids, self.score
+        )
+    }
 }
 
 pub struct TargetPipelineManager {
@@ -156,7 +167,10 @@ impl TargetPipelineManager {
 
 impl Default for TargetPipelineManager {
     fn default() -> Self {
-        Self::new(&[], &[])
+        const RULE_FILES: &[YamlFile] = &[YamlFile::Embedded(include_str!(
+            "yml_rules/tracer.pipelines.yml"
+        ))];
+        Self::new(RULE_FILES, &Vec::new())
     }
 }
 

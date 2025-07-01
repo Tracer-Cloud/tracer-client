@@ -11,7 +11,6 @@ use tokio::sync::RwLock;
 use tracer::extracts::containers::DockerWatcher;
 use tracer::extracts::ebpf_watcher::watcher::EbpfWatcher;
 use tracer::process_identification::recorder::LogRecorder;
-use tracer::process_identification::target_process::target_manager::TargetManager;
 use tracer::process_identification::types::current_run::{PipelineMetadata, Run};
 use tracer::process_identification::types::event::attributes::process::ProcessProperties;
 use tracer::process_identification::types::event::attributes::EventAttributes;
@@ -35,12 +34,6 @@ fn processes() -> Vec<ProcessInfo> {
 
 #[fixture]
 #[once]
-fn target_manager() -> TargetManager {
-    TargetManager::default()
-}
-
-#[fixture]
-#[once]
 fn pipeline() -> PipelineMetadata {
     PipelineMetadata {
         pipeline_name: "test_pipeline".to_string(),
@@ -56,14 +49,12 @@ fn async_runtime() -> Runtime {
 }
 
 fn watcher(
-    target_manager: &TargetManager,
     pipeline: &PipelineMetadata,
     event_sender: Sender<Event>,
 ) -> Arc<EbpfWatcher> {
     let log_recorder = LogRecorder::new(Arc::new(RwLock::new(pipeline.clone())), event_sender);
     let docker_watcher = DockerWatcher::new(log_recorder.clone());
     Arc::new(EbpfWatcher::new(
-        target_manager.clone(),
         log_recorder,
         Arc::new(docker_watcher),
     ))
@@ -72,14 +63,13 @@ fn watcher(
 #[rstest]
 fn test_process_matching(
     processes: &Vec<ProcessInfo>,
-    target_manager: &TargetManager,
     pipeline: &PipelineMetadata,
     async_runtime: &Runtime,
 ) {
     let (tx, mut rx) = mpsc::channel::<Event>(1000);
 
     async_runtime.block_on(async {
-        let watcher = watcher(target_manager, pipeline, tx);
+        let watcher = watcher(pipeline, tx);
 
         // process triggers for all commands in all processes
         for process in processes {
