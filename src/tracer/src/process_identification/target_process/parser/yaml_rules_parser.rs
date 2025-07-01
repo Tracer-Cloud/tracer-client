@@ -2,123 +2,118 @@ use crate::process_identification::target_process::parser::conditions::{
     CompoundCondition, Condition, SimpleCondition,
 };
 use crate::process_identification::target_process::parser::rule::Rule;
-use crate::process_identification::target_process::target::Target;
-use std::fs;
+use crate::utils::yaml::{Yaml, YamlExt, YamlVecLoader};
+use anyhow::{anyhow, bail, Result};
 use std::path::Path;
-use yaml_rust2::{Yaml, YamlLoader};
 
-pub fn load_yaml_rules<P: AsRef<Path>>(path: P) -> Result<Vec<Target>, Box<dyn std::error::Error>> {
-    let path_ref = path.as_ref();
-    let yaml_content = fs::read_to_string(path_ref)?;
-    load_yaml_rules_from_str(&yaml_content)
+pub fn load_yaml_rules<P: AsRef<Path>>(
+    embedded_yaml: Option<&str>,
+    fallback_paths: &[P],
+) -> Vec<Rule> {
+    YamlVecLoader {
+        module: "TargetManager",
+        key: "rules",
+        embedded_yaml,
+        fallback_paths,
+    }
+    .load()
 }
 
-pub fn load_yaml_rules_from_str(
-    yaml_content: &str,
-) -> Result<Vec<Target>, Box<dyn std::error::Error>> {
-    let docs = YamlLoader::load_from_str(yaml_content)?;
-    let doc = &docs[0];
+impl TryFrom<Yaml> for Rule {
+    type Error = anyhow::Error;
 
-    let rules_yaml = &doc["rules"];
-    let rules_vec = rules_yaml
-        .as_vec()
-        .ok_or("Expected 'rules' to be an array")?;
-
-    let rules: Result<Vec<Rule>, _> = rules_vec.iter().map(parse_rule).collect();
-
-    let targets: Vec<Target> = rules?
-        .into_iter()
-        .map(|rule| rule.clone().into_target())
-        .collect();
-    Ok(targets)
+    fn try_from(yaml: Yaml) -> Result<Self> {
+        let display_name = yaml.required_string("display_name")?;
+        let condition = yaml.required("condition")?.try_into()?;
+        Ok(Rule {
+            display_name,
+            condition,
+        })
+    }
 }
 
-fn parse_rule(yaml: &Yaml) -> Result<Rule, Box<dyn std::error::Error>> {
-    let display_name = yaml["display_name"]
-        .as_str()
-        .ok_or("display_name not found or not a string")?
-        .to_string();
-    let condition = parse_condition(&yaml["condition"])?;
+impl TryFrom<&Yaml> for Condition {
+    type Error = anyhow::Error;
 
-    Ok(Rule {
-        display_name,
-        condition,
-    })
-}
+    fn try_from(yaml: &Yaml) -> Result<Self> {
+        const SIMPLE_TYPES: &[&str] = &[
+            "process_name_is",
+            "process_name_contains",
+            "min_args",
+            "args_not_contain",
+            "first_arg_is",
+            "command_contains",
+            "command_not_contains",
+            "command_matches_regex",
+            "subcommand_is_one_of",
+        ];
 
-fn parse_condition(yaml: &Yaml) -> Result<Condition, Box<dyn std::error::Error>> {
-    if let Some(and_conds) = yaml["and"].as_vec() {
-        let conditions = and_conds
-            .iter()
-            .map(parse_condition)
-            .collect::<Result<Vec<_>, _>>()?;
-        return Ok(Condition::And(CompoundCondition(conditions)));
+        for simple_type in SIMPLE_TYPES {
+            if let Some(val) = yaml.optional(simple_type) {
+                return match *simple_type {
+                    "process_name_is" => Ok(Condition::Simple(SimpleCondition::ProcessNameIs {
+                        process_name_is: val.to_string()?,
+                    })),
+                    "process_name_contains" => {
+                        Ok(Condition::Simple(SimpleCondition::ProcessNameContains {
+                            process_name_contains: val.to_string()?,
+                        }))
+                    }
+                    "min_args" => Ok(Condition::Simple(SimpleCondition::MinArgs {
+                        min_args: val.to_usize()?,
+                    })),
+                    "args_not_contain" => Ok(Condition::Simple(SimpleCondition::ArgsNotContain {
+                        args_not_contain: val.to_string()?,
+                    })),
+                    "first_arg_is" => Ok(Condition::Simple(SimpleCondition::FirstArgIs {
+                        first_arg_is: val.to_string()?,
+                    })),
+                    "command_contains" => Ok(Condition::Simple(SimpleCondition::CommandContains {
+                        command_contains: val.to_string()?,
+                    })),
+                    "command_not_contains" => {
+                        Ok(Condition::Simple(SimpleCondition::CommandNotContains {
+                            command_not_contains: val.to_string()?,
+                        }))
+                    }
+                    "command_matches_regex" => {
+                        Ok(Condition::Simple(SimpleCondition::CommandMatchesRegex {
+                            command_matches_regex: val.to_string()?,
+                        }))
+                    }
+                    "subcommand_is_one_of" => {
+                        let subcommands = val
+                            .as_vec()
+                            .ok_or(anyhow!("Expected an array"))?
+                            .iter()
+                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                            .collect();
+                        Ok(Condition::Simple(SimpleCondition::SubcommandIsOneOf {
+                            subcommands,
+                        }))
+                    }
+                    _ => bail!("Invalid simple condition type: {}", simple_type),
+                };
+            }
+        }
+
+        const COND_TYPES: &[&str] = &["and", "or"];
+        for cond_type in COND_TYPES {
+            if let Some(conditions_yml) = yaml.optional_vec(cond_type)? {
+                let conditions = CompoundCondition(
+                    conditions_yml
+                        .iter()
+                        .map(|condition| condition.try_into())
+                        .collect::<Result<Vec<_>>>()?,
+                );
+                return match *cond_type {
+                    "and" => Ok(Condition::And(conditions)),
+                    "or" => Ok(Condition::Or(conditions)),
+                    _ => bail!("Unknown condition type: {:?}", cond_type),
+                };
+            }
+        }
+
+        bail!("Invalid step: {:?}", yaml);
     }
-
-    if let Some(or_conds) = yaml["or"].as_vec() {
-        let conditions = or_conds
-            .iter()
-            .map(parse_condition)
-            .collect::<Result<Vec<_>, _>>()?;
-        return Ok(Condition::Or(CompoundCondition(conditions)));
-    }
-
-    if let Some(val) = yaml["process_name_is"].as_str() {
-        return Ok(Condition::Simple(SimpleCondition::ProcessNameIs {
-            process_name_is: val.to_string(),
-        }));
-    }
-
-    if let Some(val) = yaml["process_name_contains"].as_str() {
-        return Ok(Condition::Simple(SimpleCondition::ProcessNameContains {
-            process_name_contains: val.to_string(),
-        }));
-    }
-
-    if let Some(val) = yaml["min_args"].as_i64() {
-        return Ok(Condition::Simple(SimpleCondition::MinArgs {
-            min_args: val as usize,
-        }));
-    }
-
-    if let Some(val) = yaml["args_not_contain"].as_str() {
-        return Ok(Condition::Simple(SimpleCondition::ArgsNotContain {
-            args_not_contain: val.to_string(),
-        }));
-    }
-
-    if let Some(val) = yaml["first_arg_is"].as_str() {
-        return Ok(Condition::Simple(SimpleCondition::FirstArgIs {
-            first_arg_is: val.to_string(),
-        }));
-    }
-
-    if let Some(val) = yaml["command_contains"].as_str() {
-        return Ok(Condition::Simple(SimpleCondition::CommandContains {
-            command_contains: val.to_string(),
-        }));
-    }
-    if let Some(val) = yaml["command_not_contains"].as_str() {
-        return Ok(Condition::Simple(SimpleCondition::CommandNotContains {
-            command_not_contains: val.to_string(),
-        }));
-    }
-
-    if let Some(val) = yaml["command_matches_regex"].as_str() {
-        return Ok(Condition::Simple(SimpleCondition::CommandMatchesRegex {
-            command_matches_regex: val.to_string(),
-        }));
-    }
-
-    if let Some(val) = yaml["subcommand_is_one_of"].as_vec() {
-        let subcommands = val
-            .iter()
-            .filter_map(|v| v.as_str().map(|s| s.to_string()))
-            .collect();
-        return Ok(Condition::Simple(SimpleCondition::SubcommandIsOneOf {
-            subcommands,
-        }));
-    }
-
-    Err("Invalid condition".into())
 }

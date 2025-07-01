@@ -1,10 +1,10 @@
 use super::pipeline::{Dependencies, Job, Pipeline, Step, Subworkflow, Version};
 use crate::utils::yaml::{Yaml, YamlExt, YamlVecLoader};
 use anyhow::{anyhow, bail, Result};
-use once_cell::sync::Lazy;
 use std::path::Path;
+use std::sync::LazyLock;
 
-static GLOBAL_DEPENDENCIES: Lazy<Dependencies> = Lazy::new(|| Dependencies::default());
+static GLOBAL_DEPENDENCIES: LazyLock<Dependencies> = LazyLock::new(|| Dependencies::default());
 
 pub fn load_yaml_pipelines<P: AsRef<Path>>(
     embedded_yaml: Option<&str>,

@@ -10,7 +10,7 @@ use std::collections::HashSet;
 use std::fs::{self};
 use std::path::Path;
 use std::sync::Arc;
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{mpsc, Mutex, RwLock};
 use tracer_ebpf::binding::start_processing_events;
 use tracer_ebpf::ebpf_trigger::{
     OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger, Trigger,
@@ -19,7 +19,7 @@ use tracing::{debug, error, info};
 
 /// Watches system processes and records events related to them
 pub struct EbpfWatcher {
-    ebpf: once_cell::sync::OnceCell<()>, // not tokio, because ebpf initialisation is sync
+    ebpf_initialized: Arc<Mutex<bool>>,
     process_manager: Arc<RwLock<ProcessManager>>,
     trigger_processor: TriggerProcessor,
     // here will go the file manager for dataset recognition operations
@@ -39,7 +39,7 @@ impl EbpfWatcher {
         )));
 
         EbpfWatcher {
-            ebpf: once_cell::sync::OnceCell::new(),
+            ebpf_initialized: Arc::new(Mutex::new(false)),
             trigger_processor: TriggerProcessor::new(Arc::clone(&process_manager)),
             process_manager,
         }
@@ -53,9 +53,11 @@ impl EbpfWatcher {
 
     pub async fn start_ebpf(self: &Arc<Self>) -> Result<()> {
         println!("Starting ebpf");
-        Arc::clone(self)
-            .ebpf
-            .get_or_try_init(|| Arc::clone(self).initialize_ebpf())?;
+        let mut initialized = self.ebpf_initialized.lock().await;
+        if !*initialized {
+            Arc::clone(self).initialize_ebpf()?;
+            *initialized = true;
+        }
         Ok(())
     }
 
