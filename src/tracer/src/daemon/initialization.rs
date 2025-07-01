@@ -5,7 +5,8 @@ use crate::client::TracerClient;
 use crate::config::Config;
 use crate::daemon::server::DaemonServer;
 use crate::process_identification::types::cli::params::FinalizedInitArgs;
-use crate::utils::analytics::emit_analytic_event;
+use crate::utils::analytics;
+use crate::utils::analytics::types::AnalyticsEventType;
 use anyhow::Context;
 use tracing::info;
 
@@ -48,11 +49,11 @@ async fn create_server(cli_config_args: FinalizedInitArgs, config: Config) -> Da
 
     info!("Pipeline Name: {:?}", client.get_pipeline_name());
     // Push analytics event
-    tokio::spawn(emit_analytic_event(
+    analytics::spawn_event(
         client.user_id.clone(),
-        crate::process_identification::types::analytics::AnalyticsEventType::DaemonStartedSuccessfully,
+        AnalyticsEventType::DaemonStartedSuccessfully,
         None,
-    ));
+    );
 
     let server = DaemonServer::new(client).await;
     info!("Daemon server created!");
