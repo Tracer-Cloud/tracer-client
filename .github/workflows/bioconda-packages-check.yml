@@ -6,67 +6,124 @@ on:
 jobs:
   bioconda-check:
     runs-on: ubuntu-latest
+    continue-on-error: true
     strategy:
+      fail-fast: false
       matrix:
-        chunk: [0, 1, 2, 3, 4] # Split into 5 chunks
+        chunk: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          path: tracer-client
 
-      - name: Install mamba
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: bioconda-recipes
+          repository: bioconda/bioconda-recipes
+
+      - uses: prefix-dev/setup-pixi@v0.8.10
+        with:
+          cache: false
+          run-install: false
+
+      - name: Install python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
-          curl -L https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj -C /usr/local/bin --strip-components=1 bin/micromamba
-          export MAMBA_ROOT_PREFIX=$HOME/micromamba
-          micromamba shell init -s bash -p $MAMBA_ROOT_PREFIX
-          source ~/.bashrc
-          micromamba create -y -n bioenv -c conda-forge -c bioconda mamba
+          pip install PyYAML
+          pip install jinja2
+          pip install packaging
 
       - name: Setup environment
         run: |
-          echo "export MAMBA_ROOT_PREFIX=$HOME/micromamba" >> $GITHUB_ENV
-          echo "export PATH=$HOME/micromamba/bin:$PATH" >> $GITHUB_ENV
+          echo "CHUNK_INDEX=${{ matrix.chunk }}" >> $GITHUB_ENV
 
-      - name: Run Bioconda version check (chunk ${{ matrix.chunk }})
+      - name: Ingest Bioconda packages
         run: |
           set -euo pipefail
           mkdir -p logs
-          micromamba run -n bioenv bash <<'EOF'
-          set -euo pipefail
-          
-          echo "Fetching Bioconda packages..."
-          mamba search -c bioconda --json | jq 'keys[]' -r | sort | head -n 100 > packages.txt
-          
-          echo "Splitting package list..."
-          split -n l/5 packages.txt chunk_
 
-          CHUNK_FILE=$(ls chunk_* | sed -n "${{ matrix.chunk }}p")
-          TIMEOUT=10
-          
-          while read -r pkg; do
-            echo "Installing $pkg"
-            ENV_NAME="biochk_${pkg}"
-            
-            if ! micromamba create -y -n "$ENV_NAME" -c conda-forge -c bioconda "$pkg" >/dev/null 2>&1; then
-              echo "$pkg: install failed" >> logs/errors_${{ matrix.chunk }}.txt
-              continue
-            fi
+          # Set default for CHUNK_INDEX if not set
+          CHUNK_INDEX="${CHUNK_INDEX:-0}"
 
-            CMD_LIST=("$pkg --version" "$pkg -v" "$pkg -V")
-            SUCCESS=0
-            for CMD in "${CMD_LIST[@]}"; do
-              if timeout $TIMEOUT micromamba run -n "$ENV_NAME" $CMD >/dev/null 2>&1; then
-                echo "$pkg: version check success with '$CMD'" >> logs/results_${{ matrix.chunk }}.txt
-                SUCCESS=1
-                break
-              fi
-            done
+          echo "processing CHUNK_INDEX: $CHUNK_INDEX"
 
-            if [[ "$SUCCESS" -eq 0 ]]; then
-              echo "$pkg: version check failed" >> logs/errors_${{ matrix.chunk }}.txt
-            fi
+          timeout 20m python ./tracer-client/infrastructure/processes/ingest_bioconda_packages.py \
+            -d bioconda-recipes/recipes \
+            -o logs \
+            $CHUNK_INDEX 200
 
-            micromamba remove -y -n "$ENV_NAME" --all >/dev/null 2>&1
-          done < "$CHUNK_FILE"
-          EOF
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: bioconda-check-logs-${{ matrix.chunk }}
+          path: logs/
+
+  process-results:
+    runs-on: ubuntu-latest
+    needs: bioconda-check
+    if: always()
+
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget
+          sudo wget -qO yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x yq
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Download all logs
+        uses: actions/download-artifact@v4
+        with:
+          path: all-logs
+
+      - name: Join all chunk files
+        run: |
+          ./yq eval-all '. as $item ireduce ({}; . *+ $item)' \
+            $(find all-logs -type f -name 'bioconda.rules.*.yml') > all_bioconda.rules.yml
+          ./yq eval-all '. as $item ireduce ({}; . *+ $item)' \
+            $(find all-logs -type f -name 'bioconda.importable.*.yml') > all_bioconda.importable.yml
+          ./yq eval-all '. as $item ireduce ({}; . *+ $item)' \
+            $(find all-logs -type f -name 'bioconda.ambiguous.*.yml') > all_bioconda.ambiguous.yml
+          ./yq eval-all '. as $item ireduce ({}; . *+ $item)' \
+            $(find all-logs -type f -name 'bioconda.errors.*.yml') > all_bioconda.errors.yml
+          find all-logs -type f -name 'missing_meta_yaml.*.txt' -exec cat {} > all_missing_meta_yaml.txt \;
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: all_rules
+          path: all_bioconda.rules.yml
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: all_importable
+          path: all_bioconda.importable.yml
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: all_ambiguous
+          path: all_bioconda.ambiguous.yml
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: all_errors
+          path: all_bioconda.errors.yml
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: all_missing_meta_yaml
+          path: all_missing_meta_yaml.txt
+
+

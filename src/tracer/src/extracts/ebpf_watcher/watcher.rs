@@ -10,7 +10,7 @@ use std::collections::HashSet;
 use std::fs::{self};
 use std::path::Path;
 use std::sync::Arc;
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{mpsc, Mutex, RwLock};
 use tracer_ebpf::binding::start_processing_events;
 use tracer_ebpf::ebpf_trigger::{
     OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger, Trigger,
@@ -19,26 +19,29 @@ use tracing::{debug, error, info};
 
 /// Watches system processes and records events related to them
 pub struct EbpfWatcher {
-    ebpf: once_cell::sync::OnceCell<()>, // not tokio, because ebpf initialisation is sync
+    ebpf_initialized: Arc<Mutex<bool>>,
     process_manager: Arc<RwLock<ProcessManager>>,
-    docker: once_cell::sync::OnceCell<()>, // NEW
     trigger_processor: TriggerProcessor,
     // here will go the file manager for dataset recognition operations
 }
 
 impl EbpfWatcher {
-    pub fn new(target_manager: TargetManager, log_recorder: LogRecorder) -> Self {
+    pub fn new(
+        target_manager: TargetManager,
+        log_recorder: LogRecorder,
+        docker_watcher: Arc<DockerWatcher>,
+    ) -> Self {
         // instantiate the process manager
         let process_manager = Arc::new(RwLock::new(ProcessManager::new(
             target_manager.clone(),
             log_recorder.clone(),
+            docker_watcher,
         )));
 
         EbpfWatcher {
-            ebpf: once_cell::sync::OnceCell::new(),
+            ebpf_initialized: Arc::new(Mutex::new(false)),
             trigger_processor: TriggerProcessor::new(Arc::clone(&process_manager)),
             process_manager,
-            docker: once_cell::sync::OnceCell::new(),
         }
     }
 
@@ -50,9 +53,11 @@ impl EbpfWatcher {
 
     pub async fn start_ebpf(self: &Arc<Self>) -> Result<()> {
         println!("Starting ebpf");
-        Arc::clone(self)
-            .ebpf
-            .get_or_try_init(|| Arc::clone(self).initialize_ebpf())?;
+        let mut initialized = self.ebpf_initialized.lock().await;
+        if !*initialized {
+            Arc::clone(self).initialize_ebpf()?;
+            *initialized = true;
+        }
         Ok(())
     }
 
@@ -113,7 +118,7 @@ impl EbpfWatcher {
                         let end_trigger = ProcessEndTrigger {
                             pid: old_pid as usize,
                             finished_at: Default::default(),
-                            exit_reason: None,
+                            exit_reason: Some(tracer_ebpf::ebpf_trigger::ExitReason::Code(0)), // putting 0 as we don't have any error
                         };
                         if let Err(e) = watcher
                             .process_triggers(vec![Trigger::ProcessEnd(end_trigger)])
@@ -172,24 +177,6 @@ impl EbpfWatcher {
                 return Err(Error::msg("Failed to initialize eBPF monitoring task"));
             }
         }
-
-        Ok(())
-    }
-
-    pub async fn initialize_docker_watcher(
-        self: &Arc<Self>,
-        log_recorder: LogRecorder,
-    ) -> Result<()> {
-        self.docker.get_or_try_init(|| {
-            let watcher = DockerWatcher::new(log_recorder)?;
-            tokio::spawn(async move {
-                if let Err(e) = watcher.start().await {
-                    tracing::error!("Docker watcher failed: {:?}", e);
-                }
-            });
-
-            Ok::<(), anyhow::Error>(())
-        })?;
 
         Ok(())
     }

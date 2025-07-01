@@ -21,6 +21,7 @@ tempfile = {workspace = true }
 dirs = {workspace = true }
 clap = {workspace = true }
 rustls = {workspace = true }
+tokio-retry = {workspace = true }
 
 indicatif = "0.17"
 async-trait = "0.1.88"
@@ -28,4 +29,3 @@ nix = { version = "0.30.1", features = ["user"]}
 
 tar = "0.4.44"
 flate2 = "1.1.2"
-tokio-retry = "0.3.0"

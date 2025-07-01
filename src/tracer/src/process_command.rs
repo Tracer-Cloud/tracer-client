@@ -7,8 +7,7 @@ use crate::init_command_interactive_mode;
 #[cfg(target_os = "linux")]
 use crate::logging::setup_logging;
 use crate::nondaemon_commands::{
-    clean_up_after_daemon, print_config_info, print_install_readiness, setup_config, update_tracer,
-    wait,
+    clean_up_after_daemon, print_info, setup_config, update_tracer, wait,
 };
 use crate::process_identification::constants::{
     DEFAULT_DAEMON_PORT, PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR,
@@ -17,7 +16,7 @@ use crate::process_identification::debug_log::Logger;
 use crate::utils::analytics::emit_analytic_event;
 use crate::utils::file_system::ensure_file_can_be_created;
 use crate::utils::system_info::check_sudo_privileges;
-use crate::utils::{FullVersion, Sentry};
+use crate::utils::{Sentry, Version};
 use anyhow::{Context, Result};
 use clap::Parser;
 use daemonize::{Daemonize, Outcome};
@@ -228,10 +227,9 @@ pub fn process_cli() -> Result<()> {
                             crate::process_identification::types::analytics::AnalyticsEventType::DaemonStartAttempted,
                             None,
                         ));
-                        let _ = print_install_readiness();
                         wait(&api_client).await?;
 
-                        print_config_info(&api_client, &config,false).await
+                        print_info(&api_client, false).await
                     })?;
 
                     return Ok(());
@@ -248,10 +246,9 @@ pub fn process_cli() -> Result<()> {
                                 crate::process_identification::types::analytics::AnalyticsEventType::DaemonStartAttempted,
                                 None,
                             ));
-                            let _ = print_install_readiness();
                             wait(&api_client).await?;
 
-                            print_config_info(&api_client, &config,false).await
+                            print_info(&api_client, false).await
                         })?;
 
                         return Ok(());
@@ -272,7 +269,6 @@ pub fn process_cli() -> Result<()> {
                     }
                 }
             }
-
             create_and_run_server(args, config);
             clean_up_after_daemon()
         }
@@ -297,11 +293,9 @@ pub fn process_cli() -> Result<()> {
             tokio::runtime::Runtime::new()?.block_on(update_tracer())
         }
         _ => {
-            match tokio::runtime::Runtime::new()?.block_on(run_async_command(
-                cli.command,
-                &api_client,
-                &config,
-            )) {
+            match tokio::runtime::Runtime::new()?
+                .block_on(run_async_command(cli.command, &api_client))
+            {
                 Ok(_) => {
                     // println!("Command sent successfully.");
                 }
@@ -325,11 +319,7 @@ pub fn process_cli() -> Result<()> {
     }
 }
 
-pub async fn run_async_command(
-    commands: Commands,
-    api_client: &DaemonClient,
-    config: &Config,
-) -> Result<()> {
+pub async fn run_async_command(commands: Commands, api_client: &DaemonClient) -> Result<()> {
     match commands {
         Commands::Log { message } => {
             let payload = Message { payload: message };
@@ -364,14 +354,14 @@ pub async fn run_async_command(
             .await?
         }
         Commands::Info { json } => {
-            print_config_info(api_client, config, json).await?;
+            print_info(api_client, json).await?;
         }
         Commands::CleanupPort { port } => {
             let port = port.unwrap_or(DEFAULT_DAEMON_PORT); // Default Tracer port
             handle_port_conflict(port).await?;
         }
         Commands::Version => {
-            println!("{}", FullVersion::current());
+            println!("{}", Version::current());
         }
         _ => {
             println!("Command not implemented yet");

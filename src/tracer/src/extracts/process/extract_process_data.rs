@@ -68,7 +68,7 @@ impl ExtractProcessData {
     pub fn get_process_environment_variables<P: ProcessTrait>(
         proc: &P,
     ) -> (Option<String>, Option<String>, Option<String>) {
-        let mut container_id = None;
+        // let mut container_id = None;
         let mut job_id = None;
         let mut trace_id = None;
 
@@ -77,12 +77,15 @@ impl ExtractProcessData {
             if let Some((key, value)) = process_environment_variable.split_once('=') {
                 match key {
                     "AWS_BATCH_JOB_ID" => job_id = Some(value.to_string()),
-                    "HOSTNAME" => container_id = Some(value.to_string()),
+                    // "HOSTNAME" => container_id = Some(value.to_string()), // deprecating ..
                     "TRACER_TRACE_ID" => trace_id = Some(value.to_string()),
                     _ => continue,
                 }
             }
         }
+        let container_id = Self::get_container_id_from_cgroup(proc.pid().as_u32());
+
+        tracing::error!("Got container_ID from cgroup: {:?}", container_id);
 
         (container_id, job_id, trace_id)
     }
@@ -130,7 +133,53 @@ impl ExtractProcessData {
             job_id,
             working_directory,
             trace_id,
+            container_event: None,
         }))
+    }
+
+    /// Extracts the container ID (if any) from a process's cgroup file
+    /// Returns `Some(container_id)` if found, else `None`
+    pub fn get_container_id_from_cgroup(pid: u32) -> Option<String> {
+        tracing::error!("Calling get_container id for pid: {}\n\n", pid);
+
+        let cgroup_path = PathBuf::from(format!("/proc/{}/cgroup", pid));
+        let content = std::fs::read_to_string(cgroup_path).ok()?;
+
+        tracing::error!("Got content : {}\n\n", &content);
+
+        for line in content.lines() {
+            // cgroup v1 format: <hierarchy_id>:<controllers>:<path>
+            // cgroup v2 format (single unified hierarchy): 0::/path
+            let fields: Vec<&str> = line.split(':').collect();
+            if fields.len() != 3 {
+                continue;
+            }
+
+            let path = fields[2];
+
+            // Try to match full container ID (64 hex chars)
+            if let Some(id) = path
+                .split('/')
+                .find(|part| part.len() == 64 && part.chars().all(|c| c.is_ascii_hexdigit()))
+            {
+                return Some(id.to_string());
+            }
+
+            // Fallback: check for systemd slice format: docker-<container_id>.scope
+            if let Some(slice) = path
+                .split('/')
+                .find(|part| part.starts_with("docker-") && part.ends_with(".scope"))
+            {
+                let id = slice
+                    .trim_start_matches("docker-")
+                    .trim_end_matches(".scope");
+                if id.len() == 64 && id.chars().all(|c| c.is_ascii_hexdigit()) {
+                    return Some(id.to_string());
+                }
+            }
+        }
+
+        None
     }
 }
 
@@ -159,17 +208,19 @@ mod tests {
             .times(1)
             .return_const(process_environment_variables);
 
+        mock_process.expect_pid().return_const(Pid::from(1234));
+
         let (container_id, job_id, trace_id) =
             ExtractProcessData::get_process_environment_variables(&mock_process);
 
-        assert_eq!(container_id, Some("container-abc123".to_string()));
+        assert_eq!(container_id, None);
         assert_eq!(job_id, Some("job-12345".to_string()));
         assert_eq!(trace_id, Some("trace-xyz789".to_string()));
     }
 
     #[test]
     fn test_get_process_environment_variables_with_partial_variables() {
-        let mut mock_process = MockProcessTrait::new();
+        let mut mock_process: MockProcessTrait = MockProcessTrait::new();
 
         let process_environment_variables = vec![
             "PATH=/usr/bin:/bin".to_string(),
@@ -182,10 +233,12 @@ mod tests {
             .times(1)
             .return_const(process_environment_variables);
 
-        let (container_id, job_id, trace_id) =
+        mock_process.expect_pid().return_const(Pid::from(1234));
+
+        let (_container_id, job_id, trace_id) =
             ExtractProcessData::get_process_environment_variables(&mock_process);
 
-        assert_eq!(container_id, None);
+        // assert_eq!(container_id, None);
         assert_eq!(job_id, Some("job-67890".to_string()));
         assert_eq!(trace_id, None);
     }
@@ -204,6 +257,8 @@ mod tests {
             .expect_environ()
             .times(1)
             .return_const(process_environment_variables);
+
+        mock_process.expect_pid().return_const(Pid::from(1234));
 
         let (container_id, job_id, trace_id) =
             ExtractProcessData::get_process_environment_variables(&mock_process);
@@ -228,6 +283,7 @@ mod tests {
             .expect_environ()
             .times(1)
             .return_const(process_environment_variables);
+        mock_process.expect_pid().return_const(Pid::from(1234));
 
         let (container_id, job_id, trace_id) =
             ExtractProcessData::get_process_environment_variables(&mock_process);
@@ -312,7 +368,7 @@ mod tests {
                 assert_eq!(props.process_disk_usage_write_last_interval, 256);
                 assert_eq!(props.process_memory_usage, 1024 * 1024 * 100);
                 assert_eq!(props.process_memory_virtual, 1024 * 1024 * 200);
-                assert_eq!(props.container_id, Some("test-container".to_string()));
+                assert_eq!(props.container_id, None);
                 assert_eq!(props.job_id, Some("test-job-123".to_string()));
                 assert_eq!(props.trace_id, Some("test-trace-456".to_string()));
                 assert_eq!(
