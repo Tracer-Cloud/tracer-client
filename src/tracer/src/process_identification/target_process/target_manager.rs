@@ -17,32 +17,8 @@ pub struct TargetManager {
 
 impl TargetManager {
     pub fn new<'a>(rule_files: &[RuleFile<'a>], exclude_files: &[RuleFile<'a>]) -> Self {
-        let targets = rule_files
-            .iter()
-            .flat_map(|rf| {
-                if let Some(embedded) = rf.embedded_yaml {
-                    load_yaml_rules(Some(embedded), &[] as &[&str])
-                } else if let Some(path) = rf.path {
-                    load_yaml_rules(None, &[std::path::Path::new(path)])
-                } else {
-                    vec![]
-                }
-            })
-            .map(|rule| rule.into_target())
-            .collect::<HashSet<_>>();
-        let exclude = exclude_files
-            .iter()
-            .flat_map(|rf| {
-                if let Some(embedded) = rf.embedded_yaml {
-                    load_yaml_rules(Some(embedded), &[] as &[&str])
-                } else if let Some(path) = rf.path {
-                    load_yaml_rules(None, &[std::path::Path::new(path)])
-                } else {
-                    vec![]
-                }
-            })
-            .map(|rule| rule.into_target())
-            .collect::<HashSet<_>>();
+        let targets = Self::load_rules_from_files(rule_files);
+        let exclude = Self::load_rules_from_files(exclude_files);
         Self { targets, exclude }
     }
 
@@ -75,11 +51,29 @@ impl TargetManager {
             }
         })
     }
+
+    fn load_rules_from_files(
+        rule_files: &[RuleFile], // adjust the type as needed
+    ) -> HashSet<Target> {
+        // adjust Target type as needed
+        rule_files
+            .iter()
+            .flat_map(|rf| {
+                if let Some(embedded) = rf.embedded_yaml {
+                    load_yaml_rules(Some(embedded), &[] as &[&str])
+                } else if let Some(path) = rf.path {
+                    load_yaml_rules(None, &[std::path::Path::new(path)])
+                } else {
+                    vec![]
+                }
+            })
+            .map(|rule| rule.into_target())
+            .collect::<HashSet<_>>()
+    }
 }
 
 impl Default for TargetManager {
     fn default() -> Self {
-        // Example: specify embedded files explicitly
         let rule_files = [
             RuleFile {
                 embedded_yaml: Some(include_str!("yml_rules/tracer.rules.yml")),
@@ -133,12 +127,6 @@ mod tests {
         let process = make_process("cat", &["cat"]);
         let matched = manager.get_target_match(&process);
         assert_eq!(matched, None);
-
-        // Should NOT match: process_name is not 'cat'
-        //FIXME
-        //let process = make_process("bash", &["cat", "input1/index.1.fastq.gz"]);
-        //let matched = manager.get_target_match(&process);
-        //assert_eq!(matched, None);
     }
 
     #[test]
