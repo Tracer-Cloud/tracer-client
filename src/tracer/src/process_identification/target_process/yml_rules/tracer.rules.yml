@@ -346,6 +346,7 @@ rules:
     condition:
       and:
         - command_contains: bracken
+        - args_not_contain: -v
   - rule_name: kraken2 command
     display_name: kraken2
     condition:
