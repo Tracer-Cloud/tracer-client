@@ -3,10 +3,11 @@ variable "region" {
   default     = "us-east-1"
 }
 
+# Do not log sensitive data 
 variable "api_key" {
   description = "API key for Tracer service"
   type        = string
-  sensitive   = true # This prevents it from being logged in Terraform outputs
+  sensitive   = true
   default     = "your-secret-api-key"
 }
 
@@ -19,7 +20,7 @@ variable "perm_key" {
 variable "ami_id" {
   description = "AMI ID for the launch template. Should be pre-configured with bioinformatics tools"
   type        = string
-  default     = "ami-0dcbd591823292f6a" # Latest AMI with bioinformatics tools
+  default     = "ami-066807aa78bd9a0ce" # ami-066807aa78bd9a0ce - Ubuntu 22.04 aarch64 
 }
 
 variable "instance_type" {
