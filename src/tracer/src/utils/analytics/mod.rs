@@ -14,7 +14,7 @@ pub fn spawn_event(
 ) {
     tokio::spawn(send_event(explicit_user_id, event, metadata));
 }
-
+// COPIED: tracer-installer/src/installer/install.rs
 pub async fn send_event(
     user_id: Option<String>,
     event: AnalyticsEventType,

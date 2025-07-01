@@ -199,6 +199,7 @@ impl Installer {
         Ok(())
     }
 
+    // COPY: tracer/src/utils/analytics/mod.rs
     pub async fn send_analytic_event(
         user_id: &str,
         event: AnalyticsEventType,
