@@ -20,26 +20,30 @@ chmod 2775 /tmp/tracer
 
 # Install Tracer binary as root
 echo "Updating Tracer binary..."
-rm -f /usr/local/bin/tracer
 curl -sSL https://install.tracer.cloud | bash
 
-cp /root/.tracerbio/bin/tracer /usr/local/bin/
-chmod +x /usr/local/bin/tracer
+if ! grep -q "/root/.tracerbio/bin" /root/.bashrc; then
+    echo 'export PATH="/root/.tracerbio/bin:$PATH"' >> /root/.bashrc
+fi
+
+export PATH="/root/.tracerbio/bin:$PATH"
+
+chmod +x /root/.tracerbio/bin/tracer
 
 echo "Tracer binary updated successfully"
 
-# Check if bioinformatics pipeline repository exists
-if [ -d "/root/tracer-test-pipelines-bioinformatics" ]; then
-    echo "Bioinformatics pipeline repository found, updating..."
-    cd /root/tracer-test-pipelines-bioinformatics && git pull origin main && cd
-    echo "Bioinformatics pipeline updated successfully"
+if [ -d "/root/nextflow-test-pipelines" ]; then
+    cd /root/nextflow-test-pipelines && git pull origin main && cd
 else
-    echo "Bioinformatics pipeline repository not found, cloning..."
-    cd /root && git clone https://github.com/Tracer-Cloud/tracer-test-pipelines-bioinformatics.git --recurse-submodules
-    echo "Bioinformatics pipeline cloned successfully"
+    cd /root && git clone https://github.com/Tracer-Cloud/nextflow-test-pipelines.git --recurse-submodules
 fi
 
-# Check if workflow templates exist in root and create if needed
+if [ -d "/root/tracer-cleint"]; then
+    cd /root/tracer-client && git pull origin main && cd
+else
+    cd /root && git clone https://github.com/Tracer-Cloud/tracer-client.git --recurse-submodules
+fi
+
 if [ ! -d "/root/bashrc_scripts/shell-tracer-autoinstrumentation" ]; then
     echo "Setting up workflow templates in root directory..."
     mkdir -p /root/{bashrc_scripts,nextflow_scripts,data}
