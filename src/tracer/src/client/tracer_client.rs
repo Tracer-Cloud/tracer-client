@@ -247,10 +247,9 @@ impl TracerClient {
             &self.initialization_id,
         )
         .await?;
-
-        let mut guard = self.pipeline.write().await;
         let start_time = timestamp.unwrap_or_else(Utc::now);
-        guard.run = Some(Run {
+
+        self.pipeline.write().await.run = Some(Run {
             last_interaction: Instant::now(),
             parent_pid: None,
             start_time,
