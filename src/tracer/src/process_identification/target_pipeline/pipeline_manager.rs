@@ -6,7 +6,6 @@ use crate::process_identification::target_process::target::Target;
 use crate::utils::yaml::YamlFile;
 use multi_index_map::MultiIndexMap;
 use std::collections::{HashMap, HashSet};
-use std::path::Path;
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 use tracing::trace;
 
@@ -33,7 +32,7 @@ pub struct TargetPipelineManager {
 }
 
 impl TargetPipelineManager {
-    pub fn new<P: AsRef<Path>>(rule_files: &[YamlFile], _targets: &Vec<Target>) -> Self {
+    pub fn new(rule_files: &[YamlFile], _targets: &Vec<Target>) -> Self {
         let pipelines = load_pipelines_from_yamls(rule_files);
         let mut jobs = Jobs::default();
         pipelines.iter().for_each(|pipeline| {
@@ -136,7 +135,8 @@ impl TargetPipelineManager {
         None
     }
 
-    pub(crate) fn num_unmatched_jobs(&self) -> usize {
+    #[cfg(test)]
+    fn num_unmatched_jobs(&self) -> usize {
         self.job_pids
             .iter()
             .map(|(_, job_pid)| &job_pid.job_id)
@@ -144,12 +144,25 @@ impl TargetPipelineManager {
             .len()
     }
 
-    pub(crate) fn num_unmatched_pids(&self) -> usize {
+    #[cfg(test)]
+    fn num_unmatched_pids(&self) -> usize {
         self.job_pids
             .iter()
             .map(|(_, job_pid)| &job_pid.pid)
             .collect::<HashSet<_>>()
             .len()
+    }
+}
+
+impl Default for TargetPipelineManager {
+    fn default() -> Self {
+        Self::new(&[], &[])
+    }
+}
+
+impl Default for TargetPipelineManager {
+    fn default() -> Self {
+        Self::new(&[], &[])
     }
 }
 
@@ -241,8 +254,9 @@ mod tests {
     use rstest::*;
     use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 
-    const PIPELINE_YAML_PATH: &str =
-        "src/process_identification/target_pipeline/yml_rules/tracer.pipelines.yml";
+    const PIPELINE_YAML_PATH: &[YamlFile] = &[YamlFile::StaticPath(
+        "src/process_identification/target_pipeline/yml_rules/tracer.pipelines.yml",
+    )];
 
     /// Fixture that creates test targets for the pipeline rules
     #[fixture]
@@ -297,7 +311,7 @@ mod tests {
     /// Fixture that creates a TargetPipelineManager with default pipeline rules
     #[fixture]
     fn pipeline_manager(test_targets: &Vec<Target>) -> TargetPipelineManager {
-        TargetPipelineManager::new(None, &[PIPELINE_YAML_PATH], test_targets)
+        TargetPipelineManager::new(PIPELINE_YAML_PATH, test_targets)
     }
 
     /// Helper function to create a process start trigger
