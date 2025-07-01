@@ -83,6 +83,10 @@ impl ProcessState {
         &self.target_manager
     }
 
+    pub fn get_pipeline_manager(&mut self) -> &mut TargetPipelineManager {
+        &mut self.pipeline_manager
+    }
+
     pub fn update_monitoring(
         &mut self,
         interested_in: HashMap<String, HashSet<ProcessStartTrigger>>,

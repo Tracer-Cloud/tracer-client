@@ -7,18 +7,15 @@ use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 /// Handles filtering and matching processes against targets
 /// Gets targets from the ProcessState instead of holding its own copy
 pub struct Filter;
-impl Filter {
-    pub fn new() -> Self {
-        Self
-    }
 
+impl Filter {
     /// Finds processes that match our targets
     /// Uses the state's target manager for consistency
-    pub fn find_matching_processes(
+    pub fn find_matching_processes<'a>(
         &self,
-        triggers: Vec<ProcessStartTrigger>,
+        triggers: &'a Vec<ProcessStartTrigger>,
         state: &ProcessState,
-    ) -> HashMap<String, HashSet<ProcessStartTrigger>> {
+    ) -> HashMap<String, HashSet<&'a ProcessStartTrigger>> {
         triggers
             .into_iter()
             .flat_map(|trigger| {
@@ -44,6 +41,7 @@ impl Filter {
     }
 
     /// Collects all PIDs from the filtered target processes map
+    /// TODO: this is never called
     pub fn collect_pids_to_refresh(
         &self,
         filtered_target_processes: &HashMap<Target, HashSet<ProcessStartTrigger>>,
@@ -57,6 +55,6 @@ impl Filter {
 
 impl Default for Filter {
     fn default() -> Self {
-        Self::new()
+        Self
     }
 }

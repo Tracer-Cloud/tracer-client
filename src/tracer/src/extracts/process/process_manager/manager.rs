@@ -31,7 +31,7 @@ impl ProcessManager {
     pub fn new(log_recorder: LogRecorder, docker_watcher: Arc<DockerWatcher>) -> Self {
         let state_manager = StateManager::new();
         let logger = ProcessLogger::new(log_recorder, docker_watcher);
-        let matcher = Filter::new();
+        let matcher = Filter::default();
         let system_refresher = SystemRefresher::new();
 
         ProcessManager {
