@@ -30,14 +30,13 @@ impl ProcessStartHandler {
             return Ok(());
         }
 
-        // TODO: refresh_process_data doesn't modify matched_processes - it should take a reference
-        // and not return anything
-        let refreshed_processes =
-            Self::refresh_process_data(system_refresher, matched_processes).await?;
+        Self::refresh_process_data(system_refresher, &matched_processes).await?;
 
-        Self::log_matched_processes(logger, system_refresher, &refreshed_processes).await?;
+        Self::log_matched_processes(logger, system_refresher, &matched_processes).await?;
 
-        Self::update_monitoring(state_manager, refreshed_processes).await?;
+        Self::log_matching_jobs(logger, state_manager, &triggers, &matched_processes).await?;
+
+        Self::update_monitoring(state_manager, matched_processes).await?;
 
         debug!("Process start handling completed successfully.");
 
@@ -55,11 +54,11 @@ impl ProcessStartHandler {
     }
 
     /// Step 2: Match stored triggers against targets.
-    async fn match_processes(
+    async fn match_processes<'a>(
         state_manager: &StateManager,
         matcher: &Filter,
-        triggers: Vec<ProcessStartTrigger>,
-    ) -> HashMap<String, HashSet<ProcessStartTrigger>> {
+        triggers: &'a Vec<ProcessStartTrigger>,
+    ) -> HashMap<String, HashSet<&'a ProcessStartTrigger>> {
         debug!(
             "Matching {} stored triggers against targets.",
             triggers.len()
@@ -71,8 +70,8 @@ impl ProcessStartHandler {
     /// Step 3: Refresh system data for matched processes.
     async fn refresh_process_data(
         system_refresher: &SystemRefresher,
-        matched_processes: HashMap<String, HashSet<ProcessStartTrigger>>,
-    ) -> Result<HashMap<String, HashSet<ProcessStartTrigger>>> {
+        matched_processes: &HashMap<String, HashSet<&ProcessStartTrigger>>,
+    ) -> Result<()> {
         let pids: HashSet<usize> = matched_processes
             .values()
             .flatten()
@@ -80,16 +79,14 @@ impl ProcessStartHandler {
             .collect();
 
         debug!("Refreshing system data for {} PIDs.", pids.len());
-        system_refresher.refresh_system(&pids).await?;
-
-        Ok(matched_processes)
+        system_refresher.refresh_system(&pids).await
     }
 
     /// Step 4: Log data for each matched process.
     async fn log_matched_processes(
         logger: &ProcessLogger,
         system_refresher: &SystemRefresher,
-        matched_processes: &HashMap<String, HashSet<ProcessStartTrigger>>,
+        matched_processes: &HashMap<String, HashSet<&ProcessStartTrigger>>,
     ) -> Result<()> {
         let mut count = 0;
 
@@ -98,7 +95,7 @@ impl ProcessStartHandler {
             for process in processes {
                 let system = system_refresher.get_system().read().await;
                 let sys_proc = system.process(process.pid.into());
-                logger.log_new_process(target, process, sys_proc).await?;
+                let _ = logger.log_new_process(target, process, sys_proc).await?;
             }
         }
 
@@ -106,12 +103,46 @@ impl ProcessStartHandler {
         Ok(())
     }
 
-    /// Step 5: Update the monitoring state with new processes.
+    /// Step 5: Match pipelines for matched processes.
+    async fn log_matching_jobs(
+        logger: &ProcessLogger,
+        state_manager: &StateManager,
+        triggers: &Vec<ProcessStartTrigger>,
+        matched_processes: &HashMap<String, HashSet<&ProcessStartTrigger>>,
+    ) -> Result<()> {
+        let mut state = state_manager.get_state_mut().await;
+        let pipeline_manager = state.get_pipeline_manager();
+        let trigger_to_target =
+            matched_processes
+                .iter()
+                .fold(HashMap::new(), |mut acc, (target, processes)| {
+                    acc.extend(processes.iter().map(|process| (process, target)));
+                    acc
+                });
+        for trigger in triggers {
+            let matched_target = trigger_to_target.get(&trigger);
+            if let Some(job_match) =
+                pipeline_manager.register_process(trigger, matched_target.map(|t| &**t))
+            {
+                // TODO: do we need to try to associate the job with a container here, or does
+                // that happen in the UI?
+                // the process triggered a job match
+                logger.log_job_match(job_match).await?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Step 6: Update the monitoring state with new processes.
     async fn update_monitoring(
         state_manager: &StateManager,
-        matched_processes: HashMap<String, HashSet<ProcessStartTrigger>>,
+        matched_processes: HashMap<String, HashSet<&ProcessStartTrigger>>,
     ) -> Result<()> {
         debug!("Updating monitoring for matched processes.");
+        let matched_processes = matched_processes
+            .into_iter()
+            .map(|(k, v)| (k, v.into_iter().map(|p| p.clone()).collect()))
+            .collect();
         state_manager.update_monitoring(matched_processes).await
     }
 }
