@@ -241,11 +241,11 @@ pub fn process_cli() -> Result<()> {
                         println!("\nDaemon started successfully.");
 
                         tokio::runtime::Runtime::new()?.block_on(async {
-                            tokio::spawn(emit_analytic_event(
+                            analytics::spawn_event(
                                 args.user_id.clone(),
-                                crate::process_identification::types::analytics::AnalyticsEventType::DaemonStartAttempted,
+                                AnalyticsEventType::DaemonStartAttempted,
                                 None,
-                            ));
+                            );
                             wait(&api_client).await?;
 
                             print_info(&api_client, false).await
