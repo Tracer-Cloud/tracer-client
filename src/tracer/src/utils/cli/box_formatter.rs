@@ -10,25 +10,15 @@ const STATUS_INFO: Emoji<'_, '_> = Emoji("ℹ️ ", "ℹ️ ");
 pub struct BoxFormatter {
     output: String,
     width: usize,
-    fallback_terminal: bool, //for terminals that cannot output special formatted text
 }
 
 /// Formats a box like interface in the command line.
 /// create with `BoxFormatter::new(width)`
 impl BoxFormatter {
     pub fn new(width: usize) -> Self {
-        // Check if running in Terminal.app
-        let macos_terminal = matches!(
-            std::env::var("TERM_PROGRAM").as_deref(),
-            Ok("Apple_Terminal")
-        );
-        let is_github_actions = std::env::var("GITHUB_ACTIONS").is_ok_and(|v| v == "true");
-        let is_fallback = macos_terminal || is_github_actions;
-        let width = if is_fallback { width + 100 } else { width };
         Self {
             output: String::new(),
             width,
-            fallback_terminal: is_fallback,
         }
     }
 
@@ -121,17 +111,8 @@ impl BoxFormatter {
     pub fn get_output(&self) -> &str {
         &self.output
     }
-    pub fn add_hyperlink(&mut self, label: &str, fallback_label: &str, url: &str) {
-        if self.fallback_terminal {
-            // Terminal.app: show plain blue URL
-            let link = format!("🔗 {}", url).blue().to_string();
-            writeln!(&mut self.output, "│ {:<20} │ {}  ", fallback_label, link).unwrap();
-        } else {
-            // Other terminals: clickable hyperlink
-            let hyperlink = format!("\x1B]8;;{}\x07{}\x1B]8;;\x07", url, label);
-            let link = hyperlink.blue().to_string();
-            let label = "";
-            writeln!(&mut self.output, "│ {:<20} │ {}", label, link).unwrap();
-        };
+    pub fn add_hyperlink(&mut self, label: &str, url: &str) {
+        let link = format!("🔗 {}", url).blue().to_string();
+        writeln!(&mut self.output, "│ {:<20} │ {}  ", label, link).unwrap();
     }
 }
