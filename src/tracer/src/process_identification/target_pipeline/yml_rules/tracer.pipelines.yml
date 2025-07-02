@@ -10,14 +10,14 @@ pipelines:
         description: Create genome indexes for RNA-seq analysis.
         steps:
           - or:
-              - job: GUNZIP_GTF
+              - task: GUNZIP_GTF
               - and:
-                  - optional_job: GUNZIP_GFF
-                  - job: GFFREAD
+                  - optional_task: GUNZIP_GFF
+                  - task: GFFREAD
           - or:
-              - job: STAR_GENOMEGENERATE
-              - job: BBMAP_BBSPLIT
-    jobs:
+              - task: STAR_GENOMEGENERATE
+              - task: BBMAP_BBSPLIT
+    tasks:
       - id: GUNZIP_GTF
         description: Unzip the GTF file.
         rules:

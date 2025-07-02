@@ -53,7 +53,7 @@ pub enum ProcessStatus {
     DataSamplesEvent,
     TestEvent, // Added TestEvent variant
     ContainerExecution,
-    JobMatch,
+    TaskMatch,
 }
 
 impl std::fmt::Display for ProcessStatus {
@@ -71,7 +71,7 @@ impl std::fmt::Display for ProcessStatus {
             ProcessStatus::DataSamplesEvent => write!(f, "datasets_in_process"),
             ProcessStatus::TestEvent => write!(f, "test_event"),
             ProcessStatus::ContainerExecution => write!(f, "container_execution"),
-            ProcessStatus::JobMatch => write!(f, "job_match"),
+            ProcessStatus::TaskMatch => write!(f, "task_match"),
         }
     }
 }
