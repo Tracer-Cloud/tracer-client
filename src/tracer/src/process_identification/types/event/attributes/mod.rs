@@ -1,4 +1,4 @@
-use crate::process_identification::target_pipeline::pipeline_manager::JobMatch;
+use crate::process_identification::target_pipeline::pipeline_manager::TaskMatch;
 use container::ContainerProperties;
 use process::{CompletedProcess, DataSetsProcessed, ProcessProperties};
 use syslog::SyslogProperties;
@@ -19,5 +19,5 @@ pub enum EventAttributes {
     SystemProperties(Box<SystemProperties>),
     ProcessDatasetStats(DataSetsProcessed),
     ContainerEvents(ContainerProperties),
-    JobMatch(JobMatch),
+    TaskMatch(TaskMatch),
 }

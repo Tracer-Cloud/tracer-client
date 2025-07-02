@@ -1,4 +1,4 @@
-use super::pipeline::{Dependencies, Job, Pipeline, Step, Subworkflow, Version};
+use super::pipeline::{Dependencies, Pipeline, Step, Subworkflow, Task, Version};
 use crate::utils::yaml::{Yaml, YamlExt, YamlFile};
 use anyhow::{anyhow, bail, Result};
 use std::sync::LazyLock;
@@ -36,18 +36,18 @@ impl TryFrom<Yaml> for Pipeline {
                     .collect::<Result<Vec<_>>>()
             })
             .transpose()?;
-        let jobs = yaml
-            .optional_vec("jobs")?
+        let tasks = yaml
+            .optional_vec("tasks")?
             .map(|v| {
                 v.iter()
-                    .map(|job| job.try_into())
+                    .map(|task| task.try_into())
                     .collect::<Result<Vec<_>>>()
             })
             .transpose()?;
-        let dependencies = if subworkflows.is_none() && jobs.is_none() {
+        let dependencies = if subworkflows.is_none() && tasks.is_none() {
             GLOBAL_DEPENDENCIES.clone()
         } else {
-            Dependencies::new(subworkflows, jobs, Some(&GLOBAL_DEPENDENCIES))
+            Dependencies::new(subworkflows, tasks, Some(&GLOBAL_DEPENDENCIES))
         };
         let steps = yaml
             .optional_vec("steps")?
@@ -120,7 +120,7 @@ impl TryFrom<&Yaml> for Subworkflow {
     }
 }
 
-impl TryFrom<&Yaml> for Job {
+impl TryFrom<&Yaml> for Task {
     type Error = anyhow::Error;
 
     fn try_from(yaml: &Yaml) -> Result<Self> {
@@ -148,7 +148,7 @@ impl TryFrom<&Yaml> for Job {
                     .collect::<Result<Vec<_>>>()
             })
             .transpose()?;
-        Ok(Job {
+        Ok(Task {
             id,
             description,
             rules,
@@ -161,12 +161,12 @@ impl TryFrom<&Yaml> for Step {
     type Error = anyhow::Error;
 
     fn try_from(yaml: &Yaml) -> Result<Self> {
-        const STEP_TYPES: &[&str] = &["job", "optional_job", "subworkflow", "optional_subworkflow"];
+        const STEP_TYPES: &[&str] = &["task", "optional_task", "subworkflow", "optional_subworkflow"];
         for step_type in STEP_TYPES {
             if let Some(id) = yaml.optional_string(step_type)? {
                 return match *step_type {
-                    "job" => Ok(Step::Job(id)),
-                    "optional_job" => Ok(Step::OptionalJob(id)),
+                    "task" => Ok(Step::Task(id)),
+                    "optional_task" => Ok(Step::OptionalTask(id)),
                     "subworkflow" => Ok(Step::Subworkflow(id)),
                     "optional_subworkflow" => Ok(Step::OptionalSubworkflow(id)),
                     _ => bail!("Unknown step type: {:?}", yaml),
@@ -251,19 +251,19 @@ mod tests {
             Step::Or(or_steps) => {
                 assert_eq!(or_steps.len(), 2);
                 match &or_steps[0] {
-                    Step::Job(job_id) => assert_eq!(job_id, "GUNZIP_GTF"),
-                    _ => panic!("Expected Job step"),
+                    Step::Task(task_id) => assert_eq!(task_id, "GUNZIP_GTF"),
+                    _ => panic!("Expected Task step"),
                 }
                 match &or_steps[1] {
                     Step::And(and_steps) => {
                         assert_eq!(and_steps.len(), 2);
                         match &and_steps[0] {
-                            Step::OptionalJob(job_id) => assert_eq!(job_id, "GUNZIP_GFF"),
-                            _ => panic!("Expected OptionalJob step"),
+                            Step::OptionalTask(task_id) => assert_eq!(task_id, "GUNZIP_GFF"),
+                            _ => panic!("Expected OptionalTask step"),
                         }
                         match &and_steps[1] {
-                            Step::Job(job_id) => assert_eq!(job_id, "GFFREAD"),
-                            _ => panic!("Expected Job step"),
+                            Step::Task(task_id) => assert_eq!(task_id, "GFFREAD"),
+                            _ => panic!("Expected Task step"),
                         }
                     }
                     _ => panic!("Expected And step"),
@@ -272,25 +272,25 @@ mod tests {
             _ => panic!("Expected Or step"),
         }
 
-        // Test jobs
-        assert!(pipeline.dependencies.jobs.contains_key("GUNZIP_GTF"));
-        assert!(pipeline.dependencies.jobs.contains_key("GUNZIP_GFF"));
-        assert!(pipeline.dependencies.jobs.contains_key("GFFREAD"));
-        let gunzip_gtf = pipeline.dependencies.jobs.get("GUNZIP_GTF").unwrap();
+        // Test tasks
+        assert!(pipeline.dependencies.tasks.contains_key("GUNZIP_GTF"));
+        assert!(pipeline.dependencies.tasks.contains_key("GUNZIP_GFF"));
+        assert!(pipeline.dependencies.tasks.contains_key("GFFREAD"));
+        let gunzip_gtf = pipeline.dependencies.tasks.get("GUNZIP_GTF").unwrap();
         assert_eq!(gunzip_gtf.id, "GUNZIP_GTF");
         assert_eq!(
             gunzip_gtf.description,
             Some("Unzip the GTF file.".to_string())
         );
         assert_eq!(gunzip_gtf.rules, vec!["gunzip_gtf"]);
-        let gunzip_gff = pipeline.dependencies.jobs.get("GUNZIP_GFF").unwrap();
+        let gunzip_gff = pipeline.dependencies.tasks.get("GUNZIP_GFF").unwrap();
         assert_eq!(gunzip_gff.id, "GUNZIP_GFF");
         assert_eq!(
             gunzip_gff.description,
             Some("Unzip the GFF file.".to_string())
         );
         assert_eq!(gunzip_gff.rules, vec!["gunzip_gff"]);
-        let gffread = pipeline.dependencies.jobs.get("GFFREAD").unwrap();
+        let gffread = pipeline.dependencies.tasks.get("GFFREAD").unwrap();
         assert_eq!(gffread.id, "GFFREAD");
         assert_eq!(gffread.description, Some("Read the GFF file.".to_string()));
         assert_eq!(gffread.rules, vec!["gffread"]);
@@ -338,25 +338,25 @@ mod tests {
             Step::Or(or_steps) => {
                 assert_eq!(or_steps.len(), 2);
 
-                // First step should be GUNZIP_GTF job
+                // First step should be GUNZIP_GTF task
                 match &or_steps[0] {
-                    Step::Job(job_id) => assert_eq!(job_id, "GUNZIP_GTF"),
-                    _ => panic!("Expected Job step"),
+                    Step::Task(task_id) => assert_eq!(task_id, "GUNZIP_GTF"),
+                    _ => panic!("Expected Task step"),
                 }
 
-                // Second step should be AND with optional_job and job
+                // Second step should be AND with optional_task and task
                 match &or_steps[1] {
                     Step::And(and_steps) => {
                         assert_eq!(and_steps.len(), 2);
 
                         match &and_steps[0] {
-                            Step::OptionalJob(job_id) => assert_eq!(job_id, "GUNZIP_GFF"),
-                            _ => panic!("Expected OptionalJob step"),
+                            Step::OptionalTask(task_id) => assert_eq!(task_id, "GUNZIP_GFF"),
+                            _ => panic!("Expected OptionalTask step"),
                         }
 
                         match &and_steps[1] {
-                            Step::Job(job_id) => assert_eq!(job_id, "GFFREAD"),
-                            _ => panic!("Expected Job step"),
+                            Step::Task(task_id) => assert_eq!(task_id, "GFFREAD"),
+                            _ => panic!("Expected Task step"),
                         }
                     }
                     _ => panic!("Expected And step"),
@@ -367,17 +367,17 @@ mod tests {
     }
 
     #[test]
-    fn test_pipeline_jobs() {
+    fn test_pipeline_tasks() {
         let pipelines = load_pipelines_from_yamls(PIPELINE_YAML_PATH);
         let pipeline = &pipelines[0];
 
-        // Test jobs
-        assert!(pipeline.dependencies.jobs.contains_key("GUNZIP_GTF"));
-        assert!(pipeline.dependencies.jobs.contains_key("GUNZIP_GFF"));
-        assert!(pipeline.dependencies.jobs.contains_key("GFFREAD"));
+        // Test tasks
+        assert!(pipeline.dependencies.tasks.contains_key("GUNZIP_GTF"));
+        assert!(pipeline.dependencies.tasks.contains_key("GUNZIP_GFF"));
+        assert!(pipeline.dependencies.tasks.contains_key("GFFREAD"));
 
-        // Test GUNZIP_GTF job
-        let gunzip_gtf = pipeline.dependencies.jobs.get("GUNZIP_GTF").unwrap();
+        // Test GUNZIP_GTF task
+        let gunzip_gtf = pipeline.dependencies.tasks.get("GUNZIP_GTF").unwrap();
         assert_eq!(gunzip_gtf.id, "GUNZIP_GTF");
         assert_eq!(
             gunzip_gtf.description,
@@ -385,8 +385,8 @@ mod tests {
         );
         assert_eq!(gunzip_gtf.rules, vec!["gunzip_gtf"]);
 
-        // Test GUNZIP_GFF job
-        let gunzip_gff = pipeline.dependencies.jobs.get("GUNZIP_GFF").unwrap();
+        // Test GUNZIP_GFF task
+        let gunzip_gff = pipeline.dependencies.tasks.get("GUNZIP_GFF").unwrap();
         assert_eq!(gunzip_gff.id, "GUNZIP_GFF");
         assert_eq!(
             gunzip_gff.description,
@@ -394,8 +394,8 @@ mod tests {
         );
         assert_eq!(gunzip_gff.rules, vec!["gunzip_gff"]);
 
-        // Test GFFREAD job
-        let gffread = pipeline.dependencies.jobs.get("GFFREAD").unwrap();
+        // Test GFFREAD task
+        let gffread = pipeline.dependencies.tasks.get("GFFREAD").unwrap();
         assert_eq!(gffread.id, "GFFREAD");
         assert_eq!(gffread.description, Some("Read the GFF file.".to_string()));
         assert_eq!(gffread.rules, vec!["gffread"]);
@@ -430,7 +430,7 @@ mod tests {
 
         // Test that dependencies are properly structured
         assert_eq!(pipeline.dependencies.subworkflows.len(), 1);
-        assert_eq!(pipeline.dependencies.jobs.len(), 5);
+        assert_eq!(pipeline.dependencies.tasks.len(), 5);
 
         // Test that parent dependencies are set (should be GLOBAL_DEPENDENCIES)
         assert!(pipeline.dependencies.parent.is_some());
@@ -446,23 +446,23 @@ pipelines:
     version:
       min: "1.0.0"
       max: "2.0.0"
-    jobs:
-      - id: TEST_JOB
-        description: A test job
+    tasks:
+      - id: TEST_TASK
+        description: A test task
         rules:
           - test_rule
-      - id: TEST_JOB_2
-        description: Another test job
+      - id: TEST_TASK_2
+        description: Another test task
         rules:
           - test_rule_2
     subworkflows:
       - id: TEST_SUBWORKFLOW
         description: A test subworkflow
         steps:
-          - job: TEST_JOB
+          - task: TEST_TASK
     steps:
       - subworkflow: TEST_SUBWORKFLOW
-      - job: TEST_JOB_2
+      - task: TEST_TASK_2
 "#;
 
         let pipelines = load_pipelines_from_yamls(&[YamlFile::Embedded(embedded_yaml)]);
@@ -485,19 +485,19 @@ pipelines:
         assert_eq!(version.max, Some("2.0.0".to_string()));
         assert_eq!(version.exact, None);
 
-        // Test jobs
-        assert!(pipeline.dependencies.jobs.contains_key("TEST_JOB"));
-        assert!(pipeline.dependencies.jobs.contains_key("TEST_JOB_2"));
+        // Test tasks
+        assert!(pipeline.dependencies.tasks.contains_key("TEST_TASK"));
+        assert!(pipeline.dependencies.tasks.contains_key("TEST_TASK_2"));
 
-        let job1 = pipeline.dependencies.jobs.get("TEST_JOB").unwrap();
-        assert_eq!(job1.id, "TEST_JOB");
-        assert_eq!(job1.description, Some("A test job".to_string()));
-        assert_eq!(job1.rules, vec!["test_rule"]);
+        let task1 = pipeline.dependencies.tasks.get("TEST_TASK").unwrap();
+        assert_eq!(task1.id, "TEST_TASK");
+        assert_eq!(task1.description, Some("A test task".to_string()));
+        assert_eq!(task1.rules, vec!["test_rule"]);
 
-        let job2 = pipeline.dependencies.jobs.get("TEST_JOB_2").unwrap();
-        assert_eq!(job2.id, "TEST_JOB_2");
-        assert_eq!(job2.description, Some("Another test job".to_string()));
-        assert_eq!(job2.rules, vec!["test_rule_2"]);
+        let task2 = pipeline.dependencies.tasks.get("TEST_TASK_2").unwrap();
+        assert_eq!(task2.id, "TEST_TASK_2");
+        assert_eq!(task2.description, Some("Another test task".to_string()));
+        assert_eq!(task2.rules, vec!["test_rule_2"]);
 
         // Test subworkflows
         assert!(pipeline
@@ -520,8 +520,8 @@ pipelines:
         let subworkflow_steps = subworkflow.steps.as_ref().unwrap();
         assert_eq!(subworkflow_steps.len(), 1);
         match &subworkflow_steps[0] {
-            Step::Job(job_id) => assert_eq!(job_id, "TEST_JOB"),
-            _ => panic!("Expected Job step"),
+            Step::Task(task_id) => assert_eq!(task_id, "TEST_TASK"),
+            _ => panic!("Expected Task step"),
         }
 
         // Test main pipeline steps
@@ -535,8 +535,8 @@ pipelines:
         }
 
         match &steps[1] {
-            Step::Job(job_id) => assert_eq!(job_id, "TEST_JOB_2"),
-            _ => panic!("Expected Job step"),
+            Step::Task(task_id) => assert_eq!(task_id, "TEST_TASK_2"),
+            _ => panic!("Expected Task step"),
         }
     }
 
@@ -546,25 +546,25 @@ pipelines:
 pipelines:
   - id: complex-pipeline
     description: Pipeline with complex step structures
-    jobs:
-      - id: JOB1
-        description: First job
+    tasks:
+      - id: TASK1
+        description: First task
         rules:
           - rule1
-      - id: JOB2
-        description: Second job
+      - id: TASK2
+        description: Second task
         rules:
           - rule2
-      - id: JOB3
-        description: Third job
+      - id: TASK3
+        description: Third task
         rules:
           - rule3
     steps:
       - or:
-          - job: JOB1
+          - task: TASK1
           - and:
-              - optional_job: JOB2
-              - job: JOB3
+              - optional_task: TASK2
+              - task: TASK3
 "#;
 
         let pipelines = load_pipelines_from_yamls(&[YamlFile::Embedded(embedded_yaml)]);
@@ -582,25 +582,25 @@ pipelines:
             Step::Or(or_steps) => {
                 assert_eq!(or_steps.len(), 2);
 
-                // First step should be JOB1
+                // First step should be TASK1
                 match &or_steps[0] {
-                    Step::Job(job_id) => assert_eq!(job_id, "JOB1"),
-                    _ => panic!("Expected Job step"),
+                    Step::Task(task_id) => assert_eq!(task_id, "TASK1"),
+                    _ => panic!("Expected Task step"),
                 }
 
-                // Second step should be AND with optional_job and job
+                // Second step should be AND with optional_task and task
                 match &or_steps[1] {
                     Step::And(and_steps) => {
                         assert_eq!(and_steps.len(), 2);
 
                         match &and_steps[0] {
-                            Step::OptionalJob(job_id) => assert_eq!(job_id, "JOB2"),
-                            _ => panic!("Expected OptionalJob step"),
+                            Step::OptionalTask(task_id) => assert_eq!(task_id, "TASK2"),
+                            _ => panic!("Expected OptionalTask step"),
                         }
 
                         match &and_steps[1] {
-                            Step::Job(job_id) => assert_eq!(job_id, "JOB3"),
-                            _ => panic!("Expected Job step"),
+                            Step::Task(task_id) => assert_eq!(task_id, "TASK3"),
+                            _ => panic!("Expected Task step"),
                         }
                     }
                     _ => panic!("Expected And step"),

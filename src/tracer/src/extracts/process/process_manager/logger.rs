@@ -6,7 +6,7 @@ use crate::extracts::{
     containers::DockerWatcher, process::extract_process_data::ExtractProcessData,
 };
 use crate::process_identification::recorder::LogRecorder;
-use crate::process_identification::target_pipeline::pipeline_manager::JobMatch;
+use crate::process_identification::target_pipeline::pipeline_manager::TaskMatch;
 use crate::process_identification::types::event::attributes::process::ProcessProperties;
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::ProcessStatus as TracerProcessStatus;
@@ -124,12 +124,12 @@ impl ProcessLogger {
     }
 
     /// Logs a match for a set of processes to a job.
-    pub async fn log_job_match(&self, job_match: JobMatch) -> Result<()> {
+    pub async fn log_job_match(&self, job_match: TaskMatch) -> Result<()> {
         self.log_recorder
             .log(
-                TracerProcessStatus::JobMatch,
+                TracerProcessStatus::TaskMatch,
                 format!("[{}] Job match: {}", Utc::now(), &job_match),
-                Some(EventAttributes::JobMatch(job_match)),
+                Some(EventAttributes::TaskMatch(job_match)),
                 None,
             )
             .await
