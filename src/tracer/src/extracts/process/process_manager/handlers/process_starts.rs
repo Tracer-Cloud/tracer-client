@@ -15,7 +15,6 @@ impl ProcessStartHandler {
     pub async fn handle_process_starts(
         state_manager: &StateManager,
         logger: &ProcessLogger,
-        matcher: &Filter,
         system_refresher: &SystemRefresher,
         triggers: Vec<ProcessStartTrigger>,
     ) -> Result<()> {
@@ -23,7 +22,7 @@ impl ProcessStartHandler {
 
         Self::store_triggers(state_manager, triggers.clone()).await;
 
-        let matched_processes = Self::match_processes(state_manager, matcher, &triggers).await;
+        let matched_processes = Self::match_processes(state_manager, &triggers).await;
 
         if matched_processes.is_empty() {
             debug!("No matching processes found; exiting early.");
@@ -56,15 +55,14 @@ impl ProcessStartHandler {
     /// Step 2: Match stored triggers against targets.
     async fn match_processes<'a>(
         state_manager: &StateManager,
-        matcher: &Filter,
-        triggers: &'a Vec<ProcessStartTrigger>,
+        triggers: &'a [ProcessStartTrigger],
     ) -> HashMap<String, HashSet<&'a ProcessStartTrigger>> {
         debug!(
             "Matching {} stored triggers against targets.",
             triggers.len()
         );
         let state = state_manager.get_state().await;
-        matcher.find_matching_processes(triggers, &state)
+        Filter.find_matching_processes(triggers, &state)
     }
 
     /// Step 3: Refresh system data for matched processes.
@@ -141,7 +139,7 @@ impl ProcessStartHandler {
         debug!("Updating monitoring for matched processes.");
         let matched_processes = matched_processes
             .into_iter()
-            .map(|(k, v)| (k, v.into_iter().map(|p| p.clone()).collect()))
+            .map(|(k, v)| (k, v.into_iter().cloned().collect()))
             .collect();
         state_manager.update_monitoring(matched_processes).await
     }

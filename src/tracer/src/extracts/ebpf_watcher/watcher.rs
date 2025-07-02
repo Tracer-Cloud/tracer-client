@@ -3,7 +3,6 @@ use crate::extracts::ebpf_watcher::handler::trigger::trigger_processor::TriggerP
 use crate::extracts::process::process_manager::ProcessManager;
 use crate::extracts::process::process_utils::get_process_argv;
 use crate::process_identification::recorder::LogRecorder;
-use crate::process_identification::target_process::target::Target;
 use anyhow::{Error, Result};
 use std::collections::HashSet;
 use std::fs::{self};

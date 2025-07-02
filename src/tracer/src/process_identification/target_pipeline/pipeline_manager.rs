@@ -43,7 +43,7 @@ pub struct TargetPipelineManager {
 }
 
 impl TargetPipelineManager {
-    pub fn new(rule_files: &[YamlFile], _targets: &Vec<Target>) -> Self {
+    pub fn new(rule_files: &[YamlFile], _targets: &[Target]) -> Self {
         let pipelines = load_pipelines_from_yamls(rule_files);
         let mut jobs = Jobs::default();
         pipelines.iter().for_each(|pipeline| {
@@ -223,7 +223,7 @@ impl Jobs {
         }
     }
 
-    fn add_subworkflow(&mut self, id: &String, dependencies: &Dependencies, optional: bool) {
+    fn add_subworkflow(&mut self, id: &str, dependencies: &Dependencies, optional: bool) {
         if let Some(subworkflow) = dependencies.get_subworkflow(id) {
             if let Some(steps) = &subworkflow.steps {
                 self.add_steps(steps, dependencies, optional);
