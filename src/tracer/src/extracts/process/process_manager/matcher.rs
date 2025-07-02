@@ -13,18 +13,18 @@ impl Filter {
     /// Uses the state's target manager for consistency
     pub fn find_matching_processes<'a>(
         &self,
-        triggers: &'a Vec<ProcessStartTrigger>,
+        triggers: &'a [ProcessStartTrigger],
         state: &ProcessState,
     ) -> HashMap<String, HashSet<&'a ProcessStartTrigger>> {
         triggers
-            .into_iter()
+            .iter()
             .flat_map(|trigger| {
-                let target = state.get_target_manager().get_target_match(&trigger);
+                let target = state.get_target_manager().get_target_match(trigger);
                 if let Some(matched_target) = target {
-                    log_matched_process(&trigger, &matched_target, true);
+                    log_matched_process(trigger, &matched_target, true);
                     Some((trigger, matched_target))
                 } else {
-                    log_matched_process(&trigger, "", false);
+                    log_matched_process(trigger, "", false);
                     None
                 }
             })
