@@ -1,7 +1,14 @@
 rules:
-  - rule_name: fgbio command
-    display_name: fgbio
+  - rule_name: fgbio process
+    display_name: fgbio {subcommand}
     condition:
       and:
-        - process_name_contains: fgbio
+        - process_name_is: java
         - command_contains: fgbio
+        - subcommand_is_one_of: [ FilterConsensusReads, CallDuplexConsensusReads, CollectDuplexSeqMetrics, ZipperBams, GroupReadsByUmi, FastqToBam ]
+
+
+  - rule_name: fastqtobam rule
+    display_name: FASTQTOBAM
+    condition:
+      - process_name_contains: fastqtobam
