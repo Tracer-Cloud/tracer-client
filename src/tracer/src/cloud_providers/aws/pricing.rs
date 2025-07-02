@@ -160,6 +160,13 @@ impl PricingClient {
         client.get_volume_types(instance_id).await.ok()
     }
 
+    /// Calculates the total hourly cost for all attached EBS volumes.
+    /// This uses AWS pricing tiers for gp3 (as of us-east-1 region):
+    /// - Storage: $0.08/GB-month
+    /// - IOPS: First 3000 free, then $0.005/provisioned IOPS-month
+    /// - Throughput: First 125 MB/s free, then $0.040/provisioned MB/s-month
+    ///
+    /// All prices are converted from monthly to hourly by dividing by 720.
     async fn get_total_ebs_price(&self, region: &str, volumes: &[VolumeMetadata]) -> Option<f64> {
         let mut total_price = 0.0;
 
@@ -171,7 +178,10 @@ impl PricingClient {
         Some(total_price)
     }
 
-    /// Returns the cost for a single volume
+    /// Returns the **hourly** cost for a single EBS volume by converting
+    /// AWS monthly pricing into hourly pricing.
+    /// Applies free tier rules for gp3 volumes:
+    /// - First 3000 IOPS and 125 MB/s throughput are free.
     async fn calculate_volume_cost(&self, region: &str, vol: &VolumeMetadata) -> Option<f64> {
         let filters = Self::build_ebs_filters(region, &vol.volume_type);
         let price_data = self
@@ -183,29 +193,36 @@ impl PricingClient {
             .await;
 
         price_data.map(|data| {
-            let base_cost = vol.size_gib as f64 * data.price_per_unit;
+            // Convert base storage cost from $/GB-month to $/hr
+            let storage_hourly = (vol.size_gib as f64 * data.price_per_unit) / 720.0;
 
+            // Subtract free tier for IOPS (3000 free)
             let extra_iops = vol.iops.unwrap_or(0).saturating_sub(3000);
-            let extra_throughput = vol.throughput.unwrap_or(0).max(0) - 125;
-
-            let iops_cost = if let Some(p) = data.price_per_iops {
-                extra_iops as f64 * p
-            } else {
-                0.0
-            };
-            let throughput_cost = if let Some(p) = data.price_per_throughput {
-                extra_throughput as f64 * p
+            let iops_hourly = if let Some(p) = data.price_per_iops {
+                (extra_iops as f64 * p) / 720.0
             } else {
                 0.0
             };
 
-            let total_cost = base_cost + iops_cost + throughput_cost;
+            // Subtract free tier for throughput (125 MB/s free)
+            let extra_throughput = vol.throughput.unwrap_or(0).saturating_sub(125);
+            let throughput_hourly = if let Some(p) = data.price_per_throughput {
+                (extra_throughput as f64 * p) / 720.0
+            } else {
+                0.0
+            };
+
+            let total_cost = storage_hourly + iops_hourly + throughput_hourly;
 
             tracing::info!(
-                volume=?vol.volume_id,
-                base_cost, iops_cost, throughput_cost,
-                total_cost, "Calculated enhanced volume cost"
+                volume = ?vol.volume_id,
+                storage_hourly,
+                iops_hourly,
+                throughput_hourly,
+                total_cost,
+                "Calculated hourly EBS volume cost (adjusted for free tier)"
             );
+
             total_cost
         })
     }
