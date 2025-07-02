@@ -122,8 +122,6 @@ impl ProcessStartHandler {
             if let Some(job_match) =
                 pipeline_manager.register_process(trigger, matched_target.map(|t| &**t))
             {
-                // TODO: do we need to try to associate the job with a container here, or does
-                // that happen in the UI?
                 // the process triggered a job match
                 logger.log_job_match(job_match).await?;
             }
