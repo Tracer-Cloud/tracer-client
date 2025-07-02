@@ -108,6 +108,10 @@ impl PricingClient {
                 memory: String::new(),
                 price_per_unit: ebs_total_price,
                 unit: "USD/hr".to_string(),
+
+                price_per_gib: None,
+                price_per_iops: None,
+                price_per_throughput: None,
             })
         } else {
             None
@@ -171,15 +175,30 @@ impl PricingClient {
             .await;
 
         price_data.map(|data| {
-            let cost = vol.size_gib as f64 * data.price_per_unit;
+            let base_cost = vol.size_gib as f64 * data.price_per_unit;
+
+            let extra_iops = vol.iops.unwrap_or(0).saturating_sub(3000);
+            let extra_throughput = vol.throughput.unwrap_or(0).max(0) - 125;
+
+            let iops_cost = if let Some(p) = data.price_per_iops {
+                extra_iops as f64 * p
+            } else {
+                0.0
+            };
+            let throughput_cost = if let Some(p) = data.price_per_throughput {
+                extra_throughput as f64 * p
+            } else {
+                0.0
+            };
+
+            let total_cost = base_cost + iops_cost + throughput_cost;
+
             tracing::info!(
-                %cost,
                 volume=?vol.volume_id,
-                type=?vol.volume_type,
-                size=?vol.size_gib,
-                "Calculated cost for volume"
+                base_cost, iops_cost, throughput_cost,
+                total_cost, "Calculated enhanced volume cost"
             );
-            cost
+            total_cost
         })
     }
 

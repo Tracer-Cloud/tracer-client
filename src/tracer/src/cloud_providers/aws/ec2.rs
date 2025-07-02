@@ -71,6 +71,8 @@ impl Ec2Client {
                     volume_id: vol.volume_id.clone()?,
                     volume_type: vol.volume_type()?.as_str().to_string(),
                     size_gib: vol.size?,
+                    iops: vol.iops,
+                    throughput: vol.throughput,
                 })
             })
             .collect();
