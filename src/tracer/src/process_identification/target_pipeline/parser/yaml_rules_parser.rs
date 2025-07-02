@@ -161,7 +161,12 @@ impl TryFrom<&Yaml> for Step {
     type Error = anyhow::Error;
 
     fn try_from(yaml: &Yaml) -> Result<Self> {
-        const STEP_TYPES: &[&str] = &["task", "optional_task", "subworkflow", "optional_subworkflow"];
+        const STEP_TYPES: &[&str] = &[
+            "task",
+            "optional_task",
+            "subworkflow",
+            "optional_subworkflow",
+        ];
         for step_type in STEP_TYPES {
             if let Some(id) = yaml.optional_string(step_type)? {
                 return match *step_type {
