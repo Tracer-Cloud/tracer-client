@@ -4,7 +4,7 @@ use anyhow::{anyhow, bail, Result};
 use std::sync::LazyLock;
 use tracing::error;
 
-static GLOBAL_DEPENDENCIES: LazyLock<Dependencies> = LazyLock::new(|| Dependencies::default());
+static GLOBAL_DEPENDENCIES: LazyLock<Dependencies> = LazyLock::new(Dependencies::default);
 
 pub fn load_pipelines_from_yamls(yaml_files: &[YamlFile]) -> Vec<Pipeline> {
     yaml_files

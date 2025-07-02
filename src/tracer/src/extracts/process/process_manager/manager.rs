@@ -1,7 +1,6 @@
 use crate::extracts::process::process_manager::handlers::process_starts::ProcessStartHandler;
 use crate::extracts::process::process_manager::handlers::process_terminations::ProcessTerminationHandler;
 use crate::extracts::process::process_manager::logger::ProcessLogger;
-use crate::extracts::process::process_manager::matcher::Filter;
 use crate::extracts::process::process_manager::metrics::ProcessMetricsHandler;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
@@ -9,7 +8,6 @@ use crate::extracts::{
     containers::DockerWatcher, process::process_manager::handlers::oom::OomHandler,
 };
 use crate::process_identification::recorder::LogRecorder;
-use crate::process_identification::target_process::target::Target;
 use anyhow::Result;
 use std::{
     collections::{HashMap, HashSet},
@@ -23,21 +21,18 @@ use tracer_ebpf::ebpf_trigger::{OutOfMemoryTrigger, ProcessEndTrigger, ProcessSt
 pub struct ProcessManager {
     pub state_manager: StateManager,
     pub logger: ProcessLogger,
-    pub matcher: Filter,
     pub system_refresher: SystemRefresher,
 }
 
 impl ProcessManager {
     pub fn new(log_recorder: LogRecorder, docker_watcher: Arc<DockerWatcher>) -> Self {
-        let state_manager = StateManager::new();
+        let state_manager = StateManager::default();
         let logger = ProcessLogger::new(log_recorder, docker_watcher);
-        let matcher = Filter::default();
         let system_refresher = SystemRefresher::new();
 
         ProcessManager {
             state_manager,
             logger,
-            matcher,
             system_refresher,
         }
     }
@@ -81,7 +76,6 @@ impl ProcessManager {
         ProcessStartHandler::handle_process_starts(
             &self.state_manager,
             &self.logger,
-            &self.matcher,
             &self.system_refresher,
             triggers,
         )
