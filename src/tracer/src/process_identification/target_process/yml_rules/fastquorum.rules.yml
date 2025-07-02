@@ -1,0 +1,7 @@
+rules:
+  - rule_name: fgbio command
+    display_name: fgbio
+    condition:
+      and:
+        - process_name_contains: fgbio
+        - command_contains: fgbio
