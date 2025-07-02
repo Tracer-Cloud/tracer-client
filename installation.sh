@@ -619,7 +619,7 @@ function main() {
   print_header
   check_system_requirements
 
-  print_section "Setting Tracer User ID"
+  print_section "User ID"
   persist_tracer_user_id
 
   # Only send analytics if USER_ID was successfully set
