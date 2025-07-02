@@ -45,11 +45,11 @@ pub enum Step {
     Or(Vec<Step>),
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Dependencies {
     pub subworkflows: HashMap<String, Subworkflow>,
     pub jobs: HashMap<String, Job>,
-    pub parent: Option<Box<&'static Dependencies>>,
+    pub parent: Option<&'static Dependencies>,
 }
 
 impl Dependencies {
@@ -65,7 +65,7 @@ impl Dependencies {
             jobs: jobs
                 .map(|v| v.into_iter().map(|s| (s.id.clone(), s)).collect())
                 .unwrap_or_default(),
-            parent: parent.map(Box::new),
+            parent,
         }
     }
 
