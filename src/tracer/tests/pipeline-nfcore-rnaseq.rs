@@ -48,16 +48,10 @@ fn async_runtime() -> Runtime {
     Runtime::new().unwrap()
 }
 
-fn watcher(
-    pipeline: &PipelineMetadata,
-    event_sender: Sender<Event>,
-) -> Arc<EbpfWatcher> {
+fn watcher(pipeline: &PipelineMetadata, event_sender: Sender<Event>) -> Arc<EbpfWatcher> {
     let log_recorder = LogRecorder::new(Arc::new(RwLock::new(pipeline.clone())), event_sender);
     let docker_watcher = DockerWatcher::new(log_recorder.clone());
-    Arc::new(EbpfWatcher::new(
-        log_recorder,
-        Arc::new(docker_watcher),
-    ))
+    Arc::new(EbpfWatcher::new(log_recorder, Arc::new(docker_watcher)))
 }
 
 #[rstest]
