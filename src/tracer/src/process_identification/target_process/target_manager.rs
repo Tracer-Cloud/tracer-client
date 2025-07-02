@@ -1,31 +1,20 @@
-use crate::process_identification::target_process::parser::yaml_rules_parser::load_yaml_rules;
+use crate::process_identification::target_process::parser::yaml_rules_parser::load_targets_from_yaml;
 use crate::process_identification::target_process::target::Target;
-use std::path::Path;
+use crate::utils::yaml::YamlFile;
+use std::collections::HashSet;
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 
 #[derive(Clone)]
 pub struct TargetManager {
-    pub exclude: Vec<Target>,
-    pub targets: Vec<Target>,
+    pub exclude: HashSet<Target>,
+    pub targets: HashSet<Target>,
 }
 
 impl TargetManager {
-    fn new<P: AsRef<Path>>(
-        targets_embedded_yaml: Option<&str>,
-        targets_fallback_paths: &[P],
-        exclude_embedded_yaml: Option<&str>,
-        exclude_fallback_paths: &[P],
-    ) -> Self {
-        Self {
-            targets: load_yaml_rules(targets_embedded_yaml, targets_fallback_paths)
-                .into_iter()
-                .map(|rule| rule.into_target())
-                .collect(),
-            exclude: load_yaml_rules(exclude_embedded_yaml, exclude_fallback_paths)
-                .into_iter()
-                .map(|rule| rule.into_target())
-                .collect(),
-        }
+    pub fn new(rule_files: &[YamlFile], exclude_files: &[YamlFile]) -> Self {
+        let targets = load_targets_from_yaml(rule_files);
+        let exclude = load_targets_from_yaml(exclude_files);
+        Self { targets, exclude }
     }
 
     /// Match a process against all targets and return the first matching target name
@@ -61,21 +50,20 @@ impl TargetManager {
 
 impl Default for TargetManager {
     fn default() -> Self {
-        const POSSIBLE_PATHS_RULES: &[&str] = &["yml_rules/tracer.rules.yml"];
-        const POSSIBLE_PATHS_EXCLUDE: &[&str] = &["yml_rules/tracer.exclude.yml"];
-        Self::new(
-            Some(include_str!("yml_rules/tracer.rules.yml")),
-            POSSIBLE_PATHS_RULES,
-            Some(include_str!("yml_rules/tracer.exclude.yml")),
-            POSSIBLE_PATHS_EXCLUDE,
-        )
+        const RULE_FILES: &[YamlFile] = &[
+            YamlFile::Embedded(include_str!("yml_rules/tracer.rules.yml")),
+            YamlFile::Embedded(include_str!("yml_rules/bioconda.rules.yml")), // Add more RuleFile entries as needed
+        ];
+        const EXCLUDE_FILES: &[YamlFile] = &[YamlFile::Embedded(include_str!(
+            "yml_rules/tracer.exclude.yml"
+        ))];
+        Self::new(RULE_FILES, EXCLUDE_FILES)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
     use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 
     fn make_process(comm: &str, argv: &[&str]) -> ProcessStartTrigger {
@@ -84,12 +72,15 @@ mod tests {
 
     #[test]
     fn test_cat_fastq_target_match() {
-        // Load rules from the actual tracer.rules.yml file
-        let rules_path = "src/process_identification/target_process/yml_rules/tracer.rules.yml";
-        let rules_content =
-            fs::read_to_string(rules_path).expect("Failed to read tracer.rules.yml");
-        let manager = TargetManager::new::<&str>(Some(&rules_content), &[], None, &[]);
-
+        let rule_files = [
+            YamlFile::StaticPath(
+                "src/process_identification/target_process/yml_rules/tracer.rules.yml",
+            ),
+            YamlFile::StaticPath(
+                "src/process_identification/target_process/yml_rules/tracer.rules.yml",
+            ),
+        ];
+        let manager = TargetManager::new(&rule_files, &[]);
         // Should match: process_name is 'cat' and command contains 'fastq'
         let process = make_process("cat", &["cat", "input1/index.1.fastq.gz"]);
         let matched = manager.get_target_match(&process);
@@ -103,28 +94,17 @@ mod tests {
         let process = make_process("cat", &["cat"]);
         let matched = manager.get_target_match(&process);
         assert_eq!(matched, None);
-
-        // Should NOT match: process_name is not 'cat'
-        //FIXME
-        //let process = make_process("bash", &["cat", "input1/index.1.fastq.gz"]);
-        //let matched = manager.get_target_match(&process);
-        //assert_eq!(matched, None);
     }
 
     #[test]
     fn test_exclude_rule() {
-        // Load rules from the actual tracer.rules.yml file
-        let rules_path = "src/process_identification/target_process/yml_rules/tracer.rules.yml";
-        let rules_content =
-            fs::read_to_string(rules_path).expect("Failed to read tracer.rules.yml");
-
-        let exclude_path = "src/process_identification/target_process/yml_rules/tracer.exclude.yml";
-        let exclude_content =
-            fs::read_to_string(exclude_path).expect("Failed to read tracer.exclude.yml");
-
-        let manager =
-            TargetManager::new::<&str>(Some(&rules_content), &[], Some(&exclude_content), &[]);
-
+        let rule_files = [YamlFile::StaticPath(
+            "src/process_identification/target_process/yml_rules/tracer.rules.yml",
+        )];
+        let exclude_files = [YamlFile::StaticPath(
+            "src/process_identification/target_process/yml_rules/tracer.exclude.yml",
+        )];
+        let manager = TargetManager::new(&rule_files, &exclude_files);
         let process = make_process("cat", &["cat", "input1/index.1.fastq.gz input.fastq.gz"]);
         let matched = manager.get_target_match(&process);
         assert_eq!(matched.as_deref(), Some("cat FASTQ"));
@@ -140,21 +120,20 @@ mod tests {
 
     #[test]
     fn test_dynamic_display_subcommand() {
-        let rules_path = "src/process_identification/target_process/yml_rules/tracer.rules.yml";
-        let rules_content =
-            fs::read_to_string(rules_path).expect("Failed to read tracer.rules.yml");
-        let target_manager = TargetManager::new::<&str>(Some(&rules_content), &[], None, &[]);
-
+        let rule_files = [YamlFile::StaticPath(
+            "src/process_identification/target_process/yml_rules/tracer.rules.yml",
+        )];
+        let manager = TargetManager::new(&rule_files, &[]);
         let process = make_process("samtools", &["samtools", "sort", "file.bam"]);
-        let matched = target_manager.get_target_match(&process);
+        let matched = manager.get_target_match(&process);
         assert_eq!(matched.as_deref(), Some("samtools sort"));
 
         let process = make_process("samtools", &["samtools", "-@ 4", "sort", "file.bam"]);
-        let matched = target_manager.get_target_match(&process);
+        let matched = manager.get_target_match(&process);
         assert_eq!(matched.as_deref(), Some("samtools sort"));
 
         let process = make_process("samtools", &["samtools", "sort -4", "file.bam"]);
-        let matched = target_manager.get_target_match(&process);
+        let matched = manager.get_target_match(&process);
         assert_eq!(matched, None);
     }
 }

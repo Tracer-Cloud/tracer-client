@@ -2,21 +2,25 @@ use crate::process_identification::target_process::parser::conditions::{
     CompoundCondition, Condition, SimpleCondition,
 };
 use crate::process_identification::target_process::parser::rule::Rule;
-use crate::utils::yaml::{Yaml, YamlExt, YamlVecLoader};
+use crate::process_identification::target_process::target::Target;
+use crate::utils::yaml::{self, Yaml, YamlExt, YamlFile};
 use anyhow::{anyhow, bail, Result};
-use std::path::Path;
+use std::collections::HashSet;
 
-pub fn load_yaml_rules<P: AsRef<Path>>(
-    embedded_yaml: Option<&str>,
-    fallback_paths: &[P],
-) -> Vec<Rule> {
-    YamlVecLoader {
-        module: "TargetManager",
-        key: "rules",
-        embedded_yaml,
-        fallback_paths,
+pub fn load_targets_from_yaml(yaml_files: &[YamlFile]) -> HashSet<Target> {
+    yaml::load_from_yaml_array_files(yaml_files, "rules")
+}
+
+impl TryFrom<Yaml> for Target {
+    type Error = anyhow::Error;
+
+    fn try_from(yaml: Yaml) -> Result<Self> {
+        let rule: Rule = yaml.try_into()?;
+        Ok(Target {
+            match_type: rule.condition.into_match_type(),
+            display_name: rule.display_name,
+        })
     }
-    .load()
 }
 
 impl TryFrom<Yaml> for Rule {

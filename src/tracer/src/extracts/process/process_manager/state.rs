@@ -1,5 +1,4 @@
 use crate::extracts::process::types::process_state::ProcessState;
-use crate::process_identification::target_process::target::Target;
 use crate::process_identification::target_process::target_manager::TargetManager;
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
@@ -34,13 +33,6 @@ impl StateManager {
     pub async fn set_ebpf_task(&self, task: JoinHandle<()>) {
         let mut state = self.get_state_mut().await;
         state.set_ebpf_task(task);
-    }
-
-    /// Updates the list of targets being watched
-    pub async fn update_targets(&self, targets: Vec<Target>) -> Result<()> {
-        let mut state = self.state.write().await;
-        state.update_targets(targets);
-        Ok(())
     }
 
     /// Inserts a process into the state

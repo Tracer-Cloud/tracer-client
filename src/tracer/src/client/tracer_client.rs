@@ -137,9 +137,6 @@ impl TracerClient {
 
     pub async fn reload_config_file(&mut self, config: Config) -> Result<()> {
         self.interval = Duration::from_millis(config.process_polling_interval_ms);
-        self.ebpf_watcher
-            .update_targets(config.targets.clone())
-            .await?;
         self.config = config;
 
         Ok(())

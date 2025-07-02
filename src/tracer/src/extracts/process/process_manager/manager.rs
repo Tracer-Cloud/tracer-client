@@ -9,7 +9,6 @@ use crate::extracts::{
     containers::DockerWatcher, process::process_manager::handlers::oom::OomHandler,
 };
 use crate::process_identification::recorder::LogRecorder;
-use crate::process_identification::target_process::target::Target;
 use crate::process_identification::target_process::target_manager::TargetManager;
 use anyhow::Result;
 use std::{
@@ -50,12 +49,6 @@ impl ProcessManager {
     /// Sets the eBPF task handle
     pub async fn set_ebpf_task(&self, task: JoinHandle<()>) {
         self.state_manager.set_ebpf_task(task).await;
-    }
-
-    /// Updates the list of targets being watched
-    pub async fn update_targets(&self, targets: Vec<Target>) -> Result<()> {
-        // StateManager is now the single source of truth for targets
-        self.state_manager.update_targets(targets).await
     }
 
     /// Handles out-of-memory terminations
