@@ -1,4 +1,3 @@
-pub use crate::cloud_providers::aws::pricing::PricingClient;
 pub use crate::cloud_providers::aws::s3::S3Client;
 pub use crate::cloud_providers::aws::secrets::SecretsClient;
 use aws_config::{BehaviorVersion, SdkConfig};
