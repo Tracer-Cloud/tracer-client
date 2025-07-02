@@ -48,6 +48,7 @@ pub fn create_short_lived_process_object(
         process_memory_virtual: 0,
         process_status: process_status_to_string(&ProcessStatus::Unknown(0)),
         container_id: None,
+        task_id: None,
         job_id: None,
         working_directory: None,
         trace_id: None,
