@@ -220,12 +220,13 @@ function check_os() {
     Linux*)
         # Check for Amazon Linux
         if [ -f /etc/system-release ] && grep -q "Amazon Linux" /etc/system-release; then
-            echo "- ${EMOJI_CHECK} Amazon Linux OS detected."
             case "$ARCH" in
             x86_64)
+                echo "- ${EMOJI_CHECK} Amazon Linux x86_64 architecture detected"
                 TRACER_URL=$TRACER_AMAZON_LINUX_URL_X86_64
                 ;;
             aarch64)
+                echo "- ${EMOJI_CHECK} Amazon Linux aarch64 architecture detected"
                 TRACER_URL=$TRACER_LINUX_URL_ARM
                 ;;
             *)
@@ -234,12 +235,13 @@ function check_os() {
                 ;;
             esac
         else
-            echo "- ${EMOJI_CHECK} Linux OS detected."
             case "$ARCH" in
             x86_64)
+                echo "- ${EMOJI_CHECK} Linux x86_64 architecture detected"
                 TRACER_URL=$TRACER_LINUX_URL_X86_64
                 ;;
             aarch64)
+                echo "- ${EMOJI_CHECK} Linux aarch64 architecture detected"
                 TRACER_URL=$TRACER_LINUX_URL_ARM
                 ;;
             *)
