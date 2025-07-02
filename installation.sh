@@ -160,9 +160,12 @@ printsucc() {
 persist_tracer_user_id() {
 
     if [[ -z "$USER_ID" ]]; then
-        echo "- ${EMOJI_CANCEL} No user ID provided. Skipping user ID persistence..."
+        echo "- ${EMOJI_CANCEL} No user ID provided (TRACER_USER_ID not set). Skipping user ID persistence..."
+        echo "- ${EMOJI_INFO} To set a user ID, run with TRACER_USER_ID=\"your-user-id\""
         return
     fi
+
+    echo "- ${EMOJI_CHECK} User ID provided: ${USER_ID}"
 
     local RC_FILES=(
         "$HOME/.bashrc"
@@ -184,7 +187,7 @@ persist_tracer_user_id() {
     done
 
     export TRACER_USER_ID="$USER_ID"
-    printsucc "Set TRACER_USER_ID in current session and existing shell configs"
+    printsucc "TRACER_USER_ID successfully set in current session and existing shell configs"
 }
 
 #---  SYSTEM CHECKS  -----------------------------------------------------------
@@ -577,7 +580,7 @@ function main() {
   check_system_requirements
   send_analytics_event "$EVENT_INSTALL_STARTED" "{\"os\": \"$(uname -s)\", \"arch\": \"$(uname -m)\", \"session_id\": \"${SESSION_ID}\"}"
   print_section "Setting Tracer User ID"
-  persist_tracer_user_id > /dev/null
+  persist_tracer_user_id
   install_tracer_binary
   
 }
