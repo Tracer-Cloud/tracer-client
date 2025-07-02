@@ -47,9 +47,3 @@ rules:
         - process_name_is: java
         - command_contains: fgbio.jar
         - command_contains: FastqToBam
-
-  # fastqtobam
-  - rule_name: fastqtobam rule
-    display_name: FASTQTOBAM
-    condition:
-      - process_name_contains: fastqtobam
