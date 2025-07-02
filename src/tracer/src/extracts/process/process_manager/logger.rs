@@ -1,7 +1,8 @@
+use crate::extracts::process::process_utils::create_short_lived_process_object;
 use crate::extracts::process::types::process_result::ProcessResult;
 use crate::extracts::{containers::DockerWatcher, process::extract_process_data};
 use crate::process_identification::recorder::LogRecorder;
-use crate::process_identification::target_pipeline::pipeline_manager::TaskMatch;
+use crate::process_identification::target_pipeline::pipeline_manager::TargetPipelineManager;
 use crate::process_identification::types::event::attributes::process::ProcessProperties;
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::ProcessStatus as TracerProcessStatus;
@@ -16,6 +17,7 @@ use tracing::debug;
 pub struct ProcessLogger {
     log_recorder: LogRecorder,
     docker_watcher: Arc<DockerWatcher>,
+    pipeline_manager: Arc<TargetPipelineManager>,
 }
 
 impl ProcessLogger {
@@ -23,6 +25,7 @@ impl ProcessLogger {
         Self {
             log_recorder,
             docker_watcher,
+            pipeline_manager: Arc::new(TargetPipelineManager::default()),
         }
     }
 
@@ -65,6 +68,13 @@ impl ProcessLogger {
             {
                 full.container_event = Some(container_event);
             }
+        }
+
+        if let Some(task_match) = self
+            .pipeline_manager
+            .register_process(process, Some(target))
+        {
+            full.task_id = Some(task_match.id);
         }
 
         self.log_recorder
@@ -121,18 +131,6 @@ impl ProcessLogger {
             .await?;
 
         Ok(ProcessResult::Found)
-    }
-
-    /// Logs a match for a set of processes to a job.
-    pub async fn log_job_match(&self, job_match: TaskMatch) -> Result<()> {
-        self.log_recorder
-            .log(
-                TracerProcessStatus::TaskMatch,
-                format!("[{}] Job match: {}", Utc::now(), &job_match),
-                Some(EventAttributes::TaskMatch(job_match)),
-                None,
-            )
-            .await
     }
 
     /// Logs completion of a process
