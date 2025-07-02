@@ -24,29 +24,31 @@ pub async fn monitor(
     cancellation_token: CancellationToken,
     paused: Arc<Mutex<bool>>,
 ) {
-    {
+    let (
+        mut system_metrics_interval,
+        mut process_metrics_interval,
+        mut submission_interval,
+        exporter,
+    ) = {
         let client = client.lock().await;
         client.start_new_run(None).await.unwrap();
-    }
 
-    let mut system_metrics_interval;
-    let mut process_metrics_interval;
-    let mut submission_interval;
-
-    {
-        let guard = client.lock().await;
-        let config = guard.get_config();
-        system_metrics_interval =
+        let config = client.get_config();
+        let system_metrics_interval =
             tokio::time::interval(Duration::from_millis(config.batch_submission_interval_ms));
-
-        process_metrics_interval = tokio::time::interval(Duration::from_millis(
+        let process_metrics_interval = tokio::time::interval(Duration::from_millis(
             config.process_metrics_send_interval_ms,
         ));
-
-        submission_interval =
+        let submission_interval =
             tokio::time::interval(Duration::from_millis(config.batch_submission_interval_ms));
-    }
-    let exporter = Arc::clone(&client.lock().await.exporter);
+
+        (
+            system_metrics_interval,
+            process_metrics_interval,
+            submission_interval,
+            Arc::clone(&client.exporter),
+        )
+    };
 
     loop {
         if *paused.lock().await {
@@ -65,7 +67,7 @@ pub async fn monitor(
                 debug!("DaemonServer submission interval ticked");
                 let guard = client.lock().await;
                 let config = guard.get_config();
-                try_submit_with_retries(config,exporter.clone()).await;
+                try_submit_with_retries(config, exporter.clone()).await;
             }
             _ = system_metrics_interval.tick() => {
                 debug!("DaemonServer metrics interval ticked");
