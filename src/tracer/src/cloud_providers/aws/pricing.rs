@@ -9,8 +9,8 @@ use crate::cloud_providers::aws::aws_metadata::AwsInstanceMetaData;
 use crate::cloud_providers::aws::config::{resolve_available_aws_config, AwsConfig};
 use crate::cloud_providers::aws::ec2::Ec2Client;
 use crate::cloud_providers::aws::types::pricing::{
-    EBSFilterBuilder, EC2FilterBuilder, EbsPricingData, FlattenedData, InstancePricingContext,
-    PricingData, ServiceCode, VolumeMetadata,
+    EBSFilterBuilder, EC2FilterBuilder, EbsPricingData, FilterableInstanceDetails, FlattenedData,
+    InstancePricingContext, PricingData, ServiceCode, VolumeMetadata,
 };
 
 pub enum PricingSource {
@@ -78,20 +78,33 @@ impl PricingClient {
         &self,
         metadata: &AwsInstanceMetaData,
     ) -> Option<InstancePricingContext> {
-        let ec2_filters = Self::build_ec2_filters(metadata);
+        let ec2_client = self.ec2_client.as_ref()?;
 
+        let filterable_data = ec2_client
+        .describe_instance(&metadata.instance_id)
+        .await
+        .map_err(|e| {
+            tracing::warn!(error = ?e, instance_id = %metadata.instance_id, "Failed to describe EC2 instance");
+            e
+        })
+        .ok()?; // Exit early if instance cannot be described
+
+        let ec2_filters = Self::build_ec2_filters(&filterable_data);
+
+        // Fetch EBS volume metadata
         let volumes = self
             .get_volume_metadata(&metadata.instance_id)
             .await
             .unwrap_or_default();
-
         tracing::info!(?volumes, "Got volume information from EC2");
 
+        // Calculate total EBS cost
         let ebs_total_price = self
             .get_total_ebs_price(&metadata.region, &volumes)
             .await
             .unwrap_or(0.0);
 
+        // Fetch EC2 price using filters
         let ec2_data = self
             .retry_price_fetch::<PricingData>(
                 ServiceCode::Ec2,
@@ -108,7 +121,6 @@ impl PricingClient {
                 memory: String::new(),
                 price_per_unit: ebs_total_price,
                 unit: "USD/hr".to_string(),
-
                 price_per_gib: None,
                 price_per_iops: None,
                 price_per_throughput: None,
@@ -123,18 +135,14 @@ impl PricingClient {
             ec2_pricing: ec2_data,
             ebs_pricing: ebs_data,
             total_hourly_cost: total,
+            cost_per_minute: total / 60.0,
             source: "Live".to_string(),
-            cost_per_minute: total / 60.0, // cost per minute
         })
     }
 
     /// Extracts EC2 filter logic
-    fn build_ec2_filters(metadata: &AwsInstanceMetaData) -> Vec<PricingFilters> {
-        EC2FilterBuilder {
-            instance_type: metadata.instance_type.clone(),
-            region: metadata.region.clone(),
-        }
-        .to_filter()
+    fn build_ec2_filters(details: &FilterableInstanceDetails) -> Vec<PricingFilters> {
+        EC2FilterBuilder::from_instance_details(details.clone()).to_filter()
     }
 
     /// Builds EBS filters for a single volume type

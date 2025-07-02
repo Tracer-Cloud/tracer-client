@@ -103,7 +103,6 @@ impl FlattenedData {
     }
 
     pub fn flatten_ebs_data(data: &EbsPricingData) -> FlattenedData {
-        println!("getting data: {:?}", data);
         let mut price_per_gib = None;
         let mut price_per_iops = None;
         let mut price_per_throughput = None;
@@ -127,8 +126,6 @@ impl FlattenedData {
                                 .unwrap_or("0");
 
                             let price = price_str.parse::<f64>().unwrap_or(0.0);
-
-                            println!("Matched unit: {} => {}", unit, price);
 
                             match (desc.as_str(), unit) {
                                 (d, "GB-Mo") if d.contains("storage") => {
@@ -171,27 +168,107 @@ impl FlattenedData {
 pub struct EC2FilterBuilder {
     pub instance_type: String,
     pub region: String,
+    pub tenancy: Option<String>,
+    pub vcpu: Option<String>,
+    pub operating_system: Option<String>,
+    pub ebs_optimized: Option<bool>,
+    pub capacity_status: Option<String>,
 }
 
 impl EC2FilterBuilder {
-    /// "intance_type: InstanceType" E:g: t3.small
-    // "region": "regionCode" "us-east-1"
-    // Instance type and region code are enough to get the most precise pricing data
+    pub fn from_instance_details(details: FilterableInstanceDetails) -> Self {
+        Self {
+            instance_type: details.instance_type,
+            region: details.region,
+            tenancy: Some("Shared".to_string()), // Always override to Shared
+            vcpu: details.vcpu,
+            operating_system: match details.operating_system.as_deref() {
+                Some(s) if s.contains("Linux") => Some("Linux".to_string()),
+                Some(s) if s.contains("Windows") => Some("Windows".to_string()),
+                Some(s) if s.contains("RHEL") => Some("RHEL".to_string()),
+                Some(s) if s.contains("Ubuntu") => Some("Ubuntu Pro".to_string()),
+                _ => None,
+            },
+            ebs_optimized: match details.ebs_optimized {
+                Some(true) => Some(true),
+                _ => None, // Only include if true
+            },
+
+            capacity_status: details.capacity_status, // <-- New field included
+        }
+    }
+
     pub fn to_filter(&self) -> Vec<PricingFilters> {
-        vec![
+        let mut filters = vec![
             PricingFilters::builder()
-                .field("InstanceType".to_string())
-                .value(self.instance_type.to_owned())
+                .field("instanceType".to_string())
+                .value(self.instance_type.clone())
                 .r#type(PricingFilterType::TermMatch)
                 .build()
-                .expect("failed to build filters"),
+                .expect("failed to build instanceType filter"),
             PricingFilters::builder()
                 .field("regionCode".to_string())
-                .value(self.region.to_owned())
+                .value(self.region.clone())
                 .r#type(PricingFilterType::TermMatch)
                 .build()
-                .expect("failed to build filter"),
-        ]
+                .expect("failed to build regionCode filter"),
+        ];
+
+        if let Some(ref tenancy) = self.tenancy {
+            filters.push(
+                PricingFilters::builder()
+                    .field("tenancy".to_string())
+                    .value(tenancy.clone())
+                    .r#type(PricingFilterType::TermMatch)
+                    .build()
+                    .expect("failed to build tenancy filter"),
+            );
+        }
+
+        if let Some(ref vcpu) = self.vcpu {
+            filters.push(
+                PricingFilters::builder()
+                    .field("vcpu".to_string())
+                    .value(vcpu.clone())
+                    .r#type(PricingFilterType::TermMatch)
+                    .build()
+                    .expect("failed to build vcpu filter"),
+            );
+        }
+
+        if let Some(ref os) = self.operating_system {
+            filters.push(
+                PricingFilters::builder()
+                    .field("operatingSystem".to_string())
+                    .value(os.clone())
+                    .r#type(PricingFilterType::TermMatch)
+                    .build()
+                    .expect("failed to build operatingSystem filter"),
+            );
+        }
+
+        if let Some(true) = self.ebs_optimized {
+            filters.push(
+                PricingFilters::builder()
+                    .field("ebsOptimized".to_string())
+                    .value("Yes".to_string())
+                    .r#type(PricingFilterType::TermMatch)
+                    .build()
+                    .expect("failed to build ebsOptimized filter"),
+            );
+        }
+        if let Some(cap_status) = &self.capacity_status {
+            filters.push(
+                PricingFilters::builder()
+                    .field("capacitystatus".to_string())
+                    .value(cap_status.clone())
+                    .r#type(PricingFilterType::TermMatch)
+                    .build()
+                    .expect("failed to build capacitystatus filter"),
+            );
+        }
+
+        filters
     }
 }
 
@@ -265,4 +342,16 @@ pub struct VolumeMetadata {
     pub size_gib: i32,
     pub iops: Option<i32>,
     pub throughput: Option<i32>,
+}
+
+#[derive(Debug, Clone)]
+pub struct FilterableInstanceDetails {
+    pub instance_type: String,
+    pub region: String,
+    pub availability_zone: String,
+    pub operating_system: Option<String>, // e.g., Linux
+    pub tenancy: Option<String>,          // e.g., default/shared
+    pub vcpu: Option<String>,             // e.g., 8
+    pub ebs_optimized: Option<bool>,      // true only if "Yes"
+    pub capacity_status: Option<String>,
 }
