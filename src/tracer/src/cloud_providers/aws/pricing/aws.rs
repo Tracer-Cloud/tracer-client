@@ -13,46 +13,10 @@ use crate::cloud_providers::aws::types::pricing::{
     InstancePricingContext, PricingData, ServiceCode, VolumeMetadata,
 };
 
-pub enum PricingSource {
-    Static,
-    Live(PricingClient),
-}
-
-impl PricingSource {
-    pub async fn new(initialization_conf: AwsConfig) -> Self {
-        let client = PricingClient::new(initialization_conf, "us-east-1").await;
-
-        match client.pricing_client {
-            Some(_) => PricingSource::Live(client),
-            None => PricingSource::Static,
-        }
-    }
-
-    pub async fn get_aws_price_for_instance(
-        &self,
-        metadata: &AwsInstanceMetaData,
-    ) -> Option<InstancePricingContext> {
-        match self {
-            PricingSource::Static => Some(InstancePricingContext {
-                ec2_pricing: FlattenedData::default(),
-                ebs_pricing: None,
-                source: "Static".into(),
-                total_hourly_cost: 0.0,
-                cost_per_minute: 0.0,
-            }),
-            PricingSource::Live(client) => {
-                client
-                    .get_instance_pricing_context_from_metadata(metadata)
-                    .await
-            }
-        }
-    }
-}
-
 /// Client for interacting with AWS Pricing API
 pub struct PricingClient {
-    pricing_client: Option<pricing::Client>,
-    ec2_client: Option<Ec2Client>,
+    pub pricing_client: Option<pricing::Client>,
+    pub ec2_client: Option<Ec2Client>,
 }
 
 impl PricingClient {
@@ -298,6 +262,8 @@ impl PricingClient {
 // e2e S3 tests
 #[cfg(test)]
 mod tests {
+    use crate::cloud_providers::aws::pricing::PricingSource;
+
     use super::*;
     use std::time::Duration;
     use tokio::time::timeout;

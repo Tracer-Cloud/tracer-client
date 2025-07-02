@@ -1,0 +1,144 @@
+use crate::cloud_providers::aws::{
+    aws_metadata::AwsInstanceMetaData,
+    types::pricing::{FlattenedData, InstancePricingContext},
+};
+use reqwest::{Client, StatusCode};
+use serde::Deserialize;
+use tokio_retry::{strategy::ExponentialBackoff, Retry};
+
+const EC2_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/aws/pricing/ec2";
+const EBS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/aws/pricing/ebs";
+
+#[derive(Debug, Deserialize)]
+struct Ec2ApiResponse {
+    instance_type: String,
+    region: String,
+    price_per_hour_usd: f64,
+}
+
+#[derive(Debug, Deserialize)]
+struct EbsApiResponse {
+    total_ebs_price_usd: f64,
+}
+
+pub struct ApiPricingClient {
+    pub client: Client,
+}
+
+impl ApiPricingClient {
+    pub fn new() -> Self {
+        Self {
+            client: Client::new(),
+        }
+    }
+
+    pub async fn get_instance_pricing_context_from_metadata(
+        &self,
+        metadata: &AwsInstanceMetaData,
+    ) -> Option<InstancePricingContext> {
+        let ec2 = self.fetch_ec2_price(metadata).await;
+        let ebs = self.fetch_ebs_price(metadata).await.unwrap_or(0.0);
+
+        let ec2_data = ec2?;
+        let total = ec2_data.price_per_hour_usd + ebs;
+
+        Some(InstancePricingContext {
+            ec2_pricing: FlattenedData {
+                instance_type: ec2_data.instance_type,
+                region_code: ec2_data.region,
+                vcpu: "".into(),
+                memory: "".into(),
+                price_per_unit: ec2_data.price_per_hour_usd,
+                unit: "USD/hr".into(),
+                price_per_gib: None,
+                price_per_iops: None,
+                price_per_throughput: None,
+            },
+            ebs_pricing: Some(FlattenedData {
+                instance_type: "EBS_TOTAL".into(),
+                region_code: metadata.region.clone(),
+                vcpu: "".into(),
+                memory: "".into(),
+                price_per_unit: ebs,
+                unit: "USD/hr".into(),
+                price_per_gib: None,
+                price_per_iops: None,
+                price_per_throughput: None,
+            }),
+            total_hourly_cost: total,
+            cost_per_minute: total / 60.0,
+            source: "API".into(),
+        })
+    }
+
+    async fn fetch_ec2_price(&self, metadata: &AwsInstanceMetaData) -> Option<Ec2ApiResponse> {
+        let strategy = ExponentialBackoff::from_millis(100).take(2);
+        let body = serde_json::json!({
+            "instance_id": metadata.instance_id,
+            "region": metadata.region,
+        });
+
+        Retry::spawn(strategy, || async {
+            match self.client.post(EC2_ENDPOINT).json(&body).send().await {
+                Ok(res) if res.status() == StatusCode::OK => {
+                    res.json::<Ec2ApiResponse>().await.map_err(|e| {
+                        tracing::warn!(error = ?e, "Failed to parse EC2 response body");
+                        anyhow::anyhow!("Failed to parse EC2 response: {e}")
+                    })
+                }
+                Ok(res) => {
+                    let status = res.status();
+                    let text = res.text().await.unwrap_or_default();
+                    tracing::warn!(%status, %text, "EC2 API returned non-OK status");
+                    Err(anyhow::anyhow!("Non-OK response from EC2 API"))
+                }
+                Err(e) => {
+                    tracing::warn!(error = ?e, "HTTP request to EC2 API failed");
+                    Err(anyhow::anyhow!("EC2 API HTTP error: {e}"))
+                }
+            }
+        })
+        .await
+        .ok()
+    }
+
+    async fn fetch_ebs_price(&self, metadata: &AwsInstanceMetaData) -> Option<f64> {
+        let strategy = ExponentialBackoff::from_millis(150).take(2);
+        let body = serde_json::json!({
+            "instance_id": metadata.instance_id,
+            "region": metadata.region,
+        });
+
+        Retry::spawn(strategy, || async {
+            match self.client.post(EBS_ENDPOINT).json(&body).send().await {
+                Ok(res) if res.status() == StatusCode::OK => {
+                    match res.json::<EbsApiResponse>().await {
+                        Ok(data) => Ok(data.total_ebs_price_usd),
+                        Err(e) => {
+                            tracing::warn!(error = ?e, "Failed to parse EBS response body");
+                            Err(anyhow::anyhow!("Failed to parse EBS response: {e}"))
+                        }
+                    }
+                }
+                Ok(res) => {
+                    let status = res.status();
+                    let text = res.text().await.unwrap_or_default();
+                    tracing::warn!(%status, %text, "EBS API returned non-OK status");
+                    Err(anyhow::anyhow!("Non-OK response from EBS API"))
+                }
+                Err(e) => {
+                    tracing::warn!(error = ?e, "HTTP request to EBS API failed");
+                    Err(anyhow::anyhow!("EBS API HTTP error: {e}"))
+                }
+            }
+        })
+        .await
+        .ok()
+    }
+}
+
+impl Default for ApiPricingClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
