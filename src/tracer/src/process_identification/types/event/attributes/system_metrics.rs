@@ -1,4 +1,6 @@
-use crate::cloud_providers::aws::aws_metadata::AwsInstanceMetaData;
+use crate::cloud_providers::aws::{
+    aws_metadata::AwsInstanceMetaData, types::pricing::InstancePricingContext,
+};
 use std::collections::HashMap;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -38,4 +40,5 @@ pub struct SystemProperties {
     pub system_disk_io: HashMap<String, DiskStatistic>,
     // cost analysis
     pub ec2_cost_per_hour: Option<f64>,
+    pub pricing_context: Option<InstancePricingContext>,
 }

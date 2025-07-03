@@ -53,6 +53,7 @@ aws-sdk-pricing = "1.74.0"
 aws-sdk-s3 = "1.91.0"
 aws-credential-types = "1.2.2"
 aws-sdk-secretsmanager = "1.76.0"
+aws-sdk-ec2 = "1.141.0"
 
 tracing-subscriber = { version = "0.3.18", features = [
     "env-filter",

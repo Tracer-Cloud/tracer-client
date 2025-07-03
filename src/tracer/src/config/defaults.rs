@@ -12,7 +12,7 @@ fn get_aws_default_profile() -> String {
     match dirs::home_dir() {
         None => "default",
         Some(path) => {
-            if std::fs::read_to_string(path.join(".types/credentials"))
+            if std::fs::read_to_string(path.join(".aws/credentials"))
                 .unwrap_or_default()
                 .contains("[me]")
             {

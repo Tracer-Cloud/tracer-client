@@ -1,7 +1,6 @@
 mod run_details;
 use crate::cloud_providers::aws::aws_metadata::get_aws_instance_metadata;
 use crate::cloud_providers::aws::pricing::PricingSource;
-use crate::cloud_providers::aws::types::pricing::EC2FilterBuilder;
 use crate::extracts::metrics::system_metrics_collector::SystemMetricsCollector;
 use crate::process_identification::debug_log::Logger;
 use crate::process_identification::types::event::attributes::system_metrics::SystemProperties;
@@ -53,16 +52,8 @@ async fn gather_system_properties(
     let aws_metadata = get_aws_instance_metadata().await;
     let is_aws_instance = aws_metadata.is_some();
 
-    let ec2_cost_analysis = if let Some(ref metadata) = &aws_metadata {
-        let filters = EC2FilterBuilder {
-            instance_type: metadata.instance_type.clone(),
-            region: metadata.region.clone(),
-        }
-        .to_filter();
-        pricing_client
-            .get_ec2_instance_price(Some(filters))
-            .await
-            .map(|v| v.price_per_unit)
+    let pricing_context = if let Some(ref metadata) = &aws_metadata {
+        pricing_client.get_aws_price_for_instance(metadata).await
     } else {
         None
     };
@@ -82,7 +73,8 @@ async fn gather_system_properties(
         aws_metadata,
         is_aws_instance,
         system_disk_io,
-        ec2_cost_per_hour: ec2_cost_analysis,
+        ec2_cost_per_hour: pricing_context.as_ref().map(|c| c.total_hourly_cost),
+        pricing_context,
     }
 }
 

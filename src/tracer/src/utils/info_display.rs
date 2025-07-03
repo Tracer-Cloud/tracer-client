@@ -50,6 +50,10 @@ impl InfoDisplay {
                     serde_json::json!(info.watched_processes_preview());
             }
             json["run"]["dashboard_url"] = serde_json::json!(inner.get_run_url());
+            if let Some(summary) = &inner.cost_summary {
+                json["run"]["estimated_cost_since_start"] =
+                    serde_json::json!(format!("{:.4}", summary.estimated_total));
+            }
         } else {
             //todo Can we even print info active if no pipeline is running? Should inner even be an option?
             json["pipeline_info"] = serde_json::json!({
@@ -121,7 +125,16 @@ impl InfoDisplay {
                 "white",
             );
         }
-        formatter.add_empty_line();
+
+        if let Some(summary) = &inner.cost_summary {
+            formatter.add_section_header("Cost estimation");
+            formatter.add_field(
+                "Total since start",
+                &format!("  $ {:.4}", summary.estimated_total),
+                "yellow",
+            );
+            formatter.add_empty_line();
+        }
     }
 
     pub fn print_error(&mut self) {
