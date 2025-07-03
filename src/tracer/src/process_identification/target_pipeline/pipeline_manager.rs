@@ -7,9 +7,8 @@ use crate::utils::yaml::YamlFile;
 use multi_index_map::MultiIndexMap;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use std::sync::RwLock;
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
-use tracing::{error, trace};
+use tracing::trace;
 
 pub const TASK_SCORE_THRESHOLD: f64 = 0.9;
 
@@ -39,8 +38,8 @@ impl std::fmt::Display for TaskMatch {
 pub struct TargetPipelineManager {
     _pipelines: Vec<Pipeline>,
     tasks: Tasks,
-    task_pids: RwLock<MultiIndexTaskPidMap>,
-    pid_to_process: RwLock<HashMap<usize, ProcessRule>>,
+    task_pids: MultiIndexTaskPidMap,
+    pid_to_process: HashMap<usize, ProcessRule>,
 }
 
 impl TargetPipelineManager {
@@ -59,31 +58,20 @@ impl TargetPipelineManager {
         Self {
             _pipelines: pipelines,
             tasks,
-            task_pids: RwLock::new(MultiIndexTaskPidMap::default()),
-            pid_to_process: RwLock::new(HashMap::new()),
+            task_pids: MultiIndexTaskPidMap::default(),
+            pid_to_process: HashMap::new(),
         }
     }
 
     pub fn register_process(
-        &self,
+        &mut self,
         process: &ProcessStartTrigger,
         matched_target: Option<&String>,
     ) -> Option<TaskMatch> {
-        match self
-            .pid_to_process
-            .read()
-            .map(|pid_to_process| pid_to_process.contains_key(&process.pid))
-        {
-            Ok(false) => (),
-            Ok(true) => {
-                // TODO: this can lead to false-negatives if PIDs are reused.
-                trace!("PID {} is already registered", process.pid);
-                return None;
-            }
-            Err(e) => {
-                error!("Failed to read PID to process map: {:?}", e);
-                return None;
-            }
+        if self.pid_to_process.contains_key(&process.pid) {
+            // TODO: this can lead to false-negatives if PIDs are reused.
+            trace!("PID {} is already registered", process.pid);
+            return None;
         };
         let (rule, matched) = if let Some(display_name) = matched_target {
             (display_name, true)
@@ -92,26 +80,14 @@ impl TargetPipelineManager {
         };
         if let Some(tasks) = self.tasks.get_tasks_with(rule) {
             // add the PID to the set we're tracking
-            if let Err(e) = self.pid_to_process.write().map(|mut pid_to_process| {
-                pid_to_process.insert(
-                    process.pid,
-                    ProcessRule {
-                        name: rule.clone(),
-                        matched,
-                    },
-                )
-            }) {
-                error!("Failed to write PID to process map: {:?}", e);
-                return None;
-            }
+            self.pid_to_process.insert(
+                process.pid,
+                ProcessRule {
+                    name: rule.clone(),
+                    matched,
+                },
+            );
             // find any tasks that exceed the score threshold after adding the rule
-            let mut task_pids = match self.task_pids.write() {
-                Ok(task_pids) => task_pids,
-                Err(e) => {
-                    error!("Failed to write task PID map: {:?}", e);
-                    return None;
-                }
-            };
             let mut matched_tasks = tasks
                 .iter()
                 .filter_map(|task| {
@@ -122,11 +98,11 @@ impl TargetPipelineManager {
                     // specify the cardinality of the rule within the task.
 
                     // add the PID to the list for candidate task
-                    task_pids.insert(TaskPid {
+                    self.task_pids.insert(TaskPid {
                         task_id: task.id.clone(),
                         pid: process.pid,
                     });
-                    let task_pids = task_pids.get_by_task_id(&task.id);
+                    let task_pids = self.task_pids.get_by_task_id(&task.id);
                     // For now score is just the fraction of rules that have been observed.
                     // TODO: weight score based on whether the rule is optional or not.
                     let score = task_pids.len() as f64
@@ -153,10 +129,10 @@ impl TargetPipelineManager {
             if score >= 1.0 {
                 // If the match is perfect (i.e. all rules have been matched to processes) then:
                 // 1) remove the task so we don't update/match it again
-                task_pids.remove_by_task_id(&best_match.id);
+                self.task_pids.remove_by_task_id(&best_match.id);
                 // 2) remove the PIDs associated with the best match from any other candidate tasks
                 for pid in pids.iter() {
-                    task_pids.remove_by_pid(pid);
+                    self.task_pids.remove_by_pid(pid);
                 }
             }
             return Some(TaskMatch {
@@ -278,8 +254,6 @@ mod tests {
     impl TargetPipelineManager {
         fn num_unmatched_tasks(&self) -> usize {
             self.task_pids
-                .read()
-                .unwrap()
                 .iter()
                 .map(|(_, task_pid)| &task_pid.task_id)
                 .collect::<HashSet<_>>()
@@ -288,8 +262,6 @@ mod tests {
 
         fn num_unmatched_pids(&self) -> usize {
             self.task_pids
-                .read()
-                .unwrap()
                 .iter()
                 .map(|(_, task_pid)| &task_pid.pid)
                 .collect::<HashSet<_>>()
@@ -369,7 +341,7 @@ mod tests {
     }
 
     #[rstest]
-    fn test_register_single_process_no_match(pipeline_manager: TargetPipelineManager) {
+    fn test_register_single_process_no_match(mut pipeline_manager: TargetPipelineManager) {
         // Register a process that doesn't match any pipeline rules
         let process = create_process_trigger("unrelated_process", 1001);
         let result = pipeline_manager.register_process(&process, None);
@@ -379,7 +351,7 @@ mod tests {
 
     #[rstest]
     fn test_register_gunzip_gtf_process(
-        pipeline_manager: TargetPipelineManager,
+        mut pipeline_manager: TargetPipelineManager,
         test_targets: &Vec<Target>,
     ) {
         // Register a gunzip process that matches the gunzip_gtf rule
@@ -405,7 +377,7 @@ mod tests {
         pipeline_manager: TargetPipelineManager,
         test_targets: &Vec<Target>,
     ) {
-        let manager = pipeline_manager;
+        let mut manager = pipeline_manager;
 
         // Register jshell process
         let jshell_process = create_process_trigger("jshell", 1002);
@@ -438,7 +410,7 @@ mod tests {
         pipeline_manager: TargetPipelineManager,
         test_targets: &Vec<Target>,
     ) {
-        let manager = pipeline_manager;
+        let mut manager = pipeline_manager;
 
         // Register (optional) samtools process
         let samtools_process = create_process_trigger("samtools faidx", 1002);
@@ -468,7 +440,7 @@ mod tests {
 
     #[rstest]
     fn test_duplicate_pid_registration(
-        pipeline_manager: TargetPipelineManager,
+        mut pipeline_manager: TargetPipelineManager,
         test_targets: &Vec<Target>,
     ) {
         // Register a gunzip process that matches the gunzip_gtf rule
