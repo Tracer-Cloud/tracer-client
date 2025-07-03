@@ -122,57 +122,74 @@ pub const EXIT_CODE_OUT_OF_MEMORY_KILLED: i64 = 137;
 // SIGTERM
 pub const EXIT_CODE_SIGNAL_TERMINATED: i64 = 143;
 
+pub fn exit_code_reason(code: i64) -> String {
+    match code {
+        EXIT_CODE_SUCCESS => "Success".to_string(),
+        EXIT_CODE_COMMAND_NOT_INVOKED => "Command Not Invoked".to_string(),
+        EXIT_CODE_COMMAND_NOT_FOUND => "Command Not Found".to_string(),
+        EXIT_CODE_CTRL_C_KILLED => "Terminated by Ctrl-C".to_string(),
+        EXIT_CODE_OUT_OF_MEMORY_KILLED => "OOM Killed".to_string(),
+        EXIT_CODE_SIGNAL_TERMINATED => "SIGTERM".to_string(),
+        code if (128..=255).contains(&code) => format!("Signal {}", code),
+        code if (0..=127).contains(&code) => format!("Exit code {}", code),
+        code => format!("Unknown Code {}", code),
+    }
+}
+
+pub fn exit_code_explanation(code: i64) -> String {
+    match code {
+        EXIT_CODE_SUCCESS => "Exited successfully.".to_string(),
+        EXIT_CODE_COMMAND_NOT_INVOKED => {
+            "Command Not Invoked: The command could not be invoked.".to_string()
+        }
+        EXIT_CODE_COMMAND_NOT_FOUND => {
+            "Command Not Found: The command was not found.".to_string()
+        }
+        EXIT_CODE_CTRL_C_KILLED => "Terminated by Ctrl-C.".to_string(),
+        EXIT_CODE_OUT_OF_MEMORY_KILLED => {
+            "SIGKILL: The container was forcefully terminated; typically this is due to exceeding memory limits.".to_string()
+        }
+        EXIT_CODE_SIGNAL_TERMINATED => "SIGTERM: Graceful termination requested.".to_string(),
+        code if (128..=255).contains(&code)=> format!("Terminated by signal {}.", code),
+        code if (0..=127).contains(&code) => format!("Exited with code {} indicating an error in the invoked process.", code),
+        code => format!("Exited with unknown code {}.", code),
+    }
+}
+
+/// Exit code along with short reason and longer explanation
+///
+/// We always create the reason and explanation when creating the struct (rather than on-demand
+/// via a method call) because ExitReason always gets serialized, and it makes the serde
+/// implementation much easier.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub struct ExitReason(i64);
+pub struct ExitReason {
+    pub code: i64,
+    pub reason: String,
+    pub explanation: String,
+}
+
+impl ExitReason {
+    pub fn success() -> Self {
+        Self::from(EXIT_CODE_SUCCESS)
+    }
+
+    pub fn out_of_memory_killed() -> Self {
+        Self::from(EXIT_CODE_OUT_OF_MEMORY_KILLED)
+    }
+}
 
 impl std::fmt::Display for ExitReason {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.0 {
-            EXIT_CODE_SUCCESS => write!(f, "Success"),
-            EXIT_CODE_COMMAND_NOT_INVOKED => write!(f, "Command Not Invoked"),
-            EXIT_CODE_COMMAND_NOT_FOUND => write!(f, "Command Not Found"),
-            EXIT_CODE_CTRL_C_KILLED => write!(f, "Terminated by Ctrl-C"),
-            EXIT_CODE_OUT_OF_MEMORY_KILLED => write!(f, "OOM Killed"),
-            EXIT_CODE_SIGNAL_TERMINATED => write!(f, "SIGTERM"),
-            code if (128..=255).contains(&code) => write!(f, "Signal {}", code),
-            code if (0..=127).contains(&code) => write!(f, "Exit code {}", code),
-            code => write!(f, "Unknown Code {}", code),
-        }
+        write!(f, "{}", self.reason)
     }
 }
 
 impl From<i64> for ExitReason {
     fn from(code: i64) -> Self {
-        Self(code)
-    }
-}
-
-impl ExitReason {
-    pub fn success() -> Self {
-        Self(EXIT_CODE_SUCCESS)
-    }
-
-    pub fn out_of_memory_killed() -> Self {
-        Self(EXIT_CODE_OUT_OF_MEMORY_KILLED)
-    }
-
-    pub fn explanation(&self) -> String {
-        match self.0 {
-            EXIT_CODE_SUCCESS => "Exited successfully.".to_string(),
-            EXIT_CODE_COMMAND_NOT_INVOKED => {
-                "Command Not Invoked: The command could not be invoked.".to_string()
-            }
-            EXIT_CODE_COMMAND_NOT_FOUND => {
-                "Command Not Found: The command was not found.".to_string()
-            }
-            EXIT_CODE_CTRL_C_KILLED => "Terminated by Ctrl-C.".to_string(),
-            EXIT_CODE_OUT_OF_MEMORY_KILLED => {
-                "SIGKILL: The container was forcefully terminated; typically this is due to exceeding memory limits.".to_string()
-            }
-            EXIT_CODE_SIGNAL_TERMINATED => "SIGTERM: Graceful termination requested.".to_string(),
-            code if (128..=255).contains(&code)=> format!("Terminated by signal {}.", code),
-            code if (0..=127).contains(&code) => format!("Exited with code {} indicating an error in the invoked process.", code),
-            code => format!("Exited with unknown code {}.", code),
+        Self {
+            code,
+            reason: exit_code_reason(code),
+            explanation: exit_code_explanation(code),
         }
     }
 }
