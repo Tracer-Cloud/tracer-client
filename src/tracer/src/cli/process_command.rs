@@ -10,7 +10,6 @@ use crate::utils::Sentry;
 use anyhow::Result;
 use clap::Parser;
 
-
 pub fn process_command() -> Result<()> {
     // has to be sync due to daemonizing
 

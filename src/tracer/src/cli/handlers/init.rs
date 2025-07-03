@@ -8,11 +8,16 @@ use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::initialization::create_and_run_server;
 use crate::init_command_interactive_mode;
-use crate::process_identification::constants::{DEFAULT_DAEMON_PORT, PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR};
+#[cfg(target_os = "linux")]
+use crate::process_identification::constants::WORKING_DIR;
+use crate::process_identification::constants::{
+    DEFAULT_DAEMON_PORT, PID_FILE, STDERR_FILE, STDOUT_FILE,
+};
 use crate::process_identification::types::cli::params::TracerCliInitArgs;
 use crate::utils::analytics::types::AnalyticsEventType;
 use crate::utils::system_info::check_sudo_privileges;
 use crate::utils::{analytics, Sentry};
+#[cfg(target_os = "linux")]
 use daemonize::{Daemonize, Outcome};
 use serde_json::Value;
 use std::fs::File;
@@ -147,6 +152,8 @@ pub fn init(
     create_and_run_server(args, config);
     clean_up_after_daemon()
 }
+
+#[cfg(target_os = "linux")]
 fn start_daemon() -> Outcome<()> {
     let daemon = Daemonize::new()
         .pid_file(PID_FILE)

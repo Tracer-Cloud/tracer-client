@@ -165,19 +165,3 @@ pub(super) async fn wait(api_client: &DaemonClient) -> Result<()> {
 
     bail!("Daemon not started yet")
 }
-
-#[cfg(target_os = "linux")]
-pub(super) fn start_daemon() -> Outcome<()> {
-    let daemon = Daemonize::new()
-        .pid_file(PID_FILE)
-        .working_directory(WORKING_DIR)
-        .stdout(File::create(STDOUT_FILE).expect("Failed to create stdout file"))
-        .stderr(File::create(STDERR_FILE).expect("Failed to create stderr file"))
-        .umask(0o002)
-        .privileged_action(|| {
-            // Ensure the PID file is removed if the process exits
-            let _ = std::fs::remove_file(PID_FILE);
-        });
-
-    daemon.execute()
-}
