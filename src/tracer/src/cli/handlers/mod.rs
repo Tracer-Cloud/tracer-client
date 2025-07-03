@@ -1,8 +1,12 @@
 mod update;
-pub use update::update;
+pub(super) use update::update;
 
 mod info;
 
-pub use info::info;
+pub(super) use info::info;
 mod setup;
-pub use setup::setup;
+
+pub(super) use setup::setup;
+
+mod init;
+pub(super) use init::init;
