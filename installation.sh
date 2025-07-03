@@ -107,6 +107,7 @@ EMOJI_NEXT_STEPS="🚀 "
 EMOJI_CLEANUP="🗑️ "
 EMOJI_REQUIREMENTS="🧰 "
 EMOJI_CONFIGURE="⚙️ "
+EMOJI_RESOURCES="ℹ️ "
 
 
 # Use fallback for terminals that don't support emojis
@@ -119,6 +120,7 @@ if ! [[ "$TERM" =~ ^xterm.* || "$TERM" == "screen" ]]; then
   EMOJI_CLEANUP="[CLEAN] "
   EMOJI_REQUIREMENTS="[CHECK] "
   EMOJI_CONFIGURE="[CFG] "
+  EMOJI_RESOURCES="[SYS] "
 fi
 # init var
 tsnow=""
@@ -160,9 +162,11 @@ printsucc() {
 persist_tracer_user_id() {
 
     if [[ -z "$USER_ID" ]]; then
-        echo "- ${EMOJI_CANCEL} No user ID provided. Skipping user ID persistence..."
+        echo "- ${EMOJI_CANCEL} No user ID provided (TRACER_USER_ID not set). Skipping user ID persistence..."
         return
     fi
+
+    echo "- ${EMOJI_CHECK} User ID provided: ${USER_ID}"
 
     local RC_FILES=(
         "$HOME/.bashrc"
@@ -184,7 +188,7 @@ persist_tracer_user_id() {
     done
 
     export TRACER_USER_ID="$USER_ID"
-    printsucc "Set TRACER_USER_ID in current session and existing shell configs"
+    printsucc "TRACER_USER_ID successfully set in current session and existing shell configs"
 }
 
 #---  SYSTEM CHECKS  -----------------------------------------------------------
@@ -220,12 +224,13 @@ function check_os() {
     Linux*)
         # Check for Amazon Linux
         if [ -f /etc/system-release ] && grep -q "Amazon Linux" /etc/system-release; then
-            echo "- ${EMOJI_CHECK} Amazon Linux OS detected."
             case "$ARCH" in
             x86_64)
+                echo "- ${EMOJI_CHECK} Amazon Linux x86_64 architecture detected"
                 TRACER_URL=$TRACER_AMAZON_LINUX_URL_X86_64
                 ;;
             aarch64)
+                echo "- ${EMOJI_CHECK} Amazon Linux aarch64 architecture detected"
                 TRACER_URL=$TRACER_LINUX_URL_ARM
                 ;;
             *)
@@ -234,12 +239,13 @@ function check_os() {
                 ;;
             esac
         else
-            echo "- ${EMOJI_CHECK} Linux OS detected."
             case "$ARCH" in
             x86_64)
+                echo "- ${EMOJI_CHECK} Linux x86_64 architecture detected"
                 TRACER_URL=$TRACER_LINUX_URL_X86_64
                 ;;
             aarch64)
+                echo "- ${EMOJI_CHECK} Linux aarch64 architecture detected"
                 TRACER_URL=$TRACER_LINUX_URL_ARM
                 ;;
             *)
@@ -265,11 +271,47 @@ function check_os() {
     esac
 }
 
+function check_system_resources() {
+    echo "- ${EMOJI_RESOURCES} System Resources:"
+
+    # Get CPU cores
+    if command -v nproc >/dev/null 2>&1; then
+        CPU_CORES=$(nproc)
+    elif [ -f /proc/cpuinfo ]; then
+        CPU_CORES=$(grep -c ^processor /proc/cpuinfo)
+    elif command -v sysctl >/dev/null 2>&1; then
+        CPU_CORES=$(sysctl -n hw.ncpu 2>/dev/null || echo "unknown")
+    else
+        CPU_CORES="unknown"
+    fi
+
+    # Get RAM memory
+    if [ -f /proc/meminfo ]; then
+        # Linux - get total memory in GB
+        RAM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+        RAM_GB=$(echo "scale=1; $RAM_KB / 1024 / 1024" | bc 2>/dev/null || echo "scale=1; $RAM_KB / 1048576" | awk '{printf "%.1f", $1}')
+        RAM_INFO="${RAM_GB} GB"
+    elif command -v sysctl >/dev/null 2>&1; then
+        # macOS - get total memory in GB
+        RAM_BYTES=$(sysctl -n hw.memsize 2>/dev/null)
+        if [ -n "$RAM_BYTES" ]; then
+            RAM_GB=$(echo "scale=1; $RAM_BYTES / 1024 / 1024 / 1024" | bc 2>/dev/null || awk "BEGIN {printf \"%.1f\", $RAM_BYTES/1073741824}")
+            RAM_INFO="${RAM_GB} GB"
+        else
+            RAM_INFO="unknown"
+        fi
+    else
+        RAM_INFO="unknown"
+    fi
+
+    echo "  - CPU Cores: ${CPU_CORES}"
+    echo "  - RAM Memory: ${RAM_INFO}"
+}
+
 function check_system_requirements() {
   echo ""
   print_section "Checking System Requirements"
   check_os
-
   # Check for root user on Linux
   if [[ "$OS" == "Linux"* ]] && [[ "$(id -u)" != "0" ]]; then
     echo "- ${EMOJI_CANCEL} This script must be run as root on Linux systems."
@@ -279,6 +321,8 @@ function check_system_requirements() {
   fi
 
   check_prereqs
+  check_system_resources
+
 }
 
 #---  INSTALLATION FUNCTIONS  --------------------------------------------------
@@ -529,10 +573,7 @@ function send_analytics_event() {
     local event_name="$1"
     local metadata="$2"
 
-    if [[ -z "$USER_ID" ]]; then
-        echo "- ${EMOJI_CANCEL} No user ID provided. Skipping analytics event: $event_name"
-        return
-    fi
+    # USER_ID check is now handled by caller - this function assumes USER_ID is set
 
     local response
     response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://sandbox.tracer.cloud/api/analytics" \
@@ -555,7 +596,11 @@ function send_analytics_event() {
 function cleanup() {
     echo ""
     print_section "Cleanup"
-    send_analytics_event "$EVENT_INSTALL_COMPLETED" "{\"os\": \"$(uname -s)\", \"arch\": \"$(uname -m)\", \"session_id\": \"${SESSION_ID}\"}"
+
+    # Only send completion analytics if USER_ID was set
+    if [[ -n "$USER_ID" ]]; then
+        send_analytics_event "$EVENT_INSTALL_COMPLETED" "{\"os\": \"$(uname -s)\", \"arch\": \"$(uname -m)\", \"session_id\": \"${SESSION_ID}\"}"
+    fi
 
 
     if [ -d "$TRACER_TEMP_DIR" ]; then
@@ -573,11 +618,17 @@ trap cleanup EXIT
 function main() {
   print_header
   check_system_requirements
-  send_analytics_event "$EVENT_INSTALL_STARTED" "{\"os\": \"$(uname -s)\", \"arch\": \"$(uname -m)\", \"session_id\": \"${SESSION_ID}\"}"
-  print_section "Setting Tracer User ID"
-  persist_tracer_user_id > /dev/null
+
+  print_section "User ID"
+  persist_tracer_user_id
+
+  # Only send analytics if USER_ID was successfully set
+  if [[ -n "$USER_ID" ]]; then
+    send_analytics_event "$EVENT_INSTALL_STARTED" "{\"os\": \"$(uname -s)\", \"arch\": \"$(uname -m)\", \"session_id\": \"${SESSION_ID}\"}"
+  fi
+
   install_tracer_binary
-  
+
 }
 
 main "$@"
