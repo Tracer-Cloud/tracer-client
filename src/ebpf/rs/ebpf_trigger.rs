@@ -134,8 +134,8 @@ impl std::fmt::Display for ExitReason {
             EXIT_CODE_CTRL_C_KILLED => write!(f, "Terminated by Ctrl-C"),
             EXIT_CODE_OUT_OF_MEMORY_KILLED => write!(f, "OOM Killed"),
             EXIT_CODE_SIGNAL_TERMINATED => write!(f, "SIGTERM"),
-            code if code >= 128 && code <= 255 => write!(f, "Signal {}", code),
-            code if code >= 0 && code <= 255 => write!(f, "Exit code {}", code),
+            code if (128..=255).contains(&code) => write!(f, "Signal {}", code),
+            code if (0..=127).contains(&code) => write!(f, "Exit code {}", code),
             code => write!(f, "Unknown Code {}", code),
         }
     }
@@ -158,20 +158,20 @@ impl ExitReason {
 
     pub fn explanation(&self) -> String {
         match self.0 {
-            EXIT_CODE_SUCCESS=> "Exited successfully.".to_string(),
-            EXIT_CODE_COMMAND_NOT_INVOKED=> {
+            EXIT_CODE_SUCCESS => "Exited successfully.".to_string(),
+            EXIT_CODE_COMMAND_NOT_INVOKED => {
                 "Command Not Invoked: The command could not be invoked.".to_string()
             }
-            EXIT_CODE_COMMAND_NOT_FOUND=> {
+            EXIT_CODE_COMMAND_NOT_FOUND => {
                 "Command Not Found: The command was not found.".to_string()
             }
-            EXIT_CODE_CTRL_C_KILLED=> "Terminated by Ctrl-C.".to_string(),
-            EXIT_CODE_OUT_OF_MEMORY_KILLED=> {
+            EXIT_CODE_CTRL_C_KILLED => "Terminated by Ctrl-C.".to_string(),
+            EXIT_CODE_OUT_OF_MEMORY_KILLED => {
                 "SIGKILL: The container was forcefully terminated; typically this is due to exceeding memory limits.".to_string()
             }
             EXIT_CODE_SIGNAL_TERMINATED => "SIGTERM: Graceful termination requested.".to_string(),
-            code if code >= 128 && code <= 255 => format!("Terminated by signal {}.", code),
-            code if code >= 0 && code <= 255 => format!("Exited with code {} indicating an error in the invoked process.", code),
+            code if (128..=255).contains(&code)=> format!("Terminated by signal {}.", code),
+            code if (0..=127).contains(&code) => format!("Exited with code {} indicating an error in the invoked process.", code),
             code => format!("Exited with unknown code {}.", code),
         }
     }
