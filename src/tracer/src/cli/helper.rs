@@ -12,7 +12,6 @@ use std::result::Result::Ok;
 use tokio::time::sleep;
 use tracing::debug;
 
-
 pub(super) async fn handle_port_conflict(port: u16) -> Result<bool> {
     println!("\n⚠️  Checking port {} for conflicts...", port);
 
