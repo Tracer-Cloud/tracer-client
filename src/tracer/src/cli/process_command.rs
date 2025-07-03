@@ -3,6 +3,7 @@ use crate::cli::handlers::{init, update};
 use crate::cli::helper::{clean_up_after_daemon, handle_port_conflict};
 use crate::cli::process_daemon_command::process_daemon_command;
 use crate::config::Config;
+use crate::constants::{UBUNTU_MAJOR_VERSION, UBUNTU_MINOR_VERSION};
 use crate::daemon::client::DaemonClient;
 use crate::process_identification::constants::DEFAULT_DAEMON_PORT;
 use crate::process_identification::debug_log::Logger;
@@ -78,26 +79,27 @@ pub fn process_command() -> Result<()> {
 }
 
 fn ubuntu_version_check() -> bool {
-    // Check Ubuntu version compatibility
     #[cfg(target_os = "linux")]
     {
         use crate::utils::system_info::get_ubuntu_version;
 
         let ubuntu_version = get_ubuntu_version();
         if let Some((major, minor)) = ubuntu_version {
-            if major < 24 || (major == 22 && minor < 4) {
+            if major < UBUNTU_MAJOR_VERSION || (major == UBUNTU_MAJOR_VERSION && minor < UBUNTU_MINOR_VERSION) {
+                let version_required = format!("{}.{:02}", UBUNTU_MAJOR_VERSION, UBUNTU_MINOR_VERSION);
+                let version_detected = format!("{}.{:02}", major, minor);
                 eprintln!("\n❌ ERROR: Incompatible Ubuntu Version");
                 eprintln!(
-                    "Tracer requires Ubuntu 22.04 or higher. Detected: Ubuntu {}.{}",
-                    major, minor
+                    "Tracer requires Ubuntu {} or higher. Detected: Ubuntu {}",
+                    version_required, version_detected
                 );
-                eprintln!("Please upgrade to Ubuntu 22.04 or higher.");
+                eprintln!("Please upgrade your system to continue.");
 
                 // Send alert to Sentry
                 Sentry::capture_message(
                     &format!(
-                        "OS Compatibility Error: Ubuntu {}.{} detected, 22.04+ required",
-                        major, minor
+                        "OS Compatibility Error: Ubuntu {} detected, {}+ required",
+                        version_detected, minor
                     ),
                     sentry::Level::Error,
                 );

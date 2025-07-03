@@ -24,3 +24,6 @@ pub const AWS_REGION: AwsRegion = UsEast2;
 
 pub const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics";
 pub const TRACER_SANDBOX_URL: &str = "https://sandbox.tracer.cloud";
+
+pub const UBUNTU_MAJOR_VERSION: u32 = 22;
+pub const UBUNTU_MINOR_VERSION: u32 = 4;
