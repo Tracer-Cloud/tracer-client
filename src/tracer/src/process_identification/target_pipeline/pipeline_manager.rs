@@ -63,6 +63,11 @@ impl TargetPipelineManager {
         }
     }
 
+    /// Registers a process with the pipeline manager. This associates the process with all tasks
+    /// that include the matched target (if any, falling back to the process's command name). If
+    /// any task's score rises above the match threshold after adding the process, then the best
+    /// matching task is returned. If the best match has a perfect score, then all the pids are
+    /// dissociated from any other tasks.
     pub fn register_process(
         &mut self,
         process: &ProcessStartTrigger,
