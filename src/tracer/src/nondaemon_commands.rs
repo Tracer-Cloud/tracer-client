@@ -59,6 +59,7 @@ pub async fn wait(api_client: &DaemonClient) -> Result<()> {
 
     bail!("Daemon not started yet")
 }
+
 pub async fn print_info(api_client: &DaemonClient, json: bool) -> Result<()> {
     let info = match api_client.send_info_request().await {
         Ok(info) => info,

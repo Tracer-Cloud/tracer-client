@@ -14,6 +14,7 @@ use uuid::Uuid;
 pub enum EventType {
     ProcessStatus,
 }
+
 impl std::fmt::Display for EventType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -52,6 +53,7 @@ pub enum ProcessStatus {
     DataSamplesEvent,
     TestEvent, // Added TestEvent variant
     ContainerExecution,
+    TaskMatch,
 }
 
 impl std::fmt::Display for ProcessStatus {
@@ -69,6 +71,7 @@ impl std::fmt::Display for ProcessStatus {
             ProcessStatus::DataSamplesEvent => write!(f, "datasets_in_process"),
             ProcessStatus::TestEvent => write!(f, "test_event"),
             ProcessStatus::ContainerExecution => write!(f, "container_execution"),
+            ProcessStatus::TaskMatch => write!(f, "task_match"),
         }
     }
 }

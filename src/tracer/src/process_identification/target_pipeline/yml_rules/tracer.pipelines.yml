@@ -10,11 +10,14 @@ pipelines:
         description: Create genome indexes for RNA-seq analysis.
         steps:
           - or:
-              - job: GUNZIP_GTF
+              - task: GUNZIP_GTF
               - and:
-                  - optional_job: GUNZIP_GFF
-                  - job: GFFREAD
-    jobs:
+                  - optional_task: GUNZIP_GFF
+                  - task: GFFREAD
+          - or:
+              - task: STAR_GENOMEGENERATE
+              - task: BBMAP_BBSPLIT
+    tasks:
       - id: GUNZIP_GTF
         description: Unzip the GTF file.
         rules:
@@ -27,5 +30,16 @@ pipelines:
         description: Read the GFF file.
         rules:
           - gffread
+      - id: BBMAP_BBSPLIT
+        description: Split the FASTQ file into smaller chunks.
+        rules:
+          - bbsplit
+          - jshell
+      - id: STAR_GENOMEGENERATE
+        description: Generate the genome index for STAR.
+        rules:
+          - STAR index
+        optional_rules:
+          - samtools faidx
     steps:
       - subworkflow: PREPARE_GENOME
