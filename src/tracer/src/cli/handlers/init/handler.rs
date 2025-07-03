@@ -1,7 +1,6 @@
 use crate::cli::handlers::init::arguments::{
     FinalizedInitArgs, InteractiveInitArgs, TracerCliInitArgs,
 };
-use crate::cli::handlers::init::macos_windows::macos_windows_no_daemonize;
 use crate::cli::helper::{clean_up_after_daemon, create_necessary_files, handle_port_conflict};
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
@@ -56,13 +55,15 @@ pub fn init(
     if !args.no_daemonize {
         #[cfg(any(target_os = "macos", target_os = "windows"))]
         {
-            macos_windows_no_daemonize(args, api_client)?;
+            crate::cli::handlers::init::macos_windows::macos_windows_no_daemonize(
+                args, api_client,
+            )?;
             return Ok(());
         }
 
         #[cfg(target_os = "linux")]
         {
-            if linux::linux_daemonize(args, api_client)? {
+            if crate::cli::handlers::init::linux::linux_no_daemonize(&args, api_client)? {
                 return Ok(());
             }
         }

@@ -1,11 +1,11 @@
 #![cfg(target_os = "linux")]
+use crate::cli::handlers::arguments::FinalizedInitArgs;
 use crate::cli::handlers::info;
 use crate::cli::helper::{handle_port_conflict, wait};
 use crate::daemon::client::DaemonClient;
 use crate::process_identification::constants::{
     DEFAULT_DAEMON_PORT, LOG_FILE, PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR,
 };
-use crate::process_identification::types::cli::params::FinalizedInitArgs;
 use crate::utils::analytics;
 use crate::utils::analytics::types::AnalyticsEventType;
 use anyhow::Context;
@@ -16,7 +16,7 @@ use tracing_subscriber::fmt::time::SystemTime;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::{fmt, EnvFilter};
 
-pub(super) fn linux_no_daemonize(
+pub fn linux_no_daemonize(
     args: &FinalizedInitArgs,
     api_client: DaemonClient,
 ) -> anyhow::Result<bool> {
@@ -35,7 +35,7 @@ pub(super) fn linux_no_daemonize(
                 info(&api_client, false).await
             })?;
 
-            return Ok(true);
+            Ok(true)
         }
         Outcome::Parent(Err(e)) => {
             println!("Failed to start daemon. Maybe the daemon is already running? If it's not, run `tracer cleanup` to clean up the previous daemon files.");

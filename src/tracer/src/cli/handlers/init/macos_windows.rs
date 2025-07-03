@@ -1,3 +1,4 @@
+#![cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::cli::handlers::info;
 use crate::cli::handlers::init::arguments::FinalizedInitArgs;
 use crate::cli::helper::wait;
