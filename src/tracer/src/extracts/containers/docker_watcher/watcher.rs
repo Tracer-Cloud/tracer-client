@@ -129,7 +129,9 @@ impl DockerWatcher {
                     .and_then(|a| a.attributes)
                     .and_then(|attrs| attrs.get("exitCode")?.parse().ok())
                     .unwrap_or(-1);
-                let reason = ExitReason::from_exit_code(exit_code).explanation();
+                // TODO: if the attributes contain the invoked command, add the command name to
+                // the error messages when relevant
+                let reason = ExitReason::from(exit_code).explanation();
                 ContainerState::Exited { exit_code, reason }
             }
             "destroy" => ContainerState::Died,
