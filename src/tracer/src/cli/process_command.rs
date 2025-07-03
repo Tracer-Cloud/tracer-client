@@ -21,6 +21,10 @@ pub fn process_command() -> Result<()> {
 
     let _guard = Sentry::setup(&config);
 
+    if !ubuntu_version_check() {
+        return Ok(());
+    }
+
     let api_client = DaemonClient::new(format!("http://{}", config.server));
     let command = cli.command.clone();
 
@@ -71,4 +75,35 @@ pub fn process_command() -> Result<()> {
             Ok(())
         }
     }
+}
+
+fn ubuntu_version_check() -> bool {
+    // Check Ubuntu version compatibility
+    #[cfg(target_os = "linux")]
+    {
+        use crate::utils::system_info::get_ubuntu_version;
+
+        let ubuntu_version = get_ubuntu_version();
+        if let Some((major, minor)) = ubuntu_version {
+            if major < 24 || (major == 22 && minor < 4) {
+                eprintln!("\n❌ ERROR: Incompatible Ubuntu Version");
+                eprintln!(
+                    "Tracer requires Ubuntu 22.04 or higher. Detected: Ubuntu {}.{}",
+                    major, minor
+                );
+                eprintln!("Please upgrade to Ubuntu 22.04 or higher.");
+
+                // Send alert to Sentry
+                Sentry::capture_message(
+                    &format!(
+                        "OS Compatibility Error: Ubuntu {}.{} detected, 22.04+ required",
+                        major, minor
+                    ),
+                    sentry::Level::Error,
+                );
+                return false;
+            }
+        }
+    }
+    false
 }

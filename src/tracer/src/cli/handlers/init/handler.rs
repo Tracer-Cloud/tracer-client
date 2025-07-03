@@ -18,6 +18,7 @@ pub fn init(
 ) -> anyhow::Result<()> {
     // Check if running with sudo
     check_sudo_privileges();
+
     // Create necessary files for logging and daemonizing
     create_necessary_files().expect("Error while creating necessary files");
 
