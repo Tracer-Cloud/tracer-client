@@ -526,7 +526,7 @@ rules:
     condition:
       and:
         - process_name_is: samtools
-        - subcommand_is_one_of: [sort, view, idxstats, cat, index, stats, flagstat, faidx]
+        - subcommand_is_one_of: [sort, view, idxstats, cat, index, stats, flagstat, faidx, fastq, merge, dict]
 
   # picard
   - rule_name: picard command
