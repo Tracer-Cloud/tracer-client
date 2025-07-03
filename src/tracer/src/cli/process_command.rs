@@ -1,33 +1,28 @@
-use crate::commands::{Cli, Commands};
+use crate::cli::commands::{Cli, Commands};
+use crate::cli::handlers::{info, update};
+use crate::cli::helper::{
+    clean_up_after_daemon, create_necessary_files, handle_port_conflict, wait,
+};
+use crate::cli::process_daemon_command::process_daemon_command;
+#[cfg(target_os = "linux")]
+use crate::cli::setup::setup_logging;
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::initialization::create_and_run_server;
-use crate::daemon::structs::{Message, TagData};
 use crate::init_command_interactive_mode;
-#[cfg(target_os = "linux")]
-use crate::logging::setup_logging;
-use crate::nondaemon_commands::{
-    clean_up_after_daemon, print_info, setup_config, update_tracer, wait,
-};
-use crate::process_identification::constants::{
-    DEFAULT_DAEMON_PORT, PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR,
-};
+use crate::process_identification::constants::{DEFAULT_DAEMON_PORT, PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR};
 use crate::process_identification::debug_log::Logger;
 use crate::utils::analytics::types::AnalyticsEventType;
-use crate::utils::file_system::ensure_file_can_be_created;
 use crate::utils::system_info::check_sudo_privileges;
-use crate::utils::{analytics, Sentry, Version};
-use anyhow::{Context, Result};
+use crate::utils::{analytics, Sentry};
+use anyhow::Result;
 use clap::Parser;
 use daemonize::{Daemonize, Outcome};
 use serde_json::Value;
 use std::fs::File;
-use std::io::{self, Write};
-use std::process::Command;
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-use std::process::Stdio;
+use std::io;
 
-pub fn start_daemon() -> Outcome<()> {
+fn start_daemon() -> Outcome<()> {
     let daemon = Daemonize::new()
         .pid_file(PID_FILE)
         .working_directory(WORKING_DIR)
@@ -41,102 +36,7 @@ pub fn start_daemon() -> Outcome<()> {
 
     daemon.execute()
 }
-
-async fn handle_port_conflict(port: u16) -> Result<bool> {
-    println!("\n⚠️  Checking port {} for conflicts...", port);
-
-    // First check if the port is actually in use
-    if std::net::TcpListener::bind(format!("127.0.0.1:{}", port)).is_ok() {
-        println!("✅ Port {} is free and available for use.", port);
-        return Ok(true);
-    }
-
-    println!(
-        "\n⚠️  Port conflict detected: Port {} is already in use by another Tracer instance.",
-        port
-    );
-    println!("\nThis usually means another Tracer daemon is already running.");
-    println!("\nTo resolve this, you can:");
-    println!("1. Let me help you find and kill the existing process (recommended)");
-    println!("2. Manually find and kill the process using these commands:");
-    println!("   sudo lsof -nP -iTCP:{} -sTCP:LISTEN", port);
-    println!("   sudo kill -9 <PID>");
-    println!("\nWould you like me to help you find and kill the existing process? [y/N]");
-    io::stdout().flush()?;
-
-    let mut input = String::new();
-    io::stdin().read_line(&mut input)?;
-
-    if !input.trim().eq_ignore_ascii_case("y") {
-        println!("\nPlease manually resolve the port conflict and try again.");
-        return Ok(false);
-    }
-
-    // Run lsof to find the process
-    let output = Command::new("sudo")
-        .args(["lsof", "-nP", &format!("-iTCP:{}", port), "-sTCP:LISTEN"])
-        .output()?;
-
-    if !output.status.success() {
-        anyhow::bail!(
-            "Failed to find process using port {}. Please check the port manually using:\n  sudo lsof -nP -iTCP:{} -sTCP:LISTEN",
-            port,
-            port
-        );
-    }
-
-    let output_str = String::from_utf8_lossy(&output.stdout);
-    println!("\nProcess using port {}:\n{}", port, output_str);
-
-    // Extract PID from lsof output (assuming it's in the second column)
-    if let Some(pid) = output_str
-        .lines()
-        .nth(1)
-        .and_then(|line| line.split_whitespace().nth(1))
-    {
-        println!("\nKilling process with PID {}...", pid);
-        let kill_output = Command::new("sudo").args(["kill", "-9", pid]).output()?;
-
-        if !kill_output.status.success() {
-            anyhow::bail!(
-                "Failed to kill process. Please try manually using:\n  sudo kill -9 {}",
-                pid
-            );
-        }
-
-        println!("✅ Process killed successfully.");
-
-        // Add retry mechanism with delays to ensure port is released
-        const MAX_RETRIES: u32 = 2;
-        const RETRY_DELAY_MS: u64 = 1000;
-
-        for attempt in 1..=MAX_RETRIES {
-            println!(
-                "Waiting for port to be released (attempt {}/{})...",
-                attempt, MAX_RETRIES
-            );
-            tokio::time::sleep(tokio::time::Duration::from_millis(RETRY_DELAY_MS)).await;
-
-            if std::net::TcpListener::bind(format!("127.0.0.1:{}", port)).is_ok() {
-                println!("✅ Port {} is now free and available for use.", port);
-                return Ok(true);
-            }
-        }
-
-        anyhow::bail!(
-            "Port {} is still in use after {} attempts. Please check manually or try again in a few seconds.",
-            port,
-            MAX_RETRIES
-        );
-    } else {
-        anyhow::bail!(
-            "Could not find PID in lsof output. Please check the port manually using:\n  sudo lsof -nP -iTCP:{} -sTCP:LISTEN",
-            port
-        );
-    }
-}
-
-pub fn process_cli() -> Result<()> {
+pub fn process_command() -> Result<()> {
     // has to be sync due to daemonizing
 
     // setting env var to prevent fork safety issues on macOS
@@ -229,7 +129,7 @@ pub fn process_cli() -> Result<()> {
                         );
                         wait(&api_client).await?;
 
-                        print_info(&api_client, false).await
+                        info(&api_client, false).await
                     })?;
 
                     return Ok(());
@@ -248,7 +148,7 @@ pub fn process_cli() -> Result<()> {
                             );
                             wait(&api_client).await?;
 
-                            print_info(&api_client, false).await
+                            info(&api_client, false).await
                         })?;
 
                         return Ok(());
@@ -290,11 +190,11 @@ pub fn process_cli() -> Result<()> {
         }
         Commands::Update => {
             // Handle update command directly without going through daemon
-            tokio::runtime::Runtime::new()?.block_on(update_tracer())
+            tokio::runtime::Runtime::new()?.block_on(update())
         }
         _ => {
             match tokio::runtime::Runtime::new()?
-                .block_on(run_async_command(cli.command, &api_client))
+                .block_on(process_daemon_command(cli.command, &api_client))
             {
                 Ok(_) => {
                     // println!("Command sent successfully.");
@@ -317,69 +217,4 @@ pub fn process_cli() -> Result<()> {
             Ok(())
         }
     }
-}
-
-pub async fn run_async_command(commands: Commands, api_client: &DaemonClient) -> Result<()> {
-    match commands {
-        Commands::Log { message } => {
-            let payload = Message { payload: message };
-            api_client.send_log_request(payload).await?
-        }
-        Commands::Alert { message } => {
-            let payload = Message { payload: message };
-            api_client.send_alert_request(payload).await?
-        }
-        Commands::Terminate => api_client.send_terminate_request().await?,
-        Commands::Start => match api_client.send_start_run_request().await? {
-            Some(run_data) => {
-                println!("Started a new run with name: {}", run_data.run_name);
-            }
-            None => println!("Pipeline should have started"),
-        },
-        Commands::End => api_client.send_end_request().await?,
-        Commands::Tag { tags } => {
-            let tags = TagData { names: tags };
-            api_client.send_update_tags_request(tags).await?;
-        }
-        Commands::Setup {
-            api_key,
-            process_polling_interval_ms,
-            batch_submission_interval_ms,
-        } => {
-            setup_config(
-                &api_key,
-                &process_polling_interval_ms,
-                &batch_submission_interval_ms,
-            )
-            .await?
-        }
-        Commands::Info { json } => {
-            print_info(api_client, json).await?;
-        }
-        Commands::CleanupPort { port } => {
-            let port = port.unwrap_or(DEFAULT_DAEMON_PORT); // Default Tracer port
-            handle_port_conflict(port).await?;
-        }
-        Commands::Version => {
-            println!("{}", Version::current());
-        }
-        _ => {
-            println!("Command not implemented yet");
-        }
-    };
-
-    Ok(())
-}
-
-pub fn create_necessary_files() -> Result<()> {
-    // CRITICAL: Ensure working directory exists BEFORE any other operations
-    std::fs::create_dir_all(WORKING_DIR)
-        .with_context(|| format!("Failed to create working directory: {}", WORKING_DIR))?;
-
-    // Ensure directories for all files exist
-    for file_path in [STDOUT_FILE, STDERR_FILE, PID_FILE] {
-        ensure_file_can_be_created(file_path)?
-    }
-
-    Ok(())
 }
