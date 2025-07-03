@@ -111,7 +111,7 @@ impl EbpfWatcher {
                         let end_trigger = ProcessEndTrigger {
                             pid: old_pid as usize,
                             finished_at: Default::default(),
-                            exit_reason: Some(tracer_ebpf::ebpf_trigger::ExitReason::Code(0)), // putting 0 as we don't have any error
+                            exit_reason: Some(tracer_ebpf::ebpf_trigger::ExitReason::success()),
                         };
                         if let Err(e) = watcher
                             .process_triggers(vec![Trigger::ProcessEnd(end_trigger)])

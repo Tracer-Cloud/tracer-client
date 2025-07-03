@@ -110,48 +110,69 @@ pub enum Trigger {
     OutOfMemory(OutOfMemoryTrigger),
 }
 
+pub const EXIT_CODE_SUCCESS: i64 = 0;
+/// Command could not be invoked
+pub const EXIT_CODE_COMMAND_NOT_INVOKED: i64 = 126;
+/// Command not found in the container
+pub const EXIT_CODE_COMMAND_NOT_FOUND: i64 = 127;
+/// Container terminated by Ctrl-C
+pub const EXIT_CODE_CTRL_C_KILLED: i64 = 130;
+/// SIGKILL from kernel → usually OOM
+pub const EXIT_CODE_OUT_OF_MEMORY_KILLED: i64 = 137;
+// SIGTERM
+pub const EXIT_CODE_SIGNAL_TERMINATED: i64 = 143;
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub enum ExitReason {
-    OutOfMemoryKilled,
-    Signal(i64),
-    Code(i64),
-    Unknown(i64),
-}
+pub struct ExitReason(i64);
 
 impl std::fmt::Display for ExitReason {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ExitReason::OutOfMemoryKilled => write!(f, "OOM Killed"),
-            ExitReason::Signal(sig) => write!(f, "Signal {}", sig),
-            ExitReason::Code(code) => write!(f, "Exit code {}", code),
-            ExitReason::Unknown(code) => write!(f, "Unknown Code {}", code),
+        match self.0 {
+            EXIT_CODE_SUCCESS => write!(f, "Success"),
+            EXIT_CODE_COMMAND_NOT_INVOKED => write!(f, "Command Not Invoked"),
+            EXIT_CODE_COMMAND_NOT_FOUND => write!(f, "Command Not Found"),
+            EXIT_CODE_CTRL_C_KILLED => write!(f, "Terminated by Ctrl-C"),
+            EXIT_CODE_OUT_OF_MEMORY_KILLED => write!(f, "OOM Killed"),
+            EXIT_CODE_SIGNAL_TERMINATED => write!(f, "SIGTERM"),
+            code if code >= 128 && code <= 255 => write!(f, "Signal {}", code),
+            code if code >= 0 && code <= 255 => write!(f, "Exit code {}", code),
+            code => write!(f, "Unknown Code {}", code),
         }
+    }
+}
+
+impl From<i64> for ExitReason {
+    fn from(code: i64) -> Self {
+        Self(code)
     }
 }
 
 impl ExitReason {
-    pub fn from_exit_code(code: i64) -> Self {
-        match code {
-            137 => ExitReason::OutOfMemoryKilled, // SIGKILL from kernel → usually OOM
-            143 => ExitReason::Signal(15),        // SIGTERM
-            0 => ExitReason::Code(0),
-            n if n > 128 => ExitReason::Signal(n - 128), // General signal exit (e.g. 137 → SIGKILL)
-            n if n >= 0 => ExitReason::Code(n),
-            n => ExitReason::Unknown(n),
-        }
+    pub fn success() -> Self {
+        Self(EXIT_CODE_SUCCESS)
+    }
+
+    pub fn out_of_memory_killed() -> Self {
+        Self(EXIT_CODE_OUT_OF_MEMORY_KILLED)
     }
 
     pub fn explanation(&self) -> String {
-        match self {
-            ExitReason::OutOfMemoryKilled => {
-                "OOMKilled: The container was killed due to exceeding memory limits.".to_string()
+        match self.0 {
+            EXIT_CODE_SUCCESS=> "Exited successfully.".to_string(),
+            EXIT_CODE_COMMAND_NOT_INVOKED=> {
+                "Command Not Invoked: The command could not be invoked.".to_string()
             }
-            ExitReason::Signal(15) => "SIGTERM: Graceful termination requested.".to_string(),
-            ExitReason::Signal(9) => "SIGKILL: Forcefully killed by the system.".to_string(),
-            ExitReason::Signal(sig) => format!("Terminated by signal {}.", sig),
-            ExitReason::Code(0) => "Exited successfully.".to_string(),
-            ExitReason::Code(code) => format!("Exited with code {} indicating an error.", code),
-            ExitReason::Unknown(code) => format!("Exited with unknown code {}.", code),
+            EXIT_CODE_COMMAND_NOT_FOUND=> {
+                "Command Not Found: The command was not found.".to_string()
+            }
+            EXIT_CODE_CTRL_C_KILLED=> "Terminated by Ctrl-C.".to_string(),
+            EXIT_CODE_OUT_OF_MEMORY_KILLED=> {
+                "SIGKILL: The container was forcefully terminated; typically this is due to exceeding memory limits.".to_string()
+            }
+            EXIT_CODE_SIGNAL_TERMINATED => "SIGTERM: Graceful termination requested.".to_string(),
+            code if code >= 128 && code <= 255 => format!("Terminated by signal {}.", code),
+            code if code >= 0 && code <= 255 => format!("Exited with code {} indicating an error in the invoked process.", code),
+            code => format!("Exited with unknown code {}.", code),
         }
     }
 }

@@ -95,7 +95,7 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                             (self.timestamp_ns % 1_000_000_000) as u32,
                         )
                         .unwrap(),
-                        exit_reason: Some(ebpf_trigger::ExitReason::Code(0)), // putting 0 as normal exit
+                        exit_reason: Some(ebpf_trigger::ExitReason::success()),
                     },
                 ))
             }
