@@ -45,7 +45,7 @@ The easiest way to get started with Tracer is via our **browser-based sandbox**:
 Copy the pre-filled curl command (also shown in the Sandbox) and run it in your terminal:
 
 ```bash
-curl -sSL https://install.tracer.cloud/ | sudo bash && source ~/.bashrc && source ~/.zshrc
+curl -sSL https://install.tracer.cloud/ | TRACER_USER_ID="user_2z2jySyo6IiJmcBrbQXO5DTWNFO" bash -s && source ~/.bashrc && source ~/.zshrc
 ```
 
 → Some environments (e.g. Docker) may require 1-2 additional steps.
