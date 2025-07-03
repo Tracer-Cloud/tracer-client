@@ -1,11 +1,12 @@
+use crate::cli::handlers::init::arguments::{
+    FinalizedInitArgs, InteractiveInitArgs, TracerCliInitArgs,
+};
 use crate::cli::handlers::init::macos_windows::macos_windows_no_daemonize;
 use crate::cli::helper::{clean_up_after_daemon, create_necessary_files, handle_port_conflict};
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::initialization::create_and_run_server;
-use crate::init_command_interactive_mode;
 use crate::process_identification::constants::DEFAULT_DAEMON_PORT;
-use crate::process_identification::types::cli::params::TracerCliInitArgs;
 use crate::utils::system_info::check_sudo_privileges;
 use crate::utils::Sentry;
 use serde_json::Value;
@@ -68,4 +69,9 @@ pub fn init(
     }
     create_and_run_server(args, config);
     clean_up_after_daemon()
+}
+fn init_command_interactive_mode(cli_args: TracerCliInitArgs) -> FinalizedInitArgs {
+    InteractiveInitArgs::from_partial(cli_args)
+        .prompt_missing()
+        .into_cli_args()
 }

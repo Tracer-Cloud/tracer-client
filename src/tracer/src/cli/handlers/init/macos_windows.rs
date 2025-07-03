@@ -1,8 +1,8 @@
 use crate::cli::handlers::info;
+use crate::cli::handlers::init::arguments::FinalizedInitArgs;
 use crate::cli::helper::wait;
 use crate::daemon::client::DaemonClient;
 use crate::process_identification::constants::{PID_FILE, STDERR_FILE, STDOUT_FILE};
-use crate::process_identification::types::cli::params::FinalizedInitArgs;
 use crate::utils::analytics;
 use crate::utils::analytics::types::AnalyticsEventType;
 use std::fs::File;

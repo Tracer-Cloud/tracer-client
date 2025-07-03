@@ -10,4 +10,5 @@ pub(super) use setup::setup;
 
 mod init;
 
+pub use init::arguments;
 pub(super) use init::init;

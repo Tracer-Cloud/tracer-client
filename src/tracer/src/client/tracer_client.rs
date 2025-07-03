@@ -3,7 +3,6 @@ use crate::config::Config;
 use crate::cloud_providers::aws::pricing::PricingSource;
 use crate::extracts::containers::DockerWatcher;
 use crate::process_identification::target_process::target_manager::TargetManager;
-use crate::process_identification::types::cli::params::FinalizedInitArgs;
 use anyhow::{Context, Result};
 
 use crate::client::events::{send_alert_event, send_log_event, send_start_run_event};
@@ -23,6 +22,7 @@ use sysinfo::System;
 use tokio::sync::{mpsc, RwLock};
 use tracing::{error, info};
 
+use crate::cli::handlers::arguments::FinalizedInitArgs;
 #[cfg(target_os = "linux")]
 use crate::utils::system_info::get_kernel_version;
 #[cfg(target_os = "linux")]
