@@ -99,9 +99,6 @@ pub async fn gather_process_data<P: ProcessTrait>(
         // calculate process run time in milliseconds
         let process_run_time = (Utc::now() - process_start_time).num_milliseconds().max(0) as u64;
 
-        // this gets set by ProcessLogger
-        let task_id = None;
-
     ProcessProperties::Full(Box::new(FullProcessProperties {
         tool_name: display_name,
         tool_pid: proc.pid().as_u32().to_string(),
@@ -123,7 +120,6 @@ pub async fn gather_process_data<P: ProcessTrait>(
         process_memory_virtual: proc.virtual_memory(),
         process_status: proc.status().to_string(),
         container_id,
-            task_id,
         job_id,
         working_directory,
         trace_id,
