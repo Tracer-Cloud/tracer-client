@@ -1,3 +1,4 @@
+use std::fs::File;
 use std::io;
 use std::io::Write;
 use std::process::Command;
@@ -106,7 +107,7 @@ pub(super) async fn handle_port_conflict(port: u16) -> Result<bool> {
     }
 }
 
-pub fn create_necessary_files() -> anyhow::Result<()> {
+pub(super) fn create_necessary_files() -> anyhow::Result<()> {
     // CRITICAL: Ensure working directory exists BEFORE any other operations
     std::fs::create_dir_all(WORKING_DIR)
         .with_context(|| format!("Failed to create working directory: {}", WORKING_DIR))?;
@@ -119,7 +120,7 @@ pub fn create_necessary_files() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn clean_up_after_daemon() -> Result<()> {
+pub(super) fn clean_up_after_daemon() -> Result<()> {
     std::fs::remove_file(PID_FILE).context("Failed to remove pid file")?;
     std::fs::remove_file(STDOUT_FILE).context("Failed to remove stdout file")?;
     std::fs::remove_file(STDERR_FILE).context("Failed to remove stderr file")?;
@@ -127,7 +128,7 @@ pub fn clean_up_after_daemon() -> Result<()> {
     Ok(())
 }
 
-pub async fn wait(api_client: &DaemonClient) -> Result<()> {
+pub(super) async fn wait(api_client: &DaemonClient) -> Result<()> {
     for n in 0..5 {
         match api_client.send_info().await {
             // if timeout, retry
@@ -164,4 +165,20 @@ pub async fn wait(api_client: &DaemonClient) -> Result<()> {
     }
 
     bail!("Daemon not started yet")
+}
+
+#[cfg(target_os = "linux")]
+pub(super) fn start_daemon() -> Outcome<()> {
+    let daemon = Daemonize::new()
+        .pid_file(PID_FILE)
+        .working_directory(WORKING_DIR)
+        .stdout(File::create(STDOUT_FILE).expect("Failed to create stdout file"))
+        .stderr(File::create(STDERR_FILE).expect("Failed to create stderr file"))
+        .umask(0o002)
+        .privileged_action(|| {
+            // Ensure the PID file is removed if the process exits
+            let _ = std::fs::remove_file(PID_FILE);
+        });
+
+    daemon.execute()
 }
