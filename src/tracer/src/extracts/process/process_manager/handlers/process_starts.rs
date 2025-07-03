@@ -33,7 +33,7 @@ impl ProcessStartHandler {
 
         Self::log_matched_processes(logger, system_refresher, &matched_processes).await?;
 
-        Self::log_matching_jobs(logger, state_manager, &triggers, &matched_processes).await?;
+        Self::log_matching_tasks(logger, state_manager, &triggers, &matched_processes).await?;
 
         Self::update_monitoring(state_manager, matched_processes).await?;
 
@@ -102,7 +102,7 @@ impl ProcessStartHandler {
     }
 
     /// Step 5: Match pipelines for matched processes.
-    async fn log_matching_jobs(
+    async fn log_matching_tasks(
         logger: &ProcessLogger,
         state_manager: &StateManager,
         triggers: &Vec<ProcessStartTrigger>,
@@ -119,11 +119,11 @@ impl ProcessStartHandler {
                 });
         for trigger in triggers {
             let matched_target = trigger_to_target.get(&trigger);
-            if let Some(job_match) =
+            if let Some(task_match) =
                 pipeline_manager.register_process(trigger, matched_target.map(|t| &**t))
             {
-                // the process triggered a job match
-                logger.log_task_match(job_match).await?;
+                // the process triggered a task match
+                logger.log_task_match(task_match).await?;
             }
         }
         Ok(())
