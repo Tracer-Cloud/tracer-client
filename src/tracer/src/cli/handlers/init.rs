@@ -2,21 +2,25 @@ use crate::cli::handlers::info;
 use crate::cli::helper::{
     clean_up_after_daemon, create_necessary_files, handle_port_conflict, wait,
 };
+#[cfg(target_os = "linux")]
+use crate::cli::setup::setup_logging;
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::initialization::create_and_run_server;
 use crate::init_command_interactive_mode;
-use crate::process_identification::constants::{
-    DEFAULT_DAEMON_PORT, PID_FILE, STDERR_FILE, STDOUT_FILE,
-};
+use crate::process_identification::constants::{DEFAULT_DAEMON_PORT, PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR};
 use crate::process_identification::types::cli::params::TracerCliInitArgs;
 use crate::utils::analytics::types::AnalyticsEventType;
 use crate::utils::system_info::check_sudo_privileges;
 use crate::utils::{analytics, Sentry};
+use daemonize::{Daemonize, Outcome};
 use serde_json::Value;
 use std::fs::File;
 use std::io;
-use std::process::{Command, Stdio};
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use std::process::Command;
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use std::process::Stdio;
 
 pub fn init(
     args: TracerCliInitArgs,
@@ -142,4 +146,18 @@ pub fn init(
     }
     create_and_run_server(args, config);
     clean_up_after_daemon()
+}
+fn start_daemon() -> Outcome<()> {
+    let daemon = Daemonize::new()
+        .pid_file(PID_FILE)
+        .working_directory(WORKING_DIR)
+        .stdout(File::create(STDOUT_FILE).expect("Failed to create stdout file"))
+        .stderr(File::create(STDERR_FILE).expect("Failed to create stderr file"))
+        .umask(0o002)
+        .privileged_action(|| {
+            // Ensure the PID file is removed if the process exits
+            let _ = std::fs::remove_file(PID_FILE);
+        });
+
+    daemon.execute()
 }

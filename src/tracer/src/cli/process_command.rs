@@ -2,8 +2,6 @@ use crate::cli::commands::{Cli, Commands};
 use crate::cli::handlers::{init, update};
 use crate::cli::helper::{clean_up_after_daemon, handle_port_conflict};
 use crate::cli::process_daemon_command::process_daemon_command;
-#[cfg(target_os = "linux")]
-use crate::cli::setup::setup_logging;
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::process_identification::constants::DEFAULT_DAEMON_PORT;
@@ -12,21 +10,7 @@ use crate::utils::Sentry;
 use anyhow::Result;
 use clap::Parser;
 
-#[cfg(target_os = "linux")]
-fn start_daemon() -> Outcome<()> {
-    let daemon = Daemonize::new()
-        .pid_file(PID_FILE)
-        .working_directory(WORKING_DIR)
-        .stdout(File::create(STDOUT_FILE).expect("Failed to create stdout file"))
-        .stderr(File::create(STDERR_FILE).expect("Failed to create stderr file"))
-        .umask(0o002)
-        .privileged_action(|| {
-            // Ensure the PID file is removed if the process exits
-            let _ = std::fs::remove_file(PID_FILE);
-        });
 
-    daemon.execute()
-}
 pub fn process_command() -> Result<()> {
     // has to be sync due to daemonizing
 
