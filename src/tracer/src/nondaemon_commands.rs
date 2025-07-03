@@ -61,15 +61,16 @@ pub async fn wait(api_client: &DaemonClient) -> Result<()> {
 }
 
 pub async fn print_info(api_client: &DaemonClient, json: bool) -> Result<()> {
-    let mut display = InfoDisplay::new(70, json);
     let info = match api_client.send_info_request().await {
         Ok(info) => info,
         Err(e) => {
+            let mut display = InfoDisplay::new(80, json);
             tracing::error!("Error getting info response: {e}");
             display.print_error();
             return Ok(());
         }
     };
+    let display = InfoDisplay::new(150, json);
     display.print(info);
     Ok(())
 }

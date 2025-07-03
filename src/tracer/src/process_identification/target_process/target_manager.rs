@@ -52,7 +52,7 @@ impl Default for TargetManager {
     fn default() -> Self {
         const RULE_FILES: &[YamlFile] = &[
             YamlFile::Embedded(include_str!("yml_rules/tracer.rules.yml")),
-            YamlFile::Embedded(include_str!("yml_rules/bioconda.rules.yml")), // Add more RuleFile entries as needed
+            YamlFile::Embedded(include_str!("yml_rules/fastquorum.rules.yml")), // Add more RuleFile entries as needed
         ];
         const EXCLUDE_FILES: &[YamlFile] = &[YamlFile::Embedded(include_str!(
             "yml_rules/tracer.exclude.yml"

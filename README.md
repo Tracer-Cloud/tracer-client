@@ -42,32 +42,13 @@ The easiest way to get started with Tracer is via our **browser-based sandbox**:
 
 ### 2. Install Tracer With One Line of Code
 
-Install Tracer with this single command:
+Copy the pre-filled curl command (also shown in the Sandbox) and run it in your terminal:
 
 ```bash
 curl -sSL https://install.tracer.cloud/ | sudo bash && source ~/.bashrc && source ~/.zshrc
 ```
 
-```bash
-curl -sSL https://install.tracer.cloud/installation-script-development.sh | sudo bash && source ~/.bashrc && source ~/.zshrc
-```
-
-To get the binary corresponding to the `main` branch you just have to put `-s main` after the bash command like in the following example
-
-```bash
-curl -sSL https://install.tracer.cloud/installation-script-development.sh | sudo bash -s main && source ~/.bashrc
-```
-
-To get your pr binary use `bash -s <branch-name>` like in the following example
-
-```bash
-curl -sSL https://install.tracer.cloud/installation-script-development.sh | sudo bash -s feature/my-branch && source ~/.bashrc
-```
-
-Click the 'Open In Github Codespaces' button to use GitHub Codespaces.
-
-Once in Codespaces, the environment comes with:
-Tracer pre-installed and Docker running a minimal Nextflow example. Here, you need to run the tracer init command showcased in the next step.
+→ Some environments (e.g. Docker) may require 1-2 additional steps.
 
 ### 3. Initialize a Pipeline
 

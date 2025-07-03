@@ -64,7 +64,7 @@ impl InfoDisplay {
         });
         println!("{}", serde_json::to_string_pretty(&json).unwrap());
     }
-    fn format_status(&self, formatter: &mut BoxFormatter, runtime: &String) {
+    fn format_status(&self, formatter: &mut BoxFormatter, runtime: &String, url: &str) {
         formatter.add_header("Tracer status");
         formatter.add_empty_line();
         formatter.add_status_field(
@@ -73,6 +73,7 @@ impl InfoDisplay {
             "active",
         );
         formatter.add_field("Version", &Version::current().to_string(), "bold");
+        formatter.add_hyperlink("Dashboard", url);
         formatter.add_empty_line();
     }
 
@@ -87,7 +88,7 @@ impl InfoDisplay {
         }
         let inner = info.inner.as_ref().unwrap();
 
-        self.format_status(formatter, &inner.formatted_runtime());
+        self.format_status(formatter, &inner.formatted_runtime(), &inner.get_run_url());
 
         formatter.add_section_header("Pipeline details");
         formatter.add_empty_line();
@@ -120,9 +121,6 @@ impl InfoDisplay {
                 "white",
             );
         }
-
-        formatter.add_hyperlink("Open dashboard ↗️", "Dashboard", &inner.get_run_url());
-
         formatter.add_empty_line();
     }
 
@@ -140,13 +138,8 @@ impl InfoDisplay {
         formatter.add_section_header("Next steps");
         formatter.add_empty_line();
         formatter.add_field("Interactive setup", "tracer init", "cyan");
+        formatter.add_hyperlink("Sandbox", "https://sandbox.tracer.cloud");
         formatter.add_hyperlink(
-            "Visualize data 📈",
-            "Sandbox",
-            "https://sandbox.tracer.cloud",
-        );
-        formatter.add_hyperlink(
-            "Read docs 📄",
             "Documentation",
             "https://github.com/Tracer-Cloud/tracer-client",
         );
