@@ -16,14 +16,16 @@ CREATE TABLE IF NOT EXISTS tool_aggregations (
     total_runtime BIGINT DEFAULT 0,
     first_seen TIMESTAMPTZ,
     last_seen TIMESTAMPTZ,
+    exit_codes INT DEFAULT 0,
     exit_reasons TEXT DEFAULT '',
+    exit_explanations TEXT DEFAULT '',
     attributes JSONB,
     PRIMARY KEY (pipeline_name, run_name, tool_name)
 );
 
 -- Fill the tool_aggregations table with existing data
 INSERT INTO tool_aggregations (
-    pipeline_name, run_name, tool_name, tool_cmd, times_called, max_cpu_utilization, avg_cpu_utilization, max_mem_usage, avg_mem_usage, max_disk_utilization, avg_disk_utilization, total_runtime, first_seen, last_seen, exit_reasons, attributes
+    pipeline_name, run_name, tool_name, tool_cmd, times_called, max_cpu_utilization, avg_cpu_utilization, max_mem_usage, avg_mem_usage, max_disk_utilization, avg_disk_utilization, total_runtime, first_seen, last_seen, exit_codes, exit_reasons, exit_explanations, attributes
 )
 SELECT
     bjl.pipeline_name,
@@ -40,6 +42,17 @@ SELECT
     SUM(COALESCE((bjl.attributes->>'process.process_run_time')::BIGINT,0)) AS total_runtime,
     MIN(bjl.timestamp) AS first_seen,
     MAX(bjl.timestamp) AS last_seen,
+    string_agg(
+        DISTINCT CASE
+            WHEN bjl.attributes->>'completed_process.exit_reason' IS NULL THEN NULL
+            WHEN bjl.attributes->>'completed_process.exit_reason.Code' IS NOT NULL THEN
+            WHEN bjl.attributes->>'completed_process.exit_reason.Signal' IS NOT NULL THEN
+            WHEN bjl.attributes->>'completed_process.exit_reason.Unknown' IS NOT NULL THEN
+            WHEN bjl.attributes->>'completed_process.exit_reason' IN ('OutOfMemoryKilled', 'OomKilled') THEN
+            WHEN TRIM(bjl.attributes->>'completed_process.exit_reason') = '' THEN NULL
+            ELSE bjl.attributes->>'completed_process.exit_reason'
+        END
+    ) AS exit_codes,
     string_agg(DISTINCT NULLIF(TRIM(bjl.attributes->>'completed_process.exit_reason'),''), ', ') AS exit_reasons,
     null
 FROM batch_jobs_logs bjl
