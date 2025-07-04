@@ -26,15 +26,6 @@ pub fn process_command() -> Result<()> {
 
     match cli.command {
         Commands::Init(args) => init(args, config, api_client),
-        //TODO: figure out what test should do now
-        Commands::Test => {
-            println!("Tracer was able to successfully communicate with the API service.");
-            // let result = ConfigLoader::test_service_config_sync();
-            // if result.is_ok() {
-            //     println!("Tracer was able to successfully communicate with the API service.");
-            // }
-            Ok(())
-        }
         Commands::Cleanup => {
             let result = clean_up_after_daemon();
             if result.is_ok() {

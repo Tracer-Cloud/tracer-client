@@ -1,5 +1,5 @@
 use crate::cli::commands::Commands;
-use crate::cli::handlers::{info, setup};
+use crate::cli::handlers::info;
 use crate::cli::helper::handle_port_conflict;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::structs::{Message, TagData};
@@ -30,18 +30,6 @@ pub async fn process_daemon_command(
         Commands::Tag { tags } => {
             let tags = TagData { names: tags };
             api_client.send_update_tags_request(tags).await?;
-        }
-        Commands::Setup {
-            api_key,
-            process_polling_interval_ms,
-            batch_submission_interval_ms,
-        } => {
-            setup(
-                &api_key,
-                &process_polling_interval_ms,
-                &batch_submission_interval_ms,
-            )
-            .await?
         }
         Commands::Info { json } => {
             info(api_client, json).await?;
