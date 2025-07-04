@@ -56,7 +56,7 @@ impl fmt::Display for LinuxDistribution {
 fn detect_linux_distribution() -> LinuxDistribution {
     if let Ok(output) = Command::new("sh")
         .arg("-c")
-        .arg("cat /etc/os-release | grep -E '^(NAME|VERSION_ID|ID)='")
+        .arg("cat /etc/os-release | grep -E '^(NAME|VERSION_ID)='")
         .output()
     {
         let output_str = String::from_utf8_lossy(&output.stdout);
