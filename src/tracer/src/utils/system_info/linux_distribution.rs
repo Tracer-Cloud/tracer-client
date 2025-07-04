@@ -1,16 +1,14 @@
 #![cfg(target_os = "linux")]
-use crate::constants::{
-    REQUIRED_AMAZON_LINUX_VERSION, REQUIRED_UBUNTU_MAJOR, REQUIRED_UBUNTU_MINOR,
-};
+use crate::constants::REQUIRED_UBUNTU_VERSION;
 use std::process::Command;
 use std::sync::LazyLock;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LinuxDistribution {
-    Ubuntu(u32, u32), // major, minor (e.g., 22, 04)
-    AmazonLinux(u32), // version (e.g., 2 or 2023)
-    Other(String),    // name of the distribution
-    Unknown,          // couldn't determine the distribution
+    Ubuntu(f32), // version as float (e.g., 22.04)
+    AmazonLinux2023,
+    Other(String), // name of the distribution
+    Unknown,       // couldn't determine the distribution
 }
 
 impl LinuxDistribution {
@@ -18,32 +16,22 @@ impl LinuxDistribution {
         static DISTRIBUTION: LazyLock<LinuxDistribution> = LazyLock::new(detect_linux_distribution);
         &DISTRIBUTION
     }
+
     pub fn is_compatible(&self) -> bool {
         match self {
-            LinuxDistribution::Ubuntu(major, minor) => {
-                *major > REQUIRED_UBUNTU_MAJOR
-                    || (*major == REQUIRED_UBUNTU_MAJOR && *minor >= REQUIRED_UBUNTU_MINOR)
-            }
-            LinuxDistribution::AmazonLinux(version) => *version >= REQUIRED_AMAZON_LINUX_VERSION,
+            LinuxDistribution::Ubuntu(version) => *version >= REQUIRED_UBUNTU_VERSION,
+            LinuxDistribution::AmazonLinux2023 => true,
             _ => false,
         }
     }
 
     pub fn get_required_version(&self) -> String {
         match self {
-            LinuxDistribution::Ubuntu(_, _) => {
-                format!(
-                    "Ubuntu {}.{:02}",
-                    REQUIRED_UBUNTU_MAJOR, REQUIRED_UBUNTU_MINOR
-                )
+            LinuxDistribution::Ubuntu(_) => {
+                format!("Ubuntu {} or later", REQUIRED_UBUNTU_VERSION)
             }
-            LinuxDistribution::AmazonLinux(_) => {
-                format!("Amazon Linux {}", REQUIRED_AMAZON_LINUX_VERSION)
-            }
-            _ => format!(
-                "Ubuntu {}.{:02} or Amazon Linux {}",
-                REQUIRED_UBUNTU_MAJOR, REQUIRED_UBUNTU_MINOR, REQUIRED_AMAZON_LINUX_VERSION
-            ),
+            LinuxDistribution::AmazonLinux2023 => "Amazon Linux 2023".to_string(),
+            _ => format!("Ubuntu {} or Amazon Linux 2023", REQUIRED_UBUNTU_VERSION),
         }
     }
 }
@@ -53,8 +41,13 @@ use std::fmt;
 impl fmt::Display for LinuxDistribution {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            LinuxDistribution::Ubuntu(major, minor) => write!(f, "Ubuntu {}.{:02}", major, minor),
-            LinuxDistribution::AmazonLinux(version) => write!(f, "Amazon Linux {}", version),
+            LinuxDistribution::Ubuntu(version) => {
+                // Extract major and minor parts for display
+                let major = *version as u32;
+                let minor = ((*version - major as f32) * 100.0).round() as u32;
+                write!(f, "Ubuntu {}.{:02}", major, minor)
+            }
+            LinuxDistribution::AmazonLinux2023 => write!(f, "Amazon Linux 2023"),
             LinuxDistribution::Other(name) => write!(f, "{}", name),
             LinuxDistribution::Unknown => write!(f, "Unknown Linux Distribution"),
         }
@@ -80,32 +73,19 @@ fn detect_linux_distribution() -> LinuxDistribution {
         };
 
         // Extract distribution information
-        let distro_id = extract_value("ID=");
-        let distro_name = extract_value("NAME=");
+        let name = extract_value("NAME=");
         let version = extract_value("VERSION_ID=");
 
         // Check for specific distributions
-        if distro_id.contains("ubuntu") || distro_name.to_lowercase().contains("ubuntu") {
-            // Parse Ubuntu version
-            let parts: Vec<&str> = version.split('.').collect();
-            if parts.len() >= 2 {
-                if let (Ok(major), Ok(minor)) = (parts[0].parse::<u32>(), parts[1].parse::<u32>()) {
-                    return LinuxDistribution::Ubuntu(major, minor);
-                }
-            } else if parts.len() == 1 {
-                if let Ok(major) = parts[0].parse::<u32>() {
-                    return LinuxDistribution::Ubuntu(major, 0);
-                }
+        if name.contains("Ubuntu") {
+            // Parse Ubuntu version as f32
+            if let Ok(version_float) = version.parse::<f32>() {
+                return LinuxDistribution::Ubuntu(version_float);
             }
-        } else if distro_id.contains("amzn") || distro_name.to_lowercase().contains("amazon linux")
-        {
-            // Parse Amazon Linux version
-            if let Ok(ver) = version.parse::<u32>() {
-                return LinuxDistribution::AmazonLinux(ver);
-            }
-            return LinuxDistribution::Other(distro_name.to_string());
+        } else if name.contains("Amazon Linux") && version.contains("2023") {
+            return LinuxDistribution::AmazonLinux2023;
         }
-        return LinuxDistribution::Other(distro_name.to_string());
+        return LinuxDistribution::Other(name);
     }
     LinuxDistribution::Unknown
 }

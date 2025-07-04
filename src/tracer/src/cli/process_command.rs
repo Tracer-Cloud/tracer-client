@@ -85,7 +85,7 @@ fn linux_os_check() -> bool {
             // Send alert to Sentry
             Sentry::capture_message(
                 &format!(
-                    "OS Compatibility Error: Ubuntu {} detected, {}+ required",
+                    "OS Compatibility Error: {} detected, {}+ required",
                     current, required
                 ),
                 sentry::Level::Error,

@@ -224,6 +224,13 @@ function check_os() {
     Linux*)
         # Check for Amazon Linux
         if [ -f /etc/system-release ] && grep -q "Amazon Linux" /etc/system-release; then
+            # Check if it's Amazon Linux 2 (not supported)
+            if grep -q "Amazon Linux 2" /etc/system-release; then
+                echo "- ${EMOJI_CANCEL} Amazon Linux 2 is not supported. Please use Amazon Linux 2023 or later."
+                echo "- ${EMOJI_RESOURCES} Amazon Linux 2 reached end-of-life. Upgrade to Amazon Linux 2023 for continued support."
+                exit 1
+            fi
+
             case "$ARCH" in
             x86_64)
                 echo "- ${EMOJI_CHECK} Amazon Linux x86_64 architecture detected"
