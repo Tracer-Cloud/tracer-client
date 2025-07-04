@@ -16,7 +16,7 @@ pub enum LinuxDistribution {
 impl LinuxDistribution {
     pub fn current() -> &'static Self {
         static DISTRIBUTION: LazyLock<LinuxDistribution> =
-            LazyLock::new(|| detect_linux_distribution());
+            LazyLock::new(detect_linux_distribution());
         &DISTRIBUTION
     }
     pub fn is_compatible(&self) -> bool {
@@ -92,7 +92,7 @@ fn detect_linux_distribution() -> LinuxDistribution {
                     return LinuxDistribution::Ubuntu(major, minor);
                 }
             } else if parts.len() == 1 {
-                if let Some(major) = parts[0].parse::<u32>().ok() {
+                if let Some(major) = parts[0].parse::<u32>() {
                     return LinuxDistribution::Ubuntu(major, 0);
                 }
             }
