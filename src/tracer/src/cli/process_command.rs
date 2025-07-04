@@ -3,7 +3,6 @@ use crate::cli::handlers::{init, update};
 use crate::cli::helper::{clean_up_after_daemon, handle_port_conflict};
 use crate::cli::process_daemon_command::process_daemon_command;
 use crate::config::Config;
-use crate::constants::{UBUNTU_MAJOR_VERSION, UBUNTU_MINOR_VERSION};
 use crate::daemon::client::DaemonClient;
 use crate::process_identification::constants::DEFAULT_DAEMON_PORT;
 use crate::process_identification::debug_log::Logger;
@@ -22,7 +21,7 @@ pub fn process_command() -> Result<()> {
 
     let _guard = Sentry::setup(&config);
 
-    if !ubuntu_version_check() {
+    if !linux_os_check() {
         return Ok(());
     }
 
@@ -78,34 +77,30 @@ pub fn process_command() -> Result<()> {
     }
 }
 
-fn ubuntu_version_check() -> bool {
+fn linux_os_check() -> bool {
     #[cfg(target_os = "linux")]
     {
-        use crate::utils::system_info::get_ubuntu_version;
+        use crate::utils::system_info::LinuxDistribution;
 
-        let ubuntu_version = get_ubuntu_version();
-        if let Some((major, minor)) = ubuntu_version {
-            if major < UBUNTU_MAJOR_VERSION || (major == UBUNTU_MAJOR_VERSION && minor < UBUNTU_MINOR_VERSION) {
-                let version_required = format!("{}.{:02}", UBUNTU_MAJOR_VERSION, UBUNTU_MINOR_VERSION);
-                let version_detected = format!("{}.{:02}", major, minor);
-                eprintln!("\n❌ ERROR: Incompatible Ubuntu Version");
-                eprintln!(
-                    "Tracer requires Ubuntu {} or higher. Detected: Ubuntu {}",
-                    version_required, version_detected
-                );
-                eprintln!("Please upgrade your system to continue.");
+        let distribution = LinuxDistribution::current();
+        if !distribution.is_compatible() {
+            let required = distribution.get_required_version();
+            let current = distribution.to_string();
+            eprintln!("\n❌ ERROR: Incompatible Linux OS");
+            eprintln!("Tracer requires {}", required);
+            eprintln!("Detected {}", current);
+            eprintln!("Please upgrade your system to continue.");
 
-                // Send alert to Sentry
-                Sentry::capture_message(
-                    &format!(
-                        "OS Compatibility Error: Ubuntu {} detected, {}+ required",
-                        version_detected, minor
-                    ),
-                    sentry::Level::Error,
-                );
-                return false;
-            }
+            // Send alert to Sentry
+            Sentry::capture_message(
+                &format!(
+                    "OS Compatibility Error: Ubuntu {} detected, {}+ required",
+                    current, required
+                ),
+                sentry::Level::Error,
+            );
+            return false;
         }
     }
-    false
+    true
 }
