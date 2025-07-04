@@ -21,6 +21,10 @@ pub fn process_command() -> Result<()> {
 
     let _guard = Sentry::setup(&config);
 
+    if !linux_os_check() {
+        return Ok(());
+    }
+
     let api_client = DaemonClient::new(format!("http://{}", config.server));
     let command = cli.command.clone();
 
@@ -62,4 +66,32 @@ pub fn process_command() -> Result<()> {
             Ok(())
         }
     }
+}
+
+fn linux_os_check() -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        use crate::utils::system_info::LinuxDistribution;
+
+        let distribution = LinuxDistribution::current();
+        if !distribution.is_compatible() {
+            let required = distribution.get_required_version();
+            let current = distribution.to_string();
+            eprintln!("\n❌ ERROR: Incompatible Linux OS");
+            eprintln!("Tracer requires {}", required);
+            eprintln!("Detected {}", current);
+            eprintln!("Please upgrade your system to continue.");
+
+            // Send alert to Sentry
+            Sentry::capture_message(
+                &format!(
+                    "OS Compatibility Error: {} detected, {}+ required",
+                    current, required
+                ),
+                sentry::Level::Error,
+            );
+            return false;
+        }
+    }
+    true
 }

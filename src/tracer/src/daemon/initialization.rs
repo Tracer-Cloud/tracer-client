@@ -1,10 +1,10 @@
+use crate::cli::handlers::arguments::FinalizedInitArgs;
 use crate::client::exporters::db::AuroraClient;
 use crate::client::exporters::log_forward::LogForward;
 use crate::client::exporters::log_writer::LogWriterEnum;
 use crate::client::TracerClient;
 use crate::config::Config;
 use crate::daemon::server::DaemonServer;
-use crate::process_identification::types::cli::params::FinalizedInitArgs;
 use crate::utils::analytics;
 use crate::utils::analytics::types::AnalyticsEventType;
 use anyhow::Context;

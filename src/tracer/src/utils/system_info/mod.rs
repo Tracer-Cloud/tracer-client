@@ -1,3 +1,7 @@
+mod linux_distribution;
+#[cfg(target_os = "linux")]
+pub use linux_distribution::LinuxDistribution;
+
 use std::process::Command;
 use tracing::error;
 

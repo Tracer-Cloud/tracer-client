@@ -70,4 +70,12 @@ impl Sentry {
             scope.set_extra(key, value);
         });
     }
+
+    /// Captures a message event in Sentry with the specified level.
+    pub fn capture_message(message: &str, level: sentry::Level) {
+        if cfg!(test) {
+            return;
+        }
+        sentry::capture_message(message, level);
+    }
 }
