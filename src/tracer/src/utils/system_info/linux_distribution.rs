@@ -15,8 +15,7 @@ pub enum LinuxDistribution {
 
 impl LinuxDistribution {
     pub fn current() -> &'static Self {
-        static DISTRIBUTION: LazyLock<LinuxDistribution> =
-            LazyLock::new(detect_linux_distribution());
+        static DISTRIBUTION: LazyLock<LinuxDistribution> = LazyLock::new(detect_linux_distribution);
         &DISTRIBUTION
     }
     pub fn is_compatible(&self) -> bool {
@@ -27,15 +26,6 @@ impl LinuxDistribution {
             }
             LinuxDistribution::AmazonLinux(version) => *version >= REQUIRED_AMAZON_LINUX_VERSION,
             _ => false,
-        }
-    }
-
-    pub fn to_string(&self) -> String {
-        match self {
-            LinuxDistribution::Ubuntu(major, minor) => format!("Ubuntu {}.{:02}", major, minor),
-            LinuxDistribution::AmazonLinux(version) => format!("Amazon Linux {}", version),
-            LinuxDistribution::Other(name) => name.clone(),
-            LinuxDistribution::Unknown => "Unknown Linux Distribution".to_string(),
         }
     }
 
@@ -54,6 +44,19 @@ impl LinuxDistribution {
                 "Ubuntu {}.{:02} or Amazon Linux {}",
                 REQUIRED_UBUNTU_MAJOR, REQUIRED_UBUNTU_MINOR, REQUIRED_AMAZON_LINUX_VERSION
             ),
+        }
+    }
+}
+
+use std::fmt;
+
+impl fmt::Display for LinuxDistribution {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LinuxDistribution::Ubuntu(major, minor) => write!(f, "Ubuntu {}.{:02}", major, minor),
+            LinuxDistribution::AmazonLinux(version) => write!(f, "Amazon Linux {}", version),
+            LinuxDistribution::Other(name) => write!(f, "{}", name),
+            LinuxDistribution::Unknown => write!(f, "Unknown Linux Distribution"),
         }
     }
 }
@@ -86,13 +89,11 @@ fn detect_linux_distribution() -> LinuxDistribution {
             // Parse Ubuntu version
             let parts: Vec<&str> = version.split('.').collect();
             if parts.len() >= 2 {
-                if let (Some(major), Some(minor)) =
-                    (parts[0].parse::<u32>().ok(), parts[1].parse::<u32>().ok())
-                {
+                if let (Ok(major), Ok(minor)) = (parts[0].parse::<u32>(), parts[1].parse::<u32>()) {
                     return LinuxDistribution::Ubuntu(major, minor);
                 }
             } else if parts.len() == 1 {
-                if let Some(major) = parts[0].parse::<u32>() {
+                if let Ok(major) = parts[0].parse::<u32>() {
                     return LinuxDistribution::Ubuntu(major, 0);
                 }
             }
