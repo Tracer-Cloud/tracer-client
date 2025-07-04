@@ -289,7 +289,7 @@ function check_system_resources() {
     if [ -f /proc/meminfo ]; then
         # Linux - get total memory in GB
         RAM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
-        RAM_GB=$(echo "scale=1; $RAM_KB / 1024 / 1024" | bc 2>/dev/null || echo "scale=1; $RAM_KB / 1048576" | awk '{printf "%.1f", $1}')
+        RAM_GB=$(echo "scale=1; $RAM_KB / 1024 / 1024" | bc 2>/dev/null | awk '{printf "%.1f", $1}' || awk "BEGIN {printf \"%.1f\", $RAM_KB/1048576}")
         RAM_INFO="${RAM_GB} GB"
     elif command -v sysctl >/dev/null 2>&1; then
         # macOS - get total memory in GB

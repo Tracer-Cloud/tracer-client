@@ -1,5 +1,3 @@
-mod info_display;
-pub use info_display::InfoDisplay;
 mod version;
 pub use version::Version;
 mod sentry;
