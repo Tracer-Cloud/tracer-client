@@ -24,7 +24,7 @@ pub enum Commands {
     Alert { message: String },
 
     /// Start the daemon
-    Init(TracerCliInitArgs),
+    Init(Box<TracerCliInitArgs>),
 
     /// Stop the daemon
     Terminate,

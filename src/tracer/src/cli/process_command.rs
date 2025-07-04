@@ -25,7 +25,7 @@ pub fn process_command() -> Result<()> {
     let command = cli.command.clone();
 
     match cli.command {
-        Commands::Init(args) => init(args, config, api_client),
+        Commands::Init(args) => init(*args, config, api_client),
         Commands::Cleanup => {
             let result = clean_up_after_daemon();
             if result.is_ok() {
