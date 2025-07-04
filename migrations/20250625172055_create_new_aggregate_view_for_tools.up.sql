@@ -42,22 +42,51 @@ SELECT
     SUM(COALESCE((bjl.attributes->>'process.process_run_time')::BIGINT,0)) AS total_runtime,
     MIN(bjl.timestamp) AS first_seen,
     MAX(bjl.timestamp) AS last_seen,
-    string_agg(
+    MAX(
         DISTINCT CASE
+            -- handle cases for old variable structure of exit_reason
             WHEN bjl.attributes->>'completed_process.exit_reason' IS NULL THEN NULL
             WHEN bjl.attributes->>'completed_process.exit_reason.Code' IS NOT NULL THEN
+                bjl.attributes->>'completed_process.exit_reason.Code'
             WHEN bjl.attributes->>'completed_process.exit_reason.Signal' IS NOT NULL THEN
+                bjl.attributes->>'completed_process.exit_reason.Signal' + 128
             WHEN bjl.attributes->>'completed_process.exit_reason.Unknown' IS NOT NULL THEN
-            WHEN bjl.attributes->>'completed_process.exit_reason' IN ('OutOfMemoryKilled', 'OomKilled') THEN
+                bjl.attributes->>'completed_process.exit_reason.Unknown'
+            WHEN bjl.attributes->>'completed_process.exit_reason' IN ('OutOfMemoryKilled', 'OomKilled') THEN 137
             WHEN TRIM(bjl.attributes->>'completed_process.exit_reason') = '' THEN NULL
-            ELSE bjl.attributes->>'completed_process.exit_reason'
+            -- handle case for new fixed structure of exit_reason
+            ELSE bjl.attributes->>'completed_process.exit_reason.code'
         END
-    ) AS exit_codes,
-    string_agg(DISTINCT NULLIF(TRIM(bjl.attributes->>'completed_process.exit_reason'),''), ', ') AS exit_reasons,
-    null
+    ) AS exit_code,
+    STRING_AGG(
+        DISTINCT CASE
+            -- handle cases for old variable structure of exit_reason
+            WHEN bjl.attributes->>'completed_process.exit_reason' IS NULL THEN NULL
+            WHEN bjl.attributes->>'completed_process.exit_reason.Code' = 0 THEN 'Success'
+            WHEN bjl.attributes->>'completed_process.exit_reason.Code' IS NOT NULL THEN
+                CONCAT('Exit code ', bjl.attributes->>'completed_process.exit_reason.Code')
+            WHEN bjl.attributes->>'completed_process.exit_reason.Signal' IS NOT NULL THEN
+                CONCAT('Signal ', bjl.attributes->>'completed_process.exit_reason.Signal')
+            WHEN bjl.attributes->>'completed_process.exit_reason.Unknown' IS NOT NULL THEN
+                CONCAT('Unknown code ', bjl.attributes->>'completed_process.exit_reason.Unknown')
+            WHEN TRIM(bjl.attributes->>'completed_process.exit_reason') IN ('OutOfMemoryKilled', 'OomKilled') THEN
+                'OOM Killed'
+            -- handle case for new fixed structure of exit_reason
+            WHEN TRIM(bjl.attributes->>'completed_process.exit_reason.reason') != '' THEN
+                TRIM(bjl.attributes->>'completed_process.exit_reason.reason')
+            WHEN TRIM(bjl.attributes->>'completed_process.exit_reason') = '' THEN NULL
+            ELSE TRIM(bjl.attributes->>'completed_process.exit_reason')
+        END,
+        ', '
+    ) AS exit_reasons,
+    STRING_AGG(
+        DISTINCT NULLIF(TRIM(bjl.attributes->>'completed_process.exit_reason.explanation'), ''),
+        ', '
+    ) AS exit_explanations,
+    NULL
 FROM batch_jobs_logs bjl
 WHERE bjl.attributes->>'process.tool_name' IS NOT NULL
-  AND bjl.attributes->>'process.tool_name' != ''
+    AND bjl.attributes->>'process.tool_name' != ''
 GROUP BY bjl.pipeline_name, bjl.run_name, bjl.attributes->>'process.tool_name';
 
 
