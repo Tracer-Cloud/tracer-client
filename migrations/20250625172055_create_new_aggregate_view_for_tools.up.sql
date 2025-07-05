@@ -16,14 +16,16 @@ CREATE TABLE IF NOT EXISTS tool_aggregations (
     total_runtime BIGINT DEFAULT 0,
     first_seen TIMESTAMPTZ,
     last_seen TIMESTAMPTZ,
+    exit_codes INT DEFAULT 0,
     exit_reasons TEXT DEFAULT '',
+    exit_explanations TEXT DEFAULT '',
     attributes JSONB,
     PRIMARY KEY (pipeline_name, run_name, tool_name)
 );
 
 -- Fill the tool_aggregations table with existing data
 INSERT INTO tool_aggregations (
-    pipeline_name, run_name, tool_name, tool_cmd, times_called, max_cpu_utilization, avg_cpu_utilization, max_mem_usage, avg_mem_usage, max_disk_utilization, avg_disk_utilization, total_runtime, first_seen, last_seen, exit_reasons, attributes
+    pipeline_name, run_name, tool_name, tool_cmd, times_called, max_cpu_utilization, avg_cpu_utilization, max_mem_usage, avg_mem_usage, max_disk_utilization, avg_disk_utilization, total_runtime, first_seen, last_seen, exit_codes, exit_reasons, exit_explanations, attributes
 )
 SELECT
     bjl.pipeline_name,
@@ -40,11 +42,51 @@ SELECT
     SUM(COALESCE((bjl.attributes->>'process.process_run_time')::BIGINT,0)) AS total_runtime,
     MIN(bjl.timestamp) AS first_seen,
     MAX(bjl.timestamp) AS last_seen,
-    string_agg(DISTINCT NULLIF(TRIM(bjl.attributes->>'completed_process.exit_reason'),''), ', ') AS exit_reasons,
-    null
+    MAX(
+        DISTINCT CASE
+            -- handle cases for old variable structure of exit_reason
+            WHEN bjl.attributes->>'completed_process.exit_reason' IS NULL THEN NULL
+            WHEN bjl.attributes->>'completed_process.exit_reason.Code' IS NOT NULL THEN
+                bjl.attributes->>'completed_process.exit_reason.Code'
+            WHEN bjl.attributes->>'completed_process.exit_reason.Signal' IS NOT NULL THEN
+                bjl.attributes->>'completed_process.exit_reason.Signal' + 128
+            WHEN bjl.attributes->>'completed_process.exit_reason.Unknown' IS NOT NULL THEN
+                bjl.attributes->>'completed_process.exit_reason.Unknown'
+            WHEN bjl.attributes->>'completed_process.exit_reason' IN ('OutOfMemoryKilled', 'OomKilled') THEN 137
+            WHEN TRIM(bjl.attributes->>'completed_process.exit_reason') = '' THEN NULL
+            -- handle case for new fixed structure of exit_reason
+            ELSE bjl.attributes->>'completed_process.exit_reason.code'
+        END
+    ) AS exit_code,
+    STRING_AGG(
+        DISTINCT CASE
+            -- handle cases for old variable structure of exit_reason
+            WHEN bjl.attributes->>'completed_process.exit_reason' IS NULL THEN NULL
+            WHEN bjl.attributes->>'completed_process.exit_reason.Code' = 0 THEN 'Success'
+            WHEN bjl.attributes->>'completed_process.exit_reason.Code' IS NOT NULL THEN
+                CONCAT('Exit code ', bjl.attributes->>'completed_process.exit_reason.Code')
+            WHEN bjl.attributes->>'completed_process.exit_reason.Signal' IS NOT NULL THEN
+                CONCAT('Signal ', bjl.attributes->>'completed_process.exit_reason.Signal')
+            WHEN bjl.attributes->>'completed_process.exit_reason.Unknown' IS NOT NULL THEN
+                CONCAT('Unknown code ', bjl.attributes->>'completed_process.exit_reason.Unknown')
+            WHEN TRIM(bjl.attributes->>'completed_process.exit_reason') IN ('OutOfMemoryKilled', 'OomKilled') THEN
+                'OOM Killed'
+            -- handle case for new fixed structure of exit_reason
+            WHEN TRIM(bjl.attributes->>'completed_process.exit_reason.reason') != '' THEN
+                TRIM(bjl.attributes->>'completed_process.exit_reason.reason')
+            WHEN TRIM(bjl.attributes->>'completed_process.exit_reason') = '' THEN NULL
+            ELSE TRIM(bjl.attributes->>'completed_process.exit_reason')
+        END,
+        ', '
+    ) AS exit_reasons,
+    STRING_AGG(
+        DISTINCT NULLIF(TRIM(bjl.attributes->>'completed_process.exit_reason.explanation'), ''),
+        ', '
+    ) AS exit_explanations,
+    NULL
 FROM batch_jobs_logs bjl
 WHERE bjl.attributes->>'process.tool_name' IS NOT NULL
-  AND bjl.attributes->>'process.tool_name' != ''
+    AND bjl.attributes->>'process.tool_name' != ''
 GROUP BY bjl.pipeline_name, bjl.run_name, bjl.attributes->>'process.tool_name';
 
 
