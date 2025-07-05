@@ -1,10 +1,10 @@
 use anyhow::Context;
-use tracer::cli::process_command;
+use tracer::cli;
 
 pub fn main() -> anyhow::Result<()> {
     rustls::crypto::ring::default_provider()
         .install_default()
         .map_err(|e| anyhow::anyhow!("Failed to install default crypto provider: {:?}", e))?;
-    process_command().context("Can't process CLI command")?;
+    cli::process_command().context("Can't process CLI command")?;
     Ok(())
 }
