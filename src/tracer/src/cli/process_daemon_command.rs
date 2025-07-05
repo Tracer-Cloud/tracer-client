@@ -5,7 +5,7 @@ use crate::daemon::client::{DaemonClient, Result as DaemonResult};
 use crate::daemon::structs::{Message, TagData};
 use crate::process_identification::constants::DEFAULT_DAEMON_PORT;
 use crate::process_identification::debug_log::Logger;
-use anyhow::Result;
+use anyhow::{bail, Result};
 use tokio::runtime::Runtime;
 
 pub fn process_daemon_command(command: Command, api_client: &DaemonClient) -> Result<()> {
@@ -37,11 +37,14 @@ fn process_retryable_daemon_command(
 ) -> Result<()> {
     const MAX_ATTEMPTS: usize = 3;
     let mut attempt = 0;
-    let e = loop {
+    let err = loop {
         match runtime
             .block_on(async { process_retryable_daemon_command_async(&command, api_client).await })
         {
-            Ok(_) => return Ok(()),
+            Ok(true) => return Ok(()),
+            Ok(false) => {
+                bail!("Command not implemented yet");
+            }
             Err(e) if e.is_timeout() && attempt < MAX_ATTEMPTS => {
                 logger
                     .get_or_insert_with(|| Logger::new())
@@ -51,18 +54,18 @@ fn process_retryable_daemon_command(
             Err(e) => break e,
         }
     };
-    if e.is_connect() {
+    if err.is_connect() {
         println!("Could not connect to the daemon. Please run `tracer init` to start it.");
     } else {
         println!("Failed to send command to the daemon. Please run `tracer init` to restart it.");
     };
-    Err(anyhow::anyhow!(e))
+    Err(anyhow::anyhow!(err))
 }
 
 async fn process_retryable_daemon_command_async(
     command: &Command,
     api_client: &DaemonClient,
-) -> DaemonResult<()> {
+) -> DaemonResult<bool> {
     match command {
         Command::Log { message } => {
             let payload = Message {
@@ -103,9 +106,7 @@ async fn process_retryable_daemon_command_async(
             };
             api_client.send_update_tags_request(tags).await?;
         }
-        _ => {
-            println!("Command not implemented yet");
-        }
+        _ => return Ok(false),
     }
-    Ok(())
+    Ok(true)
 }
