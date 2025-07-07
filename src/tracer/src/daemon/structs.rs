@@ -6,12 +6,12 @@ use crate::process_identification::types::pipeline_tags::PipelineTags;
 use chrono::{DateTime, TimeDelta, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct InfoResponse {
     pub inner: Option<InnerInfoResponse>,
-    pub watched_processes_count: usize,
-    pub previewed_processes: HashSet<String>,
+    processes: HashSet<String>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -23,19 +23,22 @@ pub struct InnerInfoResponse {
     pub tags: PipelineTags,
 }
 impl InfoResponse {
-    pub fn new(
-        previewed_processes: HashSet<String>,
-        watched_processes_count: usize,
-        inner: Option<InnerInfoResponse>,
-    ) -> Self {
-        Self {
-            inner,
-            previewed_processes,
-            watched_processes_count,
+    pub fn new(inner: Option<InnerInfoResponse>, processes: HashSet<String>) -> Self {
+        Self { inner, processes }
+    }
+    pub fn process_count(&self) -> usize {
+        self.processes.len()
+    }
+    pub fn processes_preview(&self, limit: Option<usize>) -> String {
+        if let Some(limit) = limit {
+            self.processes.iter().take(limit).join(", ")
+        } else {
+            self.processes.iter().join(", ")
         }
     }
-    pub fn watched_processes_preview(&self) -> String {
-        self.previewed_processes.iter().join(", ")
+
+    pub fn processes_json(&self) -> Value {
+        serde_json::json!(self.processes)
     }
 }
 
