@@ -87,7 +87,7 @@ impl InfoDisplay {
         });
         println!("{}", serde_json::to_string_pretty(&json).unwrap());
     }
-    
+
     fn format_status(&self, formatter: &mut BoxFormatter, runtime: &String, url: &str) {
         formatter.add_header("Tracer status");
         formatter.add_empty_line();
