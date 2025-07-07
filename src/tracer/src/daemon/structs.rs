@@ -6,6 +6,7 @@ use crate::process_identification::types::pipeline_tags::PipelineTags;
 use chrono::{DateTime, TimeDelta, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct InfoResponse {
@@ -34,6 +35,10 @@ impl InfoResponse {
         } else {
             self.processes.iter().join(", ")
         }
+    }
+
+    pub fn processes_json(&self) -> Value {
+        serde_json::json!(self.processes)
     }
 }
 
