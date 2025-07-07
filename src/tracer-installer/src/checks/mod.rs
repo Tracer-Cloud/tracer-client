@@ -27,13 +27,13 @@ pub struct CheckManager {
 }
 
 impl CheckManager {
-    pub fn new() -> Self {
+    pub async fn new() -> Self {
         let checks: Vec<Box<dyn InstallCheck>> = vec![
             Box::new(APICheck::new()),
             Box::new(RootCheck::new()),
             Box::new(KernelCheck::new()),
             Box::new(DependencyCheck::new()),
-            Box::new(EnvironmentCheck::new()),
+            Box::new(EnvironmentCheck::new().await),
         ];
 
         Self { checks }
