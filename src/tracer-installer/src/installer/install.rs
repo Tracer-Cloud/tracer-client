@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use colored::Colorize;
 use console::Emoji;
 use flate2::read::GzDecoder;
+use futures_util::future::join_all;
 use futures_util::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::Client;
@@ -11,6 +12,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use tar::Archive;
 use tokio::fs::{self, OpenOptions};
+use tokio::task::JoinHandle;
 use tokio::{
     fs::File,
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
@@ -38,8 +40,14 @@ impl Installer {
     /// - Updates shell configuration files to include Tracer in the PATH
     /// - Emits analytics events if a user ID is provided
     pub async fn run(&self) -> Result<()> {
-        self.emit_analytic_event(AnalyticsEventType::InstallScriptStarted)
-            .await;
+        let mut analytics_handles = Vec::new();
+
+        if let Some(handle) = self
+            .emit_analytic_event(AnalyticsEventType::InstallScriptStarted)
+            .await
+        {
+            analytics_handles.push(handle);
+        }
 
         let finder = TracerUrlFinder;
         let url = finder
@@ -68,11 +76,15 @@ impl Installer {
 
         Self::create_tracer_tmp_dir()?;
 
-        self.emit_analytic_event(AnalyticsEventType::InstallScriptCompleted)
-            .await;
+        if let Some(handle) = self
+            .emit_analytic_event(AnalyticsEventType::InstallScriptCompleted)
+            .await
+        {
+            analytics_handles.push(handle);
+        }
 
         Self::print_next_steps();
-
+        join_all(analytics_handles).await;
         Ok(())
     }
 
@@ -209,14 +221,10 @@ impl Installer {
 
         let retry_strategy = ExponentialBackoff::from_millis(500).map(jitter).take(3);
 
-        let env_type = crate::checks::detect_environment_type().await;
-        let mut metadata = metadata.unwrap_or_default();
-        metadata.entry("environment".into()).or_insert(env_type);
-
         let payload = AnalyticsPayload {
             user_id,
             event_name: event.as_str(),
-            metadata: Some(metadata),
+            metadata,
         };
 
         Retry::spawn(retry_strategy, || async {
@@ -247,27 +255,27 @@ impl Installer {
         std::fs::create_dir_all(path).map_err(|err| anyhow::anyhow!(err))
     }
 
-    fn build_install_metadata(&self) -> HashMap<String, String> {
+    async fn build_install_metadata(&self) -> HashMap<String, String> {
         let mut map = HashMap::new();
+        let env_type: String = crate::checks::detect_environment_type().await;
 
         map.insert("platform_os".into(), format!("{:?}", self.platform.os));
         map.insert("platform_arch".into(), format!("{:?}", self.platform.arch));
         map.insert("channel".into(), format!("{:?}", self.channel));
+        map.insert("environment".into(), env_type);
 
         map
     }
 
-    pub async fn emit_analytic_event(&self, event: AnalyticsEventType) {
-        if let Some(ref user_id) = self.user_id {
-            let metadata = self.build_install_metadata();
-            let user_id = user_id.clone();
-            tokio::spawn(async move {
-                if let Err(_err) = Self::send_analytic_event(&user_id, event, Some(metadata)).await
-                {
-                    eprintln!("Failed to send analytics event: ")
-                }
-            });
-        };
+    pub async fn emit_analytic_event(&self, event: AnalyticsEventType) -> Option<JoinHandle<()>> {
+        let user_id = self.user_id.clone()?;
+        let metadata = self.build_install_metadata().await;
+
+        Some(tokio::spawn(async move {
+            if let Err(_err) = Self::send_analytic_event(&user_id, event, Some(metadata)).await {
+                eprintln!("Failed to send analytics event");
+            }
+        }))
     }
 
     pub fn print_next_steps() {
