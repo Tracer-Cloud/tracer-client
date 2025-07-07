@@ -23,7 +23,7 @@ pub fn process_daemon_command(command: Command, api_client: &DaemonClient) -> Re
     };
     if let Err(e) = result {
         logger
-            .unwrap_or_else(|| Logger::new())
+            .unwrap_or_default()
             .log_blocking(&format!("Error processing cli command: \n {e:?}."), None);
     }
     Ok(())
@@ -47,7 +47,7 @@ fn process_retryable_daemon_command(
             }
             Err(e) if e.is_timeout() && attempt < MAX_ATTEMPTS => {
                 logger
-                    .get_or_insert_with(|| Logger::new())
+                    .get_or_insert_with(Logger::new)
                     .log_blocking("Timeout connecting to the daemon. Retrying...", None);
                 attempt += 1;
             }
@@ -94,7 +94,6 @@ async fn process_retryable_daemon_command_async(
                     }
                     None => println!("Pipeline should have started"),
                 };
-                ()
             })?;
         }
         Command::End => {
