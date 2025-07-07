@@ -13,6 +13,10 @@ use crate::cloud_providers::aws::types::pricing::{
     InstancePricingContext, PricingData, ServiceCode, VolumeMetadata,
 };
 
+const HOURS_IN_MONTH: f64 = 720.0;
+const FREE_IOPS: i32 = 3000;
+const FREE_THROUGHPUT_MBPS: i32 = 125;
+
 /// Client for interacting with AWS Pricing API
 pub struct PricingClient {
     pub pricing_client: Option<pricing::Client>,
@@ -22,8 +26,7 @@ pub struct PricingClient {
 impl PricingClient {
     /// Creates a new PricingClient instance
     /// Note: Currently only us-east-1 region is supported for the pricing API
-    pub async fn new(initialization_conf: AwsConfig, _region: &'static str) -> Self {
-        let region = "us-east-1";
+    pub async fn new(initialization_conf: AwsConfig, region: &'static str) -> Self {
         let config = resolve_available_aws_config(initialization_conf, region).await;
 
         match config {
@@ -158,20 +161,23 @@ impl PricingClient {
 
         price_data.map(|data| {
             // Convert base storage cost from $/GB-month to $/hr
-            let storage_hourly = (vol.size_gib as f64 * data.price_per_unit) / 720.0;
+            let storage_hourly = (vol.size_gib as f64 * data.price_per_unit) / HOURS_IN_MONTH;
 
             // Subtract free tier for IOPS (3000 free)
-            let extra_iops = vol.iops.unwrap_or(0).saturating_sub(3000);
+            let extra_iops = vol.iops.unwrap_or(0).saturating_sub(FREE_IOPS);
             let iops_hourly = if let Some(p) = data.price_per_iops {
-                (extra_iops as f64 * p) / 720.0
+                (extra_iops as f64 * p) / HOURS_IN_MONTH
             } else {
                 0.0
             };
 
             // Subtract free tier for throughput (125 MB/s free)
-            let extra_throughput = vol.throughput.unwrap_or(0).saturating_sub(125);
+            let extra_throughput = vol
+                .throughput
+                .unwrap_or(0)
+                .saturating_sub(FREE_THROUGHPUT_MBPS);
             let throughput_hourly = if let Some(p) = data.price_per_throughput {
-                (extra_throughput as f64 * p) / 720.0
+                (extra_throughput as f64 * p) / HOURS_IN_MONTH
             } else {
                 0.0
             };
