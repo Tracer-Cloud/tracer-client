@@ -102,13 +102,8 @@ impl ProcessManager {
         .await
     }
 
-    /// Returns N process names of monitored processes
-    pub async fn get_n_monitored_processes(&self, n: usize) -> HashSet<String> {
-        self.state_manager.get_n_monitored_processes(n).await
-    }
-
-    /// Returns the total number of processes being monitored
-    pub async fn get_number_of_monitored_processes(&self) -> usize {
-        self.state_manager.get_number_of_monitored_processes().await
+    /// Returns a set of monitored process names
+    pub async fn get_monitored_processes(&self) -> HashSet<String> {
+        self.state_manager.get_monitored_processes().await
     }
 }

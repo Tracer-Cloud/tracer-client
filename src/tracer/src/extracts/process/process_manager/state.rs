@@ -69,19 +69,13 @@ impl StateManager {
         Ok(())
     }
 
-    /// Gets the number of monitored processes
-    pub async fn get_number_of_monitored_processes(&self) -> usize {
-        self.state.read().await.get_monitoring().keys().count()
-    }
-
-    /// Gets N process names of monitored processes
-    pub async fn get_n_monitored_processes(&self, n: usize) -> HashSet<String> {
+    /// Gets a set of all monitored process names
+    pub async fn get_monitored_processes(&self) -> HashSet<String> {
         self.state
             .read()
             .await
             .get_monitoring()
             .keys()
-            .take(n)
             .cloned()
             .collect()
     }

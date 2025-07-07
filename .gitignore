@@ -79,3 +79,5 @@ README.local.md
 # pixi environments
 .pixi
 *.egg-info
+
+**/examples/*

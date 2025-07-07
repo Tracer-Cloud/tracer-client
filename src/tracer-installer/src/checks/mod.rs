@@ -13,6 +13,8 @@ use environment::EnvironmentCheck;
 use kernel::KernelCheck;
 use root::RootCheck;
 
+pub(crate) use environment::detect_environment_type;
+
 /// Trait defining functions a Requirement check must implement before being called
 /// as a preflight step or readiness check for installing the tracer binary
 #[async_trait::async_trait]
@@ -28,14 +30,14 @@ pub struct CheckManager {
 }
 
 impl CheckManager {
-    pub fn new() -> Self {
+    pub async fn new() -> Self {
         let checks: Vec<Box<dyn InstallCheck>> = vec![
             Box::new(APICheck::new()),
             Box::new(RootCheck::new()),
             Box::new(KernelCheck::new()),
             Box::new(DependencyCheck::new()),
-            Box::new(EnvironmentCheck::new()),
             Box::new(OSCheck::new()),
+            Box::new(EnvironmentCheck::new().await),
         ];
 
         Self { checks }

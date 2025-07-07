@@ -26,6 +26,8 @@ pub struct InfoDisplay {
 }
 
 impl InfoDisplay {
+    pub const PREVIEW_LENGTH: Option<usize> = Some(10);
+
     pub fn new(width: usize, json: bool) -> Self {
         Self { width, json }
     }
@@ -60,11 +62,10 @@ impl InfoDisplay {
             json["run"] = serde_json::json!({
                 "name": &inner.run_name,
                 "id": &inner.run_id,
-                "monitored_processes": &info.watched_processes_count,
+                "monitored_processes": &info.process_count(),
             });
-            if !info.watched_processes_preview().is_empty() {
-                json["run"]["preview_processes"] =
-                    serde_json::json!(info.watched_processes_preview());
+            if info.process_count() > 0 {
+                json["run"]["processes"] = serde_json::json!(info.processes_preview(None));
             }
             json["run"]["dashboard_url"] = serde_json::json!(inner.get_run_url());
         } else {
@@ -114,7 +115,7 @@ impl InfoDisplay {
         let pipeline_environment = inner.tags.environment.as_deref().unwrap_or("Not set");
         let pipeline_user = inner.tags.user_operator.as_deref().unwrap_or("Not set");
 
-        let monitored_processes = &info.watched_processes_count;
+        let monitored_processes = info.process_count();
 
         formatter.add_field("Pipeline name", &inner.pipeline_name, "cyan");
         formatter.add_field("Pipeline type", pipeline_type, "white");
@@ -131,10 +132,10 @@ impl InfoDisplay {
             &format!("{} processes", monitored_processes),
             "yellow",
         );
-        if !info.watched_processes_preview().is_empty() {
+        if monitored_processes > 0 {
             formatter.add_field(
-                "Process preview",
-                &info.watched_processes_preview(),
+                "Processes preview",
+                &info.processes_preview(Self::PREVIEW_LENGTH),
                 "white",
             );
         }

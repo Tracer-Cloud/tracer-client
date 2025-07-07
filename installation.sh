@@ -589,6 +589,25 @@ function print_install_complete() {
 }
 
 
+# --- DETECT ENV --------
+
+detect_environment() {
+    if [[ -n "$CODESPACES" || -n "$CODESPACE_NAME" || "$HOSTNAME" == codespaces-* ]]; then
+        echo "GitHub Codespaces"
+    elif [[ "$GITHUB_ACTIONS" == "true" ]]; then
+        echo "GitHub Actions"
+    elif [[ -n "$AWS_BATCH_JOB_ID" ]]; then
+        echo "AWS Batch"
+    elif grep -q "docker\|containerd" /proc/1/cgroup 2>/dev/null || [[ -f /.dockerenv ]]; then
+        # Docker fallback (EC2 not guaranteed in shell)
+        echo "Docker"
+    elif [[ -r /sys/devices/virtual/dmi/id/product_uuid ]] && grep -qi "^ec2" /sys/devices/virtual/dmi/id/product_uuid; then
+        echo "AWS EC2"
+    else
+        echo "Local"
+    fi
+}
+
 # --- ANALYTICS EVENT --------
 
 EVENT_INSTALL_STARTED="install_script_started"
@@ -596,6 +615,13 @@ EVENT_INSTALL_COMPLETED="install_script_completed"
 function send_analytics_event() {
     local event_name="$1"
     local metadata="$2"
+
+    # Detect environment if not already provided in metadata
+    if [[ -z "$metadata" || "$(echo "$metadata" | jq -r '.environment // empty')" == "" ]]; then
+        local detected_env
+        detected_env=$(detect_environment)
+        metadata=$(jq -n --arg env "$detected_env" '{ environment: $env }')
+    fi
 
     # USER_ID check is now handled by caller - this function assumes USER_ID is set
 

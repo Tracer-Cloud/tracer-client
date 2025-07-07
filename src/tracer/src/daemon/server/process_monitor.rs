@@ -89,7 +89,8 @@ pub async fn monitor(
 
 async fn sentry_alert(client: &TracerClient) {
     let info_response = get_info_response(client).await;
-    let preview = info_response.watched_processes_preview();
+    let processes = info_response.processes_json();
+    let process_count = info_response.process_count();
     if let Some(inner) = info_response.inner {
         Sentry::add_context(
             "Run Details",
@@ -97,10 +98,10 @@ async fn sentry_alert(client: &TracerClient) {
                 "name": inner.run_name.clone(),
                 "id": inner.run_id.clone(),
                 "runtime": inner.formatted_runtime(),
-                "no. processes": &info_response.watched_processes_count,
-                "preview processes(<10)": preview,
+                "no. processes": process_count,
             }),
         );
+        Sentry::add_extra("Processes", processes);
     }
 }
 

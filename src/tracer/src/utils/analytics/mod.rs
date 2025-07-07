@@ -31,10 +31,15 @@ pub async fn send_event(
 
     let retry_strategy = ExponentialBackoff::from_millis(500).map(jitter).take(3);
 
+    // Ensure environment is set in metadata
+    let env_type = crate::utils::env::detect_environment_type().await;
+    let mut metadata = metadata.unwrap_or_default();
+    metadata.entry("environment".into()).or_insert(env_type);
+
     let payload = AnalyticsPayload {
         user_id: user_id.as_str(),
         event_name: event.as_str(),
-        metadata,
+        metadata: Some(metadata),
     };
     Retry::spawn(retry_strategy, || async {
         let res = client
