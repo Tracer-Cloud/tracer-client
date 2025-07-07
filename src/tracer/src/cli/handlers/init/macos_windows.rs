@@ -50,7 +50,6 @@ pub fn macos_windows_no_daemonize(
             None,
         );
         wait(&api_client).await?;
-
         info(&api_client, false).await
     })?;
 

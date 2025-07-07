@@ -2,15 +2,16 @@ mod api;
 mod dependency;
 mod environment;
 mod kernel;
+mod os;
 mod root;
 
+use crate::checks::os::OSCheck;
+use crate::utils::{print_step, StepStatus};
 use api::APICheck;
 use dependency::DependencyCheck;
 use environment::EnvironmentCheck;
 use kernel::KernelCheck;
 use root::RootCheck;
-
-use crate::utils::{print_step, StepStatus};
 
 /// Trait defining functions a Requirement check must implement before being called
 /// as a preflight step or readiness check for installing the tracer binary
@@ -34,6 +35,7 @@ impl CheckManager {
             Box::new(KernelCheck::new()),
             Box::new(DependencyCheck::new()),
             Box::new(EnvironmentCheck::new()),
+            Box::new(OSCheck::new()),
         ];
 
         Self { checks }
