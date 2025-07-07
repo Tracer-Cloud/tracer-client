@@ -22,7 +22,7 @@ async fn main() {
             // Run checks
             print_honey_badger_banner(&channel);
 
-            let requirements = CheckManager::new();
+            let requirements = CheckManager::new().await;
             requirements.run_all().await;
 
             // Platform detection

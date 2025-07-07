@@ -209,11 +209,16 @@ impl Installer {
 
         let retry_strategy = ExponentialBackoff::from_millis(500).map(jitter).take(3);
 
+        let env_type = crate::checks::detect_environment_type().await;
+        let mut metadata = metadata.unwrap_or_default();
+        metadata.entry("environment".into()).or_insert(env_type);
+
         let payload = AnalyticsPayload {
             user_id,
             event_name: event.as_str(),
-            metadata,
+            metadata: Some(metadata),
         };
+
         Retry::spawn(retry_strategy, || async {
             let res = client
                 .post(TRACER_ANALYTICS_ENDPOINT)

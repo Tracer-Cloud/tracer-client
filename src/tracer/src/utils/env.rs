@@ -2,8 +2,6 @@ use std::env;
 use std::fs;
 use std::path::Path;
 
-use super::InstallCheck;
-
 fn is_docker() -> bool {
     // 1. Check for /.dockerenv
     if Path::new("/.dockerenv").exists() {
@@ -19,7 +17,7 @@ fn is_docker() -> bool {
 
     false
 }
-pub async fn detect_environment_type() -> String {
+pub(crate) async fn detect_environment_type() -> String {
     let running_in_docker = is_docker();
 
     if is_codespaces() {
@@ -71,34 +69,4 @@ async fn detect_ec2_environment() -> Option<String> {
     }
 
     None
-}
-
-pub struct EnvironmentCheck {
-    detected: String,
-}
-
-impl EnvironmentCheck {
-    pub async fn new() -> Self {
-        let detected = detect_environment_type().await;
-        Self { detected }
-    }
-}
-
-#[async_trait::async_trait]
-impl InstallCheck for EnvironmentCheck {
-    fn name(&self) -> &'static str {
-        "Environment Type"
-    }
-
-    fn success_message(&self) -> String {
-        self.detected.to_string()
-    }
-
-    fn error_message(&self) -> String {
-        "Unknown".into()
-    }
-
-    async fn check(&self) -> bool {
-        true
-    }
 }
