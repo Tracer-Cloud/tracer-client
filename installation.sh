@@ -224,6 +224,13 @@ function check_os() {
     Linux*)
         # Check for Amazon Linux
         if [ -f /etc/system-release ] && grep -q "Amazon Linux" /etc/system-release; then
+            # Check if it's Amazon Linux 2 (not supported)
+            if grep -q "Amazon Linux 2" /etc/system-release; then
+                echo "- ${EMOJI_CANCEL} Amazon Linux 2 is not supported. Please use Amazon Linux 2023 or later."
+                echo "- ${EMOJI_RESOURCES} Amazon Linux 2 reached end-of-life. Upgrade to Amazon Linux 2023 for continued support."
+                exit 1
+            fi
+
             case "$ARCH" in
             x86_64)
                 echo "- ${EMOJI_CHECK} Amazon Linux x86_64 architecture detected"
@@ -239,6 +246,23 @@ function check_os() {
                 ;;
             esac
         else
+            # Check for Ubuntu and ensure it's at least 22.04
+            if [ -f /etc/os-release ] && grep -q "Ubuntu" /etc/os-release; then
+                UBUNTU_VERSION=$(grep "VERSION_ID" /etc/os-release | cut -d'"' -f2)
+                UBUNTU_MAJOR=$(echo "$UBUNTU_VERSION" | cut -d'.' -f1)
+                UBUNTU_MINOR=$(echo "$UBUNTU_VERSION" | cut -d'.' -f2)
+
+                if [ "$UBUNTU_MAJOR" -lt 22 ] || ([ "$UBUNTU_MAJOR" -eq 22 ] && [ "$UBUNTU_MINOR" -lt 4 ]); then
+                    echo "- ${EMOJI_CANCEL} Ubuntu $UBUNTU_VERSION is not supported. Please use Ubuntu 22.04 or later."
+                    echo "- ${EMOJI_RESOURCES} Upgrade to Ubuntu 22.04 or later for continued support."
+                    exit 1
+                fi
+            elif [ -f /etc/os-release ] && ! grep -q "Ubuntu" /etc/os-release; then
+                DISTRO_NAME=$(grep "^NAME=" /etc/os-release | cut -d'"' -f2)
+                echo "- ${EMOJI_CANCEL} $DISTRO_NAME is not supported. Only Ubuntu 22.04+ is supported."
+                exit 1
+            fi
+
             case "$ARCH" in
             x86_64)
                 echo "- ${EMOJI_CHECK} Linux x86_64 architecture detected"

@@ -1,9 +1,10 @@
 mod api;
 mod dependency;
 mod environment;
-mod kernel;
+pub mod kernel;
 mod root;
 
+use crate::utils::{print_step, StepStatus};
 use api::APICheck;
 use dependency::DependencyCheck;
 use environment::EnvironmentCheck;
@@ -11,8 +12,6 @@ use kernel::KernelCheck;
 use root::RootCheck;
 
 pub(crate) use environment::detect_environment_type;
-
-use crate::utils::{print_step, StepStatus};
 
 /// Trait defining functions a Requirement check must implement before being called
 /// as a preflight step or readiness check for installing the tracer binary

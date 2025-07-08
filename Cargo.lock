@@ -5034,6 +5034,7 @@ dependencies = [
  "octocrab",
  "reqwest",
  "rustls 0.23.28",
+ "sentry",
  "serde",
  "serde_json",
  "tar",

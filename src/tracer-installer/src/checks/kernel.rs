@@ -13,7 +13,8 @@ impl KernelCheck {
         cfg!(target_os = "linux")
     }
 
-    fn get_kernel_version() -> Option<(u32, u32)> {
+    // COPY: src/tracer/src/utils/system_info.rs
+    pub fn get_kernel_version() -> Option<(u32, u32)> {
         if !Self::is_supported_os() {
             return None;
         }

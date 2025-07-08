@@ -1,4 +1,4 @@
-use crate::process_identification::types::cli::params::TracerCliInitArgs;
+use crate::cli::handlers::arguments::TracerCliInitArgs;
 use crate::utils::Version;
 use clap::{Parser, Subcommand};
 
