@@ -34,7 +34,6 @@ pub async fn detect_environment_type() -> String {
         return "AWS Batch".into();
     }
 
-    //TODO Way too slow
     if detect_ec2_environment().await.is_some() {
         if running_in_docker {
             return "AWS EC2 (Docker)".into();
@@ -64,13 +63,14 @@ async fn detect_ec2_environment() -> Option<String> {
         }
     }
 
-    // Fallback to metadata service
-    let url = "http://169.254.169.254/latest/meta-data/instance-id";
-    if let Ok(resp) = reqwest::get(url).await {
-        if resp.status() == 200 {
-            return Some("AWS EC2".into());
-        }
-    }
+    //TODO Way too slow
+    // // Fallback to metadata service
+    // let url = "http://169.254.169.254/latest/meta-data/instance-id";
+    // if let Ok(resp) = reqwest::get(url).await {
+    //     if resp.status() == 200 {
+    //         return Some("AWS EC2".into());
+    //     }
+    // }
 
     None
 }
