@@ -1,11 +1,9 @@
 mod api;
 mod dependency;
 mod environment;
-mod kernel;
-mod os;
+pub mod kernel;
 mod root;
 
-use crate::checks::os::OSCheck;
 use crate::utils::{print_step, StepStatus};
 use api::APICheck;
 use dependency::DependencyCheck;
@@ -36,7 +34,6 @@ impl CheckManager {
             Box::new(RootCheck::new()),
             Box::new(KernelCheck::new()),
             Box::new(DependencyCheck::new()),
-            Box::new(OSCheck::new()),
             Box::new(EnvironmentCheck::new().await),
         ];
 

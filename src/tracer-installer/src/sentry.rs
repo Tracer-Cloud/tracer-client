@@ -1,13 +1,11 @@
+use crate::checks::kernel::KernelCheck;
 use crate::constants::SENTRY_DSN;
-use crate::utils::system_info::{get_kernel_version, get_platform_information};
-use sentry::protocol::Context;
 use sentry::ClientOptions;
-use serde_json::Value;
-use std::collections::BTreeMap;
+use std::process::Command;
 
 pub struct Sentry;
 
-// COPIED: tracer-installer/src/sentry.rs
+// COPY: tracer/src/utils/sentry.rs
 impl Sentry {
     /// Initializes Sentry if a DSN is provided in the config.
     /// Returns a guard to keep Sentry active for the program's lifetime.
@@ -26,10 +24,10 @@ impl Sentry {
                 ..Default::default()
             },
         ));
-        
-        Self::add_tag("type", "client");
-        Self::add_tag("platform", &get_platform_information());
-        let kernel_version = get_kernel_version();
+
+        Sentry::add_tag("type", "installer");
+        Sentry::add_tag("platform", get_platform_information().as_str());
+        let kernel_version = KernelCheck::get_kernel_version();
         if let Some((major, minor)) = kernel_version {
             Self::add_tag("kernel_version", &format!("{}.{}", major, minor));
         }
@@ -46,38 +44,6 @@ impl Sentry {
         });
     }
 
-    /// Adds a context (flat JSON object) to the Sentry event.
-    /// Requirements:
-    ///   - The value must not be nested.
-    pub fn add_context(key: &str, value: Value) {
-        if cfg!(test) {
-            return;
-        }
-        // Only accept flat JSON objects
-        let map = match value {
-            Value::Object(obj) => obj
-                .into_iter()
-                .filter(|(_, v)| !v.is_object() && !v.is_array())
-                .collect::<BTreeMap<String, Value>>(),
-            _ => BTreeMap::new(),
-        };
-
-        sentry::configure_scope(|scope| {
-            scope.set_context(key, Context::Other(map));
-        });
-    }
-
-    /// Adds extra data (arbitrary JSON) to the Sentry event.
-    /// Suitable for long or complex JSON values.
-    pub fn add_extra(key: &str, value: Value) {
-        if cfg!(test) {
-            return;
-        }
-        sentry::configure_scope(|scope| {
-            scope.set_extra(key, value);
-        });
-    }
-
     /// Captures a message event in Sentry with the specified level.
     pub fn capture_message(message: &str, level: sentry::Level) {
         if cfg!(test) {
@@ -85,4 +51,33 @@ impl Sentry {
         }
         sentry::capture_message(message, level);
     }
+}
+
+fn get_platform_information() -> String {
+    let os_name = std::env::consts::OS;
+    let arch = std::env::consts::ARCH;
+
+    let os_details = match os_name {
+        "linux" => {
+            // Linux-specific detection
+            Command::new("sh")
+                .arg("-c")
+                .arg("cat /etc/os-release 2>/dev/null | grep -E '^(NAME|VERSION)=' | tr '\\n' ' ' | sed 's/NAME=//;s/VERSION=//;s/\"//g'")
+                .output()
+                .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
+                .unwrap_or_else(|_| "Linux".to_string())
+        }
+        "macos" => {
+            // macOS version detection
+            Command::new("sh")
+                .arg("-c")
+                .arg("sw_vers -productName | tr -d '\\n' && echo -n ' ' && sw_vers -productVersion")
+                .output()
+                .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
+                .unwrap_or_else(|_| "macOS".to_string())
+        }
+        other => other.to_string(),
+    };
+
+    format!("{} ({})", os_details, arch)
 }
