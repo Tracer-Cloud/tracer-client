@@ -34,8 +34,7 @@ impl TargetManager {
 impl Default for TargetManager {
     fn default() -> Self {
         const RULE_FILES: &[YamlFile] = &[
-            YamlFile::Embedded(include_str!("yml_rules/tracer.rules.yml")),
-            YamlFile::Embedded(include_str!("yml_rules/fastquorum.rules.yml")), // Add more RuleFile entries as needed
+            YamlFile::Embedded(include_str!("yml_rules/tracer.rules.yml")), // Add more RuleFile entries as needed
         ];
         const EXCLUDE_FILES: &[YamlFile] = &[YamlFile::Embedded(include_str!(
             "yml_rules/tracer.exclude.yml"
@@ -118,5 +117,19 @@ mod tests {
         let process = make_process("samtools", &["samtools", "sort -4", "file.bam"]);
         let matched = manager.get_target_match(&process);
         assert_eq!(matched, None);
+    }
+
+    #[test]
+    fn test_java_command() {
+        let rule_files = [YamlFile::StaticPath(
+            "src/process_identification/target_process/yml_rules/tracer.rules.yml",
+        )];
+        let manager = TargetManager::new(&rule_files, &[]);
+        let process = make_process(
+            "/usr/bin/java",
+            &["-Xmx10g", "-jar", "/foo/bar/fgbio.jar", "ZipperBams"],
+        );
+        let matched = manager.get_target_match(&process);
+        assert_eq!(matched.as_deref(), Some("fgbio ZipperBams"));
     }
 }
