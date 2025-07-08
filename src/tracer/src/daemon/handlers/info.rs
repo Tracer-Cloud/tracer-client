@@ -19,5 +19,7 @@ pub async fn get_info_response(client: &TracerClient) -> InfoResponse {
 
     let processes = client.ebpf_watcher.get_monitored_processes().await;
 
-    InfoResponse::new(response_inner, processes)
+    let tasks = client.ebpf_watcher.get_matched_tasks().await;
+
+    InfoResponse::new(response_inner, processes, tasks)
 }

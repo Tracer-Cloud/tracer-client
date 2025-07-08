@@ -96,4 +96,9 @@ impl ProcessManager {
     pub async fn get_monitored_processes(&self) -> HashSet<String> {
         self.state_manager.get_monitored_processes().await
     }
+
+    /// Returns a set of matched tasks
+    pub async fn get_matched_tasks(&self) -> HashSet<String> {
+        self.state_manager.get_matched_tasks().await
+    }
 }

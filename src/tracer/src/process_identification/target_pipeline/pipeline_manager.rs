@@ -40,6 +40,7 @@ pub struct TargetPipelineManager {
     tasks: Tasks,
     task_pids: MultiIndexTaskPidMap,
     pid_to_process: HashMap<usize, ProcessRule>,
+    matched_tasks: HashSet<String>,
 }
 
 impl TargetPipelineManager {
@@ -60,6 +61,7 @@ impl TargetPipelineManager {
             tasks,
             task_pids: MultiIndexTaskPidMap::default(),
             pid_to_process: HashMap::new(),
+            matched_tasks: HashSet::new(),
         }
     }
 
@@ -131,17 +133,20 @@ impl TargetPipelineManager {
                 matched_tasks.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap());
             }
             let (best_match, pids, score) = matched_tasks.pop().unwrap();
+            let id = best_match.id.clone();
             if score >= 1.0 {
                 // If the match is perfect (i.e. all rules have been matched to processes) then:
                 // 1) remove the task so we don't update/match it again
-                self.task_pids.remove_by_task_id(&best_match.id);
+                self.task_pids.remove_by_task_id(&id);
                 // 2) remove the PIDs associated with the best match from any other candidate tasks
                 for pid in pids.iter() {
                     self.task_pids.remove_by_pid(pid);
                 }
+                // 3) add the ID to the list of matched tasks
+                self.matched_tasks.insert(id.clone());
             }
             return Some(TaskMatch {
-                id: best_match.id.clone(),
+                id: id.clone(),
                 description: best_match.description.clone(),
                 pids,
                 score,
@@ -149,6 +154,10 @@ impl TargetPipelineManager {
         }
 
         None
+    }
+
+    pub fn matched_tasks(&self) -> &HashSet<String> {
+        &self.matched_tasks
     }
 }
 
