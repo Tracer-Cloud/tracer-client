@@ -64,7 +64,7 @@ pub fn get_platform_information() -> String {
             // Linux-specific detection
             Command::new("sh")
                 .arg("-c")
-                .arg("cat /etc/os-release 2>/dev/null | grep -E '^(NAME|VERSION)=' | tr '\\n' ' ' | sed 's/NAME=//;s/VERSION=//;s/\"//g'")
+                .arg(". /etc/os-release 2>/dev/null && echo \"$NAME $VERSION\"")
                 .output()
                 .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
                 .unwrap_or_else(|_| "Linux".to_string())
@@ -73,13 +73,12 @@ pub fn get_platform_information() -> String {
             // macOS version detection
             Command::new("sh")
                 .arg("-c")
-                .arg("sw_vers -productName | tr -d '\\n' && echo -n ' ' && sw_vers -productVersion")
+                .arg("echo \"$(sw_vers -productName) $(sw_vers -productVersion)\"")
                 .output()
                 .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
                 .unwrap_or_else(|_| "macOS".to_string())
         }
         other => other.to_string(),
     };
-
     format!("{} ({})", os_details, arch)
 }
