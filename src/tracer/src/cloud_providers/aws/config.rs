@@ -1,6 +1,6 @@
 pub use crate::cloud_providers::aws::s3::S3Client;
 pub use crate::cloud_providers::aws::secrets::SecretsClient;
-use aws_config::{BehaviorVersion, SdkConfig};
+use aws_config::{BehaviorVersion, Region, SdkConfig};
 use aws_credential_types::provider::ProvideCredentials;
 use config::{Value, ValueKind};
 use serde::{Deserialize, Serialize};
@@ -50,7 +50,7 @@ impl From<AwsConfig> for ValueKind {
 //AWS SDK may fallback to IMDS if running inside EC2.
 pub async fn get_initialized_aws_conf(
     initialization_conf: AwsConfig,
-    region: &'static str,
+    region: impl Into<String>,
 ) -> Option<SdkConfig> {
     let config_loader = aws_config::defaults(BehaviorVersion::latest());
     let loader = match initialization_conf {
@@ -82,7 +82,7 @@ pub async fn get_initialized_aws_conf(
         }
     };
 
-    let config = loader.region(region).load().await;
+    let config = loader.region(Region::new(region.into())).load().await;
     let credentials_provider = config.credentials_provider()?;
 
     match credentials_provider.provide_credentials().await {
@@ -97,10 +97,7 @@ pub async fn get_initialized_aws_conf(
     }
 }
 
-pub async fn resolve_available_aws_config(
-    profile: AwsConfig,
-    region: &'static str,
-) -> Option<SdkConfig> {
+pub async fn resolve_available_aws_config(profile: AwsConfig, region: &str) -> Option<SdkConfig> {
     if let AwsConfig::Profile(profile_name) = &profile {
         let profile_conf = get_initialized_aws_conf(profile.clone(), region).await;
         if profile_conf.is_some() {

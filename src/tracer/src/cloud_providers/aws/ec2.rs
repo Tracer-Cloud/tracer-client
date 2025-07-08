@@ -88,13 +88,12 @@ impl Ec2Client {
     pub async fn describe_instance(
         &self,
         instance_id: &str,
+        instance_region: &str,
     ) -> Result<FilterableInstanceDetails, anyhow::Error> {
         let client = self
             .client
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("EC2 client is not initialized in PricingClient"))?;
-
-        let region_code = "us-east-1";
 
         let output = client
             .describe_instances()
@@ -156,7 +155,7 @@ impl Ec2Client {
 
         Ok(FilterableInstanceDetails {
             instance_type,
-            region: region_code.to_string(),
+            region: instance_region.to_string(),
             availability_zone: instance
                 .placement()
                 .and_then(|p| p.availability_zone())

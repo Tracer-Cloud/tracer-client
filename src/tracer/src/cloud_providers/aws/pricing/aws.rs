@@ -21,34 +21,62 @@ const FREE_THROUGHPUT_MBPS: i32 = 125;
 pub struct PricingClient {
     pub pricing_client: Option<pricing::Client>,
     pub ec2_client: Option<Ec2Client>,
+    region: String,
+    aws_config: AwsConfig,
 }
 
 impl PricingClient {
     /// Creates a new PricingClient instance
     /// Note: Currently only us-east-1 region is supported for the pricing API
     pub async fn new(initialization_conf: AwsConfig, region: &'static str) -> Self {
-        let config = resolve_available_aws_config(initialization_conf, region).await;
+        let config = resolve_available_aws_config(initialization_conf.clone(), region).await;
 
         match config {
-            Some(conf) => Self {
-                pricing_client: Some(pricing::client::Client::new(&conf)),
-                ec2_client: Some(Ec2Client::new_with_config(&conf).await),
+            Some(ref conf) => Self {
+                pricing_client: Some(pricing::client::Client::new(conf)),
+                ec2_client: Some(Ec2Client::new_with_config(conf).await),
+                aws_config: initialization_conf,
+                region: region.to_string(),
             },
             None => Self {
                 pricing_client: None,
                 ec2_client: None,
+                region: region.to_string(),
+                aws_config: initialization_conf,
             },
         }
+    }
+    pub async fn reinitialize_client_if_needed(
+        &self,
+        metadata: &AwsInstanceMetaData,
+    ) -> Option<Ec2Client> {
+        if metadata.region != self.region {
+            tracing::info!(
+                "Detected region mismatch. Reinitializing EC2 client for region: {}",
+                metadata.region
+            );
+            let region = metadata.region.as_str();
+
+            if let Some(conf) = resolve_available_aws_config(self.aws_config.clone(), region).await
+            {
+                return Some(Ec2Client::new_with_config(&conf).await);
+            }
+        }
+        None
     }
 
     pub async fn get_instance_pricing_context_from_metadata(
         &self,
         metadata: &AwsInstanceMetaData,
     ) -> Option<InstancePricingContext> {
-        let ec2_client = self.ec2_client.as_ref()?;
+        let maybe_new_client = self.reinitialize_client_if_needed(metadata).await;
+        let ec2_client = match &maybe_new_client {
+            Some(client) => client,
+            None => self.ec2_client.as_ref()?,
+        };
 
         let filterable_data = ec2_client
-        .describe_instance(&metadata.instance_id)
+        .describe_instance(&metadata.instance_id, &metadata.region)
         .await
         .map_err(|e| {
             tracing::warn!(error = ?e, instance_id = %metadata.instance_id, "Failed to describe EC2 instance");
@@ -57,6 +85,8 @@ impl PricingClient {
         .ok()?; // Exit early if instance cannot be described
 
         let ec2_filters = Self::build_ec2_filters(&filterable_data);
+
+        tracing::info!("ec2 filters: {:?}", ec2_filters);
 
         // Fetch EBS volume metadata
         let volumes = self
@@ -249,17 +279,22 @@ impl PricingClient {
 
         let mut highest_price = FlattenedData::default();
 
+        let mut flatted_responses = Vec::new();
+
         while let Some(output) = response.next().await {
             let output = output?;
             for product in output.price_list() {
                 if let Ok(pricing) = serde_json::from_str::<serde_query::Query<T>>(product) {
                     let flat = flatten_fn(&pricing.into());
+                    flatted_responses.push(flat.clone());
                     if flat.price_per_unit > highest_price.price_per_unit {
                         highest_price = flat;
                     }
                 }
             }
         }
+
+        println!("Flattened Data \n\n\n {:?}\n\n\n", flatted_responses);
 
         Ok(highest_price)
     }

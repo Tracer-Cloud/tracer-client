@@ -121,16 +121,6 @@ impl EC2FilterBuilder {
             );
         }
 
-        if let Some(true) = self.ebs_optimized {
-            filters.push(
-                PricingFilters::builder()
-                    .field("ebsOptimized".to_string())
-                    .value("Yes".to_string())
-                    .r#type(PricingFilterType::TermMatch)
-                    .build()
-                    .expect("failed to build ebsOptimized filter"),
-            );
-        }
         if let Some(cap_status) = &self.capacity_status {
             filters.push(
                 PricingFilters::builder()
