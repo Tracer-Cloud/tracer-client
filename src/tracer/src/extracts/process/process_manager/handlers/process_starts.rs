@@ -109,7 +109,7 @@ impl ProcessStartHandler {
         matched_processes: &HashMap<String, HashSet<&ProcessStartTrigger>>,
     ) -> Result<()> {
         let mut state = state_manager.get_state_mut().await;
-        let pipeline_manager = state.get_pipeline_manager();
+        let pipeline_manager = state.get_pipeline_manager_mut();
         let trigger_to_target =
             matched_processes
                 .iter()

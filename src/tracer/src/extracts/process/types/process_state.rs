@@ -71,7 +71,11 @@ impl ProcessState {
         &self.target_manager
     }
 
-    pub fn get_pipeline_manager(&mut self) -> &mut TargetPipelineManager {
+    pub fn get_pipeline_manager(&self) -> &TargetPipelineManager {
+        &self.pipeline_manager
+    }
+
+    pub fn get_pipeline_manager_mut(&mut self) -> &mut TargetPipelineManager {
         &mut self.pipeline_manager
     }
 

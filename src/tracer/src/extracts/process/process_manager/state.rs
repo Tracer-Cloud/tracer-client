@@ -83,4 +83,10 @@ impl StateManager {
             .flat_map(|(_, processes)| processes.iter().map(|p| p.pid))
             .collect()
     }
+
+    /// Returns a set of matched tasks
+    pub async fn get_matched_tasks(&self) -> HashSet<String> {
+        let state = self.state.read().await;
+        state.get_pipeline_manager().matched_tasks().clone()
+    }
 }

@@ -290,4 +290,12 @@ impl EbpfWatcher {
             .get_monitored_processes()
             .await
     }
+
+    pub async fn get_matched_tasks(&self) -> HashSet<String> {
+        self.process_manager
+            .read()
+            .await
+            .get_matched_tasks()
+            .await
+    }
 }
