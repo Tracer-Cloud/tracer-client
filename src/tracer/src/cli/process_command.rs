@@ -19,7 +19,8 @@ pub fn process_command() -> Result<()> {
     // Use the --config flag, if provided, when loading the configuration
     let config = Config::default();
 
-    let _guard = Sentry::setup(&config);
+    let _guard = Sentry::setup();
+    Sentry::add_context("Config", config.to_safe_json());
 
     let api_client = DaemonClient::new(format!("http://{}", config.server));
     let command = cli.command.clone();

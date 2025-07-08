@@ -1,3 +1,4 @@
+use crate::sentry::Sentry;
 use checks::CheckManager;
 use clap::Parser;
 use installer::{Installer, PlatformInfo};
@@ -5,7 +6,9 @@ use types::{InstallTracerCli, InstallerCommand};
 use utils::print_honey_badger_banner;
 
 mod checks;
+mod constants;
 mod installer;
+mod sentry;
 mod types;
 mod utils;
 
@@ -14,6 +17,8 @@ async fn main() {
     rustls::crypto::ring::default_provider()
         .install_default()
         .expect("Failed to install rustls crypto provider");
+
+    let _guard = Sentry::setup();
 
     let args = InstallTracerCli::parse();
 

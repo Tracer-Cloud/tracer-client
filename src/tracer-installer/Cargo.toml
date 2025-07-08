@@ -22,6 +22,7 @@ dirs = {workspace = true }
 clap = {workspace = true }
 rustls = {workspace = true }
 tokio-retry = {workspace = true }
+sentry = {workspace = true }
 
 indicatif = "0.17"
 async-trait = "0.1.88"

@@ -1,4 +1,3 @@
-pub mod cli;
 pub mod current_run;
 pub mod event;
 pub mod extracts;
