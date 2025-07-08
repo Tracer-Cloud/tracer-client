@@ -5,12 +5,11 @@ use crate::daemon::client::{DaemonClient, Result as DaemonResult};
 use crate::daemon::structs::{Message, TagData};
 use crate::process_identification::constants::DEFAULT_DAEMON_PORT;
 use crate::process_identification::debug_log::Logger;
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use tokio::runtime::Runtime;
 
 pub fn process_daemon_command(command: Command, api_client: &DaemonClient) -> Result<()> {
     let runtime = Runtime::new()?;
-    let mut logger = None::<Logger>;
     let result = match command {
         Command::Info { json } => runtime.block_on(async { info(api_client, json).await }),
         Command::CleanupPort { port } => {
@@ -19,47 +18,38 @@ pub fn process_daemon_command(command: Command, api_client: &DaemonClient) -> Re
                 .block_on(async { handle_port_conflict(port).await })
                 .map(|_| ())
         }
-        command => process_retryable_daemon_command(command, api_client, runtime, &mut logger),
+        command => process_retryable_daemon_command(command, api_client, runtime),
     };
     if let Err(e) = result {
-        logger
-            .unwrap_or_default()
-            .log_blocking(&format!("Error processing cli command: \n {e:?}."), None);
+        Logger::new().log_blocking(&format!("Error processing cli command: \n {e:?}."), None);
     }
     Ok(())
 }
 
+/// Process a command that could be retried.
+/// Note: currently we have not implemented retry behavior.
 fn process_retryable_daemon_command(
     command: Command,
     api_client: &DaemonClient,
     runtime: Runtime,
-    logger: &mut Option<Logger>,
 ) -> Result<()> {
-    const MAX_ATTEMPTS: usize = 3;
-    let mut attempt = 0;
-    let err = loop {
-        match runtime
-            .block_on(async { process_retryable_daemon_command_async(&command, api_client).await })
-        {
-            Ok(true) => return Ok(()),
-            Ok(false) => {
-                bail!("Command not implemented yet");
+    if !runtime
+        .block_on(async { process_retryable_daemon_command_async(&command, api_client).await })
+        .map_err(|e| {
+            if e.is_timeout() {
+                anyhow!("Timeout connecting to the daemon. Retrying...")
+            } else if e.is_connect() {
+                anyhow!("Could not connect to the daemon. Please run `tracer init` to start it.")
+            } else {
+                anyhow!(
+                    "Failed to send command to the daemon. Please run `tracer init` to restart it."
+                )
             }
-            Err(e) if e.is_timeout() && attempt < MAX_ATTEMPTS => {
-                logger
-                    .get_or_insert_with(Logger::new)
-                    .log_blocking("Timeout connecting to the daemon. Retrying...", None);
-                attempt += 1;
-            }
-            Err(e) => break e,
-        }
-    };
-    if err.is_connect() {
-        println!("Could not connect to the daemon. Please run `tracer init` to start it.");
-    } else {
-        println!("Failed to send command to the daemon. Please run `tracer init` to restart it.");
-    };
-    Err(anyhow::anyhow!(err))
+        })?
+    {
+        bail!("Command not implemented yet")
+    }
+    Ok(())
 }
 
 async fn process_retryable_daemon_command_async(
