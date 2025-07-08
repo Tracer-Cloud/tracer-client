@@ -41,7 +41,7 @@ impl Target {
             .get_match(process)
             .map(|process_match| match process_match {
                 ProcessMatch::Simple => self.display_name().to_string(),
-                ProcessMatch::WithSubcommand(sub_command) => {
+                ProcessMatch::Subcommand(sub_command) => {
                     self.display_name().replace("{subcommand}", sub_command)
                 }
             })

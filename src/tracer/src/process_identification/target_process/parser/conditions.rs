@@ -11,15 +11,32 @@ pub enum Condition {
 
 #[derive(Clone, Debug)]
 pub enum SimpleCondition {
+    /// Matches if the process name is exactly the given string.
     ProcessNameIs { process_name_is: String },
+    /// Matches if the process name contains the given substring.
     ProcessNameContains { process_name_contains: String },
+    /// Matches if the command has at least the given number of arguments (not including the
+    /// process name)
     MinArgs { min_args: usize },
+    /// Matches if none of the arguments in the command string (split using shlex) match the
+    /// given string.
     ArgsNotContain { args_not_contain: String },
+    /// Matches a command of the form `command <arg>`, where `arg` is the given string.
     FirstArgIs { first_arg_is: String },
+    /// Matches if the entire command string contains the given substring.
     CommandContains { command_contains: String },
+    /// Matches if the command string does not contain the given substring.
     CommandNotContains { command_not_contains: String },
+    /// Matches entire command string against a regex.
     CommandMatchesRegex { command_matches_regex: String },
+    /// Matches a command of the form `command <subcommand>`, where `subcommand` is one of the
+    /// given subcommands.
     SubcommandIsOneOf { subcommands: Vec<String> },
+    /// Matches a command of the form `java -jar <jar> <command>`.
+    JavaCommand(String),
+    /// Matches a command of the form `java -jar <jar> <command>`, where `command` is one of the
+    /// given commands.
+    JavaCommandIsOneOf { jar: String, commands: Vec<String> },
 }
 
 #[derive(Clone, Debug)]
@@ -69,11 +86,18 @@ impl TryFrom<Condition> for MatchType {
             Condition::Simple(SimpleCondition::CommandMatchesRegex {
                 command_matches_regex,
             }) => MatchType::CommandMatchesRegex(CachedRegex::new(command_matches_regex)?),
-            Condition::And(and_condition) => MatchType::And(and_condition.into_match_types()),
-            Condition::Or(or_condition) => MatchType::Or(or_condition.into_match_types()),
             Condition::Simple(SimpleCondition::SubcommandIsOneOf { subcommands }) => {
                 MatchType::SubcommandIsOneOf(subcommands.into())
             }
+            Condition::Simple(SimpleCondition::JavaCommand(jar)) => MatchType::JavaCommand(jar),
+            Condition::Simple(SimpleCondition::JavaCommandIsOneOf { jar, commands }) => {
+                MatchType::JavaCommandIsOneOf {
+                    jar,
+                    commands: commands.into(),
+                }
+            }
+            Condition::And(and_condition) => MatchType::And(and_condition.into_match_types()),
+            Condition::Or(or_condition) => MatchType::Or(or_condition.into_match_types()),
         };
         Ok(match_type)
     }

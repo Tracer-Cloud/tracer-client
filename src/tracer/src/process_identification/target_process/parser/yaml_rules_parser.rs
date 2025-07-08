@@ -50,6 +50,8 @@ impl TryFrom<&Yaml> for Condition {
             "command_not_contains",
             "command_matches_regex",
             "subcommand_is_one_of",
+            "java_command",
+            "java_command_is_one_of",
         ];
 
         for simple_type in SIMPLE_TYPES {
@@ -94,6 +96,21 @@ impl TryFrom<&Yaml> for Condition {
                             .collect();
                         Ok(Condition::Simple(SimpleCondition::SubcommandIsOneOf {
                             subcommands,
+                        }))
+                    }
+                    "java_command" => Ok(Condition::Simple(SimpleCondition::JavaCommand(
+                        val.to_string()?,
+                    ))),
+                    "java_command_is_one_of" => {
+                        let jar = val.required_string("jar")?;
+                        let commands = val
+                            .required_vec("commands")?
+                            .iter()
+                            .map(|command| command.to_string())
+                            .collect::<Result<Vec<_>>>()?;
+                        Ok(Condition::Simple(SimpleCondition::JavaCommandIsOneOf {
+                            jar,
+                            commands,
                         }))
                     }
                     _ => bail!("Invalid simple condition type: {}", simple_type),

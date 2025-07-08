@@ -42,31 +42,13 @@ pub enum MatchType {
     CommandNotContains(String),
     CommandMatchesRegex(CachedRegex),
     SubcommandIsOneOf(SubcommandSet),
+    JavaCommand(String),
+    JavaCommandIsOneOf {
+        jar: String,
+        commands: SubcommandSet,
+    },
     And(Vec<MatchType>),
     Or(Vec<MatchType>),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct SubcommandSet(HashSet<String>);
-
-impl SubcommandSet {
-    pub fn contains(&self, item: &str) -> bool {
-        self.0.contains(item)
-    }
-}
-
-impl<I: IntoIterator<Item = String>> From<I> for SubcommandSet {
-    fn from(iter: I) -> Self {
-        Self(iter.into_iter().collect())
-    }
-}
-
-impl Hash for SubcommandSet {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        for item in self.0.iter() {
-            item.hash(state);
-        }
-    }
 }
 
 impl MatchType {
@@ -99,6 +81,27 @@ impl MatchType {
             MatchType::CommandMatchesRegex(regex) if regex.is_match(&process.command_string) => {
                 Some(ProcessMatch::Simple)
             }
+            MatchType::SubcommandIsOneOf(subcommands) => {
+                // to find the subcommand, we find the first argument that doesn't start with '-'
+                // (as options are usually done with -)
+                process
+                    .argv
+                    .iter()
+                    .skip(1)
+                    .filter(|arg| !arg.starts_with('-'))
+                    .find(|arg| subcommands.contains(arg))
+                    .map(|cmd| ProcessMatch::Subcommand(cmd))
+            }
+            MatchType::JavaCommand(jar) => match_java(process, jar).map(ProcessMatch::Subcommand),
+            MatchType::JavaCommandIsOneOf { jar, commands } => {
+                match_java(process, jar).and_then(|command| {
+                    if commands.contains(command) {
+                        Some(ProcessMatch::Subcommand(command))
+                    } else {
+                        None
+                    }
+                })
+            }
             MatchType::And(conditions) => {
                 // saving the subcommand in case in the AND condition a subcommand is found
                 conditions
@@ -114,18 +117,48 @@ impl MatchType {
                 .iter()
                 .filter_map(|condition| condition.get_match(process))
                 .next(),
-            MatchType::SubcommandIsOneOf(subcommands) => {
-                // to find the subcommand, we find the first argument that doesn't start with '-'
-                // (as options are usually done with -)
-                process
-                    .argv
-                    .iter()
-                    .skip(1)
-                    .filter(|arg| !arg.starts_with('-'))
-                    .find(|arg| subcommands.contains(arg))
-                    .map(|cmd| ProcessMatch::WithSubcommand(cmd))
-            }
+
             _ => None,
+        }
+    }
+}
+
+fn match_java<'a>(process: &'a ProcessStartTrigger, jar: &str) -> Option<&'a str> {
+    if process.comm.contains("java") {
+        let mut args = process.argv.iter().skip(1);
+        if args
+            .find(|arg| *arg == "-jar")
+            .and_then(|_| args.next())
+            .map(|arg| arg.contains(jar))
+            .unwrap_or(false)
+        {
+            if let Some(command) = args.next() {
+                return Some(command);
+            }
+        }
+    }
+    None
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SubcommandSet(HashSet<String>);
+
+impl SubcommandSet {
+    pub fn contains(&self, item: &str) -> bool {
+        self.0.contains(item)
+    }
+}
+
+impl<I: IntoIterator<Item = String>> From<I> for SubcommandSet {
+    fn from(iter: I) -> Self {
+        Self(iter.into_iter().collect())
+    }
+}
+
+impl Hash for SubcommandSet {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for item in self.0.iter() {
+            item.hash(state);
         }
     }
 }
@@ -133,34 +166,32 @@ impl MatchType {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ProcessMatch<'a> {
     Simple,
-    WithSubcommand(&'a str),
+    Subcommand(&'a str),
 }
 
 impl<'a> ProcessMatch<'a> {
-    pub fn with_subcommand(self, sub_command: &'a str) -> Self {
-        Self::WithSubcommand(sub_command)
+    pub fn with_subcommand(sub_command: &'a str) -> Self {
+        Self::Subcommand(sub_command)
     }
 }
 
 impl Ord for ProcessMatch<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
         match (self, other) {
-            (
-                ProcessMatch::WithSubcommand(sub_command1),
-                ProcessMatch::WithSubcommand(sub_command2),
-            ) if sub_command1 == sub_command2 => Ordering::Equal,
-            (
-                ProcessMatch::WithSubcommand(sub_command1),
-                ProcessMatch::WithSubcommand(sub_command2),
-            ) => {
+            (ProcessMatch::Subcommand(sub_command1), ProcessMatch::Subcommand(sub_command2))
+                if sub_command1 == sub_command2 =>
+            {
+                Ordering::Equal
+            }
+            (ProcessMatch::Subcommand(sub_command1), ProcessMatch::Subcommand(sub_command2)) => {
                 warn!(
                     "Matched two different subcommands: {} and {}",
                     sub_command1, sub_command2
                 );
                 Ordering::Less
             }
-            (ProcessMatch::WithSubcommand { .. }, _) => Ordering::Greater,
-            (_, ProcessMatch::WithSubcommand { .. }) => Ordering::Less,
+            (ProcessMatch::Subcommand { .. }, _) => Ordering::Greater,
+            (_, ProcessMatch::Subcommand { .. }) => Ordering::Less,
             _ => Ordering::Equal,
         }
     }
