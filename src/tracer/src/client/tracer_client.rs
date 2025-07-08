@@ -8,6 +8,9 @@ use anyhow::{Context, Result};
 use crate::client::events::send_start_run_event;
 use crate::client::exporters::client_export_manager::ExporterManager;
 use crate::client::exporters::log_writer::LogWriterEnum;
+use crate::cloud_providers::aws::pricing::PricingSource;
+use crate::config::Config;
+use crate::extracts::containers::DockerWatcher;
 use crate::extracts::ebpf_watcher::watcher::EbpfWatcher;
 use crate::extracts::metrics::system_metrics_collector::SystemMetricsCollector;
 use crate::process_identification::recorder::LogRecorder;
@@ -16,18 +19,17 @@ use crate::process_identification::types::current_run::{
 };
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::{Event, ProcessStatus};
+#[cfg(target_os = "linux")]
+use crate::utils::system_info::get_kernel_version;
+use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use std::time::Instant;
 use sysinfo::System;
 use tokio::sync::{mpsc, RwLock};
-use tracing::{error, info};
-
-use crate::cli::handlers::arguments::FinalizedInitArgs;
-#[cfg(target_os = "linux")]
-use crate::utils::system_info::get_kernel_version;
 #[cfg(target_os = "linux")]
 use tracing::warn;
+use tracing::{error, info};
 
 pub struct TracerClient {
     system: Arc<RwLock<System>>, // todo: use arc swap

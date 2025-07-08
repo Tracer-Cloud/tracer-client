@@ -64,9 +64,13 @@ impl InfoDisplay {
                 "name": &inner.run_name,
                 "id": &inner.run_id,
                 "monitored_processes": &info.process_count(),
+                "monitored_tasks": &info.tasks_count(),
             });
             if info.process_count() > 0 {
                 json["run"]["processes"] = serde_json::json!(info.processes_preview(None));
+            }
+            if info.tasks_count() > 0 {
+                json["run"]["tasks"] = serde_json::json!(info.tasks_preview(None));
             }
             json["run"]["dashboard_url"] = serde_json::json!(inner.get_run_url());
             if let Some(summary) = &inner.cost_summary {
@@ -122,6 +126,7 @@ impl InfoDisplay {
         let pipeline_user = inner.tags.user_operator.as_deref().unwrap_or("Not set");
 
         let monitored_processes = info.process_count();
+        let monitored_tasks = info.tasks_count();
 
         formatter.add_field("Pipeline name", &inner.pipeline_name, "cyan");
         formatter.add_field("Pipeline type", pipeline_type, "white");
@@ -143,6 +148,18 @@ impl InfoDisplay {
             formatter.add_field(
                 "Processes preview",
                 &info.processes_preview(Self::PREVIEW_LENGTH),
+                "white",
+            );
+        }
+        formatter.add_field(
+            "Monitored tasks",
+            &format!("{} tasks", monitored_tasks),
+            "yellow",
+        );
+        if monitored_tasks > 0 {
+            formatter.add_field(
+                "Tasks preview",
+                &&info.tasks_preview(Self::PREVIEW_LENGTH),
                 "white",
             );
         }
