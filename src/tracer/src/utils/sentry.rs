@@ -26,7 +26,7 @@ impl Sentry {
                 ..Default::default()
             },
         ));
-        
+
         Self::add_tag("type", "client");
         Self::add_tag("platform", &get_platform_information());
         let kernel_version = get_kernel_version();
