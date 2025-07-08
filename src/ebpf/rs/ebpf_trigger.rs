@@ -1,5 +1,7 @@
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use shlex;
+use std::fmt;
 
 fn join_args(argv: &[String]) -> String {
     shlex::try_join(argv.iter().map(|s| s.as_str())).unwrap_or_else(|_| argv.join(" "))
@@ -110,6 +112,45 @@ pub enum Trigger {
     OutOfMemory(OutOfMemoryTrigger),
 }
 
+/// Exit code along with short reason and longer explanation.
+///
+/// We always create the reason and explanation when creating the struct (rather than on-demand
+/// via a method call) because ExitReason always gets serialized, and it makes it possible to
+/// derive the serde implementation.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ExitReason {
+    pub code: i64,
+    pub reason: String,
+    pub explanation: String,
+}
+
+impl ExitReason {
+    pub fn success() -> Self {
+        Self::from(EXIT_CODE_SUCCESS)
+    }
+
+    pub fn out_of_memory_killed() -> Self {
+        Self::from(EXIT_CODE_OUT_OF_MEMORY_KILLED)
+    }
+}
+
+impl fmt::Display for ExitReason {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.reason)
+    }
+}
+
+impl From<i64> for ExitReason {
+    fn from(code: i64) -> Self {
+        Self {
+            code,
+            reason: exit_code_reason(code),
+            explanation: exit_code_explanation(code),
+        }
+    }
+}
+
+/// Command exited without error
 pub const EXIT_CODE_SUCCESS: i64 = 0;
 /// Command could not be invoked
 pub const EXIT_CODE_COMMAND_NOT_INVOKED: i64 = 126;
@@ -153,43 +194,5 @@ pub fn exit_code_explanation(code: i64) -> String {
         code if (128..=255).contains(&code)=> format!("Terminated by signal {}.", code),
         code if (0..=127).contains(&code) => format!("Exited with code {} indicating an error in the invoked process.", code),
         code => format!("Exited with unknown code {}.", code),
-    }
-}
-
-/// Exit code along with short reason and longer explanation
-///
-/// We always create the reason and explanation when creating the struct (rather than on-demand
-/// via a method call) because ExitReason always gets serialized, and it makes the serde
-/// implementation much easier.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub struct ExitReason {
-    pub code: i64,
-    pub reason: String,
-    pub explanation: String,
-}
-
-impl ExitReason {
-    pub fn success() -> Self {
-        Self::from(EXIT_CODE_SUCCESS)
-    }
-
-    pub fn out_of_memory_killed() -> Self {
-        Self::from(EXIT_CODE_OUT_OF_MEMORY_KILLED)
-    }
-}
-
-impl std::fmt::Display for ExitReason {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.reason)
-    }
-}
-
-impl From<i64> for ExitReason {
-    fn from(code: i64) -> Self {
-        Self {
-            code,
-            reason: exit_code_reason(code),
-            explanation: exit_code_explanation(code),
-        }
     }
 }
