@@ -33,7 +33,8 @@ pub async fn detect_environment_type() -> String {
     if env::var("AWS_BATCH_JOB_ID").is_ok() {
         return "AWS Batch".into();
     }
-
+    
+    //TODO Way too slow
     if detect_ec2_environment().await.is_some() {
         if running_in_docker {
             return "AWS EC2 (Docker)".into();
@@ -62,6 +63,7 @@ async fn detect_ec2_environment() -> Option<String> {
             return Some("AWS EC2".into());
         }
     }
+    
     // Fallback to metadata service
     let url = "http://169.254.169.254/latest/meta-data/instance-id";
     if let Ok(resp) = reqwest::get(url).await {

@@ -1,7 +1,9 @@
 use crate::sentry::Sentry;
 use anyhow::{anyhow, Result};
-use std::fs;
 use std::process::Command;
+use console::Emoji;
+use sysinfo::System;
+use crate::utils::{print_step, StepStatus};
 
 #[derive(Debug, Clone)]
 pub enum Os {
@@ -20,6 +22,7 @@ pub enum Arch {
 pub struct PlatformInfo {
     pub os: Os,
     pub arch: Arch,
+    pub full_os: String,
 }
 
 impl PlatformInfo {
@@ -33,23 +36,41 @@ impl PlatformInfo {
             _ => return Err(anyhow!("Unsupported architecture: {}", raw_arch)),
         };
 
+        let full_os;
         let os = match raw_os {
             "linux" => {
-                if Self::is_amazon_linux()? {
-                    match arch {
-                        Arch::X86_64 | Arch::Aarch64 => Os::AmazonLinux,
-                    }
+                full_os = Command::new("sh")
+                    .arg("-c")
+                    .arg(". /etc/os-release 2>/dev/null && echo \"$NAME $VERSION\"")
+                    .output()
+                    .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
+                    .unwrap_or_else(|_| "Linux".to_string());
+
+                if full_os.contains("Amazon Linux") {
+                    Os::AmazonLinux
                 } else {
                     Os::Linux
                 }
             }
-            "macos" => Os::Macos,
+            "macos" => {
+                full_os = Command::new("sh")
+                    .arg("-c")
+                    .arg("echo \"$(sw_vers -productName) $(sw_vers -productVersion)\"")
+                    .output()
+                    .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
+                    .unwrap_or_else(|_| "macOS".to_string());
+                const WARNING: Emoji<'_, '_> = Emoji("⚠️", "[WARNING]");
+                println!("{} Tracer has limited support on macOS.\n", WARNING);
+                Os::Macos
+            },
             other => {
                 let message = format!("Unsupported operating system: {}", other);
                 Sentry::capture_message(message.as_str(), sentry::Level::Error);
                 return Err(anyhow!(message));
             }
         };
+
+        Sentry::add_tag("platform", full_os.as_str());
 
         let glibc_version = detect_glibc_version();
         if let Some((major, minor, patch)) = glibc_version {
@@ -67,12 +88,21 @@ impl PlatformInfo {
                 ));
             }
         }
-        Ok(PlatformInfo { os, arch })
+
+
+        Ok(PlatformInfo { os, arch, full_os })
     }
 
-    fn is_amazon_linux() -> Result<bool> {
-        let content = fs::read_to_string("/etc/system-release").unwrap_or_default();
-        Ok(content.contains("Amazon Linux"))
+    pub fn print_summary(&self) {
+        print_step("Operating System", StepStatus::Custom(Emoji("🐧", "[OS]"), self.full_os.as_str()));
+        print_step("Architecture", StepStatus::Custom(Emoji("💻", "[ARCH]"), &format!("{:?}", self.arch)));
+        let sys = System::new_all();
+
+        let total_mem_gib = sys.total_memory() as f64 / 1024.0 / 1024.0 / 1024.0;
+
+        let cores = sys.cpus().len();
+        print_step("CPU Cores", StepStatus::Custom(Emoji("⚙️", "[CPU]"), &format!("{}", cores)));
+        print_step("Total RAM", StepStatus::Custom(Emoji("💾", "[RAM]"), &format!("{:.2} GiB", total_mem_gib)));
     }
 }
 

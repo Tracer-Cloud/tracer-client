@@ -9,7 +9,17 @@ ARCH=$(uname -m)
 
 # Define binary name
 BINARY_NAME="tracer-installer"
-VERSION="v2025.6.18+1"
+
+# Get the latest release version from GitHub API
+echo "🔍 Fetching latest release version..."
+VERSION=$(curl -s https://api.github.com/repos/Tracer-Cloud/tracer-client/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+
+if [[ -z "$VERSION" ]]; then
+    echo "❌ Failed to fetch latest version from GitHub API"
+    echo "🔄 Falling back to hardcoded version..."
+    VERSION="v2025.6.18+1"
+fi
+
 REPO_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${VERSION}"
 
 # Map to download URL based on platform

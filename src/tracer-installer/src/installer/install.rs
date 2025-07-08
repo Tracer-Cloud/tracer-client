@@ -56,7 +56,7 @@ impl Installer {
 
         print_summary(
             &format!("Downloading Tracer from:\n {url}"),
-            StepStatus::Custom(console::Emoji("📦", "[DONE]"), ""),
+            StepStatus::Custom(Emoji("📦", "[DONE]"), ""),
         );
 
         let temp_dir = tempfile::tempdir()?;

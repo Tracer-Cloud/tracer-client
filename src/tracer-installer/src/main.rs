@@ -3,7 +3,8 @@ use checks::CheckManager;
 use clap::Parser;
 use installer::{Installer, PlatformInfo};
 use types::{InstallTracerCli, InstallerCommand};
-use utils::print_honey_badger_banner;
+use utils::print_anteater_banner;
+use crate::utils::print_title;
 
 mod checks;
 mod constants;
@@ -25,10 +26,9 @@ async fn main() {
     match args.command {
         InstallerCommand::Run { channel, user_id } => {
             // Run checks
-            print_honey_badger_banner(&channel);
+            print_anteater_banner(&channel);
 
-            let requirements = CheckManager::new().await;
-            requirements.run_all().await;
+            print_title("System Specification");
 
             // Platform detection
             let platform = match PlatformInfo::build() {
@@ -38,7 +38,16 @@ async fn main() {
                     std::process::exit(1);
                 }
             };
+            
+            platform.print_summary();
 
+            print_title("Running Environment Checks");
+
+            let requirements = CheckManager::new(&platform).await;
+            requirements.run_all().await;
+
+
+            print_title("Installing Tracer");
             let installer = Installer {
                 platform,
                 channel,

@@ -17,6 +17,7 @@ pub fn print_step(label: &str, status: StepStatus) {
 
     const PADDING: usize = 40; // adjust to keep things aligned
 
+    let label = format!("{}:", label);
     let padded = format!("{label:<width$}", width = PADDING);
 
     match status {
@@ -57,7 +58,7 @@ pub fn print_summary(label: &str, status: StepStatus) {
     println!(); // spacer after
 }
 
-pub fn _print_honey_badger_banner_v2(version: &TracerVersion) {
+pub fn _print_anteater_banner_v2(version: &TracerVersion) {
     println!("                    ___,,___");
     println!("               _,-='=- =-  -`\"--.__,,.._");
     println!("            ,-;// /  - -       -   -= - \"=.");
@@ -78,7 +79,7 @@ pub fn _print_honey_badger_banner_v2(version: &TracerVersion) {
     );
 }
 
-pub fn print_honey_badger_banner(version: &TracerVersion) {
+pub fn print_anteater_banner(version: &TracerVersion) {
     println!(" ");
     println!("⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀│ ");
     println!(
@@ -94,4 +95,8 @@ pub fn print_honey_badger_banner(version: &TracerVersion) {
     println!("⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠑⠙⠻⠿⣧⠄⠀│ ");
     println!("⠀          ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠀⠀│ ");
     println!(" ");
+}
+
+pub fn print_title(title: &str) {
+    println!("\n==== {} ====\n", title.bold());
 }

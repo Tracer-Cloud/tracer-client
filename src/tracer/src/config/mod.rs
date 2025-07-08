@@ -27,7 +27,6 @@ pub struct Config {
     pub server: String,
 
     pub config_sources: Vec<String>,
-    pub sentry_dsn: Option<String>,
 
     pub log_forward_endpoint_dev: Option<String>,
     pub log_forward_endpoint_prod: Option<String>,
