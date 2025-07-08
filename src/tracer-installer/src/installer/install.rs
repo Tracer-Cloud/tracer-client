@@ -11,7 +11,7 @@ use std::fs::File as StdFile;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use tar::Archive;
-use tokio::fs::{self, OpenOptions};
+use tokio::fs::OpenOptions;
 use tokio::task::JoinHandle;
 use tokio::{
     fs::File,
@@ -23,7 +23,7 @@ use tokio_retry::Retry;
 use super::platform::PlatformInfo;
 use crate::installer::url_builder::TracerUrlFinder;
 use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
-use crate::utils::{print_summary, StepStatus};
+use crate::utils::{print_step, print_summary, print_title, StepStatus};
 
 const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics";
 
@@ -56,7 +56,7 @@ impl Installer {
 
         print_summary(
             &format!("Downloading Tracer from:\n {url}"),
-            StepStatus::Custom(console::Emoji("📦", "[DONE]"), ""),
+            StepStatus::Custom(Emoji("📦", "[DONE]"), ""),
         );
 
         let temp_dir = tempfile::tempdir()?;
@@ -124,9 +124,9 @@ impl Installer {
         archive.unpack(dest)?;
 
         println!();
-        print_summary(
+        print_step(
             &format!("Extracted Tracer to: {}", dest.display()),
-            StepStatus::Custom(console::Emoji("📂", "[DONE]"), ""),
+            StepStatus::Custom(Emoji("📂", "[DONE]"), ""),
         );
 
         Ok(())
@@ -144,7 +144,7 @@ impl Installer {
             .with_context(|| format!("Failed to copy tracer binary from {:?}", extracted_binary))?;
 
         std::fs::set_permissions(&final_path, std::fs::Permissions::from_mode(0o755))?;
-        print_summary(
+        print_step(
             &format!("Tracer installed to: {}", final_path.display()),
             StepStatus::Success(""),
         );
@@ -153,10 +153,21 @@ impl Installer {
     }
 
     pub async fn patch_rc_files_async(user_id: Option<String>) -> Result<()> {
+        print_title("Updating Shell Configs");
+        if let Some(ref id) = user_id {
+            let emoji = Emoji("✅", "[OK]");
+            println!("{emoji}  User ID provided: {}", id);
+        } else {
+            let emoji = Emoji("❌", "[X]");
+            println!("{emoji}  No user ID provided (TRACER_USER_ID not set). Skipping user ID persistence...");
+        }
+
         let home = dirs::home_dir().context("Could not find home directory")?;
 
         let export_path = r#"export PATH="$HOME/.tracerbio/bin:$PATH""#;
-        let export_user = user_id.map(|id| format!(r#"export TRACER_USER_ID="{}""#, id));
+        let export_user = user_id
+            .as_ref()
+            .map(|id| format!(r#"export TRACER_USER_ID="{}""#, id));
 
         let rc_files = [".bashrc", ".bash_profile", ".zshrc", ".profile"];
 
@@ -166,7 +177,7 @@ impl Installer {
                 continue;
             }
 
-            let file = fs::File::open(&path).await?;
+            let file = File::open(&path).await?;
             let reader = BufReader::new(file);
             let mut lines = Vec::new();
             let mut lines_stream = reader.lines();
@@ -175,38 +186,74 @@ impl Installer {
                 lines.push(line);
             }
 
-            // Clean from bottom-up
-            lines.reverse();
-            lines.retain(|line| {
-                !line.contains(".tracerbio/bin") && !line.contains("TRACER_USER_ID=")
-            });
-            lines.reverse();
+            let mut has_path_export = false;
+            let mut has_user_export = false;
+            let mut updated = false;
+            let mut updated_lines = Vec::new();
 
-            // Overwrite the file with cleaned lines
-            let mut cleaned_file = OpenOptions::new()
+            // Process existing lines
+            for line in lines {
+                if line.contains(".tracerbio/bin") {
+                    // Update existing PATH export
+                    updated_lines.push(export_path.to_string());
+                    has_path_export = true;
+                    updated = true;
+                } else if line.contains("export TRACER_USER_ID=") {
+                    // Update existing TRACER_USER_ID export if we have a user ID
+                    if let Some(ref user_export) = export_user {
+                        updated_lines.push(user_export.clone());
+                        has_user_export = true;
+                    } else {
+                        // Remove the line if no user ID provided
+                        has_user_export = true; // Mark as handled
+                    }
+                    updated = true;
+                } else {
+                    updated_lines.push(line);
+                }
+            }
+
+            // Add new entries if they don't exist
+            let needs_comment = !has_path_export || (!has_user_export && export_user.is_some());
+            if needs_comment {
+                updated_lines.push("".to_string()); // Empty line
+                updated_lines.push("# Added by Tracer installer".to_string());
+            }
+
+            if !has_path_export {
+                updated_lines.push(export_path.to_string());
+            }
+
+            if !has_user_export {
+                if let Some(user_export) = export_user.as_ref() {
+                    updated_lines.push(user_export.clone());
+                }
+            }
+
+            if updated {
+                print_step(
+                    &format!("Updated {}", rc),
+                    StepStatus::Custom(Emoji("🔄", "[UPDATED]"), ""),
+                );
+            } else {
+                print_step(
+                    &format!("Added {}", rc),
+                    StepStatus::Custom(Emoji("✅", "[ADDED]"), ""),
+                );
+            }
+
+            // Write all lines back to file
+            let mut file = OpenOptions::new()
                 .write(true)
                 .truncate(true)
                 .open(&path)
                 .await?;
-            for line in &lines {
-                cleaned_file.write_all(line.as_bytes()).await?;
-                cleaned_file.write_all(b"\n").await?;
-            }
 
-            // Append new entries
-            let mut append_file = OpenOptions::new().append(true).open(&path).await?;
-            append_file
-                .write_all(b"\n# Added by Tracer installer\n")
-                .await?;
-            append_file.write_all(export_path.as_bytes()).await?;
-            append_file.write_all(b"\n").await?;
-            if let Some(user_line) = &export_user {
-                append_file.write_all(user_line.as_bytes()).await?;
-                append_file.write_all(b"\n").await?;
+            for line in updated_lines {
+                file.write_all(line.as_bytes()).await?;
+                file.write_all(b"\n").await?;
             }
         }
-
-        print_summary("Updated Shell Profile", StepStatus::Success(""));
 
         Ok(())
     }
@@ -216,7 +263,7 @@ impl Installer {
         user_id: &str,
         event: AnalyticsEventType,
         metadata: Option<HashMap<String, String>>,
-    ) -> anyhow::Result<()> {
+    ) -> Result<()> {
         let client = Client::new();
 
         let retry_strategy = ExponentialBackoff::from_millis(500).map(jitter).take(3);
@@ -237,6 +284,10 @@ impl Installer {
             if res.status().is_success() {
                 Ok(())
             } else {
+                print_step(
+                    "Analytics",
+                    StepStatus::Warning("Failed to send analytics event"),
+                );
                 eprintln!(
                     "⚠️  Failed to send analytics event: {} [{}]",
                     event.as_str(),
@@ -250,7 +301,7 @@ impl Installer {
     }
 
     /// Creates a temporary working directory at `/tmp/tracer`.
-    fn create_tracer_tmp_dir() -> anyhow::Result<()> {
+    fn create_tracer_tmp_dir() -> Result<()> {
         let path = Path::new("/tmp/tracer");
         std::fs::create_dir_all(path).map_err(|err| anyhow::anyhow!(err))
     }

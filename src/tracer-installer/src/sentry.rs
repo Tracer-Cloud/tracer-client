@@ -1,7 +1,6 @@
 use crate::checks::kernel::KernelCheck;
 use crate::constants::SENTRY_DSN;
 use sentry::ClientOptions;
-use std::process::Command;
 
 pub struct Sentry;
 
@@ -26,7 +25,6 @@ impl Sentry {
         ));
 
         Sentry::add_tag("type", "installer");
-        Sentry::add_tag("platform", get_platform_information().as_str());
         let kernel_version = KernelCheck::get_kernel_version();
         if let Some((major, minor)) = kernel_version {
             Self::add_tag("kernel_version", &format!("{}.{}", major, minor));
@@ -51,32 +49,4 @@ impl Sentry {
         }
         sentry::capture_message(message, level);
     }
-}
-
-fn get_platform_information() -> String {
-    let os_name = std::env::consts::OS;
-    let arch = std::env::consts::ARCH;
-
-    let os_details = match os_name {
-        "linux" => {
-            // Linux-specific detection
-            Command::new("sh")
-                .arg("-c")
-                .arg(". /etc/os-release 2>/dev/null && echo \"$NAME $VERSION\"")
-                .output()
-                .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
-                .unwrap_or_else(|_| "Linux".to_string())
-        }
-        "macos" => {
-            // macOS version detection
-            Command::new("sh")
-                .arg("-c")
-                .arg("echo \"$(sw_vers -productName) $(sw_vers -productVersion)\"")
-                .output()
-                .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
-                .unwrap_or_else(|_| "macOS".to_string())
-        }
-        other => other.to_string(),
-    };
-    format!("{} ({})", os_details, arch)
 }

@@ -4,7 +4,7 @@ use crate::constants::{
     AWS_REGION, BATCH_SUBMISSION_INTERVAL_MS, BATCH_SUBMISSION_RETRIES,
     BATCH_SUBMISSION_RETRY_DELAY_MS, DEFAULT_API_KEY, FILE_SIZE_NOT_CHANGING_PERIOD_MS,
     LOG_FORWARD_ENDPOINT_DEV, LOG_FORWARD_ENDPOINT_PROD, NEW_RUN_PAUSE_MS,
-    PROCESS_METRICS_SEND_INTERVAL_MS, PROCESS_POLLING_INTERVAL_MS, SENTRY_DSN,
+    PROCESS_METRICS_SEND_INTERVAL_MS, PROCESS_POLLING_INTERVAL_MS,
 };
 use crate::process_identification::constants::DEFAULT_DAEMON_PORT;
 
@@ -48,7 +48,6 @@ impl Default for Config {
             server: format!("127.0.0.1:{}", DEFAULT_DAEMON_PORT),
 
             config_sources: vec![],
-            sentry_dsn: Some(SENTRY_DSN.to_string()),
 
             log_forward_endpoint_dev: Some(LOG_FORWARD_ENDPOINT_DEV.to_string()),
             log_forward_endpoint_prod: Some(LOG_FORWARD_ENDPOINT_PROD.to_string()),

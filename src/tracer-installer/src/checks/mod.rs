@@ -11,6 +11,7 @@ use environment::EnvironmentCheck;
 use kernel::KernelCheck;
 use root::RootCheck;
 
+use crate::installer::{Os, PlatformInfo};
 pub(crate) use environment::detect_environment_type;
 
 /// Trait defining functions a Requirement check must implement before being called
@@ -28,15 +29,17 @@ pub struct CheckManager {
 }
 
 impl CheckManager {
-    pub async fn new() -> Self {
-        let checks: Vec<Box<dyn InstallCheck>> = vec![
-            Box::new(APICheck::new()),
-            Box::new(RootCheck::new()),
-            Box::new(KernelCheck::new()),
-            Box::new(DependencyCheck::new()),
-            Box::new(EnvironmentCheck::new().await),
-        ];
-
+    pub async fn new(platform: &PlatformInfo) -> Self {
+        let checks: Vec<Box<dyn InstallCheck>> = match platform.os {
+            Os::Linux | Os::AmazonLinux => vec![
+                Box::new(KernelCheck::new()),
+                Box::new(DependencyCheck::new()),
+                Box::new(APICheck::new()),
+                Box::new(RootCheck::new()),
+                Box::new(EnvironmentCheck::new().await),
+            ],
+            Os::Macos => vec![Box::new(RootCheck::new()), Box::new(APICheck::new())],
+        };
         Self { checks }
     }
 
@@ -62,13 +65,12 @@ impl CheckManager {
 
         println!(); // spacing after checks
 
-        if all_passed {
-            print_step("Environment", StepStatus::Success("OK"));
-        } else {
+        if !all_passed {
             print_step(
                 "Environment",
-                StepStatus::Warning("Some requirements failed. Tracer may be limited."),
+                StepStatus::Error("Required Checks Failed. Please contact support."),
             );
+            std::process::exit(1);
         }
     }
 }

@@ -36,23 +36,10 @@ impl TracerUrlFinder {
                 "https://tracer-releases.s3.us-east-1.amazonaws.com/{}/{}",
                 branch, filename
             )),
-            TracerVersion::Production => {
-                let tag = Self::get_latest_release_tag().await?;
-                Ok(format!(
-                    "https://github.com/Tracer-Cloud/tracer-client/releases/download/{}/{}",
-                    tag, filename
-                ))
-            }
+            TracerVersion::Production => Ok(format!(
+                "https://tracer-releases.s3.us-east-1.amazonaws.com/main/{}",
+                filename
+            )),
         }
-    }
-
-    async fn get_latest_release_tag() -> anyhow::Result<String> {
-        let octo = octocrab::Octocrab::builder().build()?;
-        let release = octo
-            .repos("Tracer-Cloud", "tracer-client")
-            .releases()
-            .get_latest()
-            .await?;
-        Ok(release.tag_name)
     }
 }
