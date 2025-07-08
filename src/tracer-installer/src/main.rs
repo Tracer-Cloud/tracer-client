@@ -1,10 +1,10 @@
 use crate::sentry::Sentry;
+use crate::utils::print_title;
 use checks::CheckManager;
 use clap::Parser;
 use installer::{Installer, PlatformInfo};
 use types::{InstallTracerCli, InstallerCommand};
 use utils::print_anteater_banner;
-use crate::utils::print_title;
 
 mod checks;
 mod constants;
@@ -38,14 +38,13 @@ async fn main() {
                     std::process::exit(1);
                 }
             };
-            
+
             platform.print_summary();
 
             print_title("Running Environment Checks");
 
             let requirements = CheckManager::new(&platform).await;
             requirements.run_all().await;
-
 
             print_title("Installing Tracer");
             let installer = Installer {

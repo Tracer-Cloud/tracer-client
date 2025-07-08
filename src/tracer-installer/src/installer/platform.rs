@@ -1,9 +1,9 @@
 use crate::sentry::Sentry;
-use anyhow::{anyhow, Result};
-use std::process::Command;
-use console::Emoji;
-use sysinfo::System;
 use crate::utils::{print_step, StepStatus};
+use anyhow::{anyhow, Result};
+use console::Emoji;
+use std::process::Command;
+use sysinfo::System;
 
 #[derive(Debug, Clone)]
 pub enum Os {
@@ -62,7 +62,7 @@ impl PlatformInfo {
                 const WARNING: Emoji<'_, '_> = Emoji("⚠️", "[WARNING]");
                 println!("{} Tracer has limited support on macOS.\n", WARNING);
                 Os::Macos
-            },
+            }
             other => {
                 let message = format!("Unsupported operating system: {}", other);
                 Sentry::capture_message(message.as_str(), sentry::Level::Error);
@@ -89,20 +89,31 @@ impl PlatformInfo {
             }
         }
 
-
         Ok(PlatformInfo { os, arch, full_os })
     }
 
     pub fn print_summary(&self) {
-        print_step("Operating System", StepStatus::Custom(Emoji("🐧", "[OS]"), self.full_os.as_str()));
-        print_step("Architecture", StepStatus::Custom(Emoji("💻", "[ARCH]"), &format!("{:?}", self.arch)));
+        print_step(
+            "Operating System",
+            StepStatus::Custom(Emoji("🐧", "[OS]"), self.full_os.as_str()),
+        );
+        print_step(
+            "Architecture",
+            StepStatus::Custom(Emoji("💻", "[ARCH]"), &format!("{:?}", self.arch)),
+        );
         let sys = System::new_all();
 
         let total_mem_gib = sys.total_memory() as f64 / 1024.0 / 1024.0 / 1024.0;
 
         let cores = sys.cpus().len();
-        print_step("CPU Cores", StepStatus::Custom(Emoji("⚙️", "[CPU]"), &format!("{}", cores)));
-        print_step("Total RAM", StepStatus::Custom(Emoji("💾", "[RAM]"), &format!("{:.2} GiB", total_mem_gib)));
+        print_step(
+            "CPU Cores",
+            StepStatus::Custom(Emoji("⚙️", "[CPU]"), &format!("{}", cores)),
+        );
+        print_step(
+            "Total RAM",
+            StepStatus::Custom(Emoji("💾", "[RAM]"), &format!("{:.2} GiB", total_mem_gib)),
+        );
     }
 }
 

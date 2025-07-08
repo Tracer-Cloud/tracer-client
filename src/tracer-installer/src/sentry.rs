@@ -50,5 +50,3 @@ impl Sentry {
         sentry::capture_message(message, level);
     }
 }
-
-

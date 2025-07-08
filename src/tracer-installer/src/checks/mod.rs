@@ -11,8 +11,8 @@ use environment::EnvironmentCheck;
 use kernel::KernelCheck;
 use root::RootCheck;
 
-pub(crate) use environment::detect_environment_type;
 use crate::installer::{Os, PlatformInfo};
+pub(crate) use environment::detect_environment_type;
 
 /// Trait defining functions a Requirement check must implement before being called
 /// as a preflight step or readiness check for installing the tracer binary
@@ -38,10 +38,7 @@ impl CheckManager {
                 Box::new(RootCheck::new()),
                 Box::new(EnvironmentCheck::new().await),
             ],
-            Os::Macos => vec![
-                Box::new(RootCheck::new()),
-                Box::new(APICheck::new())
-            ]
+            Os::Macos => vec![Box::new(RootCheck::new()), Box::new(APICheck::new())],
         };
         Self { checks }
     }

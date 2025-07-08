@@ -1,6 +1,6 @@
 pub use install::Installer;
-pub use platform::PlatformInfo;
 pub use platform::Os;
+pub use platform::PlatformInfo;
 
 mod install;
 mod platform;
