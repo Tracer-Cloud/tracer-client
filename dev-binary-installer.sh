@@ -1,22 +1,70 @@
 #!/bin/bash
 # installer for the tracer installer using s3
 
+# Define emoji fallbacks
+EMOJI_SEARCH="🔍 "
+EMOJI_CANCEL="❌ "
+EMOJI_CLIPBOARD="📋 "
+EMOJI_PACKAGE="📦 "
+
+# Use fallback for terminals that don't support emojis
+if ! [[ "$TERM" =~ ^xterm.* || "$TERM" == "screen" ]]; then
+  EMOJI_SEARCH="[SEARCH] "
+  EMOJI_CANCEL="[ERROR] "
+  EMOJI_CLIPBOARD="[INFO] "
+  EMOJI_PACKAGE="[DOWNLOAD] "
+fi
+
 # Function to send Sentry alert
-# send_sentry_alert() {
-#     local message="$1"
-#     local level="${2:-info}"
+send_sentry_alert() {
+  local message="$1"
+  local level="${2:-info}"
 
-#     SENTRY_DSN="https://add417a1c944b1b2110b4f3ea8d7fbea@o4509525906948096.ingest.de.sentry.io/4509530452328528"
+  local DSN="https://35e0843e6748d2c93dfd56716f2eecfe@o4509281671380992.ingest.us.sentry.io/4509281680949248"
 
-#     if [[ -n "$SENTRY_DSN" ]]; then
-#         curl -X POST "$SENTRY_DSN" \
-#             -H "Content-Type: application/json" \
-#             -d "{\"message\": \"$message\", \"level\": \"$level\", \"platform\": \"bash\", \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)\"}" \
-#             --silent --show-error || true
-#     else
-#         echo "🔔 Sentry Alert: [$level] $message"
-#     fi
-# }
+  # Parse DSN components
+  local proto="${DSN%%:*}"
+  local tmp="${DSN#*://}"
+  local public_key="${tmp%%@*}"
+  tmp="${tmp#*@}"
+  local host="${tmp%%/*}"
+  local project_id="${tmp##*/}"
+
+  # Compose the API URL for sending events
+  local url="${proto}://${host}/api/${project_id}/store/?sentry_version=7&sentry_key=${public_key}"
+
+  # Detect OS and version
+  local os=""
+  local arch
+  arch="$(uname -m)"
+
+  if [[ "$(uname)" == "Darwin" ]]; then
+    # macOS
+    local product_name product_version
+    product_name=$(sw_vers -productName)
+    product_version=$(sw_vers -productVersion)
+    os="${product_name} ${product_version}"
+  elif [[ -f /etc/os-release ]]; then
+    # Linux
+    # shellcheck disable=SC1091
+    source /etc/os-release
+    os="${NAME} ${VERSION_ID:-$VERSION}"
+  else
+    # Fallback generic
+    os="$(uname -s) $(uname -r)"
+  fi
+
+  # Compose JSON payload with tags
+  local payload
+  payload=$(printf '{"message":"%s","level":"%s","platform":"bash","tags":{"os":"%s","arch":"%s"}}' \
+    "$message" "$level" "$os" "$arch")
+
+  # Send the event
+  curl -sS -f -o /dev/null \
+       -H "Content-Type: application/json" \
+       -d "$payload" \
+       -X POST "$url"
+}
 
 USER_ID="$1"
 CLIENT_BRANCH="${CLI_BRANCH:-}"
@@ -45,25 +93,24 @@ REPO_URL="https://tracer-installer-releases.s3.us-east-1.amazonaws.com/${INSTALL
 case "$OS" in
   Linux*)
     # Check glibc version requirement (minimum 2.34)
-    echo "🔍 Checking glibc version..."
     GLIBC_VERSION=$(ldd --version 2>&1 | head -n1 | grep -oE '[0-9]+\.[0-9]+' | head -n1)
 
     if [[ -z "$GLIBC_VERSION" ]]; then
-      echo "❌ Could not determine glibc version"
+      echo "${EMOJI_CANCEL}Could not determine glibc version"
       exit 1
     fi
 
     GLIBC_MAJOR=$(echo "$GLIBC_VERSION" | cut -d'.' -f1)
     GLIBC_MINOR=$(echo "$GLIBC_VERSION" | cut -d'.' -f2)
 
-    echo "📋 Detected glibc version: $GLIBC_VERSION"
+    echo "${EMOJI_CLIPBOARD}Detected glibc version: $GLIBC_VERSION"
 
-    # Check if glibc is at least 2.34
     if [ "$GLIBC_MAJOR" -lt 2 ] || ([ "$GLIBC_MAJOR" -eq 2 ] && [ "$GLIBC_MINOR" -lt 34 ]); then
-      # send_sentry_alert "Unsupported glibc version: $GLIBC_VERSION on $(uname -a). Linux support requires GLIBC version >= 2.34; detected GLIBC version: $GLIBC_VERSION. Tested on Ubuntu 22.04 and Amazon Linux 2023. Please report if Tracer does not work with your preferred Linux distribution." "error"
+      send_sentry_alert "Unsupported glibc version: $GLIBC_VERSION on $(uname -a)." "info"
 
-      echo "❌ glibc version $GLIBC_VERSION is not supported. Minimum required: 2.34"
-      echo "🔄 Please upgrade your system to a newer version with glibc 2.34 or later"
+      echo "${EMOJI_CANCEL}Linux support requires GLIBC version >= 2.36. Detected GLIBC version: $GLIBC_VERSION.
+        Tested on Ubuntu 22.04 and Amazon Linux 2023.
+        Please update your Linux distribution, or contact support@tracer.cloud if Tracer is not working with your preferred distribution."
       exit 1
     fi
 
@@ -107,15 +154,15 @@ EXTRACT_DIR="$TEMP_DIR/extracted"
 
 mkdir -p "$EXTRACT_DIR"
 echo "\n"
-echo "📦 Downloading Tracer Installer from: $DOWNLOAD_URL"
+echo "${EMOJI_PACKAGE}Downloading Tracer Installer from: $DOWNLOAD_URL"
 curl -L "$DOWNLOAD_URL" -o "$ARCHIVE_PATH" || {
-  echo "❌ Failed to download binary"
+  echo "${EMOJI_CANCEL}Failed to download binary"
   exit 1
 }
 
 
 tar -xzf "$ARCHIVE_PATH" -C "$EXTRACT_DIR" || {
-  echo "❌ Failed to extract archive"
+  echo "${EMOJI_CANCEL}Failed to extract archive"
   exit 1
 }
 
