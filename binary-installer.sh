@@ -1,5 +1,5 @@
 #!/bin/bash
-# installer for the tracer installer using s3
+# installer for the tracer installer github need to update based on dev installer
 
 # Define emoji fallbacks
 EMOJI_SEARCH="🔍 "
@@ -13,6 +13,28 @@ if ! [[ "$TERM" =~ ^xterm.* || "$TERM" == "screen" ]]; then
   EMOJI_CANCEL="[ERROR] "
   EMOJI_CLIPBOARD="[INFO] "
   EMOJI_PACKAGE="[DOWNLOAD] "
+fi
+
+
+# Determine OS and ARCH
+OS=$(uname -s)
+ARCH=$(uname -m)
+OS_FULL=""
+# Detect OS and version
+if [[ "$(uname)" == "Darwin" ]]; then
+  # macOS
+  local product_name product_version
+  product_name=$(sw_vers -productName)
+  product_version=$(sw_vers -productVersion)
+  OS_FULL="${product_name} ${product_version}"
+elif [[ -f /etc/os-release ]]; then
+  # Linux
+  # shellcheck disable=SC1091
+  source /etc/os-release
+  OS_FULL="${NAME} ${VERSION_ID:-$VERSION}"
+else
+  # Fallback generic
+  OS_FULL="$(uname -s) $(uname -r)"
 fi
 
 # Function to send Sentry alert
@@ -33,31 +55,10 @@ send_sentry_alert() {
   # Compose the API URL for sending events
   local url="${proto}://${host}/api/${project_id}/store/?sentry_version=7&sentry_key=${public_key}"
 
-  # Detect OS and version
-  local os=""
-  local arch
-  arch="$(uname -m)"
-
-  if [[ "$(uname)" == "Darwin" ]]; then
-    # macOS
-    local product_name product_version
-    product_name=$(sw_vers -productName)
-    product_version=$(sw_vers -productVersion)
-    os="${product_name} ${product_version}"
-  elif [[ -f /etc/os-release ]]; then
-    # Linux
-    # shellcheck disable=SC1091
-    source /etc/os-release
-    os="${NAME} ${VERSION_ID:-$VERSION}"
-  else
-    # Fallback generic
-    os="$(uname -s) $(uname -r)"
-  fi
-
   # Compose JSON payload with tags
   local payload
   payload=$(printf '{"message":"%s","level":"%s","platform":"bash","tags":{"os":"%s","arch":"%s"}}' \
-    "$message" "$level" "$os" "$arch")
+    "$message" "$level" "$OS_FULL" "$ARCH")
 
   # Send the event
   curl -sS -f -o /dev/null \
@@ -68,10 +69,6 @@ send_sentry_alert() {
 
 # Get optional user_id from the first positional argument
 USER_ID="$1"
-
-# Determine OS and ARCH
-OS=$(uname -s)
-ARCH=$(uname -m)
 
 # Define binary name
 BINARY_NAME="tracer-installer"
@@ -107,7 +104,7 @@ case "$OS" in
 
     # Check if glibc is at least 2.34
     if [ "$GLIBC_MAJOR" -lt 2 ] || ([ "$GLIBC_MAJOR" -eq 2 ] && [ "$GLIBC_MINOR" -lt 34 ]); then
-      send_sentry_alert "Unsupported glibc version: $GLIBC_VERSION on $(uname -a)." "info"
+      send_sentry_alert "Unsupported glibc version: $GLIBC_VERSION on $OS_FULL." "info"
 
       echo "${EMOJI_CANCEL}Linux support requires GLIBC version >= 2.36. Detected GLIBC version: $GLIBC_VERSION.
         Tested on Ubuntu 22.04 and Amazon Linux 2023.

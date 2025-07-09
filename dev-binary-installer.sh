@@ -15,6 +15,27 @@ if ! [[ "$TERM" =~ ^xterm.* || "$TERM" == "screen" ]]; then
   EMOJI_PACKAGE="[DOWNLOAD] "
 fi
 
+# Determine OS and ARCH
+OS=$(uname -s)
+ARCH=$(uname -m)
+OS_FULL=""
+# Detect OS and version
+if [[ "$(uname)" == "Darwin" ]]; then
+  # macOS
+  local product_name product_version
+  product_name=$(sw_vers -productName)
+  product_version=$(sw_vers -productVersion)
+  OS_FULL="${product_name} ${product_version}"
+elif [[ -f /etc/os-release ]]; then
+  # Linux
+  # shellcheck disable=SC1091
+  source /etc/os-release
+  OS_FULL="${NAME} ${VERSION_ID:-$VERSION}"
+else
+  # Fallback generic
+  OS_FULL="$(uname -s) $(uname -r)"
+fi
+
 # Function to send Sentry alert
 send_sentry_alert() {
   local message="$1"
@@ -33,31 +54,10 @@ send_sentry_alert() {
   # Compose the API URL for sending events
   local url="${proto}://${host}/api/${project_id}/store/?sentry_version=7&sentry_key=${public_key}"
 
-  # Detect OS and version
-  local os=""
-  local arch
-  arch="$(uname -m)"
-
-  if [[ "$(uname)" == "Darwin" ]]; then
-    # macOS
-    local product_name product_version
-    product_name=$(sw_vers -productName)
-    product_version=$(sw_vers -productVersion)
-    os="${product_name} ${product_version}"
-  elif [[ -f /etc/os-release ]]; then
-    # Linux
-    # shellcheck disable=SC1091
-    source /etc/os-release
-    os="${NAME} ${VERSION_ID:-$VERSION}"
-  else
-    # Fallback generic
-    os="$(uname -s) $(uname -r)"
-  fi
-
   # Compose JSON payload with tags
   local payload
   payload=$(printf '{"message":"%s","level":"%s","platform":"bash","tags":{"os":"%s","arch":"%s"}}' \
-    "$message" "$level" "$os" "$arch")
+    "$message" "$level" "$OS_FULL" "$ARCH")
 
   # Send the event
   curl -sS -f -o /dev/null \
@@ -69,9 +69,7 @@ send_sentry_alert() {
 USER_ID="$1"
 CLIENT_BRANCH="${CLI_BRANCH:-}"
 INSTALLER_BRANCH="${INS_BRANCH:-}"
-# Determine OS and ARCH
-OS=$(uname -s)
-ARCH=$(uname -m)
+
 
 # Define binary name
 BINARY_NAME="tracer-installer"
@@ -106,7 +104,7 @@ case "$OS" in
     echo "${EMOJI_CLIPBOARD}Detected glibc version: $GLIBC_VERSION"
 
     if [ "$GLIBC_MAJOR" -lt 2 ] || ([ "$GLIBC_MAJOR" -eq 2 ] && [ "$GLIBC_MINOR" -lt 34 ]); then
-      send_sentry_alert "Unsupported glibc version: $GLIBC_VERSION on $(uname -a)." "info"
+      send_sentry_alert "Unsupported glibc version: $GLIBC_VERSION on $OS_FULL." "info"
 
       echo "${EMOJI_CANCEL}Linux support requires GLIBC version >= 2.36. Detected GLIBC version: $GLIBC_VERSION.
         Tested on Ubuntu 22.04 and Amazon Linux 2023.
@@ -143,6 +141,7 @@ case "$OS" in
     ;;
   *)
     echo "Unsupported operating system: $OS"
+    send_sentry_alert "Unsupported operating system: $OS_FULL." "info"
     exit 1
     ;;
 esac
@@ -157,6 +156,7 @@ echo "\n"
 echo "${EMOJI_PACKAGE}Downloading Tracer Installer from: $DOWNLOAD_URL"
 curl -L "$DOWNLOAD_URL" -o "$ARCHIVE_PATH" || {
   echo "${EMOJI_CANCEL}Failed to download binary"
+  send_sentry_alert "Failed to download binary from $DOWNLOAD_URL." "info"
   exit 1
 }
 
