@@ -30,7 +30,7 @@ pub fn create_short_lived_process_object(
     process: &ProcessStartTrigger,
     display_name: String,
 ) -> ProcessProperties {
-    ProcessProperties::Full(Box::new(FullProcessProperties {
+    ProcessProperties::Full(FullProcessProperties {
         tool_name: display_name,
         tool_pid: process.pid.to_string(),
         tool_parent_pid: process.ppid.to_string(),
@@ -52,7 +52,7 @@ pub fn create_short_lived_process_object(
         working_directory: None,
         trace_id: None,
         container_event: None,
-    }))
+    })
 }
 
 // Simple command line parser (handles basic cases)

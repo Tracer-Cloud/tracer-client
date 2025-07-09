@@ -40,7 +40,7 @@ pub struct FullProcessProperties {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum ProcessProperties {
-    Full(Box<FullProcessProperties>),
+    Full(FullProcessProperties),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
