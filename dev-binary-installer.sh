@@ -104,14 +104,12 @@ case "$OS" in
     GLIBC_MAJOR=$(echo "$GLIBC_VERSION" | cut -d'.' -f1)
     GLIBC_MINOR=$(echo "$GLIBC_VERSION" | cut -d'.' -f2)
 
-    echo "${EMOJI_CLIPBOARD}Detected glibc version: $GLIBC_VERSION"
-
     if [ "$GLIBC_MAJOR" -lt 2 ] || ([ "$GLIBC_MAJOR" -eq 2 ] && [ "$GLIBC_MINOR" -lt 34 ]); then
       send_sentry_alert "Unsupported glibc version: $GLIBC_VERSION on $OS_FULL." "info"
 
-      echo "${EMOJI_CANCEL}Linux support requires GLIBC version >= 2.36. Detected GLIBC version: $GLIBC_VERSION.
-        Tested on Ubuntu 22.04 and Amazon Linux 2023.
-        Please update your Linux distribution, or contact support@tracer.cloud if Tracer is not working with your preferred distribution."
+      echo "${EMOJI_CANCEL} Linux support requires GLIBC version >= 2.36. Detected GLIBC version: $GLIBC_VERSION."
+      echo "Tested on Ubuntu 22.04 and Amazon Linux 2023."
+      echo "Please update your Linux distribution, or contact support@tracer.cloud if Tracer is not working with your preferred distribution."
       exit 1
     fi
 
