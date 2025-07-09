@@ -1,16 +1,27 @@
-#!/bin/bash installer for the tracer installer using s3
-
-# Get optional user_id from the first positional argument
+#!/bin/bash
+# installer for the tracer installer using s3
 USER_ID="$1"
-
+CLIENT_BRANCH="${CLI_BRANCH:-}"
+INSTALLER_BRANCH="${INS_BRANCH:-}"
 # Determine OS and ARCH
 OS=$(uname -s)
 ARCH=$(uname -m)
 
 # Define binary name
+BINARY_NAME="tracer-installer"
 
-# Get the latest release version from GitHub API
-REPO_URL="https://tracer-installer-releases.s3.us-east-1.amazonaws.com"
+# S3 repository URL for dev releases
+if [[ -n "$INSTALLER_BRANCH" ]]; then
+  echo "Using installer branch: $INSTALLER_BRANCH"
+else
+  INSTALLER_BRANCH="main"
+fi
+
+
+REPO_URL="https://tracer-installer-releases.s3.us-east-1.amazonaws.com/${INSTALLER_BRANCH}"
+
+
+
 
 # Map to download URL based on platform
 case "$OS" in
@@ -61,6 +72,7 @@ curl -L "$DOWNLOAD_URL" -o "$ARCHIVE_PATH" || {
   exit 1
 }
 
+
 tar -xzf "$ARCHIVE_PATH" -C "$EXTRACT_DIR" || {
   echo "❌ Failed to extract archive"
   exit 1
@@ -69,8 +81,15 @@ tar -xzf "$ARCHIVE_PATH" -C "$EXTRACT_DIR" || {
 chmod +x "$EXTRACT_DIR/$BINARY_NAME"
 
 # Run the binary with or without user ID
-if [[ -n "$USER_ID" ]]; then
-  sudo "$EXTRACT_DIR/$BINARY_NAME" run --user-id="$USER_ID"
-else
-  sudo "$EXTRACT_DIR/$BINARY_NAME" run
+
+cmd=(sudo "$EXTRACT_DIR/$BINARY_NAME" run)
+
+if [[ -n "$CLIENT_BRANCH" ]]; then
+  cmd+=(--channel="$CLIENT_BRANCH")
 fi
+
+if [[ -n "$USER_ID" ]]; then
+  cmd+=(--user-id="$USER_ID")
+fi
+echo "${cmd[@]}"
+"${cmd[@]}"

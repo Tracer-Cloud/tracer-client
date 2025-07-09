@@ -27,7 +27,7 @@ impl fmt::Display for TracerVersion {
         match self {
             TracerVersion::Development => write!(f, "development"),
             TracerVersion::Production => write!(f, "production"),
-            TracerVersion::Feature(name) => write!(f, "{name}"),
+            TracerVersion::Feature(name) => write!(f, "Custom Branch({name})"),
         }
     }
 }
@@ -45,7 +45,7 @@ pub enum InstallerCommand {
     Run {
         /// The channel or branch to install.
         /// Accepts "development", "production", or a custom branch name.
-        #[arg(default_value = "development")]
+        #[arg(long, default_value = "development")]
         channel: TracerVersion,
 
         /// Optional user ID used to associate this installation with your account.
