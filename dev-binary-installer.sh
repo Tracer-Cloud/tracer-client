@@ -1,5 +1,23 @@
 #!/bin/bash
 # installer for the tracer installer using s3
+
+# Function to send Sentry alert
+# send_sentry_alert() {
+#     local message="$1"
+#     local level="${2:-info}"
+
+#     SENTRY_DSN="https://add417a1c944b1b2110b4f3ea8d7fbea@o4509525906948096.ingest.de.sentry.io/4509530452328528"
+
+#     if [[ -n "$SENTRY_DSN" ]]; then
+#         curl -X POST "$SENTRY_DSN" \
+#             -H "Content-Type: application/json" \
+#             -d "{\"message\": \"$message\", \"level\": \"$level\", \"platform\": \"bash\", \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)\"}" \
+#             --silent --show-error || true
+#     else
+#         echo "🔔 Sentry Alert: [$level] $message"
+#     fi
+# }
+
 USER_ID="$1"
 CLIENT_BRANCH="${CLI_BRANCH:-}"
 INSTALLER_BRANCH="${INS_BRANCH:-}"
@@ -26,6 +44,29 @@ REPO_URL="https://tracer-installer-releases.s3.us-east-1.amazonaws.com/${INSTALL
 # Map to download URL based on platform
 case "$OS" in
   Linux*)
+    # Check glibc version requirement (minimum 2.34)
+    echo "🔍 Checking glibc version..."
+    GLIBC_VERSION=$(ldd --version 2>&1 | head -n1 | grep -oE '[0-9]+\.[0-9]+' | head -n1)
+
+    if [[ -z "$GLIBC_VERSION" ]]; then
+      echo "❌ Could not determine glibc version"
+      exit 1
+    fi
+
+    GLIBC_MAJOR=$(echo "$GLIBC_VERSION" | cut -d'.' -f1)
+    GLIBC_MINOR=$(echo "$GLIBC_VERSION" | cut -d'.' -f2)
+
+    echo "📋 Detected glibc version: $GLIBC_VERSION"
+
+    # Check if glibc is at least 2.34
+    if [ "$GLIBC_MAJOR" -lt 2 ] || ([ "$GLIBC_MAJOR" -eq 2 ] && [ "$GLIBC_MINOR" -lt 34 ]); then
+      # send_sentry_alert "Unsupported glibc version: $GLIBC_VERSION on $(uname -a). Linux support requires GLIBC version >= 2.34; detected GLIBC version: $GLIBC_VERSION. Tested on Ubuntu 22.04 and Amazon Linux 2023. Please report if Tracer does not work with your preferred Linux distribution." "error"
+
+      echo "❌ glibc version $GLIBC_VERSION is not supported. Minimum required: 2.34"
+      echo "🔄 Please upgrade your system to a newer version with glibc 2.34 or later"
+      exit 1
+    fi
+
     case "$ARCH" in
       x86_64)
         DOWNLOAD_URL="$REPO_URL/x86_64-unknown-linux-gnu.tar.gz"
