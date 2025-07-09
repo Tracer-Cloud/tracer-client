@@ -1,7 +1,6 @@
 use aws_sdk_pricing as pricing;
 use aws_sdk_pricing::types::Filter as PricingFilters;
 use serde_query::DeserializeQuery;
-use std::error::Error;
 use tokio_retry::strategy::ExponentialBackoff;
 use tokio_retry::Retry;
 
@@ -199,117 +198,48 @@ impl PricingClient {
     /// - First 3000 IOPS and 125 MB/s throughput are free.
     async fn calculate_volume_cost(&self, region: &str, vol: &VolumeMetadata) -> Option<f64> {
         let filters = Self::build_ebs_filters(region, &vol.volume_type);
-        let price_data = self
-            .retry_price_fetch::<EbsPricingData>(
-                ServiceCode::Ebs,
-                Some(filters),
-                FlattenedData::flatten_ebs_data,
-            )
-            .await;
 
-        price_data.map(|data| {
-            // Convert base storage cost from $/GB-month to $/hr
-            let storage_hourly = (vol.size_gib as f64 * data.price_per_unit) / HOURS_IN_MONTH;
+        let price_entries = self
+            .retry_fetch_all::<EbsPricingData>(ServiceCode::Ebs, Some(filters))
+            .await?;
 
-            // Subtract free tier for IOPS (3000 free)
-            let extra_iops = vol.iops.unwrap_or(0).saturating_sub(FREE_IOPS);
-            let iops_hourly = if let Some(p) = data.price_per_iops {
-                (extra_iops as f64 * p) / HOURS_IN_MONTH
-            } else {
-                0.0
-            };
+        let price_data = price_entries
+            .into_iter()
+            .map(|data| FlattenedData::flatten_ebs_data(&data))
+            .next()?; // Expect exactly one match
 
-            // Subtract free tier for throughput (125 MB/s free)
-            let extra_throughput = vol
-                .throughput
-                .unwrap_or(0)
-                .saturating_sub(FREE_THROUGHPUT_MBPS);
-            let throughput_hourly = if let Some(p) = data.price_per_throughput {
-                (extra_throughput as f64 * p) / HOURS_IN_MONTH
-            } else {
-                0.0
-            };
+        // Convert base storage cost from $/GB-month to $/hr
+        let storage_hourly = (vol.size_gib as f64 * price_data.price_per_unit) / HOURS_IN_MONTH;
 
-            let total_cost = storage_hourly + iops_hourly + throughput_hourly;
+        // Subtract free tier for IOPS (3000 free)
+        let extra_iops = vol.iops.unwrap_or(0).saturating_sub(FREE_IOPS);
+        let iops_hourly = price_data
+            .price_per_iops
+            .map(|p| (extra_iops as f64 * p) / HOURS_IN_MONTH)
+            .unwrap_or(0.0);
 
-            tracing::info!(
-                volume = ?vol.volume_id,
-                storage_hourly,
-                iops_hourly,
-                throughput_hourly,
-                total_cost,
-                "Calculated hourly EBS volume cost (adjusted for free tier)"
-            );
+        // Subtract free tier for throughput (125 MB/s free)
+        let extra_throughput = vol
+            .throughput
+            .unwrap_or(0)
+            .saturating_sub(FREE_THROUGHPUT_MBPS);
+        let throughput_hourly = price_data
+            .price_per_throughput
+            .map(|p| (extra_throughput as f64 * p) / HOURS_IN_MONTH)
+            .unwrap_or(0.0);
 
-            total_cost
-        })
-    }
+        let total_cost = storage_hourly + iops_hourly + throughput_hourly;
 
-    async fn retry_price_fetch<T>(
-        &self,
-        service_code: ServiceCode,
-        filters: Option<Vec<PricingFilters>>,
-        flatten_fn: fn(&T) -> FlattenedData,
-    ) -> Option<FlattenedData>
-    where
-        T: for<'de> DeserializeQuery<'de> + Send + Sync,
-    {
-        let _ = self.pricing_client.as_ref()?;
+        tracing::info!(
+            volume = ?vol.volume_id,
+            storage_hourly,
+            iops_hourly,
+            throughput_hourly,
+            total_cost,
+            "Calculated hourly EBS volume cost (adjusted for free tier)"
+        );
 
-        let strategy = ExponentialBackoff::from_millis(500).take(3);
-
-        let result = Retry::spawn(strategy, {
-            let filters = filters.clone();
-            let service_code = service_code.clone();
-
-            move || {
-                let filters = filters.clone();
-                let service_code = service_code.clone();
-                async move {
-                    self.fetch_price::<T>(service_code, filters, flatten_fn)
-                        .await
-                }
-            }
-        })
-        .await;
-
-        result.ok()
-    }
-
-    async fn fetch_price<T>(
-        &self,
-        service_code: ServiceCode,
-        filters: Option<Vec<PricingFilters>>,
-        flatten_fn: fn(&T) -> FlattenedData,
-    ) -> Result<FlattenedData, Box<dyn Error + Send + Sync>>
-    where
-        T: for<'de> DeserializeQuery<'de>,
-    {
-        let mut response = self
-            .pricing_client
-            .as_ref()
-            .unwrap()
-            .get_products()
-            .service_code(service_code.as_str())
-            .set_filters(filters)
-            .into_paginator()
-            .send();
-
-        let mut highest_price = FlattenedData::default();
-
-        while let Some(output) = response.next().await {
-            let output = output?;
-            for product in output.price_list() {
-                if let Ok(pricing) = serde_json::from_str::<serde_query::Query<T>>(product) {
-                    let flat = flatten_fn(&pricing.into());
-                    if flat.price_per_unit > highest_price.price_per_unit {
-                        highest_price = flat;
-                    }
-                }
-            }
-        }
-
-        Ok(highest_price)
+        Some(total_cost)
     }
 
     async fn retry_fetch_all<T>(
