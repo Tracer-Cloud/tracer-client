@@ -3,58 +3,52 @@ use console::Emoji;
 
 use crate::types::TracerVersion;
 
-pub enum StepStatus<'a> {
-    Success(&'a str),
-    Warning(&'a str),
-    Error(&'a str),
-    Custom(Emoji<'a, 'a>, &'a str), // pass Emoji struct + message
+#[derive(Debug, Clone, Copy)]
+pub enum PrintEmoji {
+    Pass,
+    Warning,
+    Fail,
+    OS,
+    Arch,
+    Cpu,
+    Ram,
+    Extract,
+    Updated,
+    Next,
+    Downloading,
 }
-
-pub fn print_step(label: &str, status: StepStatus) {
-    const PASS: Emoji<'_, '_> = Emoji("✅ ", "[OK] ");
-    const WARNING: Emoji<'_, '_> = Emoji("⚠️ ", "[WARN] ");
-    const FAIL: Emoji<'_, '_> = Emoji("❌ ", "[X] ");
-
-    const PADDING: usize = 40; // adjust to keep things aligned
+impl PrintEmoji {
+    pub fn to_emoji(self) -> Emoji<'static, 'static> {
+        match self {
+            PrintEmoji::Pass => Emoji("✅ ", "[OK] "),
+            PrintEmoji::Warning => Emoji("⚠️ ", "[WARN] "),
+            PrintEmoji::Fail => Emoji("❌ ", "[X] "),
+            PrintEmoji::OS => Emoji("🐧 ", "[OS]"),
+            PrintEmoji::Arch => Emoji("💻 ", "[ARCH]"),
+            PrintEmoji::Cpu => Emoji("⚙️ ", "[CPU]"),
+            PrintEmoji::Ram => Emoji("💾 ", "[RAM]"),
+            PrintEmoji::Extract => Emoji("📂 ", "[DONE]"),
+            PrintEmoji::Updated => Emoji("🔄 ", "[UPDATED]"),
+            PrintEmoji::Next => Emoji("🚀 ", "[NEXT]"),
+            PrintEmoji::Downloading => Emoji("📥 ", "[DOWNLOADING]"),
+        }
+    }
+}
+pub fn print_status(label: &str, reason: &str, emoji: PrintEmoji) {
+    const PADDING: usize = 40;
 
     let label = format!("{}:", label);
     let padded = format!("{label:<width$}", width = PADDING);
-
-    match status {
-        StepStatus::Success(reason) => {
-            println!("{PASS} {padded}{reason}");
-        }
-        StepStatus::Warning(reason) => {
-            println!("{WARNING} {padded}{reason}");
-        }
-        StepStatus::Error(reason) => {
-            println!("{FAIL} {padded}{reason}");
-        }
-
-        StepStatus::Custom(emoji, reason) => {
-            println!("{emoji} {padded}{reason}");
-        }
-    }
+    let emoji = emoji.to_emoji();
+    println!("{emoji} {padded}{reason}");
 }
 
-pub fn print_summary(label: &str, status: StepStatus) {
-    const PASS: Emoji<'_, '_> = Emoji("✅", "[OK]");
-    const WARNING: Emoji<'_, '_> = Emoji("⚠️", "[WARN]");
-    const FAIL: Emoji<'_, '_> = Emoji("❌", "[X]");
-
-    const PADDING: usize = 40;
-
-    let padded = format!("{label:<width$}", width = PADDING);
-
+pub fn print_label(label: &str, emoji: PrintEmoji) {
+    print_status(label, "", emoji);
+}
+pub fn print_summary(label: &str, emoji: PrintEmoji) {
     println!(); // spacer before
-    match status {
-        StepStatus::Success(_) => println!("{PASS} {padded}"),
-        StepStatus::Warning(_) => println!("{WARNING} {padded}"),
-        StepStatus::Error(_) => println!("{FAIL} {padded}"),
-        StepStatus::Custom(emoji, _) => {
-            println!("{emoji} {padded}");
-        }
-    }
+    print_status(label, "", emoji);
     println!(); // spacer after
 }
 

@@ -18,16 +18,6 @@ impl APICheck {
 
 #[async_trait::async_trait]
 impl InstallCheck for APICheck {
-    fn name(&self) -> &'static str {
-        "API Connectivity"
-    }
-    fn error_message(&self) -> String {
-        "Not Successful".into()
-    }
-    fn success_message(&self) -> String {
-        "Successful".into()
-    }
-
     async fn check(&self) -> bool {
         self.client
             .get(&self.endpoint)
@@ -36,5 +26,15 @@ impl InstallCheck for APICheck {
             .await
             .map(|r| r.status().is_success())
             .unwrap_or(false)
+    }
+    fn name(&self) -> &'static str {
+        "API Connectivity"
+    }
+    fn error_message(&self) -> String {
+        "Not Successful".into()
+    }
+
+    fn success_message(&self) -> String {
+        "Successful".into()
     }
 }
