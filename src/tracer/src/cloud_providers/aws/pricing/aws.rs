@@ -8,6 +8,7 @@ use tokio_retry::Retry;
 use crate::cloud_providers::aws::aws_metadata::AwsInstanceMetaData;
 use crate::cloud_providers::aws::config::{resolve_available_aws_config, AwsConfig};
 use crate::cloud_providers::aws::ec2::Ec2Client;
+use crate::cloud_providers::aws::pricing::filtering::ec2_matcher::EC2MatchEngine;
 use crate::cloud_providers::aws::types::pricing::{
     EBSFilterBuilder, EC2FilterBuilder, EbsPricingData, FilterableInstanceDetails, FlattenedData,
     InstancePricingContext, PricingData, ServiceCode, VolumeMetadata,
@@ -101,14 +102,31 @@ impl PricingClient {
             .await
             .unwrap_or(0.0);
 
-        // Fetch EC2 price using filters
-        let ec2_data = self
-            .retry_price_fetch::<PricingData>(
-                ServiceCode::Ec2,
-                Some(ec2_filters),
-                FlattenedData::flatten_data,
-            )
-            .await?;
+        tracing::info!("EC2 RAW");
+
+        let ec2_raw: Vec<PricingData> = self
+            .retry_fetch_all::<PricingData>(ServiceCode::Ec2, Some(ec2_filters))
+            .await
+            .unwrap_or_default();
+
+        let engine = EC2MatchEngine::new(filterable_data.clone(), ec2_raw);
+
+        let ec2_matches = engine.best_matches(2);
+
+        let ec2_data = ec2_matches
+            .first()
+            .cloned()
+            .ok_or_else(|| {
+                tracing::warn!("No matching EC2 pricing found");
+                anyhow::anyhow!("No matching EC2 pricing")
+            })
+            .ok()?;
+
+        tracing::info!(
+            "Top EC2 Match: {:?}, Backup: {:?}",
+            ec2_matches.first(),
+            ec2_matches.get(1)
+        );
 
         let ebs_data = if ebs_total_price > 0.0 {
             Some(FlattenedData {
@@ -279,14 +297,11 @@ impl PricingClient {
 
         let mut highest_price = FlattenedData::default();
 
-        let mut flatted_responses = Vec::new();
-
         while let Some(output) = response.next().await {
             let output = output?;
             for product in output.price_list() {
                 if let Ok(pricing) = serde_json::from_str::<serde_query::Query<T>>(product) {
                     let flat = flatten_fn(&pricing.into());
-                    flatted_responses.push(flat.clone());
                     if flat.price_per_unit > highest_price.price_per_unit {
                         highest_price = flat;
                     }
@@ -294,9 +309,63 @@ impl PricingClient {
             }
         }
 
-        println!("Flattened Data \n\n\n {:?}\n\n\n", flatted_responses);
-
         Ok(highest_price)
+    }
+
+    async fn retry_fetch_all<T>(
+        &self,
+        service_code: ServiceCode,
+        filters: Option<Vec<PricingFilters>>,
+    ) -> Option<Vec<T>>
+    where
+        T: for<'de> DeserializeQuery<'de> + Send + Sync,
+    {
+        let strategy = ExponentialBackoff::from_millis(500).take(3);
+        let result = Retry::spawn(strategy, {
+            let filters = filters.clone();
+            let service_code = service_code.clone();
+
+            move || {
+                let filters = filters.clone();
+                let service_code = service_code.clone();
+                async move { self.fetch_all::<T>(service_code, filters).await }
+            }
+        })
+        .await;
+
+        result.ok()
+    }
+
+    async fn fetch_all<T>(
+        &self,
+        service_code: ServiceCode,
+        filters: Option<Vec<PricingFilters>>,
+    ) -> Result<Vec<T>, Box<dyn std::error::Error + Send + Sync>>
+    where
+        T: for<'de> DeserializeQuery<'de>,
+    {
+        let mut paginator = self
+            .pricing_client
+            .as_ref()
+            .unwrap()
+            .get_products()
+            .service_code(service_code.as_str())
+            .set_filters(filters)
+            .into_paginator()
+            .send();
+
+        let mut results = Vec::new();
+
+        while let Some(output) = paginator.next().await {
+            let output = output?;
+            for product in output.price_list() {
+                if let Ok(pricing) = serde_json::from_str::<serde_query::Query<T>>(product) {
+                    results.push(pricing.into());
+                }
+            }
+        }
+
+        Ok(results)
     }
 }
 

@@ -1,5 +1,6 @@
 mod api;
 mod aws;
+pub mod filtering;
 
 pub use api::ApiPricingClient;
 pub use aws::PricingClient;

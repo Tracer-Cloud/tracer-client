@@ -16,6 +16,15 @@ pub struct PricingData {
     #[query(".product.attributes.memory")]
     pub memory: String,
 
+    #[query(".product.attributes.operatingSystem")]
+    pub operating_system: Option<String>,
+
+    #[query(".product.attributes.tenancy")]
+    pub tenancy: Option<String>,
+
+    #[query(".product.attributes.capacitystatus")]
+    pub capacity_status: Option<String>,
+
     #[query(".terms.OnDemand")]
     pub on_demand: HashMap<String, serde_json::Value>,
 }
