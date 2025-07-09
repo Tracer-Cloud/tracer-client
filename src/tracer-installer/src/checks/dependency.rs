@@ -57,7 +57,7 @@ impl InstallCheck for DependencyCheck {
     fn error_message(&self) -> String {
         if cfg!(target_os = "linux") {
             let (_ok, missing, _install) = Self::check_linux_dependencies();
-            format!("Missing: {}", missing.join(", "),)
+            format!("Missing: {}", missing.join(", "))
         } else if cfg!(target_os = "macos") {
             "Unsupported on macOS.".into()
         } else {
