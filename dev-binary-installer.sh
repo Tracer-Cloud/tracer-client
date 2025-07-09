@@ -82,14 +82,19 @@ chmod +x "$EXTRACT_DIR/$BINARY_NAME"
 
 # Run the binary with or without user ID
 
-cmd=(sudo "$EXTRACT_DIR/$BINARY_NAME" run)
-
-if [[ -n "$CLIENT_BRANCH" ]]; then
-  cmd+=(--channel="$CLIENT_BRANCH")
+if command -v sudo >/dev/null 2>&1; then
+  INVOKER=(sudo)
+elif [[ $(id -u) -eq 0 ]]; then
+  INVOKER=()         # already root, no sudo needed
+else
+  echo "Rerun this script with root privileges or use sudo." >&2
+  exit 1
 fi
 
-if [[ -n "$USER_ID" ]]; then
-  cmd+=(--user-id="$USER_ID")
-fi
+cmd=("${INVOKER[@]}" "$EXTRACT_DIR/$BINARY_NAME" run)
+
+[[ -n "$CLIENT_BRANCH" ]] && cmd+=(--channel="$CLIENT_BRANCH")
+[[ -n "$USER_ID"      ]] && cmd+=(--user-id="$USER_ID")
+
 echo "${cmd[@]}"
 "${cmd[@]}"
