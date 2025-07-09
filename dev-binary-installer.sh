@@ -8,29 +8,19 @@ OS=$(uname -s)
 ARCH=$(uname -m)
 
 # Define binary name
-BINARY_NAME="tracer-installer"
 
 # Get the latest release version from GitHub API
-echo "🔍 Fetching latest release version..."
-VERSION=$(curl -s https://api.github.com/repos/Tracer-Cloud/tracer-client/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-
-if [[ -z "$VERSION" ]]; then
-    echo "❌ Failed to fetch latest version from GitHub API"
-    echo "🔄 Falling back to hardcoded version..."
-    VERSION="v2025.6.18+1"
-fi
-
-REPO_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${VERSION}"
+REPO_URL="https://tracer-installer-releases.s3.us-east-1.amazonaws.com"
 
 # Map to download URL based on platform
 case "$OS" in
   Linux*)
     case "$ARCH" in
       x86_64)
-        DOWNLOAD_URL="$REPO_URL/${BINARY_NAME}-x86_64-unknown-linux-gnu.tar.gz"
+        DOWNLOAD_URL="$REPO_URL/x86_64-unknown-linux-gnu.tar.gz"
         ;;
       aarch64)
-        DOWNLOAD_URL="$REPO_URL/${BINARY_NAME}-aarch64-unknown-linux-gnu.tar.gz"
+        DOWNLOAD_URL="$REPO_URL/aarch64-unknown-linux-gnu.tar.gz"
         ;;
       *)
         echo "Unsupported Linux architecture: $ARCH"
@@ -41,10 +31,10 @@ case "$OS" in
   Darwin*)
     case "$ARCH" in
       x86_64)
-        DOWNLOAD_URL="$REPO_URL/${BINARY_NAME}-x86_64-apple-darwin.tar.gz"
+        DOWNLOAD_URL="$REPO_URL/x86_64-apple-darwin.tar.gz"
         ;;
       arm64)
-        DOWNLOAD_URL="$REPO_URL/${BINARY_NAME}-aarch64-apple-darwin.tar.gz"
+        DOWNLOAD_URL="$REPO_URL/aarch64-apple-darwin.tar.gz"
         ;;
       *)
         echo "Unsupported macOS architecture: $ARCH"
