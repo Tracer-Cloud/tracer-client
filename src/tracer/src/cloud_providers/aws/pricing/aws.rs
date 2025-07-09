@@ -1,6 +1,7 @@
 use aws_sdk_pricing as pricing;
 use aws_sdk_pricing::types::Filter as PricingFilters;
 use serde_query::DeserializeQuery;
+use tokio::sync::RwLock;
 use tokio_retry::strategy::ExponentialBackoff;
 use tokio_retry::Retry;
 
@@ -21,7 +22,7 @@ const TOP_N_EC2_RESULTS: usize = 2;
 /// Client for interacting with AWS Pricing API
 pub struct PricingClient {
     pub pricing_client: Option<pricing::Client>,
-    pub ec2_client: Option<Ec2Client>,
+    pub ec2_client: RwLock<Option<Ec2Client>>,
     region: String,
     aws_config: AwsConfig,
 }
@@ -35,13 +36,13 @@ impl PricingClient {
         match config {
             Some(ref conf) => Self {
                 pricing_client: Some(pricing::client::Client::new(conf)),
-                ec2_client: Some(Ec2Client::new_with_config(conf).await),
+                ec2_client: RwLock::new(Some(Ec2Client::new_with_config(conf).await)),
                 aws_config: initialization_conf,
                 region: region.to_string(),
             },
             None => Self {
                 pricing_client: None,
-                ec2_client: None,
+                ec2_client: RwLock::new(None),
                 region: region.to_string(),
                 aws_config: initialization_conf,
             },
@@ -65,16 +66,21 @@ impl PricingClient {
         }
         None
     }
+    async fn update_client_if_needed(&self, new_client: Option<Ec2Client>) {
+        if let Some(client) = new_client {
+            let mut guard = self.ec2_client.write().await;
+            *guard = Some(client);
+        }
+    }
 
     pub async fn get_instance_pricing_context_from_metadata(
         &self,
         metadata: &AwsInstanceMetaData,
     ) -> Option<InstancePricingContext> {
         let maybe_new_client = self.reinitialize_client_if_needed(metadata).await;
-        let ec2_client = match &maybe_new_client {
-            Some(client) => client,
-            None => self.ec2_client.as_ref()?,
-        };
+        self.update_client_if_needed(maybe_new_client).await;
+        let guard = self.ec2_client.read().await;
+        let ec2_client = guard.as_ref()?;
 
         let filterable_data = ec2_client
         .describe_instance(&metadata.instance_id, &metadata.region)
@@ -185,8 +191,13 @@ impl PricingClient {
 
     /// Fetches volume metadata (type, size, ID) for an instance
     async fn get_volume_metadata(&self, instance_id: &str) -> Option<Vec<VolumeMetadata>> {
-        let client = self.ec2_client.as_ref()?;
-        client.get_volume_types(instance_id).await.ok()
+        let guard = self.ec2_client.read().await;
+        let client = guard.as_ref()?;
+        client
+            .get_volume_types(instance_id)
+            .await
+            .map_err(|err| tracing::error!(?err, "Error getting instance volumes"))
+            .ok()
     }
 
     /// Calculates the total hourly cost for all attached EBS volumes.
