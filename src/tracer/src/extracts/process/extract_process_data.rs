@@ -135,7 +135,6 @@ fn get_process_environment_variables<P: ProcessTrait>(
     let mut job_id = None;
     let mut trace_id = None;
 
-    // Try to read environment variables
     for (key, value) in proc.environ().iter().filter_map(|v| v.split_once('=')) {
         match (&job_id, &trace_id) {
             (None, _) if key == JOB_ID_KEY => {
