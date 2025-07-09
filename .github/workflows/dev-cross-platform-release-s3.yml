@@ -137,7 +137,7 @@ jobs:
           # Copy Tracer Installer binary (if it was built)
           if [ -f target/${{ matrix.target }}/release/tracer-installer ]; then
             cp target/${{ matrix.target }}/release/tracer-installer release-files/${{ matrix.arch }}/tracer-installer
-            chmod +x release-files/${{ matrix.target }}/tracer-installer
+            chmod +x release-files/${{ matrix.arch }}/tracer-installer
             tar -czf release-files/tracer-installer-${{ matrix.target }}.tar.gz -C release-files/${{ matrix.arch }} tracer-installer
           fi
 
