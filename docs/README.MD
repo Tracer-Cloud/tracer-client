@@ -6,7 +6,7 @@ This tutorial guides you through setting up Tracer monitoring for a Nextflow pip
 
 - Real-time monitoring of Nextflow genomics pipelines on AWS
 
-## Prerequisites:
+## Prerequisites
 
 - Have access to an AWS account or ask your administrator
 - Have setup [Tracer monitoring stack on AWS](https://www.notion.so/tracercloud/One-Command-Terraform-Deployment-on-AWS-1bb23c8b6bf5807c871ec64a1ec5aeae?pvs=4)
