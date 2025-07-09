@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash installer for the tracer installer using s3
 
 # Get optional user_id from the first positional argument
 USER_ID="$1"

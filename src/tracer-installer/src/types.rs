@@ -45,7 +45,7 @@ pub enum InstallerCommand {
     Run {
         /// The channel or branch to install.
         /// Accepts "development", "production", or a custom branch name.
-        #[arg(default_value = "production")]
+        #[arg(default_value = "development")]
         channel: TracerVersion,
 
         /// Optional user ID used to associate this installation with your account.
