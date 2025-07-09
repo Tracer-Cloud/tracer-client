@@ -1,4 +1,4 @@
-name: Development Release On S3
+name: Development release for client & installer to s3
 
 on:
   pull_request:
@@ -7,13 +7,13 @@ on:
       - "main"
     paths:
       - "src/**"
-      - ".github/workflows/cross-platform-release-and-assets-upload-on-s3.yml"
+      - ".github/workflows/dev-cross-platform-release-s3.yml"
   push:
     branches:
       - "main"
     paths:
       - "src/**"
-      - ".github/workflows/cross-platform-release-and-assets-upload-on-s3.yml"
+      - ".github/workflows/dev-cross-platform-release-s3.yml"
 
 jobs:
   build-and-release:
@@ -134,6 +134,13 @@ jobs:
           chmod +x release-files/${{ matrix.arch }}/tracer
           tar -czf release-files/tracer-${{ matrix.target }}.tar.gz -C release-files/${{ matrix.arch }} tracer
 
+          # Copy Tracer Installer binary (if it was built)
+          if [ -f target/${{ matrix.target }}/release/tracer-installer ]; then
+            cp target/${{ matrix.target }}/release/tracer-installer release-files/${{ matrix.arch }}/tracer-installer
+            chmod +x release-files/${{ matrix.arch }}/tracer-installer
+            tar -czf release-files/tracer-installer-${{ matrix.target }}.tar.gz -C release-files/${{ matrix.arch }} tracer-installer
+          fi
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -145,6 +152,9 @@ jobs:
         run: |
           aws s3 cp release-files/tracer-${{ matrix.target }}.tar.gz s3://tracer-releases/tracer-${{ matrix.target }}.tar.gz
           aws s3 cp release-files/tracer-${{ matrix.target }}.tar.gz s3://tracer-releases/${{ github.head_ref || github.ref_name }}/tracer-${{ matrix.target }}.tar.gz
+
+          aws s3 cp release-files/tracer-installer-${{ matrix.target }}.tar.gz s3://tracer-installer-releases/${{ github.head_ref || github.ref_name }}/${{ matrix.target }}.tar.gz
+
 
   build-and-release-amazon-linux:
     permissions: write-all

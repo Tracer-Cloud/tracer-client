@@ -18,15 +18,24 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Delete entire branch folder in S3
+      - name: Delete tracer releases s3
         env:
           S3_BUCKET: tracer-releases
           BRANCH_NAME: ${{ github.event.ref }}
         run: |
           FOLDER="s3://${S3_BUCKET}/${BRANCH_NAME}/"
 
-          echo "🗑️  Deleting entire folder: $FOLDER"
-          # --recursive removes everything inside; --quiet suppresses 404 chatter
+          aws s3 rm "$FOLDER" --recursive --quiet || true
+
+          echo "✅ Finished deleting $FOLDER"
+
+      - name: Delete tracer installer releases s3
+        env:
+          S3_BUCKET: tracer-installer-releases
+          BRANCH_NAME: ${{ github.event.ref }}
+        run: |
+          FOLDER="s3://${S3_BUCKET}/${BRANCH_NAME}/"
+
           aws s3 rm "$FOLDER" --recursive --quiet || true
 
           echo "✅ Finished deleting $FOLDER"

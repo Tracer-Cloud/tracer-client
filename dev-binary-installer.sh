@@ -1,5 +1,5 @@
 #!/bin/bash
-# installer for the tracer installer github need to update based on dev installer
+# installer for the tracer installer using s3
 
 # Define emoji fallbacks
 EMOJI_SEARCH="🔍 "
@@ -14,7 +14,6 @@ if ! [[ "$TERM" =~ ^xterm.* || "$TERM" == "screen" ]]; then
   EMOJI_CLIPBOARD="[INFO] "
   EMOJI_PACKAGE="[DOWNLOAD] "
 fi
-
 
 # Determine OS and ARCH
 OS=$(uname -s)
@@ -67,29 +66,31 @@ send_sentry_alert() {
        -X POST "$url"
 }
 
-# Get optional user_id from the first positional argument
 USER_ID="$1"
+CLIENT_BRANCH="${CLI_BRANCH:-}"
+INSTALLER_BRANCH="${INS_BRANCH:-}"
+
 
 # Define binary name
 BINARY_NAME="tracer-installer"
 
-# Get the latest release version from GitHub API
-echo "🔍 Fetching latest release version..."
-VERSION=$(curl -s https://api.github.com/repos/Tracer-Cloud/tracer-client/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-
-if [[ -z "$VERSION" ]]; then
-    echo "❌ Failed to fetch latest version from GitHub API"
-    echo "🔄 Falling back to hardcoded version..."
-    VERSION="v2025.6.18+1"
+# S3 repository URL for dev releases
+if [[ -n "$INSTALLER_BRANCH" ]]; then
+  echo "Using installer branch: $INSTALLER_BRANCH"
+else
+  INSTALLER_BRANCH="main"
 fi
 
-REPO_URL="https://github.com/Tracer-Cloud/tracer-client/releases/download/${VERSION}/{$BINARY_NAME}"
+
+REPO_URL="https://tracer-installer-releases.s3.us-east-1.amazonaws.com/${INSTALLER_BRANCH}"
+
+
+
 
 # Map to download URL based on platform
 case "$OS" in
   Linux*)
-
-  # Check glibc version requirement (minimum 2.34)
+    # Check glibc version requirement (minimum 2.34)
     GLIBC_VERSION=$(ldd --version 2>&1 | head -n1 | grep -oE '[0-9]+\.[0-9]+' | head -n1)
 
     if [[ -z "$GLIBC_VERSION" ]]; then
@@ -102,7 +103,6 @@ case "$OS" in
 
     echo "${EMOJI_CLIPBOARD}Detected glibc version: $GLIBC_VERSION"
 
-    # Check if glibc is at least 2.34
     if [ "$GLIBC_MAJOR" -lt 2 ] || ([ "$GLIBC_MAJOR" -eq 2 ] && [ "$GLIBC_MINOR" -lt 34 ]); then
       send_sentry_alert "Unsupported glibc version: $GLIBC_VERSION on $OS_FULL." "info"
 
@@ -114,10 +114,10 @@ case "$OS" in
 
     case "$ARCH" in
       x86_64)
-        DOWNLOAD_URL="$REPO_URL-x86_64-unknown-linux-gnu.tar.gz"
+        DOWNLOAD_URL="$REPO_URL/x86_64-unknown-linux-gnu.tar.gz"
         ;;
       aarch64)
-        DOWNLOAD_URL="$REPO_URL-aarch64-unknown-linux-gnu.tar.gz"
+        DOWNLOAD_URL="$REPO_URL/aarch64-unknown-linux-gnu.tar.gz"
         ;;
       *)
         echo "Unsupported Linux architecture: $ARCH"
@@ -128,10 +128,10 @@ case "$OS" in
   Darwin*)
     case "$ARCH" in
       x86_64)
-        DOWNLOAD_URL="$REPO_URL-x86_64-apple-darwin.tar.gz"
+        DOWNLOAD_URL="$REPO_URL/x86_64-apple-darwin.tar.gz"
         ;;
       arm64)
-        DOWNLOAD_URL="$REPO_URL-aarch64-apple-darwin.tar.gz"
+        DOWNLOAD_URL="$REPO_URL/aarch64-apple-darwin.tar.gz"
         ;;
       *)
         echo "Unsupported macOS architecture: $ARCH"
@@ -141,6 +141,7 @@ case "$OS" in
     ;;
   *)
     echo "Unsupported operating system: $OS"
+    send_sentry_alert "Unsupported operating system: $OS_FULL." "info"
     exit 1
     ;;
 esac
@@ -152,22 +153,36 @@ EXTRACT_DIR="$TEMP_DIR/extracted"
 
 mkdir -p "$EXTRACT_DIR"
 echo "\n"
-echo "📦 Downloading Tracer Installer from: $DOWNLOAD_URL"
+echo "${EMOJI_PACKAGE}Downloading Tracer Installer from: $DOWNLOAD_URL"
 curl -L "$DOWNLOAD_URL" -o "$ARCHIVE_PATH" || {
-  echo "❌ Failed to download binary"
+  echo "${EMOJI_CANCEL}Failed to download binary"
+  send_sentry_alert "Failed to download binary from $DOWNLOAD_URL." "info"
   exit 1
 }
 
+
 tar -xzf "$ARCHIVE_PATH" -C "$EXTRACT_DIR" || {
-  echo "❌ Failed to extract archive"
+  echo "${EMOJI_CANCEL}Failed to extract archive"
   exit 1
 }
 
 chmod +x "$EXTRACT_DIR/$BINARY_NAME"
 
 # Run the binary with or without user ID
-if [[ -n "$USER_ID" ]]; then
-  sudo "$EXTRACT_DIR/$BINARY_NAME" run --user-id="$USER_ID"
+
+if command -v sudo >/dev/null 2>&1; then
+  INVOKER=(sudo)
+elif [[ $(id -u) -eq 0 ]]; then
+  INVOKER=()         # already root, no sudo needed
 else
-  sudo "$EXTRACT_DIR/$BINARY_NAME" run
+  echo "Rerun this script with root privileges or use sudo." >&2
+  exit 1
 fi
+
+cmd=("${INVOKER[@]}" "$EXTRACT_DIR/$BINARY_NAME" run)
+
+[[ -n "$CLIENT_BRANCH" ]] && cmd+=(--channel="$CLIENT_BRANCH")
+[[ -n "$USER_ID"      ]] && cmd+=(--user-id="$USER_ID")
+
+echo "${cmd[@]}"
+"${cmd[@]}"
