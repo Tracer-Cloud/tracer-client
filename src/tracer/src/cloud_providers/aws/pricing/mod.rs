@@ -37,6 +37,7 @@ impl PricingSource {
                 source: "Static".into(),
                 total_hourly_cost: 0.0,
                 cost_per_minute: 0.0,
+                ec2_pricing_best_matches: vec![],
             }),
             PricingSource::Live(client) => {
                 client

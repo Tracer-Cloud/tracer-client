@@ -151,6 +151,7 @@ impl PricingClient {
             total_hourly_cost: total,
             cost_per_minute: total / 60.0,
             source: "Live".to_string(),
+            ec2_pricing_best_matches: ec2_matches,
         })
     }
 

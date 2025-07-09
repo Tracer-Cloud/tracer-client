@@ -68,6 +68,8 @@ impl ApiPricingClient {
             total_hourly_cost: total,
             cost_per_minute: total / 60.0,
             source: "API".into(),
+            // TODO: api client should return best matches as well
+            ec2_pricing_best_matches: vec![],
         })
     }
 
