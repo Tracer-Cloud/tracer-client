@@ -136,17 +136,13 @@ fn get_process_environment_variables<P: ProcessTrait>(
     let mut trace_id = None;
 
     // Try to read environment variables
-    for process_environment_variable in &proc.environ() {
+    for (key, value) in proc.environ().iter().filter_map(|v| v.split_once('=')) {
         match (&job_id, &trace_id) {
-            (None, _) if process_environment_variable.starts_with(JOB_ID_KEY) => {
-                job_id = process_environment_variable
-                    .split_once('=')
-                    .map(|(_, value)| value.trim().to_string());
+            (None, _) if key == JOB_ID_KEY => {
+                job_id = Some(value.trim().to_string());
             }
-            (_, None) if process_environment_variable.starts_with(TRACE_ID_KEYS) => {
-                trace_id = process_environment_variable
-                    .split_once('=')
-                    .map(|(_, value)| value.trim().to_string());
+            (_, None) if key == TRACE_ID_KEYS => {
+                trace_id = Some(value.trim().to_string());
             }
             (Some(_), Some(_)) => break,
             _ => continue,
