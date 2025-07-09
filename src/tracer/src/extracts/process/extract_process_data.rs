@@ -79,136 +79,130 @@ impl ProcessTrait for sysinfo::Process {
     }
 }
 
-// Modified ExtractProcessData to work with the trait
-pub struct ExtractProcessData;
+pub async fn gather_process_data<P: ProcessTrait>(
+    proc: &P,
+    display_name: String,
+    process_start_time: DateTime<Utc>,
+    process_argv: Vec<String>,
+) -> ProcessProperties {
+    use tracing::debug;
+    debug!("Gathering process data for {}", display_name);
 
-impl ExtractProcessData {
-    /// Extracts environment variables related to containerization, jobs, and tracing
-    pub fn get_process_environment_variables<P: ProcessTrait>(
-        proc: &P,
-    ) -> (Option<String>, Option<String>, Option<String>) {
-        const JOB_ID_KEY: &str = "AWS_BATCH_JOB_ID";
-        const TRACE_ID_KEYS: &str = "TRACER_TRACE_ID";
+    // get the process environment variables
+    let (container_id, job_id, trace_id) = get_process_environment_variables(proc);
 
-        let mut job_id = None;
-        let mut trace_id = None;
+    // get the process working directory
+    let working_directory = proc.cwd().as_ref().map(|p| p.to_string_lossy().to_string());
 
-        // Try to read environment variables
-        for process_environment_variable in &proc.environ() {
-            match (&job_id, &trace_id) {
-                (None, _) if process_environment_variable.starts_with(JOB_ID_KEY) => {
-                    job_id = process_environment_variable
-                        .split_once('=')
-                        .map(|(_, value)| value.trim().to_string());
-                }
-                (_, None) if process_environment_variable.starts_with(TRACE_ID_KEYS) => {
-                    trace_id = process_environment_variable
-                        .split_once('=')
-                        .map(|(_, value)| value.trim().to_string());
-                }
-                (Some(_), Some(_)) => break,
-                _ => continue,
+    // calculate process run time in milliseconds
+    let process_run_time = (Utc::now() - process_start_time).num_milliseconds().max(0) as u64;
+
+    ProcessProperties::Full(FullProcessProperties {
+        tool_name: display_name,
+        tool_pid: proc.pid().as_u32().to_string(),
+        tool_parent_pid: proc.parent().unwrap_or(0.into()).to_string(),
+        tool_binary_path: proc
+            .exe()
+            .map(|path| path.as_os_str().to_str().unwrap_or("").to_string())
+            .unwrap_or_default(),
+        tool_cmd: proc.cmd().join(" "),
+        tool_args: process_argv.join(" "),
+        start_timestamp: process_start_time.to_rfc3339(),
+        process_cpu_utilization: proc.cpu_usage(),
+        process_run_time,
+        process_disk_usage_read_total: proc.disk_usage().total_read_bytes,
+        process_disk_usage_write_total: proc.disk_usage().total_written_bytes,
+        process_disk_usage_read_last_interval: proc.disk_usage().read_bytes,
+        process_disk_usage_write_last_interval: proc.disk_usage().written_bytes,
+        process_memory_usage: proc.memory(),
+        process_memory_virtual: proc.virtual_memory(),
+        process_status: process_status_to_string(&proc.status()),
+        container_id,
+        job_id,
+        working_directory,
+        trace_id,
+        container_event: None,
+    })
+}
+
+/// Extracts environment variables related to containerization, jobs, and tracing
+fn get_process_environment_variables<P: ProcessTrait>(
+    proc: &P,
+) -> (Option<String>, Option<String>, Option<String>) {
+    const JOB_ID_KEY: &str = "AWS_BATCH_JOB_ID";
+    const TRACE_ID_KEYS: &str = "TRACER_TRACE_ID";
+
+    let mut job_id = None;
+    let mut trace_id = None;
+
+    // Try to read environment variables
+    for process_environment_variable in &proc.environ() {
+        match (&job_id, &trace_id) {
+            (None, _) if process_environment_variable.starts_with(JOB_ID_KEY) => {
+                job_id = process_environment_variable
+                    .split_once('=')
+                    .map(|(_, value)| value.trim().to_string());
             }
+            (_, None) if process_environment_variable.starts_with(TRACE_ID_KEYS) => {
+                trace_id = process_environment_variable
+                    .split_once('=')
+                    .map(|(_, value)| value.trim().to_string());
+            }
+            (Some(_), Some(_)) => break,
+            _ => continue,
+        }
+    }
+
+    let container_id = get_container_id_from_cgroup(proc.pid().as_u32());
+
+    trace!("Got container_ID from cgroup: {:?}", container_id);
+
+    (container_id, job_id, trace_id)
+}
+
+/// Extracts the container ID (if any) from a process's cgroup file
+/// Returns `Some(container_id)` if found, else `None`
+fn get_container_id_from_cgroup(pid: u32) -> Option<String> {
+    tracing::error!("Calling get_container id for pid: {}\n\n", pid);
+
+    let cgroup_path = PathBuf::from(format!("/proc/{}/cgroup", pid));
+    let content = std::fs::read_to_string(cgroup_path).ok()?;
+
+    tracing::error!("Got content : {}\n\n", &content);
+
+    for line in content.lines() {
+        // cgroup v1 format: <hierarchy_id>:<controllers>:<path>
+        // cgroup v2 format (single unified hierarchy): 0::/path
+        let fields: Vec<&str> = line.split(':').collect();
+        if fields.len() != 3 {
+            continue;
         }
 
-        let container_id = Self::get_container_id_from_cgroup(proc.pid().as_u32());
+        let path = fields[2];
 
-        trace!("Got container_ID from cgroup: {:?}", container_id);
+        // Try to match full container ID (64 hex chars)
+        if let Some(id) = path
+            .split('/')
+            .find(|part| part.len() == 64 && part.chars().all(|c| c.is_ascii_hexdigit()))
+        {
+            return Some(id.to_string());
+        }
 
-        (container_id, job_id, trace_id)
-    }
-
-    pub async fn gather_process_data<P: ProcessTrait>(
-        proc: &P,
-        display_name: String,
-        process_start_time: DateTime<Utc>,
-        process_argv: Vec<String>,
-    ) -> ProcessProperties {
-        use tracing::debug;
-        debug!("Gathering process data for {}", display_name);
-
-        // get the process environment variables
-        let (container_id, job_id, trace_id) =
-            ExtractProcessData::get_process_environment_variables(proc);
-
-        // get the process working directory
-        let working_directory = proc.cwd().as_ref().map(|p| p.to_string_lossy().to_string());
-
-        // calculate process run time in milliseconds
-        let process_run_time = (Utc::now() - process_start_time).num_milliseconds().max(0) as u64;
-
-        ProcessProperties::Full(Box::new(FullProcessProperties {
-            tool_name: display_name,
-            tool_pid: proc.pid().as_u32().to_string(),
-            tool_parent_pid: proc.parent().unwrap_or(0.into()).to_string(),
-            tool_binary_path: proc
-                .exe()
-                .map(|path| path.as_os_str().to_str().unwrap_or("").to_string())
-                .unwrap_or_default(),
-            tool_cmd: proc.cmd().join(" "),
-            tool_args: process_argv.join(" "),
-            start_timestamp: process_start_time.to_rfc3339(),
-            process_cpu_utilization: proc.cpu_usage(),
-            process_run_time,
-            process_disk_usage_read_total: proc.disk_usage().total_read_bytes,
-            process_disk_usage_write_total: proc.disk_usage().total_written_bytes,
-            process_disk_usage_read_last_interval: proc.disk_usage().read_bytes,
-            process_disk_usage_write_last_interval: proc.disk_usage().written_bytes,
-            process_memory_usage: proc.memory(),
-            process_memory_virtual: proc.virtual_memory(),
-            process_status: process_status_to_string(&proc.status()),
-            container_id,
-            job_id,
-            working_directory,
-            trace_id,
-            container_event: None,
-        }))
-    }
-
-    /// Extracts the container ID (if any) from a process's cgroup file
-    /// Returns `Some(container_id)` if found, else `None`
-    pub fn get_container_id_from_cgroup(pid: u32) -> Option<String> {
-        tracing::error!("Calling get_container id for pid: {}\n\n", pid);
-
-        let cgroup_path = PathBuf::from(format!("/proc/{}/cgroup", pid));
-        let content = std::fs::read_to_string(cgroup_path).ok()?;
-
-        tracing::error!("Got content : {}\n\n", &content);
-
-        for line in content.lines() {
-            // cgroup v1 format: <hierarchy_id>:<controllers>:<path>
-            // cgroup v2 format (single unified hierarchy): 0::/path
-            let fields: Vec<&str> = line.split(':').collect();
-            if fields.len() != 3 {
-                continue;
-            }
-
-            let path = fields[2];
-
-            // Try to match full container ID (64 hex chars)
-            if let Some(id) = path
-                .split('/')
-                .find(|part| part.len() == 64 && part.chars().all(|c| c.is_ascii_hexdigit()))
-            {
+        // Fallback: check for systemd slice format: docker-<container_id>.scope
+        if let Some(slice) = path
+            .split('/')
+            .find(|part| part.starts_with("docker-") && part.ends_with(".scope"))
+        {
+            let id = slice
+                .trim_start_matches("docker-")
+                .trim_end_matches(".scope");
+            if id.len() == 64 && id.chars().all(|c| c.is_ascii_hexdigit()) {
                 return Some(id.to_string());
             }
-
-            // Fallback: check for systemd slice format: docker-<container_id>.scope
-            if let Some(slice) = path
-                .split('/')
-                .find(|part| part.starts_with("docker-") && part.ends_with(".scope"))
-            {
-                let id = slice
-                    .trim_start_matches("docker-")
-                    .trim_end_matches(".scope");
-                if id.len() == 64 && id.chars().all(|c| c.is_ascii_hexdigit()) {
-                    return Some(id.to_string());
-                }
-            }
         }
-
-        None
     }
+
+    None
 }
 
 #[cfg(test)]
@@ -238,8 +232,7 @@ mod tests {
 
         mock_process.expect_pid().return_const(Pid::from(1234));
 
-        let (container_id, job_id, trace_id) =
-            ExtractProcessData::get_process_environment_variables(&mock_process);
+        let (container_id, job_id, trace_id) = get_process_environment_variables(&mock_process);
 
         assert_eq!(container_id, None);
         assert_eq!(job_id, Some("job-12345".to_string()));
@@ -263,8 +256,7 @@ mod tests {
 
         mock_process.expect_pid().return_const(Pid::from(1234));
 
-        let (_container_id, job_id, trace_id) =
-            ExtractProcessData::get_process_environment_variables(&mock_process);
+        let (_container_id, job_id, trace_id) = get_process_environment_variables(&mock_process);
 
         // assert_eq!(container_id, None);
         assert_eq!(job_id, Some("job-67890".to_string()));
@@ -288,8 +280,7 @@ mod tests {
 
         mock_process.expect_pid().return_const(Pid::from(1234));
 
-        let (container_id, job_id, trace_id) =
-            ExtractProcessData::get_process_environment_variables(&mock_process);
+        let (container_id, job_id, trace_id) = get_process_environment_variables(&mock_process);
 
         assert_eq!(container_id, None);
         assert_eq!(job_id, None);
@@ -313,8 +304,7 @@ mod tests {
             .return_const(process_environment_variables);
         mock_process.expect_pid().return_const(Pid::from(1234));
 
-        let (container_id, job_id, trace_id) =
-            ExtractProcessData::get_process_environment_variables(&mock_process);
+        let (container_id, job_id, trace_id) = get_process_environment_variables(&mock_process);
 
         assert_eq!(container_id, None);
         assert_eq!(job_id, Some("job-valid".to_string()));
@@ -371,7 +361,7 @@ mod tests {
         let display_name = "Test Application".to_string();
         let process_start_time = Utc::now() - Duration::seconds(30);
 
-        let result = ExtractProcessData::gather_process_data(
+        let result = gather_process_data(
             &mock_process,
             display_name.clone(),
             process_start_time,
@@ -440,7 +430,7 @@ mod tests {
         let display_name = "Minimal App".to_string();
         let process_start_time = Utc::now();
 
-        let result = ExtractProcessData::gather_process_data(
+        let result = gather_process_data(
             &mock_process,
             display_name.clone(),
             process_start_time,
@@ -498,13 +488,8 @@ mod tests {
         // Set start time to 5 minutes ago
         let process_start_time = Utc::now() - Duration::minutes(5);
 
-        let result = ExtractProcessData::gather_process_data(
-            &mock_process,
-            display_name,
-            process_start_time,
-            Vec::new(),
-        )
-        .await;
+        let result =
+            gather_process_data(&mock_process, display_name, process_start_time, Vec::new()).await;
 
         match result {
             ProcessProperties::Full(props) => {
