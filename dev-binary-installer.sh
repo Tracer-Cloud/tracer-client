@@ -197,9 +197,3 @@ fi
 
 echo "$cmd"
 eval "$cmd"
-
-if [ -n "$BASH_VERSION" ]; then
-    . ~/.bashrc
-elif [ -n "$ZSH_VERSION" ]; then
-    . ~/.zshrc
-fi
