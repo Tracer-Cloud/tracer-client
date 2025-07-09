@@ -53,6 +53,10 @@ impl ApiPricingClient {
                 price_per_gib: None,
                 price_per_iops: None,
                 price_per_throughput: None,
+
+                ebs_optimized: None,
+                operating_system: None,
+                tenancy: None,
             },
             ebs_pricing: Some(FlattenedData {
                 instance_type: "EBS_TOTAL".into(),
@@ -64,6 +68,10 @@ impl ApiPricingClient {
                 price_per_gib: None,
                 price_per_iops: None,
                 price_per_throughput: None,
+
+                ebs_optimized: None,
+                operating_system: None,
+                tenancy: None,
             }),
             total_hourly_cost: total,
             cost_per_minute: total / 60.0,

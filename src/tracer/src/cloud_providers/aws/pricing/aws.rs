@@ -16,6 +16,7 @@ use crate::cloud_providers::aws::types::pricing::{
 const HOURS_IN_MONTH: f64 = 720.0;
 const FREE_IOPS: i32 = 3000;
 const FREE_THROUGHPUT_MBPS: i32 = 125;
+const TOP_N_EC2_RESULTS: usize = 2;
 
 /// Client for interacting with AWS Pricing API
 pub struct PricingClient {
@@ -110,7 +111,16 @@ impl PricingClient {
 
         let engine = EC2MatchEngine::new(filterable_data.clone(), ec2_raw);
 
-        let ec2_matches = engine.best_matches(2);
+        let ec2_matches: Vec<FlattenedData> = engine
+            .best_matches(TOP_N_EC2_RESULTS)
+            .into_iter()
+            .map(|mut data| {
+                data.tenancy = filterable_data.tenancy.clone();
+                data.operating_system = filterable_data.operating_system.clone();
+                data.ebs_optimized = filterable_data.ebs_optimized;
+                data
+            })
+            .collect();
 
         let ec2_data = ec2_matches
             .first()
@@ -138,6 +148,10 @@ impl PricingClient {
                 price_per_gib: None,
                 price_per_iops: None,
                 price_per_throughput: None,
+
+                ebs_optimized: None,
+                operating_system: None,
+                tenancy: None,
             })
         } else {
             None
@@ -200,9 +214,17 @@ impl PricingClient {
     async fn calculate_volume_cost(&self, region: &str, vol: &VolumeMetadata) -> Option<f64> {
         let filters = Self::build_ebs_filters(region, &vol.volume_type);
 
+        tracing::info!("ebs_filters... {:?}", filters);
+
         let price_entries = self
             .retry_fetch_all::<EbsPricingData>(ServiceCode::Ebs, Some(filters))
             .await?;
+
+        tracing::info!(
+            "price_entries... {:?}, length..{}",
+            price_entries,
+            price_entries.len()
+        );
 
         let price_data = price_entries
             .into_iter()

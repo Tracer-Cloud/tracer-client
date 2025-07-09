@@ -28,6 +28,11 @@ pub struct FlattenedData {
     pub price_per_unit: f64,
     pub unit: String,
 
+    // more context
+    pub tenancy: Option<String>,
+    pub operating_system: Option<String>,
+    pub ebs_optimized: Option<bool>,
+
     // EBS-specific extensions
     pub price_per_gib: Option<f64>,
     pub price_per_iops: Option<f64>,
@@ -76,6 +81,11 @@ impl FlattenedData {
             memory: data.memory.clone(),
             price_per_unit,
             unit,
+
+            ebs_optimized: None,
+            operating_system: None,
+            tenancy: None,
+
             // explicitly None for EBS-only fields
             price_per_gib: None,
             price_per_iops: None,
@@ -136,6 +146,10 @@ impl FlattenedData {
             price_per_gib,
             price_per_iops,
             price_per_throughput,
+
+            ebs_optimized: None,
+            operating_system: None,
+            tenancy: None,
         }
     }
     /// Returns the EC2 price in USD per minute.
