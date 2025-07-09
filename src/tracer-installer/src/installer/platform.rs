@@ -95,11 +95,11 @@ impl PlatformInfo {
     pub fn print_summary(&self) {
         print_step(
             "Operating System",
-            StepStatus::Custom(Emoji("🐧", "[OS]"), self.full_os.as_str()),
+            StepStatus::Custom(Emoji("🐧 ", "[OS]"), self.full_os.as_str()),
         );
         print_step(
             "Architecture",
-            StepStatus::Custom(Emoji("💻", "[ARCH]"), &format!("{:?}", self.arch)),
+            StepStatus::Custom(Emoji("💻 ", "[ARCH]"), &format!("{:?}", self.arch)),
         );
         let sys = System::new_all();
 
@@ -108,11 +108,11 @@ impl PlatformInfo {
         let cores = sys.cpus().len();
         print_step(
             "CPU Cores",
-            StepStatus::Custom(Emoji("⚙️", "[CPU]"), &format!("{}", cores)),
+            StepStatus::Custom(Emoji("⚙️ ", "[CPU]"), &format!("{}", cores)),
         );
         print_step(
             "Total RAM",
-            StepStatus::Custom(Emoji("💾", "[RAM]"), &format!("{:.2} GiB", total_mem_gib)),
+            StepStatus::Custom(Emoji("💾 ", "[RAM]"), &format!("{:.2} GiB", total_mem_gib)),
         );
     }
 }

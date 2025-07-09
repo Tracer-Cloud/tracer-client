@@ -6,26 +6,22 @@ This page provides additional notes for developers installing and testing Tracer
 
 ## Installing Tracer With One Line of Code
 
-Install Tracer with this single command:
+Install Tracer from the `main` branch:
 
 ```bash
 curl -sSL https://install.tracer.cloud/ | sudo bash && source ~/.bashrc && source ~/.zshrc
 ```
 
+Install Tracer from a custom branch, e.g. `custom-client` (Requires branch to be a pull request):
+
 ```bash
-curl -sSL https://install.tracer.cloud/installation-script-development.sh | sudo bash && source ~/.bashrc && source ~/.zshrc
+curl -sSL https://install.tracer.cloud/ | sudo CLI_BRANCH="custom-client" bash && source ~/.bashrc
 ```
 
-To get the binary corresponding to the `main` branch you just have to put `-s main` after the bash command like in the following example
+Use Installer from a custom branch, e.g. `custom-installer` (Requires branch to be a pull request):
 
 ```bash
-curl -sSL https://install.tracer.cloud/installation-script-development.sh | sudo bash -s main && source ~/.bashrc
-```
-
-To get your pr binary use `bash -s <branch-name>` like in the following example
-
-```bash
-curl -sSL https://install.tracer.cloud/installation-script-development.sh | sudo bash -s feature/my-branch && source ~/.bashrc
+curl -sSL https://install.tracer.cloud/ | sudo INS_BRANCH="custom-installer" bash && source ~/.bashrc
 ```
 
 Click the 'Open In Github Codespaces' button to use GitHub Codespaces.

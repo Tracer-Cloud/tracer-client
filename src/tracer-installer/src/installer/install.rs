@@ -93,7 +93,7 @@ impl Installer {
             .await
             .context("Failed to initiate download")?
             .error_for_status()
-            .context("Download request failed")?;
+            .context("Download request failed, file not found")?;
 
         let total = response.content_length().unwrap_or(0);
 
