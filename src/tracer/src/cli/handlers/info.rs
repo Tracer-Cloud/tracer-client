@@ -124,6 +124,7 @@ impl InfoDisplay {
 
         formatter.add_empty_line();
         formatter.add_section_header("Run details");
+        formatter.add_empty_line();
 
         formatter.add_field("Run name", &inner.run_name, "cyan");
         formatter.add_field("Run ID", &inner.run_id, "white");
@@ -174,5 +175,6 @@ impl InfoDisplay {
         formatter.add_field("Standard output", &format!("  {}", STDOUT_FILE), "white");
         formatter.add_field("Err output", &format!("  {}", STDERR_FILE), "white");
         formatter.add_field("Daemon output", &format!("  {}", LOG_FILE), "white");
+        formatter.add_empty_line();
     }
 }
