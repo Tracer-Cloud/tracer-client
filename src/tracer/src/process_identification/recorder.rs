@@ -77,7 +77,10 @@ mod tests {
         let (tx, _rx) = mpsc::channel(10);
 
         let recorder = LogRecorder::new(pipeline, tx);
-        assert!(recorder.pipeline.read().await.pipeline_name == "test_pipeline");
+        assert_eq!(
+            recorder.pipeline.read().await.pipeline_name,
+            "test_pipeline"
+        );
     }
 
     #[tokio::test]
