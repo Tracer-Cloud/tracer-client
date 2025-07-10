@@ -95,3 +95,4 @@ bollard = "0.19.0"
 built = { version = "0.8.0", features = ["chrono", "git2"] }
 multi_index_map = "0.15.0"
 tokio-retry = "0.3.0"
+termion= "4.0.5"
