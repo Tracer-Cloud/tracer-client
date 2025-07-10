@@ -17,26 +17,45 @@ pub struct InstancePricingContext {
     pub source: String, // "Live" or "Static"
     pub cost_per_minute: f64,
     pub ec2_pricing_best_matches: Vec<FlattenedData>,
+
+    #[serde(rename = "matchConfidence")]
+    pub match_confidence: Option<f64>,
 }
 
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct FlattenedData {
+    #[serde(rename = "instanceType")]
     pub instance_type: String,
+
+    #[serde(rename = "regionCode")]
     pub region_code: String,
+
     pub vcpu: String,
     pub memory: String,
-    pub price_per_unit: f64,
-    pub unit: String,
 
-    // more context
+    #[serde(rename = "pricePerUnit")]
+    pub price_per_unit: f64,
+
+    pub unit: String,
     pub tenancy: Option<String>,
+
+    #[serde(rename = "operatingSystem")]
     pub operating_system: Option<String>,
+
+    #[serde(rename = "ebsOptimized")]
     pub ebs_optimized: Option<bool>,
 
-    // EBS-specific extensions
+    #[serde(rename = "pricePerGib")]
     pub price_per_gib: Option<f64>,
+
+    #[serde(rename = "pricePerIops")]
     pub price_per_iops: Option<f64>,
+
+    #[serde(rename = "pricePerThroughput")]
     pub price_per_throughput: Option<f64>,
+
+    #[serde(rename = "matchPercentage")]
+    pub match_percentage: Option<f64>,
 }
 
 impl FlattenedData {
@@ -90,6 +109,8 @@ impl FlattenedData {
             price_per_gib: None,
             price_per_iops: None,
             price_per_throughput: None,
+
+            match_percentage: None,
         }
     }
 
@@ -150,6 +171,7 @@ impl FlattenedData {
             ebs_optimized: None,
             operating_system: None,
             tenancy: None,
+            match_percentage: None,
         }
     }
     /// Returns the EC2 price in USD per minute.

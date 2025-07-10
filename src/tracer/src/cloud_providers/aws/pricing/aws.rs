@@ -158,12 +158,14 @@ impl PricingClient {
                 ebs_optimized: None,
                 operating_system: None,
                 tenancy: None,
+                match_percentage: None,
             })
         } else {
             None
         };
 
         let total = ec2_data.price_per_unit + ebs_total_price;
+        let best_match_score = ec2_matches.first().and_then(|m| m.match_percentage);
 
         Some(InstancePricingContext {
             ec2_pricing: ec2_data,
@@ -172,6 +174,7 @@ impl PricingClient {
             cost_per_minute: total / 60.0,
             source: "Live".to_string(),
             ec2_pricing_best_matches: ec2_matches,
+            match_confidence: best_match_score,
         })
     }
 

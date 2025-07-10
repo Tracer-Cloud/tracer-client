@@ -60,6 +60,7 @@ impl EC2MatchEngine {
         Self { target, candidates }
     }
     pub fn best_matches(&self, top_n: usize) -> Vec<FlattenedData> {
+        let max_score = self.max_score();
         let mut scored: Vec<(u8, &PricingData)> = self
             .candidates
             .iter()
@@ -81,7 +82,11 @@ impl EC2MatchEngine {
         scored
             .into_iter()
             .take(top_n)
-            .map(|(_, p)| FlattenedData::flatten_data(p))
+            .map(|(score, p)| {
+                let mut flattened = FlattenedData::flatten_data(p);
+                flattened.match_percentage = Some((score as f64 / max_score as f64) * 100.0);
+                flattened
+            })
             .collect()
     }
 
@@ -128,5 +133,17 @@ impl EC2MatchEngine {
         ]
         .iter()
         .all(|field| self.field_matches(field.clone(), p))
+    }
+
+    fn max_score(&self) -> u8 {
+        [
+            MatchField::Region,
+            MatchField::InstanceType,
+            MatchField::Tenancy,
+            MatchField::OperatingSystem,
+        ]
+        .iter()
+        .map(|f| f.score())
+        .sum()
     }
 }

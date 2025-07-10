@@ -63,8 +63,7 @@ impl EC2FilterBuilder {
         Self {
             instance_type: details.instance_type,
             region: details.region,
-            // TODO: remove static tenancy filter now that matching engine matches via tenancy
-            tenancy: Some("Shared".to_string()), // Always override to Shared
+            tenancy: details.tenancy,
             vcpu: details.vcpu,
             operating_system: match details.operating_system.as_deref() {
                 Some(s) if s.contains("Linux") => Some("Linux".to_string()),
@@ -97,17 +96,6 @@ impl EC2FilterBuilder {
                 .build()
                 .expect("failed to build regionCode filter"),
         ];
-
-        if let Some(ref tenancy) = self.tenancy {
-            filters.push(
-                PricingFilters::builder()
-                    .field("tenancy".to_string())
-                    .value(tenancy.clone())
-                    .r#type(PricingFilterType::TermMatch)
-                    .build()
-                    .expect("failed to build tenancy filter"),
-            );
-        }
 
         if let Some(ref vcpu) = self.vcpu {
             filters.push(

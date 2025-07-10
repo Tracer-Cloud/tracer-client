@@ -10,15 +10,23 @@ const EC2_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/aws/pricing/ec2";
 const EBS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/aws/pricing/ebs";
 
 #[derive(Debug, Deserialize)]
-struct Ec2ApiResponse {
-    instance_type: String,
-    region: String,
-    price_per_hour_usd: f64,
+pub struct Ec2ApiResponse {
+    #[serde(rename = "instanceType")]
+    pub instance_type: String,
+
+    #[serde(rename = "region")]
+    pub region: String,
+
+    #[serde(rename = "bestPriceUsd")]
+    pub best_price_usd: f64,
+
+    #[serde(rename = "topMatches")]
+    pub top_matches: Vec<FlattenedData>,
 }
 
 #[derive(Debug, Deserialize)]
-struct EbsApiResponse {
-    total_ebs_price_usd: f64,
+pub struct EbsApiResponse {
+    pub total_ebs_price_usd: f64,
 }
 
 pub struct ApiPricingClient {
@@ -40,23 +48,28 @@ impl ApiPricingClient {
         let ebs = self.fetch_ebs_price(metadata).await.unwrap_or(0.0);
 
         let ec2_data = ec2?;
-        let total = ec2_data.price_per_hour_usd + ebs;
+        let total = ec2_data.best_price_usd + ebs;
+
+        // Use the top match as the primary EC2 pricing (if available)
+        let top = ec2_data.top_matches.first()?.clone();
+        let best_match_score = top.match_percentage;
 
         Some(InstancePricingContext {
             ec2_pricing: FlattenedData {
                 instance_type: ec2_data.instance_type,
                 region_code: ec2_data.region,
-                vcpu: "".into(),
-                memory: "".into(),
-                price_per_unit: ec2_data.price_per_hour_usd,
-                unit: "USD/hr".into(),
-                price_per_gib: None,
-                price_per_iops: None,
-                price_per_throughput: None,
+                vcpu: top.vcpu,
+                memory: top.memory,
+                price_per_unit: ec2_data.best_price_usd,
+                unit: top.unit,
+                tenancy: top.tenancy,
+                operating_system: top.operating_system,
+                ebs_optimized: top.ebs_optimized,
 
-                ebs_optimized: None,
-                operating_system: None,
-                tenancy: None,
+                price_per_gib: top.price_per_gib,
+                price_per_iops: top.price_per_iops,
+                price_per_throughput: top.price_per_throughput,
+                match_percentage: top.match_percentage,
             },
             ebs_pricing: Some(FlattenedData {
                 instance_type: "EBS_TOTAL".into(),
@@ -72,12 +85,13 @@ impl ApiPricingClient {
                 ebs_optimized: None,
                 operating_system: None,
                 tenancy: None,
+                match_percentage: None,
             }),
             total_hourly_cost: total,
             cost_per_minute: total / 60.0,
             source: "API".into(),
-            // TODO: api client should return best matches as well
-            ec2_pricing_best_matches: vec![],
+            ec2_pricing_best_matches: ec2_data.top_matches,
+            match_confidence: best_match_score,
         })
     }
 

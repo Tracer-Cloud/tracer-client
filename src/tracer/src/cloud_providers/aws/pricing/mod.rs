@@ -38,6 +38,7 @@ impl PricingSource {
                 total_hourly_cost: 0.0,
                 cost_per_minute: 0.0,
                 ec2_pricing_best_matches: vec![],
+                match_confidence: None,
             }),
             PricingSource::Live(client) => {
                 client
