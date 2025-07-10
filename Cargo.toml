@@ -12,67 +12,45 @@ repository = "https://github.com/Tracer-Cloud/tracer-client/"
 
 [workspace.dependencies]
 tracer = { path = "src/tracer" }
-
-
 anyhow = "1.0.98"
+aws-config = { version = "1.6.3", features = ["behavior-version-latest"] }
+aws-credential-types = "1.2.2"
+aws-sdk-pricing = "1.74.0"
+aws-sdk-s3 = "1.91.0"
+aws-sdk-secretsmanager = "1.76.0"
+axum = "0.8.3"
+bollard = "0.19.0"
+built = { version = "0.8.0", features = ["chrono", "git2"] }
 chrono = { version = "0.4.38", features = ["serde"] }
 clap = { version = "4.5.39", features = ["derive"] }
+colored = "3.0.0"
+config = { version = "0.15.11", default-features = false, features = [
+    "toml",
+    "convert-case",
+] }
+console = "0.15.11"
 daemonize = "0.5"
+dialoguer = "0.11.0"
+dirs = "6.0.0"
+dotenv = "0.15"
+ec2_instance_metadata = "0.3.0"
+futures-util = "0.3"
+itertools = "0.14.0"
 log = "0.4.21"
+mockall = "0.13.1"
+multi_index_map = "0.15.0"
 octocrab = "0.44.0"
+percent-encoding = "2.3.1"
+pretty_assertions_sorted = "1.2.3"
+rand = "0.9.1"
+regex = "1.0"
 reqwest = { version = "0.12.13", default-features = false, features = [
     "json",
     "rustls-tls",
     "stream",
 ] }
-serde = { version = "1.0", features = ["std", "derive", "serde_derive"] }
-serde_json = "1.0.117"
-sysinfo = "0.30"
-tokio = { version = "1.45.0", features = ["full"] }
-tokio-util = "0.7.15"
-toml = "0.8.23"
-tracing = { version = "0.1.40" }
-tracing-appender = "0.2"
-sqlx = { version = "0.8.3", features = [
-    "runtime-tokio-rustls",
-    "postgres",
-    "chrono",
-] }
-
-ec2_instance_metadata = "0.3.0"
-rand = "0.9.1"
-uuid = { version = "1.17.0", features = [
-    "v4",
-    "fast-rng",
-    "macro-diagnostics",
-] }
-
-
-aws-config = { version = "1.6.3", features = ["behavior-version-latest"] }
-aws-sdk-pricing = "1.74.0"
-aws-sdk-s3 = "1.91.0"
-aws-credential-types = "1.2.2"
-aws-sdk-secretsmanager = "1.76.0"
-
-tracing-subscriber = { version = "0.3.18", features = [
-    "env-filter",
-    "json",
-    "time",
-    "local-time",
-] }
-dirs = "6.0.0"
-serde-query = "0.2.0"
-itertools = "0.14.0"
-percent-encoding = "2.3.1"
-colored = "3.0.0"
-axum = "0.8.3"
-tempfile = "3.20.0"
-config = { version = "0.15.11", default-features = false, features = [
-    "toml",
-    "convert-case",
-] }
-serial_test = "3.1.1"
-dotenv = "0.15"
+rstest = "0.25.0"
+rustls = { version = "0.23.28", features = ["ring"] }
 sentry = { version = "0.41.0", default-features = false, features = [
     "anyhow",
     "backtrace",
@@ -80,18 +58,34 @@ sentry = { version = "0.41.0", default-features = false, features = [
     "rustls",
     "panic",
 ] }
-rstest = "0.25.0"
-typed-builder = "0.21.0"
-futures-util = "0.3"
-dialoguer = "0.11.0"
-console = "0.15.11"
-mockall = "0.13.1"
-regex = "1.0"
-rustls = { version = "0.23.28", features = ["ring"] }
+serial_test = "3.1.1"
+serde = { version = "1.0", features = ["std", "derive", "serde_derive"] }
+serde-query = "0.2.0"
+serde_json = "1.0.117"
 shlex = "1.3.0"
-yaml-rust2 = "0.10.3"
-pretty_assertions_sorted = "1.2.3"
-bollard = "0.19.0"
-built = { version = "0.8.0", features = ["chrono", "git2"] }
-multi_index_map = "0.15.0"
+sqlx = { version = "0.8.3", features = [
+    "runtime-tokio-rustls",
+    "postgres",
+    "chrono",
+] }
+sysinfo = "0.30"
+tempfile = "3.20.0"
+tokio = { version = "1.45.0", features = ["full"] }
 tokio-retry = "0.3.0"
+tokio-util = "0.7.15"
+toml = "0.8.23"
+tracing = { version = "0.1.40" }
+tracing-appender = "0.2"
+tracing-subscriber = { version = "0.3.18", features = [
+    "env-filter",
+    "json",
+    "time",
+    "local-time",
+] }
+typed-builder = "0.21.0"
+uuid = { version = "1.17.0", features = [
+    "v4",
+    "fast-rng",
+    "macro-diagnostics",
+] }
+yaml-rust2 = "0.10.3"
