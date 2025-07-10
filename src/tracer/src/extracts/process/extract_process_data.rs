@@ -98,7 +98,7 @@ pub async fn gather_process_data<P: ProcessTrait>(
     // calculate process run time in milliseconds
     let process_run_time = (Utc::now() - process_start_time).num_milliseconds().max(0) as u64;
 
-    ProcessProperties::Full(FullProcessProperties {
+    ProcessProperties::Full(Box::new(FullProcessProperties {
         tool_name: display_name,
         tool_pid: proc.pid().as_u32().to_string(),
         tool_parent_pid: proc.parent().unwrap_or(0.into()).to_string(),
@@ -123,7 +123,7 @@ pub async fn gather_process_data<P: ProcessTrait>(
         working_directory,
         trace_id,
         container_event: None,
-    })
+    }))
 }
 
 /// Creates properties for a short-lived process that wasn't found in the system
@@ -131,7 +131,7 @@ pub fn create_short_lived_process_object(
     process: &ProcessStartTrigger,
     display_name: String,
 ) -> ProcessProperties {
-    ProcessProperties::Full(FullProcessProperties {
+    ProcessProperties::Full(Box::new(FullProcessProperties {
         tool_name: display_name,
         tool_pid: process.pid.to_string(),
         tool_parent_pid: process.ppid.to_string(),
@@ -153,7 +153,7 @@ pub fn create_short_lived_process_object(
         working_directory: None,
         trace_id: None,
         container_event: None,
-    })
+    }))
 }
 
 /// Extracts environment variables related to containerization, jobs, and tracing
