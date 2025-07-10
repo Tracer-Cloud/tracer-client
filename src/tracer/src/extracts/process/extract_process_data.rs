@@ -6,6 +6,7 @@ use chrono::{DateTime, Utc};
 use mockall::automock;
 use std::path::PathBuf;
 use sysinfo::{DiskUsage, Pid, ProcessStatus};
+use tracing::trace;
 
 // Create a trait that wraps the Process methods we need
 #[automock]
@@ -28,64 +29,83 @@ impl ProcessTrait for sysinfo::Process {
     fn environ(&self) -> Vec<String> {
         self.environ().to_vec()
     }
+
     fn cwd(&self) -> Option<PathBuf> {
         self.cwd().map(|p| p.to_path_buf())
     }
+
     fn pid(&self) -> Pid {
         self.pid()
     }
+
     fn parent(&self) -> Option<Pid> {
         self.parent()
     }
+
     fn exe(&self) -> Option<PathBuf> {
         self.exe().map(|p| p.to_path_buf())
     }
+
     fn cmd(&self) -> Vec<String> {
         self.cmd().to_vec()
     }
+
     fn cpu_usage(&self) -> f32 {
         self.cpu_usage()
     }
+
     fn disk_usage(&self) -> DiskUsage {
         self.disk_usage()
     }
+
     fn memory(&self) -> u64 {
         self.memory()
     }
+
     fn virtual_memory(&self) -> u64 {
         self.virtual_memory()
     }
+
     fn status(&self) -> ProcessStatus {
         self.status()
     }
 }
 
 // Modified ExtractProcessData to work with the trait
-pub struct ExtractProcessData {}
+pub struct ExtractProcessData;
 
 impl ExtractProcessData {
     /// Extracts environment variables related to containerization, jobs, and tracing
     pub fn get_process_environment_variables<P: ProcessTrait>(
         proc: &P,
     ) -> (Option<String>, Option<String>, Option<String>) {
-        // let mut container_id = None;
+        const JOB_ID_KEY: &str = "AWS_BATCH_JOB_ID";
+        const TRACE_ID_KEYS: &str = "TRACER_TRACE_ID";
+
         let mut job_id = None;
         let mut trace_id = None;
 
         // Try to read environment variables
         for process_environment_variable in &proc.environ() {
-            if let Some((key, value)) = process_environment_variable.split_once('=') {
-                match key {
-                    "AWS_BATCH_JOB_ID" => job_id = Some(value.to_string()),
-                    // "HOSTNAME" => container_id = Some(value.to_string()), // deprecating ..
-                    "TRACER_TRACE_ID" => trace_id = Some(value.to_string()),
-                    _ => continue,
+            match (&job_id, &trace_id) {
+                (None, _) if process_environment_variable.starts_with(JOB_ID_KEY) => {
+                    job_id = process_environment_variable
+                        .split_once('=')
+                        .map(|(_, value)| value.trim().to_string());
                 }
+                (_, None) if process_environment_variable.starts_with(TRACE_ID_KEYS) => {
+                    trace_id = process_environment_variable
+                        .split_once('=')
+                        .map(|(_, value)| value.trim().to_string());
+                }
+                (Some(_), Some(_)) => break,
+                _ => continue,
             }
         }
+
         let container_id = Self::get_container_id_from_cgroup(proc.pid().as_u32());
 
-        tracing::error!("Got container_ID from cgroup: {:?}", container_id);
+        trace!("Got container_ID from cgroup: {:?}", container_id);
 
         (container_id, job_id, trace_id)
     }

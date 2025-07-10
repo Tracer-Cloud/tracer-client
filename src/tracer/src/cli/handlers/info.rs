@@ -1,5 +1,6 @@
 use crate::daemon::client::DaemonClient;
 use anyhow::Result;
+
 pub async fn info(api_client: &DaemonClient, json: bool) -> Result<()> {
     let info = match api_client.send_info_request().await {
         Ok(info) => info,
@@ -68,6 +69,10 @@ impl InfoDisplay {
                 json["run"]["processes"] = serde_json::json!(info.processes_preview(None));
             }
             json["run"]["dashboard_url"] = serde_json::json!(inner.get_run_url());
+            if let Some(summary) = &inner.cost_summary {
+                json["run"]["estimated_cost_since_start"] =
+                    serde_json::json!(format!("{:.4}", summary.estimated_total));
+            }
         } else {
             //todo Can we even print info active if no pipeline is running? Should inner even be an option?
             json["pipeline_info"] = serde_json::json!({
@@ -82,6 +87,7 @@ impl InfoDisplay {
         });
         println!("{}", serde_json::to_string_pretty(&json).unwrap());
     }
+
     fn format_status(&self, formatter: &mut BoxFormatter, runtime: &String, url: &str) {
         formatter.add_header("Tracer status");
         formatter.add_empty_line();
@@ -140,7 +146,16 @@ impl InfoDisplay {
                 "white",
             );
         }
-        formatter.add_empty_line();
+
+        if let Some(summary) = &inner.cost_summary {
+            formatter.add_section_header("Cost estimation");
+            formatter.add_field(
+                "Total since start",
+                &format!("  $ {:.4}", summary.estimated_total),
+                "yellow",
+            );
+            formatter.add_empty_line();
+        }
     }
 
     pub fn print_error(&mut self) {
