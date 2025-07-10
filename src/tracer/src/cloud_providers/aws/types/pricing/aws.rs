@@ -63,6 +63,7 @@ impl EC2FilterBuilder {
         Self {
             instance_type: details.instance_type,
             region: details.region,
+            // TODO: remove static tenancy filter now that matching engine matches via tenancy
             tenancy: Some("Shared".to_string()), // Always override to Shared
             vcpu: details.vcpu,
             operating_system: match details.operating_system.as_deref() {
