@@ -16,8 +16,6 @@ pub enum EventAttributes {
     CompletedProcess(CompletedProcess),
     SystemMetric(SystemMetric),
     Syslog(SyslogProperties),
-    // TODO: this was boxed, which seems unnecessary, but may have been done due to the
-    // memory footprint of SystemProperties - change back if this leads to memory issues
     SystemProperties(Box<SystemProperties>),
     ProcessDatasetStats(DataSetsProcessed),
     ContainerEvents(ContainerProperties),
