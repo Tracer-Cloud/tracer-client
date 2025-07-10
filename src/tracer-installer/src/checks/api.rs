@@ -24,7 +24,7 @@ impl InstallCheck for APICheck {
             .timeout(std::time::Duration::from_secs(3))
             .send()
             .await
-            .map(|r| r.status().is_success())
+            .map(|response| response.status().is_success())
             .unwrap_or(false)
     }
     fn name(&self) -> &'static str {
