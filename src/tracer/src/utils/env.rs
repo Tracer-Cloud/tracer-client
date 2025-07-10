@@ -44,11 +44,14 @@ pub(crate) async fn detect_environment_type() -> String {
         return "GitHub Codespaces".into();
     }
 
-    if env::var(GITHUB_ACTIONS_ENV_VAR).is_ok_and(|v| v == "true") {
+    if get_env_var(GITHUB_ACTIONS_ENV_VAR)
+        .map(|v| v == "true")
+        .unwrap_or(false)
+    {
         return "GitHub Actions".into();
     }
 
-    if env::var(AWS_BATCH_JOB_ID_ENV_VAR).is_ok() {
+    if get_env_var(AWS_BATCH_JOB_ID_ENV_VAR).is_some() {
         return "AWS Batch".into();
     }
 
@@ -68,9 +71,11 @@ pub(crate) async fn detect_environment_type() -> String {
 }
 
 fn is_codespaces() -> bool {
-    env::var(CODESPACES_ENV_VAR).is_ok()
-        || env::var(CODESPACE_NAME_ENV_VAR).is_ok()
-        || env::var(HOSTNAME_ENV_VAR).is_ok_and(|v| v.contains("codespaces-"))
+    get_env_var(CODESPACES_ENV_VAR).is_some()
+        || get_env_var(CODESPACE_NAME_ENV_VAR).is_some()
+        || get_env_var(HOSTNAME_ENV_VAR)
+            .map(|v| v.contains("codespaces-"))
+            .unwrap_or(false)
 }
 
 async fn detect_ec2_environment() -> Option<String> {
