@@ -40,21 +40,14 @@ impl CheckManager {
         Self { checks }
     }
 
-    pub fn _register(&mut self, check: Box<dyn InstallCheck>) {
-        self.checks.push(check);
-    }
-
     pub async fn run_all(&self) {
         let mut all_passed = true;
 
         for check in &self.checks {
-            let passed = check.check().await;
-
-            if passed {
+            if check.check().await {
                 print_status(check.name(), &check.success_message(), PrintEmoji::Pass);
             } else {
                 all_passed = false;
-
                 let reason = check.error_message();
                 print_status(check.name(), &reason, PrintEmoji::Fail);
             }

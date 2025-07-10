@@ -38,3 +38,17 @@ impl InstallCheck for APICheck {
         "Successful".into()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_api_check_returns_true() {
+        let check = APICheck::new();
+        let result = check.check().await;
+
+        // Should return either true or false
+        assert_eq!(result, true);
+    }
+}

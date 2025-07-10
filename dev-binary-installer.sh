@@ -27,9 +27,8 @@ OS_FULL=""
 # Detect OS and version
 if [ "$(uname)" = "Darwin" ]; then
   # macOS
-  product_name=$(sw_vers -productName)
-  product_version=$(sw_vers -productVersion)
-  OS_FULL="${product_name} ${product_version}"
+  os_version=$(sw_vers -productVersion)
+  OS_FULL="macOS (Darwin) ${os_version}"
 elif [ -f /etc/os-release ]; then
   # Linux
   # shellcheck disable=SC1091
