@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct Pipeline {
     pub id: String,
     pub description: Option<String>,
