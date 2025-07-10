@@ -2,9 +2,7 @@
 # installer for the tracer installer using s3
 
 # Define emoji fallbacks
-EMOJI_SEARCH="🔍 "
 EMOJI_CANCEL="❌ "
-EMOJI_CLIPBOARD="📋 "
 EMOJI_PACKAGE="📦 "
 
 # Use fallback for terminals that don't support emojis
@@ -13,9 +11,7 @@ case "$TERM" in
     # Keep emoji defaults
     ;;
   *)
-    EMOJI_SEARCH="[SEARCH] "
     EMOJI_CANCEL="[ERROR] "
-    EMOJI_CLIPBOARD="[INFO] "
     EMOJI_PACKAGE="[DOWNLOAD] "
     ;;
 esac
@@ -103,7 +99,7 @@ case "$OS" in
     GLIBC_MAJOR=$(echo "$GLIBC_VERSION" | cut -d'.' -f1)
     GLIBC_MINOR=$(echo "$GLIBC_VERSION" | cut -d'.' -f2)
 
-    if [ "$GLIBC_MAJOR" -lt 2 ] || ([ "$GLIBC_MAJOR" -eq 2 ] && [ "$GLIBC_MINOR" -lt 34 ]); then
+    if [ "$GLIBC_MAJOR" -lt 2 ] || { [ "$GLIBC_MAJOR" -eq 2 ] && [ "$GLIBC_MINOR" -lt 34 ]; }; then
       send_sentry_alert "Unsupported glibc version: $GLIBC_VERSION on $OS_FULL." "info"
 
       echo "${EMOJI_CANCEL} Linux support requires GLIBC version >= 2.36. Detected GLIBC version: $GLIBC_VERSION."
@@ -152,7 +148,7 @@ ARCHIVE_PATH="$TEMP_DIR/${BINARY_NAME}.tar.gz"
 EXTRACT_DIR="$TEMP_DIR/extracted"
 
 mkdir -p "$EXTRACT_DIR"
-echo "\n"
+printf "\n"
 echo "${EMOJI_PACKAGE}Downloading Tracer Installer from: $DOWNLOAD_URL"
 curl -L "$DOWNLOAD_URL" -o "$ARCHIVE_PATH" || {
   echo "${EMOJI_CANCEL}Failed to download binary"
