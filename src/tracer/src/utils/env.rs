@@ -33,11 +33,11 @@ pub(crate) async fn detect_environment_type() -> String {
     }
 
     if detect_ec2_environment().await.is_some() {
-        if running_in_docker {
-            return "AWS EC2 (Docker)".into();
+        return if running_in_docker {
+            "AWS EC2 (Docker)".into()
         } else {
-            return "AWS EC2".into();
-        }
+            "AWS EC2".into()
+        };
     }
 
     if is_docker() {
