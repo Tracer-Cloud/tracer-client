@@ -27,7 +27,7 @@ pub struct SystemProperties {
     pub os: Option<String>,
     pub os_version: Option<String>,
     pub kernel_version: Option<String>,
-    pub arch: Option<String>,
+    pub arch: String,
     pub num_cpus: usize,
     pub hostname: Option<String>,
     pub total_memory: u64,

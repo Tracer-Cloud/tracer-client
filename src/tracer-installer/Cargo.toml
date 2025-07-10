@@ -21,11 +21,11 @@ clap = {workspace = true }
 rustls = {workspace = true }
 tokio-retry = {workspace = true }
 sentry = {workspace = true }
+sysinfo = {workspace = true }
+
 
 indicatif = "0.18.0"
 async-trait = "0.1.88"
 nix = { version = "0.30.1", features = ["user"]}
-
 tar = "0.4.44"
 flate2 = "1.1.2"
-sysinfo = "0.35.2"

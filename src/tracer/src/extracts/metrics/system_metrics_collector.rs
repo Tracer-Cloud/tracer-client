@@ -60,7 +60,7 @@ impl SystemMetricsCollector {
         // System::host_name()
         let memory_utilization = (used_memory as f64 / total_memory as f64) * 100.0;
 
-        let cpu_usage = system.global_cpu_info().cpu_usage();
+        let cpu_usage = system.global_cpu_usage();
 
         let d_stats = Self::gather_disk_data();
 

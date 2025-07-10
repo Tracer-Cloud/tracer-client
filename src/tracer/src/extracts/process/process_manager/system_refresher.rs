@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::collections::HashSet;
 use std::sync::Arc;
-use sysinfo::{Pid, ProcessRefreshKind, System};
+use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
 use tokio::sync::RwLock;
 
 /// Handles system information refresh operations
@@ -39,9 +39,11 @@ impl SystemRefresher {
         // Execute the blocking operation in a separate thread
         tokio::task::spawn_blocking(move || {
             let mut sys = system.blocking_write();
-            sys.refresh_pids_specifics(
-                pids_for_closure.as_slice(),
-                ProcessRefreshKind::everything(), // TODO(ENG-336): minimize data collected for performance
+
+            sys.refresh_processes_specifics(
+                ProcessesToUpdate::Some(&pids_for_closure),
+                false,
+                ProcessRefreshKind::everything(),// TODO(ENG-336): minimize data collected for performance
             );
         })
         .await?;
