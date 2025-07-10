@@ -11,7 +11,7 @@ use futures_util::StreamExt;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracer_ebpf::ebpf_trigger::ExitReason;
+use tracer_ebpf::ebpf_trigger::exit_code_explanation;
 
 #[derive(Clone)]
 pub struct DockerWatcher {
@@ -129,7 +129,9 @@ impl DockerWatcher {
                     .and_then(|a| a.attributes)
                     .and_then(|attrs| attrs.get("exitCode")?.parse().ok())
                     .unwrap_or(-1);
-                let reason = ExitReason::from_exit_code(exit_code).explanation();
+                // TODO: if the attributes contain the invoked command, add the command name to
+                // the error messages when relevant
+                let reason = exit_code_explanation(exit_code);
                 ContainerState::Exited { exit_code, reason }
             }
             "destroy" => ContainerState::Died,

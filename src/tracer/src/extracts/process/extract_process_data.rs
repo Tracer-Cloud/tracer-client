@@ -61,7 +61,7 @@ impl ProcessTrait for sysinfo::Process {
 }
 
 // Modified ExtractProcessData to work with the trait
-pub struct ExtractProcessData {}
+pub struct ExtractProcessData;
 
 impl ExtractProcessData {
     /// Extracts environment variables related to containerization, jobs, and tracing
