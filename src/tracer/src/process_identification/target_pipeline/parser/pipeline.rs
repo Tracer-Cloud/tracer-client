@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+// TODO: use or remove the currently unused fields
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct Pipeline {
