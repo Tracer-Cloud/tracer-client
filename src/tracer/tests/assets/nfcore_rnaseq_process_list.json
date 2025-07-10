@@ -247,6 +247,9 @@
         "sed s/^.*GNU Awk //; s/ .*$//"
       ]
     ],
+    "match_commands": [
+      "STAR index"
+    ],
     "pattern": "^STAR --runMode genomeGenerate --genomeDir star/ --genomeFastaFiles \\S+.*--genomeSAindexNbases"
   },
   {
@@ -465,7 +468,7 @@
       ]
     ],
     "match_commands": [
-      "STAR",
+      "STAR index",
       "rsem-prepare-reference"
     ],
     "pattern": "^STAR --runMode genomeGenerate --genomeDir rsem/"
@@ -505,7 +508,7 @@
       ]
     ],
     "match_commands": [
-      "STAR",
+      "STAR index",
       "samtools faidx"
     ],
     "pattern": "^STAR --runMode genomeGenerate --genomeDir star/ --genomeFastaFiles \\S+"
@@ -615,6 +618,9 @@
         "sed s/^.*samtools //; s/Using.*$//",
         "sed s/^.*GNU Awk //; s/ .*$//"
       ]
+    ],
+    "match_commands": [
+      "STAR index"
     ],
     "pattern": "^STAR --runMode genomeGenerate --genomeDir star/ --genomeFastaFiles \\S+"
   },
@@ -757,6 +763,9 @@
         "sed s/^.*GNU Awk //; s/ .*$//"
       ]
     ],
+    "match_commands": [
+      "STAR align"
+    ],
     "pattern": "^STAR --genomeDir \\S+ --readFilesIn .+ --runThreadN \\d+ --outFileNamePrefix \\S+\\."
   },
   {
@@ -788,6 +797,9 @@
         "sed s/^.*samtools //; s/Using.*$//",
         "sed s/^.*GNU Awk //; s/ .*$//"
       ]
+    ],
+    "match_commands": [
+      "STAR align"
     ],
     "pattern": "^STAR --genomeDir \\S+ --readFilesIn .+ --runThreadN \\d+ --outFileNamePrefix \\S+"
   },
@@ -898,7 +910,7 @@
       ]
     ],
     "match_commands": [
-      "STAR",
+      "STAR index",
       "samtools faidx"
     ],
     "pattern": "^STAR --runMode genomeGenerate --genomeDir star/ --genomeFastaFiles \\S+"

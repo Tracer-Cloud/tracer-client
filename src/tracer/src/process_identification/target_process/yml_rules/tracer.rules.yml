@@ -16,7 +16,11 @@ rules:
     condition:
       and:
         - process_name_is: STAR
-        - command_contains: --runMode alignReads
+        - or:
+            - command_contains: --runMode alignReads
+            - and:
+                - command_not_contains: --runMode genomeGenerate
+                - command_contains: --readFilesIn
   - rule_name: bowtie2 process
     display_name: bowtie2
     condition:
