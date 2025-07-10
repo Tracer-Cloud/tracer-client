@@ -72,7 +72,7 @@ pub async fn send_start_run_event(
     let cost_summary = system_properties
         .pricing_context
         .as_ref()
-        .map(|ctx| PipelineCostSummary::new(timestamp.clone(), ctx));
+        .map(|ctx| PipelineCostSummary::new(timestamp, ctx));
 
     let run = Run::with_timestamp_and_cost_summary(
         run_name.clone(),
