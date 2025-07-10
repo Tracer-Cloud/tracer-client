@@ -43,7 +43,6 @@ SELECT
     MIN(bjl.timestamp) AS first_seen,
     MAX(bjl.timestamp) AS last_seen,
     MAX(
-    MAX(
         DISTINCT CASE
             WHEN NULLIF(bjl.attributes->>'process.exit_reason', '') IS NULL THEN NULL
             WHEN NULLIF(bjl.attributes->>'process.exit_reason.Code', '') IS NOT NULL THEN
