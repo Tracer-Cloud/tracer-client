@@ -1,4 +1,8 @@
 use crate::daemon::client::DaemonClient;
+use crate::daemon::structs::InfoResponse;
+use crate::process_identification::constants::{LOG_FILE, STDERR_FILE, STDOUT_FILE};
+use crate::utils::cli::BoxFormatter;
+use crate::utils::Version;
 use anyhow::Result;
 
 pub async fn info(api_client: &DaemonClient, json: bool) -> Result<()> {
@@ -15,11 +19,6 @@ pub async fn info(api_client: &DaemonClient, json: bool) -> Result<()> {
     display.print(info);
     Ok(())
 }
-
-use crate::daemon::structs::InfoResponse;
-use crate::process_identification::constants::{LOG_FILE, STDERR_FILE, STDOUT_FILE};
-use crate::utils::cli::BoxFormatter;
-use crate::utils::Version;
 
 pub struct InfoDisplay {
     width: usize,
