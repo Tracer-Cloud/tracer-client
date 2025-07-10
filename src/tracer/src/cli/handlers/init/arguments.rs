@@ -35,11 +35,17 @@ impl TracerCliInitArgs {
             .pipeline_name
             .or_else(|| env::get_env_var(env::PIPELINE_NAME_ENV_VAR))
             .or_else(|| {
-                Input::with_theme(&*theme)
-                    .with_prompt("Enter pipeline name (e.g., RNA-seq_analysis_v1, scRNA-seq_2024)")
-                    .default("demo_pipeline".into())
-                    .interact_text()
-                    .ok()
+                if self.non_interactive {
+                    None
+                } else {
+                    Input::with_theme(&*theme)
+                        .with_prompt(
+                            "Enter pipeline name (e.g., RNA-seq_analysis_v1, scRNA-seq_2024)",
+                        )
+                        .default("demo_pipeline".into())
+                        .interact_text()
+                        .ok()
+                }
             })
             .expect("Failed to get pipeline name from environment variable or prompt");
 
@@ -49,25 +55,29 @@ impl TracerCliInitArgs {
             let _ = tags.environment.insert(
                 env::get_env_var(env::ENVIRONMENT_ENV_VAR)
                     .or_else(|| {
-                        const ENVIRONMENTS: &[&str] =
-                            &["local", "development", "staging", "production", "custom"];
-                        let selection = Select::with_theme(&*theme)
-                            .with_prompt(
-                                "Select environment (or choose 'custom' to enter your own)",
-                            )
-                            .items(ENVIRONMENTS)
-                            .default(0)
-                            .interact()
-                            .unwrap();
-                        if selection == 4 {
-                            Some(
-                                Input::with_theme(&*theme)
-                                    .with_prompt("Enter custom environment name")
-                                    .interact_text()
-                                    .unwrap(),
-                            )
+                        if self.non_interactive {
+                            None
                         } else {
-                            Some(ENVIRONMENTS[selection].to_string())
+                            const ENVIRONMENTS: &[&str] =
+                                &["local", "development", "staging", "production", "custom"];
+                            let selection = Select::with_theme(&*theme)
+                                .with_prompt(
+                                    "Select environment (or choose 'custom' to enter your own)",
+                                )
+                                .items(ENVIRONMENTS)
+                                .default(0)
+                                .interact()
+                                .unwrap();
+                            if selection == 4 {
+                                Some(
+                                    Input::with_theme(&*theme)
+                                        .with_prompt("Enter custom environment name")
+                                        .interact_text()
+                                        .unwrap(),
+                                )
+                            } else {
+                                Some(ENVIRONMENTS[selection].to_string())
+                            }
                         }
                     })
                     .expect("Failed to get environment from environment variable or prompt"),
@@ -78,35 +88,39 @@ impl TracerCliInitArgs {
             let _ = tags.pipeline_type.insert(
                 env::get_env_var(env::PIPELINE_TYPE_ENV_VAR)
                     .or_else(|| {
-                        const PIPELINE_TYPES: &[&str] = &[
-                            "RNA-seq",
-                            "scRNA-seq",
-                            "ChIP-seq",
-                            "ATAC-seq",
-                            "WGS",
-                            "WES",
-                            "Metabolomics",
-                            "Proteomics",
-                            "custom",
-                        ];
-                        let selection = Select::with_theme(&*theme)
-                            .with_prompt(
-                                "Select pipeline type (or choose 'custom' to enter your own)",
-                            )
-                            .items(PIPELINE_TYPES)
-                            .default(0)
-                            .interact()
-                            .unwrap();
-
-                        if selection == 8 {
-                            Some(
-                                Input::with_theme(&*theme)
-                                    .with_prompt("Enter custom pipeline type")
-                                    .interact_text()
-                                    .unwrap(),
-                            )
+                        if self.non_interactive {
+                            None
                         } else {
-                            Some(PIPELINE_TYPES[selection].to_string())
+                            const PIPELINE_TYPES: &[&str] = &[
+                                "RNA-seq",
+                                "scRNA-seq",
+                                "ChIP-seq",
+                                "ATAC-seq",
+                                "WGS",
+                                "WES",
+                                "Metabolomics",
+                                "Proteomics",
+                                "custom",
+                            ];
+                            let selection = Select::with_theme(&*theme)
+                                .with_prompt(
+                                    "Select pipeline type (or choose 'custom' to enter your own)",
+                                )
+                                .items(PIPELINE_TYPES)
+                                .default(0)
+                                .interact()
+                                .unwrap();
+
+                            if selection == 8 {
+                                Some(
+                                    Input::with_theme(&*theme)
+                                        .with_prompt("Enter custom pipeline type")
+                                        .interact_text()
+                                        .unwrap(),
+                                )
+                            } else {
+                                Some(PIPELINE_TYPES[selection].to_string())
+                            }
                         }
                     })
                     .expect("Failed to get pipeline type from environment variable or prompt"),
@@ -117,11 +131,17 @@ impl TracerCliInitArgs {
             let _ = tags.user_operator.insert(
                 env::get_env_var(env::USER_OPERATOR_ENV_VAR)
                     .or_else(|| {
-                        Input::with_theme(&*theme)
-                            .with_prompt("Enter your name/username (who is running this pipeline)")
-                            .default(std::env::var("USER").unwrap_or_else(|_| "unknown".into()))
-                            .interact_text()
-                            .ok()
+                        if self.non_interactive {
+                            None
+                        } else {
+                            Input::with_theme(&*theme)
+                                .with_prompt(
+                                    "Enter your name/username (who is running this pipeline)",
+                                )
+                                .default(std::env::var("USER").unwrap_or_else(|_| "unknown".into()))
+                                .interact_text()
+                                .ok()
+                        }
                     })
                     .expect("Failed to get user operator from environment variable or prompt"),
             );
@@ -156,16 +176,21 @@ pub struct TracerCliInitArgs {
     #[clap(flatten)]
     pub tags: PipelineTags,
 
+    /// Optional user ID used to associate this installation with your account.
+    #[arg(long)]
+    pub user_id: Option<String>,
+
     /// Run agent as a standalone process rather than a daemon
     #[clap(long)]
     pub no_daemonize: bool,
 
-    #[clap(long)]
-    pub is_dev: Option<bool>,
+    /// Do not prompt for missing inputs
+    #[clap(short = 'f', long)]
+    pub non_interactive: bool,
 
-    /// Optional user ID used to associate this installation with your account.
-    #[arg(long)]
-    pub user_id: Option<String>,
+    // deprecated
+    #[clap(long, hide = true)]
+    pub is_dev: Option<bool>,
 }
 
 /// Ensures the pipeline name remains required
