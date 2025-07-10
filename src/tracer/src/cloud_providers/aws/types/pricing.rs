@@ -17,13 +17,13 @@ pub struct PricingData {
     pub memory: String,
 
     #[query(".terms.OnDemand")]
-    pub on_demand: HashMap<String, serde_json::Value>,
+    pub on_demand: HashMap<String, Value>,
 }
 
 #[derive(Debug, serde::Deserialize)]
 pub struct OnDemandTerm {
     #[serde(rename = "priceDimensions", flatten)]
-    pub price_dimensions: HashMap<String, serde_json::Value>,
+    pub price_dimensions: HashMap<String, Value>,
 }
 
 #[derive(Debug, Default, serde::Serialize, serde::Deserialize)]

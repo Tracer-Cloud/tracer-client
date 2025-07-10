@@ -361,7 +361,7 @@ impl TracerClient {
 
         tokio::spawn(async move {
             if let Err(e) = docker_watcher.start().await {
-                tracing::error!("Docker watcher failed: {:?}", e);
+                error!("Docker watcher failed: {:?}", e);
             }
         });
     }

@@ -135,7 +135,7 @@ impl PricingClient {
             .unwrap()
             .get_products()
             .service_code("AmazonEC2".to_string()) // Specifically query EC2 prices
-            .set_filters(Some(filters)) // Apply the filters (instance type, OS, etc)
+            .set_filters(Some(filters)) // Apply the filters (instance type, OS, etc.)
             .into_paginator() // Handle pagination of results
             .send();
 
