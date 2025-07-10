@@ -24,7 +24,9 @@ pub enum Command {
     Alert { message: String },
 
     /// Start the daemon
-    Init(Box<TracerCliInitArgs>),
+    /// TODO: these were boxed, which seems unnecessary, but may have been done due to the
+    /// memory footprint of TracerCliInitArgs - change back if this leads to memory issues
+    Init(TracerCliInitArgs),
 
     /// Stop the daemon
     Terminate,

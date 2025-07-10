@@ -2,6 +2,25 @@ use std::env;
 use std::fs;
 use std::path::Path;
 
+// Environment variables that control init parameters
+pub const RUN_ID_ENV_VAR: &str = "TRACER_RUN_ID";
+pub const TRACE_ID_ENV_VAR: &str = "TRACER_TRACE_ID";
+pub const PIPELINE_NAME_ENV_VAR: &str = "TRACER_PIPELINE_NAME";
+pub const PIPELINE_TYPE_ENV_VAR: &str = "TRACER_PIPELINE_TYPE";
+pub const ENVIRONMENT_ENV_VAR: &str = "TRACER_ENVIRONMENT";
+pub const USER_OPERATOR_ENV_VAR: &str = "TRACER_USER_OPERATOR";
+
+// Environment variables that control environment detection
+pub const GITHUB_ACTIONS_ENV_VAR: &str = "GITHUB_ACTIONS";
+pub const AWS_BATCH_JOB_ID_ENV_VAR: &str = "AWS_BATCH_JOB_ID";
+pub const CODESPACES_ENV_VAR: &str = "CODESPACES";
+pub const CODESPACE_NAME_ENV_VAR: &str = "CODESPACE_NAME";
+pub const HOSTNAME_ENV_VAR: &str = "HOSTNAME";
+
+pub fn get_env_var(var: &str) -> Option<String> {
+    env::var(var).ok()
+}
+
 fn is_docker() -> bool {
     // 1. Check for /.dockerenv
     if Path::new("/.dockerenv").exists() {
@@ -17,6 +36,7 @@ fn is_docker() -> bool {
 
     false
 }
+
 pub(crate) async fn detect_environment_type() -> String {
     let running_in_docker = is_docker();
 
@@ -24,11 +44,11 @@ pub(crate) async fn detect_environment_type() -> String {
         return "GitHub Codespaces".into();
     }
 
-    if env::var("GITHUB_ACTIONS").is_ok_and(|v| v == "true") {
+    if env::var(GITHUB_ACTIONS_ENV_VAR).is_ok_and(|v| v == "true") {
         return "GitHub Actions".into();
     }
 
-    if env::var("AWS_BATCH_JOB_ID").is_ok() {
+    if env::var(AWS_BATCH_JOB_ID_ENV_VAR).is_ok() {
         return "AWS Batch".into();
     }
 
@@ -48,9 +68,9 @@ pub(crate) async fn detect_environment_type() -> String {
 }
 
 fn is_codespaces() -> bool {
-    env::var("CODESPACES").is_ok()
-        || env::var("CODESPACE_NAME").is_ok()
-        || env::var("HOSTNAME").is_ok_and(|v| v.contains("codespaces-"))
+    env::var(CODESPACES_ENV_VAR).is_ok()
+        || env::var(CODESPACE_NAME_ENV_VAR).is_ok()
+        || env::var(HOSTNAME_ENV_VAR).is_ok_and(|v| v.contains("codespaces-"))
 }
 
 async fn detect_ec2_environment() -> Option<String> {
