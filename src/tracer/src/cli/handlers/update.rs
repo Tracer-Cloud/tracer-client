@@ -1,4 +1,3 @@
-use crate::utils::system_info::{is_root, is_sudo_installed};
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use std::process::Command;
@@ -42,16 +41,22 @@ pub async fn update() -> Result<()> {
     //
     // println!("\nUpdating Tracer to version {}...", latest_ver);
 
-    let install_cmd = if is_sudo_installed() {
-        "curl -sSL https://install.tracer.cloud/ | sudo bash && source ~/.bashrc && source ~/.zshrc"
-    } else {
-        if !is_root() {
-            println!("Warning: Running without root privileges. Some operations may fail.");
-        }
-        "curl -sSL https://install.tracer.cloud/ | bash && source ~/.bashrc && source ~/.zshrc"
-    };
+    let install_cmd = format!(
+        "curl -fsSL https://install.tracer.cloud | sh{}",
+        std::env::var("TRACER_INSTALL_CMD")
+            .ok()
+            .map(|s| {
+                let trimmed = s.trim();
+                if trimmed.is_empty() {
+                    "".to_string()
+                } else {
+                    format!(" {}", trimmed)
+                }
+            })
+            .unwrap_or_default()
+    );
 
-    let mut command = Command::new("bash");
+    let mut command = Command::new("sh");
     command.arg("-c").arg(install_cmd);
     let status = command
         .status()

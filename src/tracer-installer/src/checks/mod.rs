@@ -1,12 +1,10 @@
 mod api;
-mod dependency;
 mod environment;
 pub mod kernel;
 mod root;
 
-use crate::utils::{print_step, StepStatus};
+use crate::utils::{print_status, PrintEmoji};
 use api::APICheck;
-use dependency::DependencyCheck;
 use environment::EnvironmentCheck;
 use kernel::KernelCheck;
 use root::RootCheck;
@@ -33,7 +31,6 @@ impl CheckManager {
         let checks: Vec<Box<dyn InstallCheck>> = match platform.os {
             Os::Linux | Os::AmazonLinux => vec![
                 Box::new(KernelCheck::new()),
-                Box::new(DependencyCheck::new()),
                 Box::new(APICheck::new()),
                 Box::new(RootCheck::new()),
                 Box::new(EnvironmentCheck::new().await),
@@ -43,36 +40,28 @@ impl CheckManager {
         Self { checks }
     }
 
-    pub fn _register(&mut self, check: Box<dyn InstallCheck>) {
-        self.checks.push(check);
-    }
-
     pub async fn run_all(&self) {
         let mut all_passed = true;
 
         for check in &self.checks {
-            let passed = check.check().await;
-
-            if passed {
-                print_step(check.name(), StepStatus::Success(&check.success_message()));
+            if check.check().await {
+                print_status(check.name(), &check.success_message(), PrintEmoji::Pass);
             } else {
                 all_passed = false;
-
                 let reason = check.error_message();
-                print_step(check.name(), StepStatus::Error(&reason));
+                print_status(check.name(), &reason, PrintEmoji::Fail);
             }
         }
 
         println!(); // spacing after checks
 
         if !all_passed {
-            print_step(
+            print_status(
                 "Environment",
-                StepStatus::Error("Required Checks Failed. Please contact support."),
+                "Required Checks Failed. Please contact support.",
+                PrintEmoji::Fail,
             );
-
-            //TODO enable after fixing dependency check
-            // std::process::exit(1);
+            std::process::exit(1);
         }
     }
 }
