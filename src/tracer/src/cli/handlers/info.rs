@@ -158,7 +158,7 @@ impl InfoDisplay {
         if monitored_tasks > 0 {
             formatter.add_field(
                 "Tasks preview",
-                &&info.tasks_preview(Self::PREVIEW_LENGTH),
+                &info.tasks_preview(Self::PREVIEW_LENGTH),
                 "white",
             );
         }
