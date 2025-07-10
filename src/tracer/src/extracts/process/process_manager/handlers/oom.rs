@@ -18,7 +18,7 @@ impl OomHandler {
                 .await
                 .is_some()
             {
-                finish.exit_reason = Some(ExitReason::OutOfMemoryKilled);
+                finish.exit_reason = Some(ExitReason::out_of_memory_killed());
                 debug!("Marked PID {} as OOM-killed", finish.pid);
             }
         }
