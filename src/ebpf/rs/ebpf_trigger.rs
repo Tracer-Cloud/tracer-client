@@ -163,57 +163,6 @@ pub const EXIT_CODE_OUT_OF_MEMORY_KILLED: i64 = 137;
 // SIGTERM
 pub const EXIT_CODE_SIGNAL_TERMINATED: i64 = 143;
 
-/// Exit code along with short reason and longer explanation.
-///
-/// We always create the reason and explanation when creating the struct (rather than on-demand
-/// via a method call) because ExitReason always gets serialized, and it makes it possible to
-/// derive the serde implementation.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ExitReason {
-    pub code: i64,
-    pub reason: String,
-    pub explanation: String,
-}
-
-impl ExitReason {
-    pub fn success() -> Self {
-        Self::from(EXIT_CODE_SUCCESS)
-    }
-
-    pub fn out_of_memory_killed() -> Self {
-        Self::from(EXIT_CODE_OUT_OF_MEMORY_KILLED)
-    }
-}
-
-impl fmt::Display for ExitReason {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.reason)
-    }
-}
-
-impl From<i64> for ExitReason {
-    fn from(code: i64) -> Self {
-        Self {
-            code,
-            reason: exit_code_reason(code),
-            explanation: exit_code_explanation(code),
-        }
-    }
-}
-
-/// Command exited without error
-pub const EXIT_CODE_SUCCESS: i64 = 0;
-/// Command could not be invoked
-pub const EXIT_CODE_COMMAND_NOT_INVOKED: i64 = 126;
-/// Command not found in the container
-pub const EXIT_CODE_COMMAND_NOT_FOUND: i64 = 127;
-/// Container terminated by Ctrl-C
-pub const EXIT_CODE_CTRL_C_KILLED: i64 = 130;
-/// SIGKILL from kernel → usually OOM
-pub const EXIT_CODE_OUT_OF_MEMORY_KILLED: i64 = 137;
-// SIGTERM
-pub const EXIT_CODE_SIGNAL_TERMINATED: i64 = 143;
-
 pub fn exit_code_reason(code: i64) -> String {
     match code {
         EXIT_CODE_SUCCESS => "Success".to_string(),
