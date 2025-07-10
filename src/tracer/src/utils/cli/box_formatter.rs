@@ -1,7 +1,7 @@
 use colored::Colorize;
 use console::Emoji;
 use std::fmt::Write;
-
+use termion::terminal_size;
 const STATUS_ACTIVE: Emoji<'_, '_> = Emoji("🟢 ", "🟢 ");
 const STATUS_INACTIVE: Emoji<'_, '_> = Emoji("🔴 ", "🔴 ");
 const STATUS_WARNING: Emoji<'_, '_> = Emoji("🟡 ", "🟡 ");
@@ -18,10 +18,43 @@ impl BoxFormatter {
     pub fn new(width: usize) -> Self {
         Self {
             output: String::new(),
-            width,
+            width: Self::get_width(width),
         }
     }
 
+    /// Create a new BoxFormatter that automatically uses the terminal width
+    pub fn new_auto_width() -> Self {
+        let terminal_width = Self::get_terminal_width();
+        Self {
+            output: String::new(),
+            width: terminal_width,
+        }
+    }
+
+    /// Get the terminal width, with a fallback to a reasonable default
+    fn get_terminal_width() -> usize {
+        match terminal_size() {
+            Ok((width, _)) => {
+                let width = width as usize;
+                // Ensure we have a minimum width and leave some padding
+                if width > 10 {
+                    width - 2 // Leave 2 characters padding
+                } else {
+                    80 // Fallback to 80 characters
+                }
+            }
+            Err(_) => 80, // Fallback to 80 characters if terminal size detection fails
+        }
+    }
+
+    fn get_width(max_width: usize) -> usize {
+        let terminal_width = Self::get_terminal_width();
+        if max_width > terminal_width {
+            terminal_width
+        } else {
+            max_width
+        }
+    }
     pub fn add_header(&mut self, title: &str) {
         writeln!(
             &mut self.output,

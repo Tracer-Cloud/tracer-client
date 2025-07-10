@@ -54,6 +54,7 @@ aws-sdk-s3 = "1.96.0"
 aws-credential-types = "1.2.3"
 aws-sdk-secretsmanager = "1.78.0"
 
+
 tracing-subscriber = { version = "0.3.19", features = [
     "env-filter",
     "json",
@@ -95,3 +96,4 @@ bollard = "0.19.1"
 built = { version = "0.8.0", features = ["chrono", "git2"] }
 multi_index_map = "0.15.0"
 tokio-retry = "0.3.0"
+termion= "4.0.5"
