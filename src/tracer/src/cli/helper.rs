@@ -46,7 +46,7 @@ pub(super) async fn handle_port_conflict(port: u16) -> Result<bool> {
         .output()?;
 
     if !output.status.success() {
-        anyhow::bail!(
+        bail!(
             "Failed to find process using port {}. Please check the port manually using:\n  sudo lsof -nP -iTCP:{} -sTCP:LISTEN",
             port,
             port
@@ -66,7 +66,7 @@ pub(super) async fn handle_port_conflict(port: u16) -> Result<bool> {
         let kill_output = Command::new("sudo").args(["kill", "-9", pid]).output()?;
 
         if !kill_output.status.success() {
-            anyhow::bail!(
+            bail!(
                 "Failed to kill process. Please try manually using:\n  sudo kill -9 {}",
                 pid
             );
@@ -91,20 +91,20 @@ pub(super) async fn handle_port_conflict(port: u16) -> Result<bool> {
             }
         }
 
-        anyhow::bail!(
+        bail!(
             "Port {} is still in use after {} attempts. Please check manually or try again in a few seconds.",
             port,
             MAX_RETRIES
         );
     } else {
-        anyhow::bail!(
+        bail!(
             "Could not find PID in lsof output. Please check the port manually using:\n  sudo lsof -nP -iTCP:{} -sTCP:LISTEN",
             port
         );
     }
 }
 
-pub(super) fn create_necessary_files() -> anyhow::Result<()> {
+pub(super) fn create_necessary_files() -> Result<()> {
     // CRITICAL: Ensure working directory exists BEFORE any other operations
     std::fs::create_dir_all(WORKING_DIR)
         .with_context(|| format!("Failed to create working directory: {}", WORKING_DIR))?;

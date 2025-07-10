@@ -1,5 +1,5 @@
 use crate::sentry::Sentry;
-use crate::utils::{print_step, StepStatus};
+use crate::utils::{print_status, PrintEmoji};
 use anyhow::{anyhow, Result};
 use console::Emoji;
 use std::process::Command;
@@ -76,26 +76,22 @@ impl PlatformInfo {
     }
 
     pub fn print_summary(&self) {
-        print_step(
-            "Operating System",
-            StepStatus::Custom(Emoji("🐧 ", "[OS]"), self.full_os.as_str()),
-        );
-        print_step(
+        print_status("Operating System", self.full_os.as_str(), PrintEmoji::OS);
+        print_status(
             "Architecture",
-            StepStatus::Custom(Emoji("💻 ", "[ARCH]"), &format!("{:?}", self.arch)),
+            &format!("{:?}", self.arch),
+            PrintEmoji::Arch,
         );
         let sys = System::new_all();
 
         let total_mem_gib = sys.total_memory() as f64 / 1024.0 / 1024.0 / 1024.0;
 
         let cores = sys.cpus().len();
-        print_step(
-            "CPU Cores",
-            StepStatus::Custom(Emoji("⚙️ ", "[CPU]"), &format!("{}", cores)),
-        );
-        print_step(
+        print_status("CPU Cores", &format!("{}", cores), PrintEmoji::Cpu);
+        print_status(
             "Total RAM",
-            StepStatus::Custom(Emoji("💾 ", "[RAM]"), &format!("{:.2} GiB", total_mem_gib)),
+            &format!("{:.2} GiB", total_mem_gib),
+            PrintEmoji::Ram,
         );
     }
 }

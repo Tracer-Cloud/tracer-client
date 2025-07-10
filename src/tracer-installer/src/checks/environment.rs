@@ -35,11 +35,11 @@ pub async fn detect_environment_type() -> String {
     }
 
     if detect_ec2_environment().await.is_some() {
-        if running_in_docker {
-            return "AWS EC2 (Docker)".into();
+        return if running_in_docker {
+            "AWS EC2 (Docker)".into()
         } else {
-            return "AWS EC2".into();
-        }
+            "AWS EC2".into()
+        };
     }
 
     if is_docker() {
@@ -93,19 +93,19 @@ impl EnvironmentCheck {
 
 #[async_trait::async_trait]
 impl InstallCheck for EnvironmentCheck {
-    fn name(&self) -> &'static str {
-        "Environment Type"
+    async fn check(&self) -> bool {
+        true
     }
 
-    fn success_message(&self) -> String {
-        self.detected.to_string()
+    fn name(&self) -> &'static str {
+        "Environment Type"
     }
 
     fn error_message(&self) -> String {
         "Unknown".into()
     }
 
-    async fn check(&self) -> bool {
-        true
+    fn success_message(&self) -> String {
+        self.detected.to_string()
     }
 }

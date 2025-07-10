@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
 use colored::Colorize;
-use console::Emoji;
 use flate2::read::GzDecoder;
 use futures_util::future::join_all;
 use futures_util::StreamExt;
@@ -23,7 +22,7 @@ use tokio_retry::Retry;
 use super::platform::PlatformInfo;
 use crate::installer::url_builder::TracerUrlFinder;
 use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
-use crate::utils::{print_step, print_summary, print_title, StepStatus};
+use crate::utils::{print_label, print_status, print_summary, print_title, PrintEmoji};
 
 const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics";
 
@@ -56,7 +55,7 @@ impl Installer {
 
         print_summary(
             &format!("Downloading Tracer from:\n {url}"),
-            StepStatus::Custom(Emoji("📦 ", "[DONE]"), ""),
+            PrintEmoji::Downloading,
         );
 
         let temp_dir = tempfile::tempdir()?;
@@ -124,9 +123,9 @@ impl Installer {
         archive.unpack(dest)?;
 
         println!();
-        print_step(
-            &format!("Extracted Tracer to: {}", dest.display()),
-            StepStatus::Custom(Emoji("📂 ", "[DONE]"), ""),
+        print_label(
+            &format!("Extracting Tracer to: {}", dest.display()),
+            PrintEmoji::Extract,
         );
 
         Ok(())
@@ -144,9 +143,9 @@ impl Installer {
             .with_context(|| format!("Failed to copy tracer binary from {:?}", extracted_binary))?;
 
         std::fs::set_permissions(&final_path, std::fs::Permissions::from_mode(0o755))?;
-        print_step(
+        print_label(
             &format!("Tracer installed to: {}", final_path.display()),
-            StepStatus::Success(""),
+            PrintEmoji::Pass,
         );
 
         Ok(final_path)
@@ -155,11 +154,12 @@ impl Installer {
     pub async fn patch_rc_files_async(user_id: Option<String>) -> Result<()> {
         print_title("Updating Shell Configs");
         if let Some(ref id) = user_id {
-            let emoji = Emoji("✅", "[OK]");
-            println!("{emoji}  User ID provided: {}", id);
+            print_label(&format!("User ID provided: {}", id), PrintEmoji::Pass);
         } else {
-            let emoji = Emoji("❌", "[X]");
-            println!("{emoji}  No user ID provided (TRACER_USER_ID not set). Skipping user ID persistence...");
+            print_label(
+                "No user ID provided (TRACER_USER_ID not set). Skipping user ID persistence...",
+                PrintEmoji::Fail,
+            );
         }
 
         let home = dirs::home_dir().context("Could not find home directory")?;
@@ -231,15 +231,7 @@ impl Installer {
             }
 
             if updated {
-                print_step(
-                    &format!("Updated {}", rc),
-                    StepStatus::Custom(Emoji("🔄 ", "[UPDATED]"), ""),
-                );
-            } else {
-                print_step(
-                    &format!("Added {}", rc),
-                    StepStatus::Custom(Emoji("✅ ", "[ADDED]"), ""),
-                );
+                print_label(&format!("Updating {}", rc), PrintEmoji::Updated);
             }
 
             // Write all lines back to file
@@ -284,14 +276,14 @@ impl Installer {
             if res.status().is_success() {
                 Ok(())
             } else {
-                print_step(
+                print_status(
                     "Analytics",
-                    StepStatus::Warning("Failed to send analytics event"),
-                );
-                eprintln!(
-                    "⚠️  Failed to send analytics event: {} [{}]",
-                    event.as_str(),
-                    res.status()
+                    &format!(
+                        "Failed to send event: {} [{}]",
+                        event.as_str(),
+                        res.status()
+                    ),
+                    PrintEmoji::Warning,
                 );
 
                 Err(anyhow::anyhow!("status = {}", res.status()))
@@ -330,11 +322,7 @@ impl Installer {
     }
 
     pub fn print_next_steps() {
-        print_summary(
-            "Next Steps",
-            StepStatus::Custom(Emoji("🚀 ", "[NEXT] "), ""),
-        );
-
+        print_summary("Next Steps", PrintEmoji::Next);
         println!(
             "- {} please follow the instructions at {}\n",
             "For a better onboarding".bold().yellow(),

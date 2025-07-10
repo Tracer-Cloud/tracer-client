@@ -54,6 +54,17 @@ impl KernelCheck {
 
 #[async_trait::async_trait]
 impl InstallCheck for KernelCheck {
+    async fn check(&self) -> bool {
+        if !Self::is_supported_os() {
+            return false;
+        }
+
+        match Self::get_kernel_version() {
+            Some(version) => Self::is_compatible_kernel(version),
+            None => false,
+        }
+    }
+
     fn name(&self) -> &'static str {
         "Kernel eBPF Support"
     }
@@ -78,16 +89,5 @@ impl InstallCheck for KernelCheck {
 
     fn success_message(&self) -> String {
         "Linux kernel is compatible with eBPF (>= 5.15).".to_string()
-    }
-
-    async fn check(&self) -> bool {
-        if !Self::is_supported_os() {
-            return false;
-        }
-
-        match Self::get_kernel_version() {
-            Some(version) => Self::is_compatible_kernel(version),
-            None => false,
-        }
     }
 }

@@ -13,16 +13,17 @@ pub fn check_sudo_privileges() {
     }
 }
 
-pub fn is_root() -> bool {
-    Command::new("id")
-        .arg("-u")
-        .output()
-        .map(|output| {
-            let uid = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            uid == "0"
-        })
-        .unwrap_or(false)
-}
+//TODO Remove this function if not needed
+// pub fn is_root() -> bool {
+//     Command::new("id")
+//         .arg("-u")
+//         .output()
+//         .map(|output| {
+//             let uid = String::from_utf8_lossy(&output.stdout).trim().to_string();
+//             uid == "0"
+//         })
+//         .unwrap_or(false)
+// }
 pub fn is_sudo() -> bool {
     std::env::var("SUDO_USER").is_ok()
 }

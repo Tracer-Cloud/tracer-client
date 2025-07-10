@@ -171,3 +171,10 @@ if [[ -n "$USER_ID" ]]; then
 else
   sudo "$EXTRACT_DIR/$BINARY_NAME" run
 fi
+
+
+if [ -n "$BASH_VERSION" ]; then
+    source ~/.bashrc
+elif [ -n "$ZSH_VERSION" ]; then
+    source ~/.zshrc
+fi
