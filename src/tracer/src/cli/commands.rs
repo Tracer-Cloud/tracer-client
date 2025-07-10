@@ -12,11 +12,11 @@ pub struct Cli {
     #[clap(long, global = true)]
     pub config: Option<String>,
     #[clap(subcommand)]
-    pub command: Commands,
+    pub command: Command,
 }
 
 #[derive(Subcommand, Debug, Clone)]
-pub enum Commands {
+pub enum Command {
     /// Log a message to the service
     Log { message: String },
 

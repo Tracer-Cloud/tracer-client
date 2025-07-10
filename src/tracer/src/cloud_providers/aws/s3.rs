@@ -1,4 +1,4 @@
-use crate::cloud_providers::aws::config::{get_initialized_aws_conf, AwsConfig};
+use crate::cloud_providers::aws::config::{resolve_available_aws_config, AwsConfig};
 use aws_config::SdkConfig;
 use aws_credential_types::provider::ProvideCredentials;
 use aws_sdk_s3::types::{BucketLocationConstraint, CreateBucketConfiguration};
@@ -12,7 +12,7 @@ pub struct S3Client {
 #[allow(dead_code)]
 impl S3Client {
     pub async fn new(initialization_conf: AwsConfig, region: &'static str) -> Self {
-        let config = get_initialized_aws_conf(initialization_conf, region).await;
+        let config = resolve_available_aws_config(initialization_conf, region).await;
 
         Self {
             client: aws_sdk_s3::Client::new(&config.unwrap()),
