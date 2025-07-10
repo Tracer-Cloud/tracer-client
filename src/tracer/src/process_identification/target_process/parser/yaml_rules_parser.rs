@@ -16,10 +16,10 @@ impl TryFrom<Yaml> for Target {
 
     fn try_from(yaml: Yaml) -> Result<Self> {
         let rule: Rule = yaml.try_into()?;
-        Ok(Target {
-            match_type: rule.condition.into_match_type(),
-            display_name: rule.display_name,
-        })
+        Ok(Target::with_display_name(
+            rule.condition.try_into()?,
+            rule.display_name,
+        ))
     }
 }
 

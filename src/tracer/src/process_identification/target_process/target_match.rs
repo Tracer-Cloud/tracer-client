@@ -1,6 +1,34 @@
+use anyhow::Result;
+use dashmap::DashMap;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::cmp::{self, Ordering};
+use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
+use std::sync::Arc;
+use std::sync::LazyLock;
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
+use tracing::warn;
+
+static REGEX_CACHE: LazyLock<Arc<DashMap<String, Regex>>> =
+    LazyLock::new(|| Arc::new(DashMap::new()));
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct CachedRegex(String);
+
+impl CachedRegex {
+    pub fn new(regex_str: String) -> Result<Self> {
+        if !REGEX_CACHE.contains_key(&regex_str) {
+            let regex = Regex::new(&regex_str)?;
+            REGEX_CACHE.insert(regex_str.clone(), regex);
+        };
+        Ok(Self(regex_str))
+    }
+
+    pub fn is_match(&self, text: &str) -> bool {
+        REGEX_CACHE.get(&self.0).unwrap().is_match(text)
+    }
+}
 
 /// Simple target matching conditions
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -12,134 +40,134 @@ pub enum MatchType {
     FirstArgIs(String),
     CommandContains(String),
     CommandNotContains(String),
-    CommandMatchesRegex(String),
-    SubcommandIsOneOf(Vec<String>),
+    CommandMatchesRegex(CachedRegex),
+    SubcommandIsOneOf(SubcommandSet),
     And(Vec<MatchType>),
     Or(Vec<MatchType>),
 }
 
-pub struct ProcessMatch {
-    pub is_match: bool,
-    pub sub_command: Option<String>,
-}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SubcommandSet(HashSet<String>);
 
-impl ProcessMatch {
-    pub fn new(is_match: bool) -> Self {
-        Self {
-            is_match,
-            sub_command: None,
-        }
-    }
-
-    pub fn with_subcommand(mut self, is_match: bool, sub_command: String) -> Self {
-        Self {
-            is_match,
-            sub_command: Some(sub_command),
-        }
+impl SubcommandSet {
+    pub fn contains(&self, item: &str) -> bool {
+        self.0.contains(item)
     }
 }
 
-/// Simple target matching function
-/// It returns (bool, Option<String>), the Option<String> is useful when a subcommand is matched to dinamically update the display name
-pub fn matches_target(target_match: &MatchType, process: &ProcessStartTrigger) -> ProcessMatch {
-    match target_match {
-        MatchType::ProcessNameIs(name) => ProcessMatch {
-            is_match: process.comm == *name,
-            sub_command: None,
-        },
-        MatchType::ProcessNameContains(substr) => ProcessMatch {
-            is_match: process.comm.contains(substr),
-            sub_command: None,
-        },
-        MatchType::MinArgs(n) => ProcessMatch {
-            is_match: process.argv.len() > *n,
-            sub_command: None,
-        },
-        MatchType::ArgsNotContain(content) => ProcessMatch {
-            is_match: !process.argv.iter().skip(1).any(|arg| arg == content),
-            sub_command: None,
-        },
-        MatchType::FirstArgIs(arg) => ProcessMatch {
-            is_match: process.argv.get(1) == Some(arg),
-            sub_command: None,
-        },
-        MatchType::CommandContains(content) => ProcessMatch {
-            is_match: process.command_string.contains(content),
-            sub_command: None,
-        },
-        MatchType::CommandNotContains(content) => ProcessMatch {
-            is_match: !process.command_string.contains(content),
-            sub_command: None,
-        },
-        MatchType::CommandMatchesRegex(regex_str) => {
-            match Regex::new(regex_str) {
-                Ok(regex) => ProcessMatch {
-                    is_match: regex.is_match(&process.command_string),
-                    sub_command: None,
-                },
-                Err(_) => {
-                    // Invalid regex pattern
-                    ProcessMatch {
-                        is_match: false,
-                        sub_command: None,
-                    }
-                }
-            }
+impl<I: IntoIterator<Item = String>> From<I> for SubcommandSet {
+    fn from(iter: I) -> Self {
+        Self(iter.into_iter().collect())
+    }
+}
+
+impl Hash for SubcommandSet {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for item in self.0.iter() {
+            item.hash(state);
         }
-        MatchType::And(conditions) => {
-            // saving the subcommand in case in the AND condition a subcommand is found
-            let mut subcommand_found = None;
+    }
+}
 
-            let and_conditions_matched = conditions.iter().all(|condition| {
-                let process_match = matches_target(condition, process);
-                if process_match.is_match && process_match.sub_command.is_some() {
-                    subcommand_found = Some(process_match.sub_command.unwrap());
-                }
-                process_match.is_match
-            });
+impl MatchType {
+    pub fn matches(&self, process: &ProcessStartTrigger) -> bool {
+        self.get_match(process).is_some()
+    }
 
-            ProcessMatch {
-                is_match: and_conditions_matched,
-                sub_command: subcommand_found,
+    /// Returns a ProcessMatch if `process` matches this MatchType, otherwise None
+    pub fn get_match<'a>(&self, process: &'a ProcessStartTrigger) -> Option<ProcessMatch<'a>> {
+        match self {
+            MatchType::ProcessNameIs(name) if process.comm == *name => Some(ProcessMatch::Simple),
+            MatchType::ProcessNameContains(substr) if process.comm.contains(substr) => {
+                Some(ProcessMatch::Simple)
             }
-        }
-        MatchType::Or(conditions) => {
-            // saving the subcommand in case in the OR condition a subcommand is found
-            let mut subcommand_found = None;
-
-            let or_conditions_matched = conditions.iter().any(|condition| {
-                let process_match = matches_target(condition, process);
-                if process_match.is_match && process_match.sub_command.is_some() {
-                    subcommand_found = Some(process_match.sub_command.unwrap());
-                }
-                process_match.is_match
-            });
-
-            ProcessMatch {
-                is_match: or_conditions_matched,
-                sub_command: subcommand_found,
+            MatchType::MinArgs(n) if process.argv.len() > *n => Some(ProcessMatch::Simple),
+            MatchType::ArgsNotContain(content)
+                if !process.argv.iter().skip(1).any(|arg| arg == content) =>
+            {
+                Some(ProcessMatch::Simple)
             }
-        }
-        MatchType::SubcommandIsOneOf(subcommands) => {
-            let args = process
-                .argv
+            MatchType::FirstArgIs(arg) if process.argv.get(1) == Some(arg) => {
+                Some(ProcessMatch::Simple)
+            }
+            MatchType::CommandContains(content) if process.command_string.contains(content) => {
+                Some(ProcessMatch::Simple)
+            }
+            MatchType::CommandNotContains(content) if !process.command_string.contains(content) => {
+                Some(ProcessMatch::Simple)
+            }
+            MatchType::CommandMatchesRegex(regex) if regex.is_match(&process.command_string) => {
+                Some(ProcessMatch::Simple)
+            }
+            MatchType::And(conditions) => {
+                // saving the subcommand in case in the AND condition a subcommand is found
+                conditions
+                    .iter()
+                    .map(|condition| condition.get_match(process))
+                    .reduce(|a, b| match (a, b) {
+                        (None, _) | (_, None) => None,
+                        (Some(a), Some(b)) => Some(cmp::max(a, b)),
+                    })
+                    .flatten()
+            }
+            MatchType::Or(conditions) => conditions
                 .iter()
-                .map(|s| s.to_string())
-                .collect::<Vec<String>>();
-
-            // to find the subcommand, we find the first argument that doesn't start with '-' (as options are usually done with -)
-            let subcommand = args.iter().skip(1).find(|arg| !arg.starts_with('-'));
-
-            match subcommand {
-                Some(cmd) => ProcessMatch {
-                    is_match: subcommands.contains(cmd),
-                    sub_command: Some(cmd.to_string()),
-                },
-                None => ProcessMatch {
-                    is_match: false,
-                    sub_command: None,
-                },
+                .filter_map(|condition| condition.get_match(process))
+                .next(),
+            MatchType::SubcommandIsOneOf(subcommands) => {
+                // to find the subcommand, we find the first argument that doesn't start with '-'
+                // (as options are usually done with -)
+                process
+                    .argv
+                    .iter()
+                    .skip(1)
+                    .filter(|arg| !arg.starts_with('-'))
+                    .find(|arg| subcommands.contains(arg))
+                    .map(|cmd| ProcessMatch::WithSubcommand(cmd))
             }
+            _ => None,
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ProcessMatch<'a> {
+    Simple,
+    WithSubcommand(&'a str),
+}
+
+impl<'a> ProcessMatch<'a> {
+    pub fn with_subcommand(self, sub_command: &'a str) -> Self {
+        Self::WithSubcommand(sub_command)
+    }
+}
+
+impl Ord for ProcessMatch<'_> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, other) {
+            (
+                ProcessMatch::WithSubcommand(sub_command1),
+                ProcessMatch::WithSubcommand(sub_command2),
+            ) if sub_command1 == sub_command2 => Ordering::Equal,
+            (
+                ProcessMatch::WithSubcommand(sub_command1),
+                ProcessMatch::WithSubcommand(sub_command2),
+            ) => {
+                warn!(
+                    "Matched two different subcommands: {} and {}",
+                    sub_command1, sub_command2
+                );
+                Ordering::Less
+            }
+            (ProcessMatch::WithSubcommand { .. }, _) => Ordering::Greater,
+            (_, ProcessMatch::WithSubcommand { .. }) => Ordering::Less,
+            _ => Ordering::Equal,
+        }
+    }
+}
+
+impl PartialOrd for ProcessMatch<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }

@@ -1,4 +1,6 @@
-use crate::process_identification::target_process::target_match::MatchType;
+use crate::process_identification::target_process::target_match::{CachedRegex, MatchType};
+use anyhow::{Error, Result};
+use tracing::error;
 
 #[derive(Clone, Debug)]
 pub enum Condition {
@@ -6,6 +8,7 @@ pub enum Condition {
     And(CompoundCondition),
     Or(CompoundCondition),
 }
+
 #[derive(Clone, Debug)]
 pub enum SimpleCondition {
     ProcessNameIs { process_name_is: String },
@@ -26,14 +29,22 @@ impl CompoundCondition {
     pub fn into_match_types(self) -> Vec<MatchType> {
         self.0
             .into_iter()
-            .map(|condition| condition.into_match_type())
+            .filter_map(|condition| match condition.try_into() {
+                Ok(match_type) => Some(match_type),
+                Err(e) => {
+                    error!("Error converting condition to match type: {}", e);
+                    None
+                }
+            })
             .collect()
     }
 }
 
-impl Condition {
-    pub fn into_match_type(self) -> MatchType {
-        match self {
+impl TryFrom<Condition> for MatchType {
+    type Error = Error;
+
+    fn try_from(condition: Condition) -> Result<Self> {
+        let match_type = match condition {
             Condition::Simple(SimpleCondition::ProcessNameIs { process_name_is }) => {
                 MatchType::ProcessNameIs(process_name_is.clone())
             }
@@ -57,12 +68,13 @@ impl Condition {
             }) => MatchType::CommandNotContains(command_not_contains.clone()),
             Condition::Simple(SimpleCondition::CommandMatchesRegex {
                 command_matches_regex,
-            }) => MatchType::CommandMatchesRegex(command_matches_regex.clone()),
+            }) => MatchType::CommandMatchesRegex(CachedRegex::new(command_matches_regex)?),
             Condition::And(and_condition) => MatchType::And(and_condition.into_match_types()),
             Condition::Or(or_condition) => MatchType::Or(or_condition.into_match_types()),
             Condition::Simple(SimpleCondition::SubcommandIsOneOf { subcommands }) => {
-                MatchType::SubcommandIsOneOf(subcommands.clone())
+                MatchType::SubcommandIsOneOf(subcommands.into())
             }
-        }
+        };
+        Ok(match_type)
     }
 }
