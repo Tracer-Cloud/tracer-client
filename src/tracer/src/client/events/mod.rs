@@ -12,7 +12,7 @@ use sysinfo::System;
 use tracing::info;
 
 // FIXME: How should this be handled with the new architecture?
-pub async fn send_log_event(_api_key: &str, message: &str) -> Result<()> {
+pub async fn send_log_event(message: &str) -> Result<()> {
     let _log_entry = json!({
         "message": message,
         "process_type": "pipeline",
@@ -21,7 +21,6 @@ pub async fn send_log_event(_api_key: &str, message: &str) -> Result<()> {
         "timestamp": Utc::now().timestamp_millis() as f64 / 1000.,
     });
 
-    // todo...
     Ok(())
 }
 
@@ -78,7 +77,6 @@ async fn gather_system_properties(
     }
 }
 
-// NOTE: moved pipeline_name to tracer client
 pub async fn send_start_run_event(
     system: &System,
     pipeline_name: &str,
