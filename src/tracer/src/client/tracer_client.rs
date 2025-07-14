@@ -5,7 +5,7 @@ use crate::extracts::containers::DockerWatcher;
 use crate::process_identification::target_process::target_manager::TargetManager;
 use anyhow::{Context, Result};
 
-use crate::client::events::{send_alert_event, send_log_event, send_start_run_event};
+use crate::client::events::send_start_run_event;
 use crate::client::exporters::client_export_manager::ExporterManager;
 use crate::client::exporters::log_writer::LogWriterEnum;
 use crate::extracts::ebpf_watcher::watcher::EbpfWatcher;
@@ -17,9 +17,8 @@ use crate::process_identification::types::current_run::{
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::{Event, ProcessStatus};
 use chrono::{DateTime, Utc};
-use serde_json::json;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use sysinfo::System;
 use tokio::sync::{mpsc, RwLock};
 use tracing::{error, info};
@@ -32,7 +31,6 @@ use tracing::warn;
 
 pub struct TracerClient {
     system: Arc<RwLock<System>>, // todo: use arc swap
-    interval: Duration,
 
     pub ebpf_watcher: Arc<EbpfWatcher>,
     docker_watcher: Arc<DockerWatcher>,
@@ -59,10 +57,8 @@ impl TracerClient {
         db_client: LogWriterEnum,
         cli_args: FinalizedInitArgs, // todo: why Config AND TracerCliInitArgs? remove CliInitArgs
     ) -> Result<TracerClient> {
-        // todo: do we need both config with db connection AND db_client?
-        info!("Initializing TracerClient with API Key: {}", config.api_key);
+        info!("Initializing TracerClient");
 
-        // TODO: taking out pricing client for now
         let pricing_client = Self::init_pricing_client(&config).await;
         let pipeline = Self::init_pipeline(&cli_args);
 
@@ -79,7 +75,6 @@ impl TracerClient {
 
         Ok(TracerClient {
             // if putting a value to config, also update `TracerClient::reload_config_file`
-            interval: Duration::from_millis(config.process_polling_interval_ms),
             system: system.clone(),
 
             pipeline,
@@ -135,13 +130,6 @@ impl TracerClient {
         system: &Arc<RwLock<System>>,
     ) -> SystemMetricsCollector {
         SystemMetricsCollector::new(log_recorder.clone(), system.clone())
-    }
-
-    pub async fn reload_config_file(&mut self, config: Config) -> Result<()> {
-        self.interval = Duration::from_millis(config.process_polling_interval_ms);
-        self.config = config;
-
-        Ok(())
     }
 
     /// Starts process monitoring using eBPF if the system is running on Linux and meets kernel requirements.
@@ -311,48 +299,6 @@ impl TracerClient {
 
     pub fn get_pipeline_name(&self) -> &str {
         &self.pipeline_name
-    }
-
-    pub fn get_api_key(&self) -> &str {
-        &self.get_config().api_key
-    }
-
-    pub async fn send_log_event(&self, payload: String) -> Result<()> {
-        send_log_event(self.get_api_key(), &payload).await?; // todo: remove
-
-        self.log_recorder
-            .log(
-                ProcessStatus::RunStatusMessage,
-                payload,
-                None,
-                Some(Utc::now()),
-            )
-            .await?;
-
-        Ok(())
-    }
-
-    pub async fn send_alert_event(&self, payload: String) -> Result<()> {
-        send_alert_event(&payload).await?; // todo: remove
-        self.log_recorder
-            .log(ProcessStatus::Alert, payload, None, Some(Utc::now()))
-            .await?;
-        Ok(())
-    }
-
-    //FIXME: Should tag updates be parts of events?... how should it be handled and stored
-    pub async fn send_update_tags_event(&self, tags: Vec<String>) -> Result<()> {
-        let _tags_entry = json!({
-            "tags": tags,
-            "message": "[CLI] Updating tags",
-            "process_type": "pipeline",
-            "process_status": "tag_update",
-            "event_type": "process_status",
-            "timestamp": Utc::now().timestamp_millis() as f64 / 1000.,
-        });
-
-        // todo...
-        Ok(())
     }
 
     pub async fn close(&self) -> Result<()> {

@@ -1,10 +1,7 @@
-use super::structs::{InfoResponse, Message, RunData, TagData};
-use crate::daemon::handlers::alert::ALERT_ENDPOINT;
+use super::structs::{InfoResponse, RunData};
 use crate::daemon::handlers::end::END_ENDPOINT;
 use crate::daemon::handlers::info::INFO_ENDPOINT;
-use crate::daemon::handlers::log::LOG_ENDPOINT;
 use crate::daemon::handlers::start::START_ENDPOINT;
-use crate::daemon::handlers::tag::TAG_ENDPOINT;
 use crate::daemon::handlers::terminate::TERMINATE_ENDPOINT;
 use reqwest::Response;
 pub use reqwest::Result;
@@ -26,26 +23,6 @@ impl DaemonClient {
 
     fn get_url(&self, path: &str) -> String {
         format!("{}{}", self.base_uri, path)
-    }
-
-    pub async fn send_log_request(&self, payload: Message) -> Result<()> {
-        self.client
-            .post(self.get_url(LOG_ENDPOINT))
-            .json(&payload)
-            .send()
-            .await?
-            .error_for_status()
-            .map(|_| ())
-    }
-
-    pub async fn send_alert_request(&self, payload: Message) -> Result<()> {
-        self.client
-            .post(self.get_url(ALERT_ENDPOINT))
-            .json(&payload)
-            .send()
-            .await?
-            .error_for_status()
-            .map(|_| ())
     }
 
     pub async fn send_start_run_request(&self) -> Result<Option<RunData>> {
@@ -82,15 +59,5 @@ impl DaemonClient {
 
     pub async fn send_info(&self) -> Result<Response> {
         self.client.get(self.get_url(INFO_ENDPOINT)).send().await
-    }
-
-    pub async fn send_update_tags_request(&self, payload: TagData) -> Result<()> {
-        self.client
-            .post(self.get_url(TAG_ENDPOINT))
-            .json(&payload)
-            .send()
-            .await?
-            .error_for_status()
-            .map(|_| ())
     }
 }

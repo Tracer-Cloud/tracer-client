@@ -12,7 +12,6 @@ use std::process::{Command, Stdio};
 pub fn macos_no_daemonize(args: FinalizedInitArgs, api_client: DaemonClient) -> anyhow::Result<()> {
     // Serialize the finalized args to pass to the spawned process
     let current_exe = std::env::current_exe()?;
-    let is_dev_string = "false"; // for testing purposes //TODO remove
 
     println!("Spawning child process...");
 
@@ -28,7 +27,7 @@ pub fn macos_no_daemonize(args: FinalizedInitArgs, api_client: DaemonClient) -> 
         .arg("--user-operator")
         .arg(args.tags.user_operator.as_deref().unwrap_or(""))
         .arg("--is-dev")
-        .arg(is_dev_string)
+        .arg(args.is_dev.unwrap_or_default().to_string())
         .stdin(Stdio::null())
         .stdout(Stdio::from(File::create(STDOUT_FILE)?))
         .stderr(Stdio::from(File::create(STDERR_FILE)?))
@@ -39,7 +38,7 @@ pub fn macos_no_daemonize(args: FinalizedInitArgs, api_client: DaemonClient) -> 
 
     println!("\nDaemon started successfully.");
 
-    // Wait a moment for daemon to start, then show info
+    // Wait a moment for the daemon to start, then show info
     tokio::runtime::Runtime::new()?.block_on(async {
         analytics::spawn_event(
             args.user_id.clone(),
