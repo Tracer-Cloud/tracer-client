@@ -1,3 +1,4 @@
+use crate::process_identification::target_process::parser::conditions::Condition;
 use std::collections::HashMap;
 
 // TODO: use or remove the currently unused fields
@@ -35,6 +36,14 @@ pub struct Task {
     pub description: Option<String>,
     pub rules: Vec<String>,
     pub optional_rules: Option<Vec<String>>,
+    pub specialized_rules: Option<Vec<SpecializedRule>>,
+    pub optional_specialized_rules: Option<Vec<SpecializedRule>>,
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct SpecializedRule {
+    pub name: String,
+    pub condition: Condition,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]

@@ -3,7 +3,9 @@ use crate::process_identification::target_pipeline::parser::pipeline::{
 };
 use crate::process_identification::target_pipeline::parser::yaml_rules_parser::load_pipelines_from_yamls;
 use crate::process_identification::target_process::target::Target;
+use crate::process_identification::target_process::target_match::MatchType;
 use crate::utils::yaml::YamlFile;
+use anyhow::Result;
 use multi_index_map::MultiIndexMap;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -44,25 +46,25 @@ pub struct TargetPipelineManager {
 }
 
 impl TargetPipelineManager {
-    pub fn new(rule_files: &[YamlFile], _targets: &[Target]) -> Self {
+    pub fn new(rule_files: &[YamlFile], _targets: &[Target]) -> Result<Self> {
         let pipelines = load_pipelines_from_yamls(rule_files);
         let mut tasks = Tasks::default();
-        pipelines.iter().for_each(|pipeline| {
+        for pipeline in pipelines.iter() {
             let dependencies = &pipeline.dependencies;
             if let Some(steps) = &pipeline.steps {
-                tasks.add_steps(steps, dependencies, false);
+                tasks.add_steps(steps, dependencies, false)?;
             }
             if let Some(steps) = &pipeline.optional_steps {
-                tasks.add_steps(steps, dependencies, true);
+                tasks.add_steps(steps, dependencies, true)?;
             }
-        });
-        Self {
+        }
+        Ok(Self {
             _pipelines: pipelines,
             tasks,
             task_pids: MultiIndexTaskPidMap::default(),
             pid_to_process: HashMap::new(),
             matched_tasks: HashSet::new(),
-        }
+        })
     }
 
     /// Registers a process with the pipeline manager. This associates the process with all tasks
@@ -97,13 +99,20 @@ impl TargetPipelineManager {
             // find any tasks that exceed the score threshold after adding the rule
             let mut matched_tasks = tasks
                 .iter()
-                .filter_map(|task| {
+                .filter_map(|(task, match_type)| {
                     // TODO: should we check that the rule associated with the PID is not one
                     // that has already been recognized? Sometimes, the same command will be run
                     // multiple times in the same task. We could require a separate rule entry in
                     // the task definition for each time the command is run, or have a way to
                     // specify the cardinality of the rule within the task.
 
+                    // if the rule is specialized, check if the additional conditions match the
+                    // process
+                    if let Some(match_type) = match_type {
+                        if !match_type.matches(process) {
+                            return None;
+                        }
+                    }
                     // add the PID to the list for candidate task
                     self.task_pids.insert(TaskPid {
                         task_id: task.id.clone(),
@@ -166,7 +175,7 @@ impl Default for TargetPipelineManager {
         const RULE_FILES: &[YamlFile] = &[YamlFile::Embedded(include_str!(
             "yml_rules/tracer.pipelines.yml"
         ))];
-        Self::new(RULE_FILES, &Vec::new())
+        Self::new(RULE_FILES, &Vec::new()).expect("Failed to create default pipeline manager")
     }
 }
 
@@ -188,65 +197,113 @@ struct ProcessRule {
 #[derive(Debug, Clone, Default)]
 struct Tasks {
     tasks: HashMap<String, Task>,
-    rule_to_task: HashMap<String, HashSet<String>>,
+    rule_to_task: HashMap<String, HashSet<(String, Option<MatchType>)>>,
 }
 
 impl Tasks {
-    fn add_steps(&mut self, steps: &Vec<Step>, dependencies: &Dependencies, optional: bool) {
+    fn add_steps(
+        &mut self,
+        steps: &Vec<Step>,
+        dependencies: &Dependencies,
+        optional: bool,
+    ) -> Result<()> {
         for step in steps {
             match step {
-                Step::Task(id) => self.add_task(id, dependencies, optional),
-                Step::OptionalTask(id) => self.add_task(id, dependencies, true),
-                Step::Subworkflow(id) => self.add_subworkflow(id, dependencies, optional),
-                Step::OptionalSubworkflow(id) => self.add_subworkflow(id, dependencies, true),
-                Step::And(steps) => self.add_steps(steps, dependencies, optional),
-                Step::Or(steps) => self.add_steps(steps, dependencies, optional),
-            }
+                Step::Task(id) => self.add_task(id, dependencies, optional)?,
+                Step::OptionalTask(id) => self.add_task(id, dependencies, true)?,
+                Step::Subworkflow(id) => self.add_subworkflow(id, dependencies, optional)?,
+                Step::OptionalSubworkflow(id) => self.add_subworkflow(id, dependencies, true)?,
+                Step::And(steps) => self.add_steps(steps, dependencies, optional)?,
+                Step::Or(steps) => self.add_steps(steps, dependencies, optional)?,
+            };
         }
+        Ok(())
     }
 
-    fn add_task(&mut self, id: &String, dependencies: &Dependencies, _optional: bool) {
+    fn add_task(
+        &mut self,
+        id: &String,
+        dependencies: &Dependencies,
+        _optional: bool,
+    ) -> Result<()> {
         if let Some(task) = dependencies.get_task(id) {
             if !self.tasks.contains_key(id) {
                 self.tasks.insert(id.clone(), task.clone());
             }
             for rule in &task.rules {
                 if let Some(tasks) = self.rule_to_task.get_mut(rule) {
-                    tasks.insert(task.id.clone());
+                    tasks.insert((task.id.clone(), None));
                 } else {
                     self.rule_to_task
-                        .insert(rule.clone(), HashSet::from([task.id.clone()]));
+                        .insert(rule.clone(), HashSet::from([(task.id.clone(), None)]));
                 }
             }
             if let Some(optional_rules) = task.optional_rules.as_ref() {
                 for rule in optional_rules {
                     if let Some(tasks) = self.rule_to_task.get_mut(rule) {
-                        tasks.insert(task.id.clone());
+                        tasks.insert((task.id.clone(), None));
                     } else {
                         self.rule_to_task
-                            .insert(rule.clone(), HashSet::from([task.id.clone()]));
+                            .insert(rule.clone(), HashSet::from([(task.id.clone(), None)]));
+                    }
+                }
+            }
+            if let Some(specialized_rules) = task.specialized_rules.as_ref() {
+                for rule in specialized_rules {
+                    if let Some(tasks) = self.rule_to_task.get_mut(&rule.name) {
+                        tasks.insert((task.id.clone(), Some(rule.condition.clone().try_into()?)));
+                    } else {
+                        self.rule_to_task.insert(
+                            rule.name.clone(),
+                            HashSet::from([(
+                                task.id.clone(),
+                                Some(rule.condition.clone().try_into()?),
+                            )]),
+                        );
+                    }
+                }
+            }
+            if let Some(optional_specialized_rules) = task.optional_specialized_rules.as_ref() {
+                for rule in optional_specialized_rules {
+                    if let Some(tasks) = self.rule_to_task.get_mut(&rule.name) {
+                        tasks.insert((task.id.clone(), Some(rule.condition.clone().try_into()?)));
+                    } else {
+                        self.rule_to_task.insert(
+                            rule.name.clone(),
+                            HashSet::from([(
+                                task.id.clone(),
+                                Some(rule.condition.clone().try_into()?),
+                            )]),
+                        );
                     }
                 }
             }
         }
+        Ok(())
     }
 
-    fn add_subworkflow(&mut self, id: &str, dependencies: &Dependencies, optional: bool) {
+    fn add_subworkflow(
+        &mut self,
+        id: &str,
+        dependencies: &Dependencies,
+        optional: bool,
+    ) -> Result<()> {
         if let Some(subworkflow) = dependencies.get_subworkflow(id) {
             if let Some(steps) = &subworkflow.steps {
-                self.add_steps(steps, dependencies, optional);
+                self.add_steps(steps, dependencies, optional)?;
             }
             if let Some(steps) = &subworkflow.optional_steps {
-                self.add_steps(steps, dependencies, true);
+                self.add_steps(steps, dependencies, true)?;
             }
         }
+        Ok(())
     }
 
-    fn get_tasks_with(&self, rule: &str) -> Option<HashSet<&Task>> {
+    fn get_tasks_with(&self, rule: &str) -> Option<HashSet<(&Task, &Option<MatchType>)>> {
         self.rule_to_task.get(rule).map(|tasks| {
             tasks
                 .iter()
-                .map(|task| self.tasks.get(task).unwrap())
+                .map(|task| (self.tasks.get(&task.0).unwrap(), &task.1))
                 .collect()
         })
     }
@@ -337,6 +394,7 @@ mod tests {
     #[fixture]
     fn pipeline_manager(test_targets: &Vec<Target>) -> TargetPipelineManager {
         TargetPipelineManager::new(PIPELINE_YAML_PATH, test_targets)
+            .expect("Error creating pipeline manager")
     }
 
     /// Helper function to create a process start trigger
