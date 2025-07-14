@@ -1,12 +1,14 @@
-use crate::extracts::process::process_utils::process_status_to_string;
 use crate::process_identification::types::event::attributes::process::{
     FullProcessProperties, ProcessProperties,
 };
+use crate::utils::env;
 use chrono::{DateTime, Utc};
+use itertools::Itertools;
 use mockall::automock;
 use std::path::PathBuf;
 use sysinfo::{DiskUsage, Pid, ProcessStatus};
-use tracing::trace;
+use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
+use tracing::{debug, trace};
 
 // Create a trait that wraps the Process methods we need
 #[automock]
@@ -85,7 +87,6 @@ pub async fn gather_process_data<P: ProcessTrait>(
     process_start_time: DateTime<Utc>,
     process_argv: Vec<String>,
 ) -> ProcessProperties {
-    use tracing::debug;
     debug!("Gathering process data for {}", display_name);
 
     // get the process environment variables
@@ -116,7 +117,7 @@ pub async fn gather_process_data<P: ProcessTrait>(
         process_disk_usage_write_last_interval: proc.disk_usage().written_bytes,
         process_memory_usage: proc.memory(),
         process_memory_virtual: proc.virtual_memory(),
-        process_status: process_status_to_string(&proc.status()),
+        process_status: proc.status().to_string(),
         container_id,
         job_id,
         working_directory,
@@ -125,22 +126,49 @@ pub async fn gather_process_data<P: ProcessTrait>(
     })
 }
 
+/// Creates properties for a short-lived process that wasn't found in the system
+pub fn create_short_lived_process_object(
+    process: &ProcessStartTrigger,
+    display_name: String,
+) -> ProcessProperties {
+    ProcessProperties::Full(FullProcessProperties {
+        tool_name: display_name,
+        tool_pid: process.pid.to_string(),
+        tool_parent_pid: process.ppid.to_string(),
+        tool_binary_path: "".to_string(), // TODO WTF
+        tool_cmd: process.comm.clone(),
+        tool_args: process.argv.iter().join(" "),
+        start_timestamp: Utc::now().to_rfc3339(),
+        process_cpu_utilization: 0.0,
+        process_run_time: 0,
+        process_disk_usage_read_total: 0,
+        process_disk_usage_write_total: 0,
+        process_disk_usage_read_last_interval: 0,
+        process_disk_usage_write_last_interval: 0,
+        process_memory_usage: 0,
+        process_memory_virtual: 0,
+        process_status: ProcessStatus::Unknown(0).to_string(),
+        container_id: None,
+        job_id: None,
+        working_directory: None,
+        trace_id: None,
+        container_event: None,
+    })
+}
+
 /// Extracts environment variables related to containerization, jobs, and tracing
 fn get_process_environment_variables<P: ProcessTrait>(
     proc: &P,
 ) -> (Option<String>, Option<String>, Option<String>) {
-    const JOB_ID_KEY: &str = "AWS_BATCH_JOB_ID";
-    const TRACE_ID_KEYS: &str = "TRACER_TRACE_ID";
-
     let mut job_id = None;
     let mut trace_id = None;
 
     for (key, value) in proc.environ().iter().filter_map(|v| v.split_once('=')) {
         match (&job_id, &trace_id) {
-            (None, _) if key == JOB_ID_KEY => {
+            (None, _) if key == env::AWS_BATCH_JOB_ID_ENV_VAR => {
                 job_id = Some(value.trim().to_string());
             }
-            (_, None) if key == TRACE_ID_KEYS => {
+            (_, None) if key == env::TRACE_ID_ENV_VAR => {
                 trace_id = Some(value.trim().to_string());
             }
             (Some(_), Some(_)) => break,

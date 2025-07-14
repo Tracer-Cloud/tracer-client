@@ -1,148 +1,136 @@
 use crate::process_identification::types::pipeline_tags::PipelineTags;
+use crate::utils::env;
 use console::Emoji;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Input, Select};
-#[derive(Debug, Clone)]
-pub struct InteractiveInitArgs {
-    pub pipeline_name: Option<String>,
-    pub run_id: Option<String>,
-    pub tags: PipelineTags,
-    pub no_daemonize: bool,
-    pub is_dev: Option<bool>,
-    pub user_id: Option<String>,
-}
+use std::sync::LazyLock;
 
-impl Default for InteractiveInitArgs {
-    fn default() -> Self {
-        Self {
-            pipeline_name: Some("demo_pipeline".into()),
-            run_id: None,
-            tags: PipelineTags::default(),
-            no_daemonize: false,
-            is_dev: Some(false),
-            user_id: None,
-        }
-    }
-}
+impl TracerCliInitArgs {
+    // TODO: Add argument to force non-interactive mode - if set, do not prompt user
+    pub fn finalize(self) -> FinalizedInitArgs {
+        let theme: LazyLock<ColorfulTheme> = LazyLock::new(|| {
+            let arrow = Emoji("👉 ", "> ").to_string();
+            ColorfulTheme {
+                prompt_prefix: dialoguer::console::Style::new().green().apply_to(arrow),
+                prompt_suffix: dialoguer::console::Style::new()
+                    .dim()
+                    .apply_to(":".to_string()),
+                success_prefix: dialoguer::console::Style::new()
+                    .green()
+                    .apply_to("✔".to_string()),
+                success_suffix: dialoguer::console::Style::new()
+                    .dim()
+                    .apply_to("".to_string()),
+                values_style: dialoguer::console::Style::new().yellow(),
+                active_item_style: dialoguer::console::Style::new().cyan().bold(),
+                ..ColorfulTheme::default()
+            }
+        });
 
-impl InteractiveInitArgs {
-    pub fn from_partial(cli_args: TracerCliInitArgs) -> Self {
-        Self {
-            pipeline_name: cli_args.pipeline_name,
-            run_id: cli_args.run_id,
-            tags: PipelineTags {
-                environment: cli_args.tags.environment,
-                pipeline_type: cli_args.tags.pipeline_type,
-                user_operator: cli_args.tags.user_operator,
-                department: cli_args.tags.department,
-                team: cli_args.tags.team,
-                organization_id: cli_args.tags.organization_id,
-                others: cli_args.tags.others,
-            },
-            no_daemonize: cli_args.no_daemonize,
-            is_dev: cli_args.is_dev,
-            user_id: cli_args.user_id,
-        }
-    }
+        let run_id = self
+            .run_id
+            .or_else(|| env::get_env_var(env::RUN_ID_ENV_VAR));
 
-    pub fn prompt_missing(mut self) -> Self {
-        let arrow = Emoji("👉 ", "> ").to_string();
-        let theme = ColorfulTheme {
-            prompt_prefix: dialoguer::console::Style::new().green().apply_to(arrow),
-            prompt_suffix: dialoguer::console::Style::new()
-                .dim()
-                .apply_to(":".to_string()),
-            success_prefix: dialoguer::console::Style::new()
-                .green()
-                .apply_to("✔".to_string()),
-            success_suffix: dialoguer::console::Style::new()
-                .dim()
-                .apply_to("".to_string()),
-            values_style: dialoguer::console::Style::new().yellow(),
-            active_item_style: dialoguer::console::Style::new().cyan().bold(),
-            ..ColorfulTheme::default()
-        };
-
-        if self.pipeline_name.is_none() {
-            self.pipeline_name = Some(
-                Input::with_theme(&theme)
+        let pipeline_name = self
+            .pipeline_name
+            .or_else(|| env::get_env_var(env::PIPELINE_NAME_ENV_VAR))
+            .or_else(|| {
+                Input::with_theme(&*theme)
                     .with_prompt("Enter pipeline name (e.g., RNA-seq_analysis_v1, scRNA-seq_2024)")
                     .default("demo_pipeline".into())
                     .interact_text()
-                    .unwrap(),
+                    .ok()
+            })
+            .expect("Failed to get pipeline name from environment variable or prompt");
+
+        let mut tags = self.tags;
+
+        if tags.environment.is_none() {
+            let _ = tags.environment.insert(
+                env::get_env_var(env::ENVIRONMENT_ENV_VAR)
+                    .or_else(|| {
+                        const ENVIRONMENTS: &[&str] =
+                            &["local", "development", "staging", "production", "custom"];
+                        let selection = Select::with_theme(&*theme)
+                            .with_prompt(
+                                "Select environment (or choose 'custom' to enter your own)",
+                            )
+                            .items(ENVIRONMENTS)
+                            .default(0)
+                            .interact()
+                            .unwrap();
+                        if selection == 4 {
+                            Some(
+                                Input::with_theme(&*theme)
+                                    .with_prompt("Enter custom environment name")
+                                    .interact_text()
+                                    .unwrap(),
+                            )
+                        } else {
+                            Some(ENVIRONMENTS[selection].to_string())
+                        }
+                    })
+                    .expect("Failed to get environment from environment variable or prompt"),
             );
         }
 
-        if self.tags.environment.is_none() {
-            let environments = vec!["local", "development", "staging", "production", "custom"];
-            let selection = Select::with_theme(&theme)
-                .with_prompt("Select environment (or choose 'custom' to enter your own)")
-                .items(&environments)
-                .default(0)
-                .interact()
-                .unwrap();
+        if tags.pipeline_type.is_none() {
+            let _ = tags.pipeline_type.insert(
+                env::get_env_var(env::PIPELINE_TYPE_ENV_VAR)
+                    .or_else(|| {
+                        const PIPELINE_TYPES: &[&str] = &[
+                            "RNA-seq",
+                            "scRNA-seq",
+                            "ChIP-seq",
+                            "ATAC-seq",
+                            "WGS",
+                            "WES",
+                            "Metabolomics",
+                            "Proteomics",
+                            "custom",
+                        ];
+                        let selection = Select::with_theme(&*theme)
+                            .with_prompt(
+                                "Select pipeline type (or choose 'custom' to enter your own)",
+                            )
+                            .items(PIPELINE_TYPES)
+                            .default(0)
+                            .interact()
+                            .unwrap();
 
-            self.tags.environment = if selection == 4 {
-                Some(
-                    Input::with_theme(&theme)
-                        .with_prompt("Enter custom environment name")
-                        .interact_text()
-                        .unwrap(),
-                )
-            } else {
-                Some(environments[selection].to_string())
-            };
-        }
-
-        if self.tags.pipeline_type.is_none() {
-            let pipeline_types = vec![
-                "RNA-seq",
-                "scRNA-seq",
-                "ChIP-seq",
-                "ATAC-seq",
-                "WGS",
-                "WES",
-                "Metabolomics",
-                "Proteomics",
-                "custom",
-            ];
-            let selection = Select::with_theme(&theme)
-                .with_prompt("Select pipeline type (or choose 'custom' to enter your own)")
-                .items(&pipeline_types)
-                .default(0)
-                .interact()
-                .unwrap();
-
-            self.tags.pipeline_type = if selection == 8 {
-                Some(
-                    Input::with_theme(&theme)
-                        .with_prompt("Enter custom pipeline type")
-                        .interact_text()
-                        .unwrap(),
-                )
-            } else {
-                Some(pipeline_types[selection].to_string())
-            };
-        }
-
-        if self.tags.user_operator.is_none() {
-            self.tags.user_operator = Some(
-                Input::with_theme(&theme)
-                    .with_prompt("Enter your name/username (who is running this pipeline)")
-                    .default(std::env::var("USER").unwrap_or_else(|_| "unknown".into()))
-                    .interact_text()
-                    .unwrap(),
+                        if selection == 8 {
+                            Some(
+                                Input::with_theme(&*theme)
+                                    .with_prompt("Enter custom pipeline type")
+                                    .interact_text()
+                                    .unwrap(),
+                            )
+                        } else {
+                            Some(PIPELINE_TYPES[selection].to_string())
+                        }
+                    })
+                    .expect("Failed to get pipeline type from environment variable or prompt"),
             );
         }
 
-        self
-    }
+        if tags.user_operator.is_none() {
+            let _ = tags.user_operator.insert(
+                env::get_env_var(env::USER_OPERATOR_ENV_VAR)
+                    .or_else(|| {
+                        Input::with_theme(&*theme)
+                            .with_prompt("Enter your name/username (who is running this pipeline)")
+                            .default(std::env::var("USER").unwrap_or_else(|_| "unknown".into()))
+                            .interact_text()
+                            .ok()
+                    })
+                    .expect("Failed to get user operator from environment variable or prompt"),
+            );
+        }
 
-    pub fn into_cli_args(self) -> FinalizedInitArgs {
         FinalizedInitArgs {
-            pipeline_name: self.pipeline_name.expect("pipeline_name must be set"),
-            run_id: self.run_id,
-            tags: self.tags,
+            pipeline_name,
+            run_id,
+            tags,
             no_daemonize: self.no_daemonize,
             is_dev: self.is_dev,
             user_id: self.user_id,
