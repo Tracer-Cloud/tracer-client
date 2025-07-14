@@ -3,7 +3,6 @@ use std::fs;
 use std::path::Path;
 
 // Environment variables that control init parameters
-pub const RUN_ID_ENV_VAR: &str = "TRACER_RUN_ID";
 pub const TRACE_ID_ENV_VAR: &str = "TRACER_TRACE_ID";
 pub const PIPELINE_NAME_ENV_VAR: &str = "TRACER_PIPELINE_NAME";
 pub const PIPELINE_TYPE_ENV_VAR: &str = "TRACER_PIPELINE_TYPE";
