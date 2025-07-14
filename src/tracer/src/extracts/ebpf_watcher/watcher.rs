@@ -1,9 +1,9 @@
 use crate::extracts::containers::DockerWatcher;
 use crate::extracts::ebpf_watcher::handler::trigger::trigger_processor::TriggerProcessor;
+use crate::extracts::process::extract_process_data::get_process_argv;
 use crate::extracts::process::process_manager::ProcessManager;
 use crate::process_identification::recorder::LogRecorder;
 use crate::process_identification::target_process::target_manager::TargetManager;
-use crate::extracts::process::extract_process_data::get_process_argv;
 use anyhow::{Error, Result};
 use std::collections::HashSet;
 use std::fs::{self};
