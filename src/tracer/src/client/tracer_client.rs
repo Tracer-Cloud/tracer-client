@@ -17,7 +17,6 @@ use crate::utils::system_info::get_kernel_version;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
-use std::time::Duration;
 use sysinfo::System;
 use tokio::sync::{mpsc, RwLock};
 #[cfg(target_os = "linux")]
