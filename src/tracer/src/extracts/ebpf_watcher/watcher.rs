@@ -3,11 +3,11 @@ use crate::extracts::ebpf_watcher::handler::trigger::trigger_processor::TriggerP
 use crate::extracts::process::process_manager::ProcessManager;
 use crate::process_identification::recorder::LogRecorder;
 use crate::process_identification::target_process::target_manager::TargetManager;
+use crate::extracts::process::extract_process_data::get_process_argv;
 use anyhow::{Error, Result};
 use std::collections::HashSet;
 use std::fs::{self};
 use std::path::Path;
-use std::process::Command;
 use std::sync::Arc;
 use sysinfo::ProcessesToUpdate;
 use tokio::sync::{mpsc, Mutex, RwLock};
@@ -299,24 +299,4 @@ impl EbpfWatcher {
             .get_monitored_processes()
             .await
     }
-}
-
-fn get_process_argv(pid: i32) -> Vec<String> {
-    Command::new("ps")
-        .args(["-p", &pid.to_string(), "-o", "command="])
-        .output()
-        .ok()
-        .and_then(|output| {
-            String::from_utf8(output.stdout)
-                .ok()
-                .and_then(|command_line| {
-                    let command_line = command_line.trim();
-                    if !command_line.is_empty() {
-                        shlex::split(command_line)
-                    } else {
-                        None
-                    }
-                })
-        })
-        .unwrap_or_default()
 }
