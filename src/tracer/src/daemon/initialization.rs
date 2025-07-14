@@ -14,8 +14,7 @@ async fn get_db_client(init_args: &FinalizedInitArgs, config: &Config) -> LogWri
     // if we don't pass any value, we use the prod endpoint
     // if we pass --is-dev=true, we use the dev endpoint
     // dev endpoint points to clickhouse, prod endpoint points to postgres
-    let log_forward_endpoint = if init_args.is_dev.unwrap_or(false)
-    {
+    let log_forward_endpoint = if init_args.is_dev.unwrap_or(false) {
         info!(
             "Using dev endpoint: {}",
             &config.log_forward_endpoint_dev.as_ref().unwrap()
