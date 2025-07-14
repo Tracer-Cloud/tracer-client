@@ -146,8 +146,10 @@ impl InfoDisplay {
                 "white",
             );
         }
+        formatter.add_empty_line();
 
         if let Some(summary) = &inner.cost_summary {
+            formatter.add_empty_line();
             formatter.add_section_header("Cost estimation");
             formatter.add_field(
                 "Total since start",
