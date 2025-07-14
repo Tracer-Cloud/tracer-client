@@ -43,3 +43,116 @@ pipelines:
           - samtools faidx
     steps:
       - subworkflow: PREPARE_GENOME
+  - id: nf-core/fastquorum
+    description: FastQuorum is a pipeline for producing consensus reads using UMIs.
+    repo: https://github.com/nf-core/fastquorum
+    language: nextflow
+    version:
+      min: 1.2.0
+    subworkflows:
+      - id: PREPARE_GENOME
+        description: Prepare the BWA genome index.
+        steps:
+          - task: BWAMEM1_INDEX
+          - task: SAMTOOLS_FAIDX
+          - task: SAMTOOLS_DICT
+      - id: FASTQUORUM
+        description: Group reads by UMI and collase to consensus reads.
+        steps:
+          - task: FASTQC
+          - task: FASTQTOBAM
+          - task: ALIGN_RAW_BAM
+          - task: MERGE_BAM
+          - task: GROUPREADSBYUMI
+          - optional_task: COLLECTDUPLEXSEQMETRICS
+          - or:
+              - and:
+                  - or:
+                      - task: CALLDDUPLEXCONSENSUSREADS
+                      - task: CALLMOLECULARCONSENSUSREADS
+                  - task: ALIGN_CONSENSUS_BAM
+                  - task: FILTERCONSENSUSREADS
+              - and:
+                  - or:
+                      - task: CALLANDFILTERDUPLEXCONSENSUSREADS
+                      - task: CALLANDFILTERMOLECULARCONSENSUSREADS
+                  - task: ALIGN_CONSENSUS_BAM
+          - task: MULTIQC
+    tasks:
+      - id: BWAMEM1_INDEX
+        description: Index the genome for BWA
+        rules:
+          - bwa index
+      - id: SAMTOOLS_FAIDX
+        description: Index a FASTA file
+        rules:
+          - samtools faidx
+      - id: SAMTOOLS_DICT
+        description: Create a genome .dict file
+        rules:
+          - samtools dict
+      - id: FASTQC
+        description: Run QC checks on a FASTQ file
+        rules:
+          - fastqc
+      - id: FASTQTOBAM
+        description: Convert a FASTQ file to a BAM file
+        rules:
+          - fgbio FastqToBam
+      - id: ALIGN_RAW_BAM
+        description: Align a BAM file to the genome
+        rules:
+          - bwa mem
+          - samtools fastq
+          - fgbip ZipperBams
+        optional_specialized_rules:
+          - name: samtools sort
+            condition:
+              or:
+                - args_contain: --template-coordinate
+                - args_contain: --write-index
+      - id: MERGE_BAM
+        description: Merge BAM files
+        rules:
+          - samtools merge
+      - id: GROUPREADSBYUMI
+        description: Group reads by UMI
+        rules:
+          - fgbio GroupReadsByUmi
+      - id: COLLECTDUPLEXSEQMETRICS
+        description: Collect duplex sequence metrics
+        rules:
+          - fgbio CollectDuplexSeqMetrics
+      - id: CALLDDUPLEXCONSENSUSREADS
+        description: Call duplex consensus reads
+        rules:
+          - fgbio CallDuplexConsensusReads
+      - id: CALLMOLECULARCONSENSUSREADS
+        description: Call molecular consensus reads
+        rules:
+          - fgbio CallMolecularConsensusReads
+      - id: ALIGN_CONSENSUS_BAM
+        description: Align consensus reads to the genome
+        rules:
+          - bwa mem
+          - samtools fastq
+          - fgbip ZipperBams
+        optional_rules:
+          - samtools sort
+      - id: FILTERCONSENSUSREADS
+        description: Filter consensus reads
+        rules:
+          - fgbio FilterConsensusReads
+      - id: CALLANDFILTERDUPLEXCONSENSUSREADS
+        description: Call and filter duplex consensus reads
+        rules:
+          - fgbio CallDuplexConsensusReads
+          - fgbio FilterConsensusReads
+      - id: CALLANDFILTERMOLECULARCONSENSUSREADS
+        description: Call and filter molecular consensus reads
+        rules:
+          - fgbio CallMolecularConsensusReads
+          - fgbio FilterConsensusReads
+    steps:
+      - subworkflow: PREPARE_GENOME
+      - subworkflow: FASTQUORUM

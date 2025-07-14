@@ -1,4 +1,4 @@
-use super::pipeline::{Dependencies, Pipeline, Step, Subworkflow, Task, Version};
+use super::pipeline::{Dependencies, Pipeline, SpecializedRule, Step, Subworkflow, Task, Version};
 use crate::utils::yaml::{Yaml, YamlExt, YamlFile};
 use anyhow::{anyhow, bail, Result};
 use std::sync::LazyLock;
@@ -148,12 +148,42 @@ impl TryFrom<&Yaml> for Task {
                     .collect::<Result<Vec<_>>>()
             })
             .transpose()?;
+        let specialized_rules = yaml
+            .optional_vec("specialized_rules")?
+            .map(|rules| {
+                rules
+                    .iter()
+                    .map(|rule| rule.try_into())
+                    .collect::<Result<Vec<SpecializedRule>>>()
+            })
+            .transpose()?;
+        let optional_specialized_rules = yaml
+            .optional_vec("optiohnal_specialized_rules")?
+            .map(|rules| {
+                rules
+                    .iter()
+                    .map(|rule| rule.try_into())
+                    .collect::<Result<Vec<SpecializedRule>>>()
+            })
+            .transpose()?;
         Ok(Task {
             id,
             description,
             rules,
             optional_rules,
+            specialized_rules,
+            optional_specialized_rules,
         })
+    }
+}
+
+impl TryFrom<&Yaml> for SpecializedRule {
+    type Error = anyhow::Error;
+
+    fn try_from(yaml: &Yaml) -> Result<Self> {
+        let name = yaml.required_string("name")?;
+        let condition = yaml.required("condition")?.try_into()?;
+        Ok(SpecializedRule { name, condition })
     }
 }
 
