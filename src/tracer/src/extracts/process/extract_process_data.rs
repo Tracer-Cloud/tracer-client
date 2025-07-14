@@ -6,6 +6,7 @@ use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use mockall::automock;
 use std::path::PathBuf;
+use std::process::Command;
 use sysinfo::{DiskUsage, Pid, ProcessStatus};
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 use tracing::{debug, trace};
@@ -222,6 +223,26 @@ fn get_container_id_from_cgroup(pid: u32) -> Option<String> {
     }
 
     None
+}
+
+pub fn get_process_argv(pid: i32) -> Vec<String> {
+    Command::new("ps")
+        .args(["-p", &pid.to_string(), "-o", "command="])
+        .output()
+        .ok()
+        .and_then(|output| {
+            String::from_utf8(output.stdout)
+                .ok()
+                .and_then(|command_line| {
+                    let command_line = command_line.trim();
+                    if !command_line.is_empty() {
+                        shlex::split(command_line)
+                    } else {
+                        None
+                    }
+                })
+        })
+        .unwrap_or_default()
 }
 
 #[cfg(test)]
