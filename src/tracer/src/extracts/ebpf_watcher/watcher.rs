@@ -72,7 +72,7 @@ impl EbpfWatcher {
             let mut known_processes: HashSet<u32> = HashSet::new();
 
             loop {
-                system.refresh_processes(ProcessesToUpdate::All,false);
+                system.refresh_processes(ProcessesToUpdate::All, false);
                 let mut current_processes = HashSet::new();
 
                 // Check for new processes (started)

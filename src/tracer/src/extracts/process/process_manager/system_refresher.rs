@@ -42,8 +42,8 @@ impl SystemRefresher {
 
             sys.refresh_processes_specifics(
                 ProcessesToUpdate::Some(&pids_for_closure),
-                false,
-                ProcessRefreshKind::everything(),// TODO(ENG-336): minimize data collected for performance
+                true,
+                ProcessRefreshKind::everything(), // TODO(ENG-336): minimize data collected for performance
             );
         })
         .await?;

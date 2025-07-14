@@ -3,7 +3,6 @@ use crate::daemon::handlers::alert::ALERT_ENDPOINT;
 use crate::daemon::handlers::end::END_ENDPOINT;
 use crate::daemon::handlers::info::INFO_ENDPOINT;
 use crate::daemon::handlers::log::LOG_ENDPOINT;
-use crate::daemon::handlers::refresh_config::REFRESH_CONFIG_ENDPOINT;
 use crate::daemon::handlers::start::START_ENDPOINT;
 use crate::daemon::handlers::tag::TAG_ENDPOINT;
 use crate::daemon::handlers::terminate::TERMINATE_ENDPOINT;
@@ -83,15 +82,6 @@ impl DaemonClient {
 
     pub async fn send_info(&self) -> Result<Response> {
         self.client.get(self.get_url(INFO_ENDPOINT)).send().await
-    }
-
-    pub async fn send_refresh_config_request(&self) -> Result<()> {
-        self.client
-            .post(self.get_url(REFRESH_CONFIG_ENDPOINT))
-            .send()
-            .await?
-            .error_for_status()
-            .map(|_| ())
     }
 
     pub async fn send_update_tags_request(&self, payload: TagData) -> Result<()> {

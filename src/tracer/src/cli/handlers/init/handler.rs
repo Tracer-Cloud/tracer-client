@@ -54,11 +54,9 @@ pub fn init(
         Sentry::add_tag("pipeline_name", &args.pipeline_name.clone());
     }
     if !args.no_daemonize {
-        #[cfg(any(target_os = "macos", target_os = "windows"))]
+        #[cfg(target_os = "macos")]
         {
-            crate::cli::handlers::init::macos_windows::macos_windows_no_daemonize(
-                args, api_client,
-            )?;
+            crate::cli::handlers::init::macos::macos_no_daemonize(args, api_client)?;
             return Ok(());
         }
 
