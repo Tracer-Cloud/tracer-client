@@ -81,6 +81,10 @@ impl TracerCliInitArgs {
             })
             .expect("Failed to get pipeline name from environment variable or prompt");
 
+        let run_name = self
+            .run_name
+            .or_else(|| env::get_env_var(env::RUN_NAME_ENV_VAR));
+
         let mut tags = self.tags;
 
         if tags.environment.is_none() {
@@ -182,7 +186,7 @@ impl TracerCliInitArgs {
         FinalizedInitArgs {
             pipeline_name,
             run_id: self.run_id,
-            run_name: self.run_name,
+            run_name,
             tags,
             no_daemonize: self.no_daemonize,
             is_dev: self.is_dev,
