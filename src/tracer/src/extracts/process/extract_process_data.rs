@@ -29,7 +29,7 @@ impl ProcessTrait for sysinfo::Process {
     fn environ(&self) -> Vec<String> {
         self.environ()
             .iter()
-            .map(|s| s.to_string_lossy().to_string())
+            .map(|os_string| os_string.to_string_lossy().to_string())
             .collect()
     }
 
@@ -52,7 +52,7 @@ impl ProcessTrait for sysinfo::Process {
     fn cmd(&self) -> Vec<String> {
         self.cmd()
             .iter()
-            .map(|s| s.to_string_lossy().to_string())
+            .map(|os_string| os_string.to_string_lossy().to_string())
             .collect()
     }
 
