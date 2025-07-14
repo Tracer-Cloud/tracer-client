@@ -1,6 +1,6 @@
 use crate::{
     cloud_providers::aws::types::pricing::InstancePricingContext,
-    process_identification::types::pipeline_tags::PipelineTags,
+    process_identification::types::pipeline_tags::PipelineTags, utils::env::TRACE_ID_ENV_VAR,
 };
 use chrono::{DateTime, Utc};
 use std::time::Instant;
@@ -20,6 +20,7 @@ pub struct Run {
     pub start_time: DateTime<Utc>,
     pub parent_pid: Option<usize>,
     pub cost_summary: Option<PipelineCostSummary>,
+    pub trace_id: Option<String>,
 }
 
 impl Run {
@@ -31,6 +32,7 @@ impl Run {
             start_time: Utc::now(),
             parent_pid: None,
             cost_summary: None,
+            trace_id: std::env::var(TRACE_ID_ENV_VAR).ok(),
         }
     }
 
@@ -47,6 +49,7 @@ impl Run {
             start_time,
             parent_pid: None,
             cost_summary,
+            trace_id: std::env::var(TRACE_ID_ENV_VAR).ok(),
         }
     }
 }
