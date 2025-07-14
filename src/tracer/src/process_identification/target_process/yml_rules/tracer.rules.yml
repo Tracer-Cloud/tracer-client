@@ -38,7 +38,7 @@ rules:
     condition:
       process_name_is: bowtie2-build
   - rule_name: bwa process
-    display_name: bwa
+    display_name: bwa {subcommand}
     condition:
       and:
         - process_name_is: bwa
