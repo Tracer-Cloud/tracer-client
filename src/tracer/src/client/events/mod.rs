@@ -55,6 +55,7 @@ pub async fn send_start_run_event(
     pipeline_name: &str,
     pricing_client: &PricingSource,
     run_id: &Option<String>,
+    run_name: &Option<String>,
     timestamp: DateTime<Utc>,
 ) -> Result<(Run, SystemProperties)> {
     info!("Starting new pipeline...");
@@ -63,20 +64,14 @@ pub async fn send_start_run_event(
 
     let system_properties = gather_system_properties(system, pricing_client).await;
 
-    let (run_name, run_id, user_provided) = if let Some(run_id) = run_id {
-        (run_id.clone(), run_id.clone(), true)
-    } else {
-        (generate_run_name(), generate_run_id(), false)
-    };
-
     let cost_summary = system_properties
         .pricing_context
         .as_ref()
         .map(|pricing_context| PipelineCostSummary::new(timestamp, pricing_context));
 
     let run = Run::with_timestamp_and_cost_summary(
-        run_name.clone(),
-        run_id.clone(),
+        run_name.as_ref().cloned().unwrap_or_else(generate_run_name),
+        run_id.as_ref().cloned().unwrap_or_else(generate_run_id),
         timestamp,
         cost_summary,
     );
@@ -85,7 +80,8 @@ pub async fn send_start_run_event(
         .log(
             format!(
                 "Pipeline {} run initiated, with parallel run enabled = {}",
-                &pipeline_name, user_provided
+                &pipeline_name,
+                run_id.is_some()
             )
             .as_str(),
             None,
@@ -96,7 +92,7 @@ pub async fn send_start_run_event(
         .log(
             format!(
                 "Run name: {}, run id: {}, service name: {}",
-                run_name, run_id, pipeline_name
+                run.name, run.id, pipeline_name
             )
             .as_str(),
             None,

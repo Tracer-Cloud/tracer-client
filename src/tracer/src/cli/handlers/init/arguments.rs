@@ -1,9 +1,45 @@
 use crate::process_identification::types::pipeline_tags::PipelineTags;
 use crate::utils::env;
+use clap::Args;
 use console::Emoji;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Input, Select};
+use serde::Serialize;
 use std::sync::LazyLock;
+
+#[derive(Default, Args, Debug, Clone)]
+pub struct TracerCliInitArgs {
+    /// pipeline name to init the daemon with
+    #[clap(long, short)]
+    pub pipeline_name: Option<String>,
+
+    // deprecated
+    #[clap(long, hide = true)]
+    pub run_id: Option<String>,
+
+    // a unique name for this run that will be displayed in the UI
+    #[clap(long)]
+    pub run_name: Option<String>,
+
+    #[clap(flatten)]
+    pub tags: PipelineTags,
+
+    /// Optional user ID used to associate this installation with your account.
+    #[arg(long)]
+    pub user_id: Option<String>,
+
+    /// Run agent as a standalone process rather than a daemon
+    #[clap(long)]
+    pub no_daemonize: bool,
+
+    /// Do not prompt for missing inputs
+    #[clap(short = 'f', long)]
+    pub non_interactive: bool,
+
+    // For testing purposes only
+    #[clap(long, hide = true)]
+    pub is_dev: Option<bool>,
+}
 
 impl TracerCliInitArgs {
     // TODO: Add argument to force non-interactive mode - if set, do not prompt user
@@ -26,10 +62,6 @@ impl TracerCliInitArgs {
                 ..ColorfulTheme::default()
             }
         });
-
-        let run_id = self
-            .run_id
-            .or_else(|| env::get_env_var(env::RUN_ID_ENV_VAR));
 
         let pipeline_name = self
             .pipeline_name
@@ -149,7 +181,8 @@ impl TracerCliInitArgs {
 
         FinalizedInitArgs {
             pipeline_name,
-            run_id,
+            run_id: self.run_id,
+            run_name: self.run_name,
             tags,
             no_daemonize: self.no_daemonize,
             is_dev: self.is_dev,
@@ -158,46 +191,12 @@ impl TracerCliInitArgs {
     }
 }
 
-use clap::Args;
-use serde::Serialize;
-
-#[derive(Default, Args, Debug, Clone)]
-pub struct TracerCliInitArgs {
-    // todo: move to tracer_cli!
-    /// pipeline name to init the daemon with
-    #[clap(long, short)]
-    pub pipeline_name: Option<String>,
-
-    /// Run Identifier: this is used group same pipeline runs on different computers.
-    /// Context: types batch can run same pipeline on multiple machines for speed
-    #[clap(long)]
-    pub run_id: Option<String>,
-
-    #[clap(flatten)]
-    pub tags: PipelineTags,
-
-    /// Optional user ID used to associate this installation with your account.
-    #[arg(long)]
-    pub user_id: Option<String>,
-
-    /// Run agent as a standalone process rather than a daemon
-    #[clap(long)]
-    pub no_daemonize: bool,
-
-    /// Do not prompt for missing inputs
-    #[clap(short = 'f', long)]
-    pub non_interactive: bool,
-
-    // deprecated
-    #[clap(long, hide = true)]
-    pub is_dev: Option<bool>,
-}
-
 /// Ensures the pipeline name remains required
 #[derive(Debug, Clone, Serialize)]
 pub struct FinalizedInitArgs {
     pub pipeline_name: String,
     pub run_id: Option<String>,
+    pub run_name: Option<String>,
     pub tags: PipelineTags,
     pub no_daemonize: bool,
     pub is_dev: Option<bool>,
