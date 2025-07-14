@@ -42,7 +42,6 @@ pub struct TracerCliInitArgs {
 }
 
 impl TracerCliInitArgs {
-    // TODO: Add argument to force non-interactive mode - if set, do not prompt user
     pub fn finalize(self) -> FinalizedInitArgs {
         let theme: LazyLock<ColorfulTheme> = LazyLock::new(|| {
             let arrow = Emoji("👉 ", "> ").to_string();
