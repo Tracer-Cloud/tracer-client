@@ -5,38 +5,9 @@ use crate::extracts::metrics::system_metrics_collector::SystemMetricsCollector;
 use crate::process_identification::debug_log::Logger;
 use crate::process_identification::types::event::attributes::system_metrics::SystemProperties;
 use anyhow::Result;
-use chrono::Utc;
 use run_details::{generate_run_id, generate_run_name};
-use serde_json::json;
 use sysinfo::System;
 use tracing::info;
-
-// FIXME: How should this be handled with the new architecture?
-pub async fn send_log_event(message: &str) -> Result<()> {
-    let _log_entry = json!({
-        "message": message,
-        "process_type": "pipeline",
-        "process_status": "run_status_message",
-        "event_type": "process_status",
-        "timestamp": Utc::now().timestamp_millis() as f64 / 1000.,
-    });
-
-    Ok(())
-}
-
-// FIXME: same with other events, how should it be handled now?
-pub async fn send_alert_event(message: &str) -> Result<()> {
-    let _alert_entry = json!({
-        "message": message,
-        "process_type": "pipeline",
-        "process_status": "alert",
-        "event_type": "process_status",
-        "timestamp": Utc::now().timestamp_millis() as f64 / 1000.,
-    });
-
-    // todo...
-    Ok(())
-}
 
 pub struct RunEventOut {
     pub run_name: String,
