@@ -40,7 +40,9 @@ rules:
   - rule_name: bwa process
     display_name: bwa
     condition:
-      process_name_is: bwa
+      and:
+        - process_name_is: bwa
+        - subcommand_is_one_of: [index, mem, aln, samse, sampe, bwasw]
   - rule_name: salmon process
     display_name: salmon
     condition:
