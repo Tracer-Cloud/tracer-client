@@ -81,8 +81,11 @@ impl TracerCliInitArgs {
             })
             .expect("Failed to get pipeline name from environment variable or prompt");
 
+        // Ignore empty run names
         let run_name = self
             .run_name
+            .map(|name| name.trim().to_string())
+            .filter(|name| !name.is_empty())
             .or_else(|| env::get_env_var(env::RUN_NAME_ENV_VAR));
 
         let mut tags = self.tags;
