@@ -1,7 +1,5 @@
 use crate::cli::handlers::info;
-use crate::cli::handlers::init::arguments::{
-    FinalizedInitArgs, InteractiveInitArgs, TracerCliInitArgs,
-};
+use crate::cli::handlers::init::arguments::TracerCliInitArgs;
 use crate::cli::helper::{create_necessary_files, wait};
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
@@ -30,7 +28,7 @@ pub fn init(
     DaemonServer::shutdown_if_running()?;
 
     println!("Starting daemon...");
-    let args = init_command_interactive_mode(args);
+    let args = args.finalize();
     {
         // Layer tags on top of args
         let mut json_args = serde_json::to_value(&args)?.as_object().unwrap().clone();
@@ -93,9 +91,4 @@ pub fn init(
         return Ok(());
     }
     create_and_run_server(args, config)
-}
-fn init_command_interactive_mode(cli_args: TracerCliInitArgs) -> FinalizedInitArgs {
-    InteractiveInitArgs::from_partial(cli_args)
-        .prompt_missing()
-        .into_cli_args()
 }

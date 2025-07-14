@@ -33,6 +33,22 @@ impl Run {
             cost_summary: None,
         }
     }
+
+    pub fn with_timestamp_and_cost_summary(
+        name: String,
+        id: String,
+        start_time: DateTime<Utc>,
+        cost_summary: Option<PipelineCostSummary>,
+    ) -> Self {
+        Run {
+            name,
+            id,
+            last_interaction: Instant::now(),
+            start_time,
+            parent_pid: None,
+            cost_summary,
+        }
+    }
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]

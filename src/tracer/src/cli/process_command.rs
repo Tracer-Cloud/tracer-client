@@ -26,7 +26,7 @@ pub fn process_command() -> Result<()> {
     let api_client = DaemonClient::new(format!("http://{}", config.server));
 
     match cli.command {
-        Command::Init(args) => handlers::init(*args, config, api_client),
+        Command::Init(args) => handlers::init(args, config, api_client),
         Command::Cleanup => {
             let result = DaemonServer::cleanup();
             if result.is_ok() {
