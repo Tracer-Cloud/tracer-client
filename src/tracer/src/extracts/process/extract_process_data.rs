@@ -27,7 +27,12 @@ pub trait ProcessTrait {
 // Implement the trait for the real Process
 impl ProcessTrait for sysinfo::Process {
     fn environ(&self) -> Vec<String> {
-        self.environ().to_vec()
+        self.environ()
+            .iter()
+            .map(|process_environment_variable| {
+                process_environment_variable.to_string_lossy().to_string()
+            })
+            .collect()
     }
 
     fn cwd(&self) -> Option<PathBuf> {
@@ -47,7 +52,10 @@ impl ProcessTrait for sysinfo::Process {
     }
 
     fn cmd(&self) -> Vec<String> {
-        self.cmd().to_vec()
+        self.cmd()
+            .iter()
+            .map(|command| command.to_string_lossy().to_string())
+            .collect()
     }
 
     fn cpu_usage(&self) -> f32 {

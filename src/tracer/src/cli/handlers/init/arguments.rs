@@ -1,6 +1,5 @@
 use crate::process_identification::types::pipeline_tags::PipelineTags;
 use console::Emoji;
-use console::Style;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Input, Select};
 #[derive(Debug, Clone)]
@@ -49,12 +48,18 @@ impl InteractiveInitArgs {
     pub fn prompt_missing(mut self) -> Self {
         let arrow = Emoji("👉 ", "> ").to_string();
         let theme = ColorfulTheme {
-            prompt_prefix: Style::new().green().apply_to(arrow),
-            prompt_suffix: Style::new().dim().apply_to(":".to_string()),
-            success_prefix: Style::new().green().apply_to("✔".to_string()),
-            success_suffix: Style::new().dim().apply_to("".to_string()),
-            values_style: Style::new().yellow(),
-            active_item_style: Style::new().cyan().bold(),
+            prompt_prefix: dialoguer::console::Style::new().green().apply_to(arrow),
+            prompt_suffix: dialoguer::console::Style::new()
+                .dim()
+                .apply_to(":".to_string()),
+            success_prefix: dialoguer::console::Style::new()
+                .green()
+                .apply_to("✔".to_string()),
+            success_suffix: dialoguer::console::Style::new()
+                .dim()
+                .apply_to("".to_string()),
+            values_style: dialoguer::console::Style::new().yellow(),
+            active_item_style: dialoguer::console::Style::new().cyan().bold(),
             ..ColorfulTheme::default()
         };
 

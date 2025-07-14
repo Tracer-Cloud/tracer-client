@@ -9,6 +9,7 @@ use std::collections::HashSet;
 use std::fs::{self};
 use std::path::Path;
 use std::sync::Arc;
+use sysinfo::ProcessesToUpdate;
 use tokio::sync::{mpsc, Mutex, RwLock};
 use tracer_ebpf::binding::start_processing_events;
 use tracer_ebpf::ebpf_trigger::{
@@ -71,7 +72,7 @@ impl EbpfWatcher {
             let mut known_processes: HashSet<u32> = HashSet::new();
 
             loop {
-                system.refresh_processes();
+                system.refresh_processes(ProcessesToUpdate::All, false);
                 let mut current_processes = HashSet::new();
 
                 // Check for new processes (started)
@@ -80,7 +81,11 @@ impl EbpfWatcher {
                     current_processes.insert(pid_u32);
 
                     if !known_processes.contains(&pid_u32) {
-                        let mut argv = process.cmd().to_vec();
+                        let mut argv: Vec<String> = process
+                            .cmd()
+                            .iter()
+                            .map(|arg| arg.to_string_lossy().to_string())
+                            .collect();
 
                         if argv.is_empty() {
                             argv = get_process_argv(pid_u32 as i32);
@@ -90,7 +95,7 @@ impl EbpfWatcher {
                         let start_trigger = ProcessStartTrigger::from_name_and_args(
                             pid_u32 as usize,
                             process.parent().map(|p| p.as_u32()).unwrap_or(0) as usize,
-                            process.name(),
+                            <&str>::try_from(process.name()).unwrap_or("unknown"),
                             &argv,
                         );
 

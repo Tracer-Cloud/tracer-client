@@ -1,4 +1,4 @@
-#![cfg(any(target_os = "macos", target_os = "windows"))]
+#![cfg(target_os = "macos")]
 use crate::cli::handlers::info;
 use crate::cli::handlers::init::arguments::FinalizedInitArgs;
 use crate::cli::helper::wait;
@@ -9,10 +9,7 @@ use crate::utils::analytics::types::AnalyticsEventType;
 use std::fs::File;
 use std::process::{Command, Stdio};
 
-pub fn macos_windows_no_daemonize(
-    args: FinalizedInitArgs,
-    api_client: DaemonClient,
-) -> anyhow::Result<()> {
+pub fn macos_no_daemonize(args: FinalizedInitArgs, api_client: DaemonClient) -> anyhow::Result<()> {
     // Serialize the finalized args to pass to the spawned process
     let current_exe = std::env::current_exe()?;
     let is_dev_string = "false"; // for testing purposes //TODO remove
