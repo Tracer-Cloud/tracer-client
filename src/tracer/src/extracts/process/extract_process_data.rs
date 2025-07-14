@@ -186,12 +186,8 @@ fn get_process_environment_variables<P: ProcessTrait>(
 /// Extracts the container ID (if any) from a process's cgroup file
 /// Returns `Some(container_id)` if found, else `None`
 fn get_container_id_from_cgroup(pid: u32) -> Option<String> {
-    tracing::error!("Calling get_container id for pid: {}\n\n", pid);
-
     let cgroup_path = PathBuf::from(format!("/proc/{}/cgroup", pid));
     let content = std::fs::read_to_string(cgroup_path).ok()?;
-
-    tracing::error!("Got content : {}\n\n", &content);
 
     for line in content.lines() {
         // cgroup v1 format: <hierarchy_id>:<controllers>:<path>

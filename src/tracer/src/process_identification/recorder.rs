@@ -34,6 +34,7 @@ impl LogRecorder {
             .run_id(pipeline.run.as_ref().map(|m| m.id.clone()))
             .tags(Some(pipeline.tags.clone()))
             .attributes(attributes)
+            .trace_id(pipeline.run.as_ref().and_then(|r| r.trace_id.clone()))
             .build();
 
         self.tx.send(event).await?;
@@ -182,6 +183,43 @@ mod tests {
 
         // Verify the error occurred
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_log_with_trace_id_from_run() {
+        let trace_id = "trace-id-xyz".to_string();
+
+        // Build a custom run with trace_id
+        let run = Run {
+            name: "test_run".to_string(),
+            id: "test-id-123".to_string(),
+            last_interaction: std::time::Instant::now(),
+            start_time: Utc::now(),
+            parent_pid: None,
+            cost_summary: None,
+            trace_id: Some(trace_id.clone()),
+        };
+
+        let pipeline = PipelineMetadata {
+            pipeline_name: "test_pipeline".to_string(),
+            run: Some(run),
+            tags: PipelineTags::default(),
+        };
+
+        let pipeline_arc = Arc::new(RwLock::new(pipeline));
+        let (tx, mut rx) = mpsc::channel(10);
+        let recorder = LogRecorder::new(pipeline_arc, tx);
+
+        let message = "Logging with trace_id".to_string();
+
+        recorder
+            .log(ProcessStatus::ToolExecution, message.clone(), None, None)
+            .await
+            .unwrap();
+
+        let event = rx.recv().await.unwrap();
+        assert_eq!(event.body, message);
+        assert_eq!(event.trace_id, Some(trace_id));
     }
 
     // Helper function to create a test pipeline
