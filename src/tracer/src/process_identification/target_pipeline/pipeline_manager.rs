@@ -8,6 +8,7 @@ use crate::utils::yaml::YamlFile;
 use anyhow::Result;
 use multi_index_map::MultiIndexMap;
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 use tracing::trace;
@@ -121,14 +122,16 @@ impl TargetPipelineManager {
                     let task_pids = self.task_pids.get_by_task_id(&task.id);
                     // For now score is just the fraction of rules that have been observed.
                     // TODO: weight score based on whether the rule is optional or not.
-                    let score = task_pids.len() as f64
-                        / (task.rules.len()
-                            + task.optional_rules.as_ref().map(|v| v.len()).unwrap_or(0))
-                            as f64;
+                    let (score, num_tasks): (f64, usize) = {
+                        let num_matched = task_pids.len() as f64;
+                        let total = task.rules.len()
+                            + task.optional_rules.as_ref().map(|v| v.len()).unwrap_or(0);
+                        ((num_matched / total as f64), total)
+                    };
                     if score > TASK_SCORE_THRESHOLD {
                         let pids: Vec<usize> =
                             task_pids.iter().map(|task_pid| task_pid.pid).collect();
-                        Some((task, pids, score))
+                        Some((task, pids, score, num_tasks))
                     } else {
                         None
                     }
@@ -139,9 +142,13 @@ impl TargetPipelineManager {
             }
             // if there are multiple matches, pick the one with the highest score
             if matched_tasks.len() > 1 {
-                matched_tasks.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap());
+                matched_tasks.sort_by(|a, b| match a.2.partial_cmp(&b.2) {
+                    Some(Ordering::Equal) => a.3.cmp(&b.3), // use number of tasks as tiebreaker
+                    Some(o) => o,
+                    None => panic!("Score comparison failed"),
+                });
             }
-            let (best_match, pids, score) = matched_tasks.pop().unwrap();
+            let (best_match, pids, score, num_tasks) = matched_tasks.pop().unwrap();
             let id = best_match.id.clone();
             if score >= 1.0 {
                 // If the match is perfect (i.e. all rules have been matched to processes) then:
