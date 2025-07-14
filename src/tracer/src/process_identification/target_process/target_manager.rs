@@ -127,7 +127,13 @@ mod tests {
         let manager = TargetManager::new(&rule_files, &[]);
         let process = make_process(
             "/usr/bin/java",
-            &["-Xmx10g", "-jar", "/foo/bar/fgbio.jar", "ZipperBams"],
+            &[
+                "-Xmx10g",
+                "-jar",
+                "/foo/bar/fgbio.jar",
+                "--async-io=true",
+                "ZipperBams",
+            ],
         );
         let matched = manager.get_target_match(&process);
         assert_eq!(matched.as_deref(), Some("fgbio ZipperBams"));

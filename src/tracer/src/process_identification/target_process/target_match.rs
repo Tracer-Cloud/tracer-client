@@ -92,15 +92,11 @@ impl MatchType {
                     .find(|arg| subcommands.contains(arg))
                     .map(|cmd| ProcessMatch::Subcommand(cmd))
             }
-            MatchType::JavaCommand(jar) => match_java(process, jar).map(ProcessMatch::Subcommand),
+            MatchType::JavaCommand(jar) => {
+                match_java(process, jar, None).map(ProcessMatch::Subcommand)
+            }
             MatchType::JavaCommandIsOneOf { jar, commands } => {
-                match_java(process, jar).and_then(|command| {
-                    if commands.contains(command) {
-                        Some(ProcessMatch::Subcommand(command))
-                    } else {
-                        None
-                    }
-                })
+                match_java(process, jar, Some(commands)).map(ProcessMatch::Subcommand)
             }
             MatchType::And(conditions) => {
                 // saving the subcommand in case in the AND condition a subcommand is found
@@ -123,7 +119,11 @@ impl MatchType {
     }
 }
 
-fn match_java<'a>(process: &'a ProcessStartTrigger, jar: &str) -> Option<&'a str> {
+fn match_java<'a>(
+    process: &'a ProcessStartTrigger,
+    jar: &str,
+    subcommands: Option<&SubcommandSet>,
+) -> Option<&'a str> {
     if process.comm.contains("java") {
         let mut args = process.argv.iter().skip(1);
         if args
@@ -132,8 +132,17 @@ fn match_java<'a>(process: &'a ProcessStartTrigger, jar: &str) -> Option<&'a str
             .map(|arg| arg.contains(jar))
             .unwrap_or(false)
         {
-            if let Some(command) = args.next() {
-                return Some(command);
+            for arg in args {
+                if arg.starts_with('-') {
+                    continue;
+                }
+                if let Some(subcommands) = subcommands {
+                    if subcommands.contains(arg) {
+                        return Some(arg);
+                    }
+                } else {
+                    return Some(arg);
+                }
             }
         }
     }
