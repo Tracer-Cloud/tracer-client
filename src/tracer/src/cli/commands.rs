@@ -17,12 +17,6 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum Command {
-    /// Log a message to the service
-    Log { message: String },
-
-    /// Send an alert to the service, sending an e-mail
-    Alert { message: String },
-
     /// Start the daemon
     Init(Box<TracerCliInitArgs>),
 
@@ -48,22 +42,6 @@ pub enum Command {
     /// End the current pipeline run
     End,
 
-    /// Upload a file to the service [Works only directly from the function not the daemon]
-    Upload { file_path: String },
-
-    /// Upload a file to the service [Works only directly from the function not the daemon]
-    UploadDaemon,
-
-    /// Change the tags of the current pipeline run
-    Tag { tags: Vec<String> },
-
     /// Shows the current version of the daemon
     Version,
-
-    /// Clean up port conflicts by finding and killing processes using the Tracer port
-    CleanupPort {
-        /// Port number to check and clean up (default: 8722)
-        #[clap(long, short)]
-        port: Option<u16>,
-    },
 }
