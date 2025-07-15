@@ -242,7 +242,7 @@ mod tests {
         let pipelines = load_pipelines_from_yamls(PIPELINE_YAML_PATH);
 
         // Should load exactly one pipeline
-        assert_eq!(pipelines.len(), 1);
+        assert_eq!(pipelines.len(), 2);
         let pipeline = &pipelines[0];
 
         // Test basic pipeline properties

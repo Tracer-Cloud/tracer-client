@@ -26,6 +26,8 @@ pub struct TaskMatch {
     pub pids: Vec<usize>,
     /// The score of the task that was matched.
     pub score: f64,
+    /// Total number of rules in the matched task.
+    pub total_rules: usize,
 }
 
 impl std::fmt::Display for TaskMatch {
@@ -42,8 +44,8 @@ pub struct TargetPipelineManager {
     _pipelines: Vec<Pipeline>,
     tasks: Tasks,
     task_pids: MultiIndexTaskPidMap,
+    matched_task_pids: MultiIndexTaskPidMap,
     pid_to_process: HashMap<usize, ProcessRule>,
-    matched_tasks: HashSet<String>,
 }
 
 impl TargetPipelineManager {
@@ -63,8 +65,8 @@ impl TargetPipelineManager {
             _pipelines: pipelines,
             tasks,
             task_pids: MultiIndexTaskPidMap::default(),
+            matched_task_pids: MultiIndexTaskPidMap::default(),
             pid_to_process: HashMap::new(),
-            matched_tasks: HashSet::new(),
         })
     }
 
@@ -122,7 +124,7 @@ impl TargetPipelineManager {
                     let task_pids = self.task_pids.get_by_task_id(&task.id);
                     // For now score is just the fraction of rules that have been observed.
                     // TODO: weight score based on whether the rule is optional or not.
-                    let (score, num_tasks): (f64, usize) = {
+                    let (score, total_rules): (f64, usize) = {
                         let num_matched = task_pids.len() as f64;
                         let total = task.rules.len()
                             + task.optional_rules.as_ref().map(|v| v.len()).unwrap_or(0);
@@ -131,7 +133,7 @@ impl TargetPipelineManager {
                     if score > TASK_SCORE_THRESHOLD {
                         let pids: Vec<usize> =
                             task_pids.iter().map(|task_pid| task_pid.pid).collect();
-                        Some((task, pids, score, num_tasks))
+                        Some((task, pids, score, total_rules))
                     } else {
                         None
                     }
@@ -148,32 +150,49 @@ impl TargetPipelineManager {
                     None => panic!("Score comparison failed"),
                 });
             }
-            let (best_match, pids, score, num_tasks) = matched_tasks.pop().unwrap();
+            let (best_match, pids, score, total_rules) = matched_tasks.pop().unwrap();
             let id = best_match.id.clone();
             if score >= 1.0 {
                 // If the match is perfect (i.e. all rules have been matched to processes) then:
-                // 1) remove the task so we don't update/match it again
-                self.task_pids.remove_by_task_id(&id);
-                // 2) remove the PIDs associated with the best match from any other candidate tasks
-                for pid in pids.iter() {
-                    self.task_pids.remove_by_pid(pid);
+                // 1) find and remove all tasks associated with the matched PIDs
+                let tasks_to_remove: HashSet<String> = pids
+                    .iter()
+                    .flat_map(|pid| {
+                        self.matched_task_pids
+                            .get_by_pid(&pid)
+                            .iter()
+                            .map(|task_pid| task_pid.task_id.clone())
+                            .collect::<Vec<_>>()
+                    })
+                    .collect();
+                for task in tasks_to_remove {
+                    self.matched_task_pids.remove_by_task_id(&task);
                 }
-                // 3) add the ID to the list of matched tasks
-                self.matched_tasks.insert(id.clone());
+                // 2) Add the best match to the matched tasks
+                for pid in pids.iter() {
+                    self.matched_task_pids.insert(TaskPid {
+                        task_id: id.clone(),
+                        pid: *pid,
+                    });
+                }
             }
             return Some(TaskMatch {
                 id: id.clone(),
                 description: best_match.description.clone(),
                 pids,
                 score,
+                total_rules,
             });
         }
 
         None
     }
 
-    pub fn matched_tasks(&self) -> &HashSet<String> {
-        &self.matched_tasks
+    pub fn matched_tasks(&self) -> HashSet<&String> {
+        self.matched_task_pids
+            .iter()
+            .map(|(_, task_pid)| &task_pid.task_id)
+            .collect()
     }
 }
 
@@ -329,24 +348,6 @@ mod tests {
         "src/process_identification/target_pipeline/yml_rules/tracer.pipelines.yml",
     )];
 
-    impl TargetPipelineManager {
-        fn num_unmatched_tasks(&self) -> usize {
-            self.task_pids
-                .iter()
-                .map(|(_, task_pid)| &task_pid.task_id)
-                .collect::<HashSet<_>>()
-                .len()
-        }
-
-        fn num_unmatched_pids(&self) -> usize {
-            self.task_pids
-                .iter()
-                .map(|(_, task_pid)| &task_pid.pid)
-                .collect::<HashSet<_>>()
-                .len()
-        }
-    }
-
     /// Fixture that creates test targets for the pipeline rules
     #[fixture]
     #[once]
@@ -446,10 +447,9 @@ mod tests {
                 description: Some("Unzip the GTF file.".to_string()),
                 pids: vec![1001],
                 score: 1.0,
+                total_rules: 1,
             })
         );
-        assert_eq!(pipeline_manager.num_unmatched_tasks(), 0);
-        assert_eq!(pipeline_manager.num_unmatched_pids(), 0);
     }
 
     #[rstest]
@@ -505,8 +505,16 @@ mod tests {
             Some(&samtools_target.display_name().to_string()),
         );
 
-        // Should return None since we need more processes
-        assert_eq!(result1, None);
+        let expected_match = Some(TaskMatch {
+            id: "SAMTOOLS_FAIDX".to_string(),
+            description: Some("Index a FASTA file".to_string()),
+            pids: vec![1002],
+            score: 1.0,
+            total_rules: 1,
+        });
+
+        // Should return the samtools faidx task since it has score 1.0 (single rule matched)
+        assert_eq!(result1, expected_match);
 
         // Register STAR process
         let star_process = create_process_trigger("STAR --runMode genomeGenerate", 1001);
@@ -514,7 +522,8 @@ mod tests {
         let result2 =
             manager.register_process(&star_process, Some(&star_target.display_name().to_string()));
 
-        // Should return a match for the STAR_GENOMEGENERATE task since it has score 1.0 (both rules matched)
+        // Should return a match for the STAR_GENOMEGENERATE task since it has score 1.0 (both
+        //rules matched) and it has more rules than the samtools faidx task.
         assert!(result2.is_some());
         let task_match = result2.unwrap();
         assert_eq!(task_match.id, "STAR_GENOMEGENERATE");
@@ -524,6 +533,10 @@ mod tests {
         );
         assert_eq!(task_match.score, 1.0);
         assert_eq!(task_match.pids, vec![1002, 1001]);
+
+        let matched_tasks = manager.matched_tasks();
+        assert_eq!(matched_tasks.len(), 1);
+        assert!(matched_tasks.contains(&"STAR_GENOMEGENERATE".to_string()));
     }
 
     #[rstest]
@@ -537,17 +550,14 @@ mod tests {
         let result1 =
             pipeline_manager.register_process(&process, Some(&target.display_name().to_string()));
 
-        assert_eq!(
-            result1,
-            Some(TaskMatch {
-                id: "GUNZIP_GTF".to_string(),
-                description: Some("Unzip the GTF file.".to_string()),
-                pids: vec![1001],
-                score: 1.0,
-            })
-        );
-        assert_eq!(pipeline_manager.num_unmatched_tasks(), 0);
-        assert_eq!(pipeline_manager.num_unmatched_pids(), 0);
+        let expected_match = Some(TaskMatch {
+            id: "GUNZIP_GTF".to_string(),
+            description: Some("Unzip the GTF file.".to_string()),
+            pids: vec![1001],
+            score: 1.0,
+            total_rules: 1,
+        });
+        assert_eq!(result1, expected_match);
 
         // Register the same process again - should be ignored
         let result2 =
