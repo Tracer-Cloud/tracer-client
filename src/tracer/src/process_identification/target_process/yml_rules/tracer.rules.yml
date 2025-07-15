@@ -363,10 +363,6 @@ rules:
     display_name: fastp
     condition:
       command_contains: fastp
-  - rule_name: multiqc command
-    display_name: multiqc
-    condition:
-      command_contains: multiqc
   - rule_name: qualimap command
     display_name: qualimap
     condition:
