@@ -1,6 +1,6 @@
 use crate::daemon::client::DaemonClient;
 use crate::process_identification::constants::{
-    FILE_CACHE_DIR, PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR,
+    PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR,
 };
 use crate::utils::file_system::ensure_file_can_be_created;
 use anyhow::{bail, Context, Result};
@@ -19,15 +19,6 @@ pub(super) fn create_necessary_files() -> Result<()> {
 
     Ok(())
 }
-
-pub(super) fn clean_up_after_daemon() -> Result<()> {
-    std::fs::remove_file(PID_FILE).context("Failed to remove pid file")?;
-    std::fs::remove_file(STDOUT_FILE).context("Failed to remove stdout file")?;
-    std::fs::remove_file(STDERR_FILE).context("Failed to remove stderr file")?;
-    std::fs::remove_dir_all(FILE_CACHE_DIR).context("Failed to remove cache directory")?;
-    Ok(())
-}
-
 pub(super) async fn wait(api_client: &DaemonClient) -> Result<()> {
     for n in 0..5 {
         match api_client.send_info().await {

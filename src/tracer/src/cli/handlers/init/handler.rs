@@ -1,7 +1,7 @@
 use crate::cli::handlers::init::arguments::{
     FinalizedInitArgs, InteractiveInitArgs, TracerCliInitArgs,
 };
-use crate::cli::helper::{clean_up_after_daemon, create_necessary_files};
+use crate::cli::helper::create_necessary_files;
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::initialization::create_and_run_server;
@@ -58,8 +58,7 @@ pub fn init(
             }
         }
     }
-    create_and_run_server(args, config);
-    clean_up_after_daemon()
+    create_and_run_server(args, config)
 }
 fn init_command_interactive_mode(cli_args: TracerCliInitArgs) -> FinalizedInitArgs {
     InteractiveInitArgs::from_partial(cli_args)
