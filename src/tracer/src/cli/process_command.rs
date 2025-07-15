@@ -39,6 +39,7 @@ pub fn process_command() -> Result<()> {
             Ok(())
         }
         Command::Update => handlers::update(),
+        Command::Uninstall => handlers::uninstall(),
         command => super::process_daemon_command(command, &api_client),
     }
 }

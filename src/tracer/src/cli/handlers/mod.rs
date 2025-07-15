@@ -1,5 +1,7 @@
 mod update;
 pub(super) use update::update;
+mod uninstall;
+pub(super) use uninstall::uninstall;
 
 mod info;
 
