@@ -9,7 +9,9 @@ use crate::daemon::routes::ROUTES;
 use crate::daemon::server::helper::handle_port_conflict;
 use crate::daemon::server::process_monitor::monitor;
 use crate::daemon::state::DaemonState;
-use crate::process_identification::constants::{DEFAULT_DAEMON_PORT, PID_FILE, STDERR_FILE, STDOUT_FILE};
+use crate::process_identification::constants::{
+    DEFAULT_DAEMON_PORT, PID_FILE, STDERR_FILE, STDOUT_FILE,
+};
 use anyhow::Context;
 use axum::Router;
 use std::net::SocketAddr;
@@ -125,7 +127,10 @@ impl DaemonServer {
     }
     pub fn shutdown() -> anyhow::Result<bool> {
         let port = DEFAULT_DAEMON_PORT;
-        tokio::runtime::Runtime::new()?.block_on(handle_port_conflict(port))
+        let shutdown_successful =
+            tokio::runtime::Runtime::new()?.block_on(handle_port_conflict(port));
+        DaemonServer::cleanup()?;
+        shutdown_successful
     }
     pub fn cleanup() -> anyhow::Result<()> {
         std::fs::remove_file(PID_FILE).context("Failed to remove pid file")?;

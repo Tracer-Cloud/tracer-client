@@ -56,7 +56,10 @@ async fn create_server(cli_config_args: FinalizedInitArgs, config: Config) -> Da
 }
 
 #[tokio::main]
-pub async fn create_and_run_server(cli_config_args: FinalizedInitArgs, config: Config) -> anyhow::Result<()>{
+pub async fn create_and_run_server(
+    cli_config_args: FinalizedInitArgs,
+    config: Config,
+) -> anyhow::Result<()> {
     let server = create_server(cli_config_args, config).await;
     server.run().await
 }

@@ -1,14 +1,19 @@
+use crate::cli::handlers::info;
 use crate::cli::handlers::init::arguments::{
     FinalizedInitArgs, InteractiveInitArgs, TracerCliInitArgs,
 };
-use crate::cli::helper::create_necessary_files;
+use crate::cli::helper::{create_necessary_files, wait};
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::initialization::create_and_run_server;
 use crate::daemon::server::DaemonServer;
+use crate::process_identification::constants::{PID_FILE, STDERR_FILE, STDOUT_FILE};
+use crate::utils::analytics::types::AnalyticsEventType;
 use crate::utils::system_info::check_sudo_privileges;
-use crate::utils::Sentry;
+use crate::utils::{analytics, Sentry};
 use serde_json::Value;
+use std::fs::File;
+use std::process::{Command, Stdio};
 
 pub fn init(
     args: TracerCliInitArgs,
@@ -44,19 +49,48 @@ pub fn init(
         );
         Sentry::add_tag("pipeline_name", &args.pipeline_name.clone());
     }
-    if !args.no_daemonize {
-        #[cfg(target_os = "macos")]
-        {
-            crate::cli::handlers::init::macos::macos_daemonize(args, api_client)?;
-            return Ok(());
-        }
 
-        #[cfg(target_os = "linux")]
-        {
-            if crate::cli::handlers::init::linux::linux_daemonize(&args, api_client)? {
-                return Ok(());
-            }
-        }
+    if !args.no_daemonize {
+        // Serialize the finalized args to pass to the spawned process
+        let current_exe = std::env::current_exe()?;
+
+        println!("Spawning child process...");
+
+        let child = Command::new(current_exe)
+            .arg("init")
+            .arg("--no-daemonize")
+            .arg("--pipeline-name")
+            .arg(&args.pipeline_name)
+            .arg("--environment")
+            .arg(args.tags.environment.as_deref().unwrap_or(""))
+            .arg("--pipeline-type")
+            .arg(args.tags.pipeline_type.as_deref().unwrap_or(""))
+            .arg("--user-operator")
+            .arg(args.tags.user_operator.as_deref().unwrap_or(""))
+            .arg("--is-dev")
+            .arg(args.is_dev.unwrap_or_default().to_string())
+            .stdin(Stdio::null())
+            .stdout(Stdio::from(File::create(STDOUT_FILE)?))
+            .stderr(Stdio::from(File::create(STDERR_FILE)?))
+            .spawn()?;
+
+        // Write PID file
+        std::fs::write(PID_FILE, child.id().to_string())?;
+
+        println!("\nDaemon started successfully.");
+
+        // Wait a moment for the daemon to start, then show info
+        tokio::runtime::Runtime::new()?.block_on(async {
+            analytics::spawn_event(
+                args.user_id.clone(),
+                AnalyticsEventType::DaemonStartAttempted,
+                None,
+            );
+            wait(&api_client).await?;
+            info(&api_client, false).await
+        })?;
+
+        return Ok(());
     }
     create_and_run_server(args, config)
 }

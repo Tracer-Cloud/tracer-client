@@ -1,7 +1,5 @@
 use crate::daemon::client::DaemonClient;
-use crate::process_identification::constants::{
-    PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR,
-};
+use crate::process_identification::constants::{PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR};
 use crate::utils::file_system::ensure_file_can_be_created;
 use anyhow::{bail, Context, Result};
 use tokio::time::sleep;
