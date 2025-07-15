@@ -1,15 +1,14 @@
 use crate::cli::handlers::init::arguments::{
     FinalizedInitArgs, InteractiveInitArgs, TracerCliInitArgs,
 };
-use crate::cli::helper::{clean_up_after_daemon, create_necessary_files, handle_port_conflict};
+use crate::cli::helper::{clean_up_after_daemon, create_necessary_files};
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::initialization::create_and_run_server;
-use crate::process_identification::constants::DEFAULT_DAEMON_PORT;
+use crate::daemon::server::DaemonServer;
 use crate::utils::system_info::check_sudo_privileges;
 use crate::utils::Sentry;
 use serde_json::Value;
-use std::io;
 
 pub fn init(
     args: TracerCliInitArgs,
@@ -23,15 +22,7 @@ pub fn init(
     create_necessary_files().expect("Error while creating necessary files");
 
     // Check for port conflict before starting daemon
-    let port = DEFAULT_DAEMON_PORT; // Default Tracer port
-    if let Err(e) = std::net::TcpListener::bind(format!("127.0.0.1:{}", port)) {
-        if e.kind() == io::ErrorKind::AddrInUse {
-            println!("Checking for port conflicts...");
-            if !tokio::runtime::Runtime::new()?.block_on(handle_port_conflict(port))? {
-                return Ok(());
-            }
-        }
-    }
+    DaemonServer::shutdown_if_running()?;
 
     println!("Starting daemon...");
     let args = init_command_interactive_mode(args);

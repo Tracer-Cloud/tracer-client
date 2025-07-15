@@ -41,8 +41,7 @@ pub fn linux_no_daemonize(
             println!("Failed to start daemon. Maybe the daemon is already running? If it's not, run `tracer cleanup` to clean up the previous daemon files.");
             println!("{:}", e);
             // Try to clean up port if there's an error
-            let _ =
-                tokio::runtime::Runtime::new()?.block_on(handle_port_conflict(DEFAULT_DAEMON_PORT));
+            DaemonServer::shutdown_if_running()?;
             Ok(true)
         }
         Outcome::Child(Err(e)) => {
