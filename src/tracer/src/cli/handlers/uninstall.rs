@@ -86,10 +86,7 @@ fn remove_env(file_path: &Path) -> Result<()> {
         let trimmed = line.trim();
 
         // Check for Tracer-related content
-        if trimmed.contains("Tracer")
-            || trimmed.contains("tracer")
-            || trimmed.contains("TRACER_USER_ID")
-        {
+        if trimmed.to_lowercase().contains("tracer") || trimmed.contains("TRACER_USER_ID") {
             removed_lines.push(line);
             in_tracer_block = true;
             continue;
