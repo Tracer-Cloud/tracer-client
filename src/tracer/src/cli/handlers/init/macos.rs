@@ -9,7 +9,7 @@ use crate::utils::analytics::types::AnalyticsEventType;
 use std::fs::File;
 use std::process::{Command, Stdio};
 
-pub fn macos_no_daemonize(args: FinalizedInitArgs, api_client: DaemonClient) -> anyhow::Result<()> {
+pub fn macos_daemonize(args: FinalizedInitArgs, api_client: DaemonClient) -> anyhow::Result<()> {
     // Serialize the finalized args to pass to the spawned process
     let current_exe = std::env::current_exe()?;
 

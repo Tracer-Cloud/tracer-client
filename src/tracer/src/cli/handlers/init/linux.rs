@@ -16,7 +16,7 @@ use tracing_subscriber::fmt::time::SystemTime;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::{fmt, EnvFilter};
 
-pub fn linux_no_daemonize(
+pub fn linux_daemonize(
     args: &FinalizedInitArgs,
     api_client: DaemonClient,
 ) -> anyhow::Result<bool> {

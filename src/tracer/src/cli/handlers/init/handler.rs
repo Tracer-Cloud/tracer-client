@@ -47,13 +47,13 @@ pub fn init(
     if !args.no_daemonize {
         #[cfg(target_os = "macos")]
         {
-            crate::cli::handlers::init::macos::macos_no_daemonize(args, api_client)?;
+            crate::cli::handlers::init::macos::macos_daemonize(args, api_client)?;
             return Ok(());
         }
 
         #[cfg(target_os = "linux")]
         {
-            if crate::cli::handlers::init::linux::linux_no_daemonize(&args, api_client)? {
+            if crate::cli::handlers::init::linux::linux_daemonize(&args, api_client)? {
                 return Ok(());
             }
         }
