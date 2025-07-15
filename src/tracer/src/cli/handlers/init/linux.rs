@@ -16,10 +16,7 @@ use tracing_subscriber::fmt::time::SystemTime;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::{fmt, EnvFilter};
 
-pub fn linux_daemonize(
-    args: &FinalizedInitArgs,
-    api_client: DaemonClient,
-) -> anyhow::Result<bool> {
+pub fn linux_daemonize(args: &FinalizedInitArgs, api_client: DaemonClient) -> anyhow::Result<bool> {
     match start_daemon() {
         Outcome::Parent(Ok(_)) => {
             println!("\nDaemon started successfully.");

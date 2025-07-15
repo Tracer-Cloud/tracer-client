@@ -37,10 +37,7 @@ pub fn process_command() -> Result<()> {
             println!("{}", Version::current());
             Ok(())
         }
-        Command::Update => {
-            // Handle update command directly without going through daemon
-            tokio::runtime::Runtime::new()?.block_on(handlers::update())
-        }
+        Command::Update => handlers::update(),
         command => super::process_daemon_command(command, &api_client),
     }
 }
