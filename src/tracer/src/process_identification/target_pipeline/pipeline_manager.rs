@@ -288,48 +288,48 @@ mod tests {
     #[once]
     fn test_targets() -> Vec<Target> {
         vec![
-            Target {
-                match_type: MatchType::And(Vec::from([
+            Target::with_display_name(
+                MatchType::And(Vec::from([
                     MatchType::ProcessNameIs("gzip".to_string()),
                     MatchType::FirstArgIs("-cd".to_string()),
                     MatchType::CommandContains(".gtf.gz".to_string()),
                 ])),
-                display_name: "gunzip_gtf".to_string(),
-            },
-            Target {
-                match_type: MatchType::And(Vec::from([
+                "gunzip_gtf".to_string(),
+            ),
+            Target::with_display_name(
+                MatchType::And(Vec::from([
                     MatchType::ProcessNameIs("gzip".to_string()),
                     MatchType::FirstArgIs("-cd".to_string()),
                     MatchType::CommandContains(".gff.gz".to_string()),
                 ])),
-                display_name: "gunzip_gff".to_string(),
-            },
-            Target {
-                match_type: MatchType::ProcessNameIs("gffread".to_string()),
-                display_name: "gffread".to_string(),
-            },
-            Target {
-                match_type: MatchType::ProcessNameIs("bbsplit.sh".to_string()),
-                display_name: "bbsplit".to_string(),
-            },
-            Target {
-                match_type: MatchType::ProcessNameIs("jshell".to_string()),
-                display_name: "jshell".to_string(),
-            },
-            Target {
-                match_type: MatchType::And(Vec::from([
+                "gunzip_gff".to_string(),
+            ),
+            Target::with_display_name(
+                MatchType::ProcessNameIs("gffread".to_string()),
+                "gffread".to_string(),
+            ),
+            Target::with_display_name(
+                MatchType::ProcessNameIs("bbsplit.sh".to_string()),
+                "bbsplit".to_string(),
+            ),
+            Target::with_display_name(
+                MatchType::ProcessNameIs("jshell".to_string()),
+                "jshell".to_string(),
+            ),
+            Target::with_display_name(
+                MatchType::And(Vec::from([
                     MatchType::ProcessNameIs("samtools".to_string()),
                     MatchType::FirstArgIs("faidx".to_string()),
                 ])),
-                display_name: "samtools faidx".to_string(),
-            },
-            Target {
-                match_type: MatchType::And(Vec::from([
+                "samtools faidx".to_string(),
+            ),
+            Target::with_display_name(
+                MatchType::And(Vec::from([
                     MatchType::ProcessNameIs("STAR".to_string()),
                     MatchType::CommandContains("--runMode genomeGenerate".to_string()),
                 ])),
-                display_name: "STAR index".to_string(),
-            },
+                "STAR index".to_string(),
+            ),
         ]
     }
 
@@ -351,7 +351,7 @@ mod tests {
     ) -> Option<&'a Target> {
         targets
             .iter()
-            .find(|target| target.display_name == display_name)
+            .find(|target| target.display_name() == display_name)
     }
 
     #[rstest]
@@ -371,7 +371,8 @@ mod tests {
         // Register a gunzip process that matches the gunzip_gtf rule
         let process = create_process_trigger("gzip -cd foo.gtf.gz", 1001);
         let target = find_target_by_display_name(&test_targets, "gunzip_gtf").unwrap();
-        let result = pipeline_manager.register_process(&process, Some(&target.display_name));
+        let result =
+            pipeline_manager.register_process(&process, Some(&target.display_name().to_string()));
 
         assert_eq!(
             result,
@@ -396,7 +397,10 @@ mod tests {
         // Register jshell process
         let jshell_process = create_process_trigger("jshell", 1002);
         let jshell_target = find_target_by_display_name(&test_targets, "jshell").unwrap();
-        let result1 = manager.register_process(&jshell_process, Some(&jshell_target.display_name));
+        let result1 = manager.register_process(
+            &jshell_process,
+            Some(&jshell_target.display_name().to_string()),
+        );
 
         // Should return None since we need more processes
         assert_eq!(result1, None);
@@ -404,8 +408,10 @@ mod tests {
         // Register bbsplit process
         let bbsplit_process = create_process_trigger("bbsplit.sh", 1001);
         let bbsplit_target = find_target_by_display_name(&test_targets, "bbsplit").unwrap();
-        let result2 =
-            manager.register_process(&bbsplit_process, Some(&bbsplit_target.display_name));
+        let result2 = manager.register_process(
+            &bbsplit_process,
+            Some(&bbsplit_target.display_name().to_string()),
+        );
 
         // Should return a match for the BBMAP_BBSPLIT task since it has score 1.0 (both rules matched)
         assert!(result2.is_some());
@@ -429,8 +435,10 @@ mod tests {
         // Register (optional) samtools process
         let samtools_process = create_process_trigger("samtools faidx", 1002);
         let samtools_target = find_target_by_display_name(&test_targets, "samtools faidx").unwrap();
-        let result1 =
-            manager.register_process(&samtools_process, Some(&samtools_target.display_name));
+        let result1 = manager.register_process(
+            &samtools_process,
+            Some(&samtools_target.display_name().to_string()),
+        );
 
         // Should return None since we need more processes
         assert_eq!(result1, None);
@@ -438,7 +446,8 @@ mod tests {
         // Register STAR process
         let star_process = create_process_trigger("STAR --runMode genomeGenerate", 1001);
         let star_target = find_target_by_display_name(&test_targets, "STAR index").unwrap();
-        let result2 = manager.register_process(&star_process, Some(&star_target.display_name));
+        let result2 =
+            manager.register_process(&star_process, Some(&star_target.display_name().to_string()));
 
         // Should return a match for the STAR_GENOMEGENERATE task since it has score 1.0 (both rules matched)
         assert!(result2.is_some());
@@ -460,7 +469,8 @@ mod tests {
         // Register a gunzip process that matches the gunzip_gtf rule
         let process = create_process_trigger("gzip -cd foo.gtf.gz", 1001);
         let target = find_target_by_display_name(&test_targets, "gunzip_gtf").unwrap();
-        let result1 = pipeline_manager.register_process(&process, Some(&target.display_name));
+        let result1 =
+            pipeline_manager.register_process(&process, Some(&target.display_name().to_string()));
 
         assert_eq!(
             result1,
@@ -475,7 +485,8 @@ mod tests {
         assert_eq!(pipeline_manager.num_unmatched_pids(), 0);
 
         // Register the same process again - should be ignored
-        let result2 = pipeline_manager.register_process(&process, Some(&target.display_name));
+        let result2 =
+            pipeline_manager.register_process(&process, Some(&target.display_name().to_string()));
         assert_eq!(result2, None);
     }
 

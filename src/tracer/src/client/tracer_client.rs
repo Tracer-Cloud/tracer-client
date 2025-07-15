@@ -1,10 +1,4 @@
-use crate::config::Config;
-
-use crate::cloud_providers::aws::pricing::PricingSource;
-use crate::extracts::containers::DockerWatcher;
-use crate::process_identification::types::cli::params::FinalizedInitArgs;
-use anyhow::{Context, Result};
-
+use crate::cli::handlers::arguments::FinalizedInitArgs;
 use crate::client::events::send_start_run_event;
 use crate::client::exporters::client_export_manager::ExporterManager;
 use crate::client::exporters::log_writer::LogWriterEnum;
