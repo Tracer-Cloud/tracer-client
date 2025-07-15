@@ -49,15 +49,16 @@ pub fn update() -> Result<()> {
 
     let install_cmd = format!(
         "curl -fsSL https://install.tracer.cloud | sh{}",
-        std::env::var("TRACER_INSTALL_CMD")
+        std::env::var("TRACER_USER_ID")
             .ok()
-            .map(|s| {
-                let trimmed = s.trim();
+            .map(|user_id| {
+                let trimmed = user_id.trim();
                 if trimmed.is_empty() {
                     "".to_string()
                 } else {
-                    format!(" {}", trimmed)
+                    format!(" -s {}", trimmed)
                 }
+
             })
             .unwrap_or_default()
     );

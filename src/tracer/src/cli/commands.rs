@@ -44,4 +44,7 @@ pub enum Command {
 
     /// Shows the current version of the daemon
     Version,
+
+    /// Uninstall tracer
+    Uninstall,
 }

@@ -37,7 +37,11 @@ impl PrintEmoji {
 pub fn print_status(label: &str, reason: &str, emoji: PrintEmoji) {
     const PADDING: usize = 40;
 
-    let label = format!("{}:", label);
+    let label = if !reason.is_empty() {
+        format!("{}:", label)
+    } else {
+        label.to_string()
+    };
     let padded = format!("{label:<width$}", width = PADDING);
     let emoji = emoji.to_emoji();
     println!("{emoji} {padded}{reason}");
