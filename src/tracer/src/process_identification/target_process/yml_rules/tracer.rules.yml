@@ -651,12 +651,24 @@ rules:
   - rule_name: fgbio rule
     display_name: fgbio {subcommand}
     condition:
-      java_command_is_one_of:
-        jar: fgbio.jar
-        commands:
-          - ZipperBams
-          - FilterConsensusReads
-          - CallDuplexConsensusReads
-          - GroupReadsByUmi
-          - CollectDuplexSeqMetrics
-          - FastqToBam
+    or:
+      - and:
+          - process_name_contains: fgbio
+          - subcommand_is_one_of:
+              [
+                ZipperBams,
+                FilterConsensusReads,
+                CallDuplexConsensusReads,
+                GroupReadsByUmi,
+                CollectDuplexSeqMetrics,
+                FastqToBam,
+              ]
+      - java_command_is_one_of:
+          jar: fgbio.jar
+          commands:
+            - ZipperBams
+            - FilterConsensusReads
+            - CallDuplexConsensusReads
+            - GroupReadsByUmi
+            - CollectDuplexSeqMetrics
+            - FastqToBam
