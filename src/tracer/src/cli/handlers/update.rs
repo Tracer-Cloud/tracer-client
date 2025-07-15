@@ -58,7 +58,6 @@ pub fn update() -> Result<()> {
                 } else {
                     format!(" -s {}", trimmed)
                 }
-
             })
             .unwrap_or_default()
     );
