@@ -1,3 +1,11 @@
+## 🧪 Testing
+To install tracer with this version/branch, run:<br>
+`curl -sSL https://install.tracer.cloud | CLI_BRANCH="branch_name" sh && source ~/.bashrc && source ~/.zshrc`
+
+To use the installer of tracer with this version/branch, run:<br>
+`curl -sSL https://install.tracer.cloud | INS_BRANCH="branch_name" sh && source ~/.bashrc && source ~/.zshrc` 
+
+
 ## 📌 Summary
 <!-- Provide a concise summary of your changes -->
 
