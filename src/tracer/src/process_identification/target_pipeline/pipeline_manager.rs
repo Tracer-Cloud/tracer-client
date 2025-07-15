@@ -159,7 +159,7 @@ impl TargetPipelineManager {
                     .iter()
                     .flat_map(|pid| {
                         self.matched_task_pids
-                            .get_by_pid(&pid)
+                            .get_by_pid(pid)
                             .iter()
                             .map(|task_pid| task_pid.task_id.clone())
                             .collect::<Vec<_>>()
