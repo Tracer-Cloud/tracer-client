@@ -120,7 +120,6 @@ impl DaemonServer {
 
     pub fn shutdown_if_running() -> anyhow::Result<bool> {
         if !Self::is_running() {
-            println!("Daemon is not running.");
             return Ok(false);
         }
         Self::shutdown()

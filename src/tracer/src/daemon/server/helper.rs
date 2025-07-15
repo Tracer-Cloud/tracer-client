@@ -50,7 +50,7 @@ pub(super) async fn handle_port_conflict(port: u16) -> anyhow::Result<bool> {
             );
         }
 
-        println!("✅ Process killed successfully.");
+        println!("✅  Process killed successfully.");
 
         // Add retry mechanism with delays to ensure port is released
         const MAX_RETRIES: u32 = 2;
@@ -64,7 +64,7 @@ pub(super) async fn handle_port_conflict(port: u16) -> anyhow::Result<bool> {
             tokio::time::sleep(tokio::time::Duration::from_millis(RETRY_DELAY_MS)).await;
 
             if std::net::TcpListener::bind(format!("127.0.0.1:{}", port)).is_ok() {
-                println!("✅ Port {} is now free and available for use.", port);
+                println!("✅  Port {} is now free and available for use.\n", port);
                 return Ok(true);
             }
         }
