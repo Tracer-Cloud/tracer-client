@@ -548,15 +548,15 @@ rules:
         - and:
             - process_name_contains: java
             - command_contains: picard
-        
+
   # picard subcommands
   - rule_name: picard command
     display_name: gatk picard {subcommand}
     condition:
-        - and:
-            - command_contains: gatk
-            - subcommand_is_one_of:
-              [
+      - and:
+          - command_contains: gatk
+          - subcommand_is_one_of:
+            [
                 AddCommentsToBam,
                 AddOrReplaceReadGroups,
                 BaitDesigner,
