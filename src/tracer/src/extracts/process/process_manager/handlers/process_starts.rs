@@ -114,30 +114,4 @@ impl ProcessStartHandler {
         debug!("Updating monitoring for matched processes.");
         state_manager.update_monitoring(matched_processes).await
     }
-
-    fn _filter_unique_triggers(
-        incoming: Vec<ProcessStartTrigger>,
-        mut existing: impl Iterator<Item = ProcessStartTrigger>,
-        max_ms_drift: i64,
-    ) -> Vec<ProcessStartTrigger> {
-        let mut unique = Vec::new();
-        let mut seen: Vec<ProcessStartTrigger> = Vec::new();
-
-        for inc in incoming {
-            let is_duplicate = existing.by_ref().chain(seen.iter().cloned()).any(|stored| {
-                stored.pid == inc.pid
-                    && stored.command_string == inc.command_string
-                    && (stored.started_at.timestamp_millis() - inc.started_at.timestamp_millis())
-                        .abs()
-                        <= max_ms_drift
-            });
-
-            if !is_duplicate {
-                seen.push(inc.clone());
-                unique.push(inc);
-            }
-        }
-
-        unique
-    }
 }
