@@ -25,19 +25,16 @@ impl ProcessStartHandler {
         let total_triggers = triggers.len();
         debug!("Handling {} process start triggers", total_triggers);
 
-        let guard = state_manager.get_state().await;
-        let existing = guard.get_processes();
+        let existing = {
+            let guard = state_manager.get_state().await;
+            guard.get_processes().clone()
+        };
 
-        let unique_triggers: Vec<ProcessStartTrigger> = triggers
-            .into_iter()
-            .filter(|incoming| {
-                !existing.values().any(|stored| {
-                    stored.pid == incoming.pid
-                        && stored.command_string == incoming.command_string
-                        && stored.started_at == incoming.started_at
-                })
-            })
-            .collect();
+        let unique_triggers = Self::filter_unique_triggers(
+            triggers,
+            existing.values().cloned(),
+            PROCESS_POLLING_INTERVAL_MS as i64,
+        );
 
         debug!(
             "Filtered {} duplicates; proceeding with {} unique triggers",
@@ -140,17 +137,16 @@ impl ProcessStartHandler {
         state_manager.update_monitoring(matched_processes).await
     }
 
-    fn _filter_unique_triggers(
+    fn filter_unique_triggers(
         incoming: Vec<ProcessStartTrigger>,
-        existing: impl Iterator<Item = ProcessStartTrigger>,
+        mut existing: impl Iterator<Item = ProcessStartTrigger>,
         max_ms_drift: i64,
     ) -> Vec<ProcessStartTrigger> {
         let mut unique = Vec::new();
         let mut seen: Vec<ProcessStartTrigger> = Vec::new();
-        let existing: Vec<ProcessStartTrigger> = existing.collect();
 
         for inc in incoming {
-            let is_duplicate = existing.iter().chain(seen.iter()).any(|stored| {
+            let is_duplicate = existing.by_ref().chain(seen.iter().cloned()).any(|stored| {
                 stored.pid == inc.pid
                     && stored.command_string == inc.command_string
                     && (stored.started_at.timestamp_millis() - inc.started_at.timestamp_millis())
