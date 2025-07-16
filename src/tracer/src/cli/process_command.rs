@@ -1,7 +1,8 @@
 use super::commands::{Cli, Command};
-use super::{handlers, helper};
+use super::handlers;
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
+use crate::daemon::server::DaemonServer;
 use crate::utils::{Sentry, Version};
 use anyhow::Result;
 use clap::Parser;
@@ -27,7 +28,7 @@ pub fn process_command() -> Result<()> {
     match cli.command {
         Command::Init(args) => handlers::init(*args, config, api_client),
         Command::Cleanup => {
-            let result = helper::clean_up_after_daemon();
+            let result = DaemonServer::cleanup();
             if result.is_ok() {
                 println!("Daemon files cleaned up successfully.");
             }
@@ -37,10 +38,8 @@ pub fn process_command() -> Result<()> {
             println!("{}", Version::current());
             Ok(())
         }
-        Command::Update => {
-            // Handle update command directly without going through daemon
-            tokio::runtime::Runtime::new()?.block_on(handlers::update())
-        }
+        Command::Update => handlers::update(),
+        Command::Uninstall => handlers::uninstall(),
         command => super::process_daemon_command(command, &api_client),
     }
 }

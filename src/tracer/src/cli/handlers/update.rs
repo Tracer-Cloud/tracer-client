@@ -1,8 +1,9 @@
+use crate::daemon::server::DaemonServer;
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use std::process::Command;
 
-pub async fn update() -> Result<()> {
+pub fn update() -> Result<()> {
     // TODO commenting out for now, as we get the s3 main release
     // let octocrab = octocrab::instance();
     // let release = octocrab
@@ -41,16 +42,21 @@ pub async fn update() -> Result<()> {
     //
     // println!("\nUpdating Tracer to version {}...", latest_ver);
 
+    if DaemonServer::is_running() {
+        println!("\n{} Tracer daemon is currently running. Please run `tracer terminate` before updating", "Warning:".yellow());
+        return Ok(());
+    }
+
     let install_cmd = format!(
         "curl -fsSL https://install.tracer.cloud | sh{}",
-        std::env::var("TRACER_INSTALL_CMD")
+        std::env::var("TRACER_USER_ID")
             .ok()
-            .map(|s| {
-                let trimmed = s.trim();
+            .map(|user_id| {
+                let trimmed = user_id.trim();
                 if trimmed.is_empty() {
                     "".to_string()
                 } else {
-                    format!(" {}", trimmed)
+                    format!(" -s {}", trimmed)
                 }
             })
             .unwrap_or_default()
