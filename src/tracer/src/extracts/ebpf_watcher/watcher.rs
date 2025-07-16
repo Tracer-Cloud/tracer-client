@@ -275,7 +275,7 @@ impl EbpfWatcher {
         self.trigger_processor
             .process_process_end_triggers(process_end_triggers)
             .await?;
-        
+
         // Process start triggers
         self.trigger_processor
             .process_process_start_triggers(process_start_triggers)
