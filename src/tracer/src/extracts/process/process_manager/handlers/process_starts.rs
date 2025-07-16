@@ -19,11 +19,33 @@ impl ProcessStartHandler {
         system_refresher: &SystemRefresher,
         triggers: Vec<ProcessStartTrigger>,
     ) -> Result<()> {
-        debug!("Handling {} process start triggers", triggers.len());
+        let total_triggers = triggers.len();
+        debug!("Handling {} process start triggers", total_triggers);
 
-        Self::store_triggers(state_manager, triggers.clone()).await;
+        let guard = state_manager.get_state().await;
+        let existing = guard.get_processes();
 
-        let matched_processes = Self::match_processes(state_manager, matcher, triggers).await;
+        let unique_triggers: Vec<ProcessStartTrigger> = triggers
+            .into_iter()
+            .filter(|incoming| {
+                !existing.values().any(|stored| {
+                    stored.pid == incoming.pid
+                        && stored.command_string == incoming.command_string
+                        && stored.started_at == incoming.started_at
+                })
+            })
+            .collect();
+
+        debug!(
+            "Filtered {} duplicates; proceeding with {} unique triggers",
+            total_triggers - unique_triggers.len(),
+            unique_triggers.len()
+        );
+
+        Self::store_triggers(state_manager, unique_triggers.clone()).await;
+
+        let matched_processes =
+            Self::match_processes(state_manager, matcher, unique_triggers).await;
 
         if matched_processes.is_empty() {
             debug!("No matching processes found; exiting early.");
