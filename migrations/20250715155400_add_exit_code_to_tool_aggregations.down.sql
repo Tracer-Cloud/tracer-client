@@ -1,50 +1,7 @@
--- Add up migration script here
+DROP TRIGGER IF EXISTS trigger_update_tool_aggregations ON batch_jobs_logs;
 
--- Create the tool_aggregations table
-CREATE TABLE IF NOT EXISTS tool_aggregations (
-    pipeline_name TEXT NOT NULL,
-    run_name TEXT NOT NULL,
-    tool_name TEXT NOT NULL,
-    tool_cmd TEXT,
-    times_called BIGINT DEFAULT 0,
-    max_cpu_utilization FLOAT DEFAULT 0,
-    avg_cpu_utilization FLOAT DEFAULT 0,
-    max_mem_usage BIGINT DEFAULT 0,
-    avg_mem_usage BIGINT DEFAULT 0,
-    max_disk_utilization BIGINT DEFAULT 0,
-    avg_disk_utilization BIGINT DEFAULT 0,
-    total_runtime BIGINT DEFAULT 0,
-    first_seen TIMESTAMPTZ,
-    last_seen TIMESTAMPTZ,
-    exit_reasons TEXT DEFAULT '',
-    attributes JSONB,
-    PRIMARY KEY (pipeline_name, run_name, tool_name)
-);
-
--- Fill the tool_aggregations table with existing data
-INSERT INTO tool_aggregations (
-    pipeline_name, run_name, tool_name, tool_cmd, times_called, max_cpu_utilization, avg_cpu_utilization, max_mem_usage, avg_mem_usage, max_disk_utilization, avg_disk_utilization, total_runtime, first_seen, last_seen, exit_reasons, attributes
-)
-SELECT
-    bjl.pipeline_name,
-    bjl.run_name,
-    NULLIF(TRIM(bjl.attributes ->> 'process.tool_name'), '') as tool_name,
-    MIN(bjl.attributes->>'process.tool_cmd') AS tool_cmd,
-    COUNT(*) AS times_called,
-    MAX((bjl.attributes->>'process.process_cpu_utilization')::FLOAT) AS max_cpu_utilization,
-    AVG((bjl.attributes->>'process.process_cpu_utilization')::FLOAT) AS avg_cpu_utilization,
-    MAX(bjl.mem_used) AS max_mem_usage,
-    AVG(bjl.mem_used) AS avg_mem_usage,
-    MAX((COALESCE((bjl.attributes->>'process.process_disk_usage_read_total')::BIGINT,0) + COALESCE((bjl.attributes->>'process.process_disk_usage_write_total')::BIGINT,0))) AS max_disk_utilization,
-    AVG((COALESCE((bjl.attributes->>'process.process_disk_usage_read_total')::BIGINT,0) + COALESCE((bjl.attributes->>'process.process_disk_usage_write_total')::BIGINT,0))) AS avg_disk_utilization,
-    SUM(COALESCE((bjl.attributes->>'process.process_run_time')::BIGINT,0)) AS total_runtime,
-    MIN(bjl.timestamp) AS first_seen,
-    MAX(bjl.timestamp) AS last_seen,
-    STRING_AGG(DISTINCT NULLIF(TRIM(bjl.attributes->>'completed_process.exit_reason'),''), ', ') AS exit_reasons,
-    NULL
-FROM batch_jobs_logs bjl
-WHERE NULLIF(TRIM(bjl.attributes ->> 'process.tool_name'), '') IS NOT NULL
-GROUP BY bjl.pipeline_name, bjl.run_name, tool_name;
+-- Remove the trigger function
+DROP FUNCTION IF EXISTS update_tool_aggregation;
 
 CREATE OR REPLACE FUNCTION update_tool_aggregations()
 RETURNS TRIGGER AS $$
@@ -104,8 +61,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS trigger_update_tool_aggregations ON batch_jobs_logs;
 CREATE TRIGGER trigger_update_tool_aggregations
     AFTER INSERT ON batch_jobs_logs
     FOR EACH ROW
     EXECUTE FUNCTION update_tool_aggregations();
+
+ALTER TABLE tool_aggregations DROP COLUMN IF EXISTS exit_code INT;
+ALTER TABLE tool_aggregations DROP COLUMN IF EXISTS exit_explanations;
