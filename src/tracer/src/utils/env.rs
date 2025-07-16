@@ -21,6 +21,10 @@ pub fn get_env_var(var: &str) -> Option<String> {
     env::var(var).ok()
 }
 
+pub fn has_env_var(var: &str) -> bool {
+    get_env_var(var).is_some()
+}
+
 fn is_docker() -> bool {
     // 1. Check for /.dockerenv
     if Path::new("/.dockerenv").exists() {
@@ -51,7 +55,7 @@ pub(crate) async fn detect_environment_type() -> String {
         return "GitHub Actions".into();
     }
 
-    if get_env_var(AWS_BATCH_JOB_ID_ENV_VAR).is_some() {
+    if has_env_var(AWS_BATCH_JOB_ID_ENV_VAR) {
         return "AWS Batch".into();
     }
 
@@ -71,8 +75,8 @@ pub(crate) async fn detect_environment_type() -> String {
 }
 
 fn is_codespaces() -> bool {
-    get_env_var(CODESPACES_ENV_VAR).is_some()
-        || get_env_var(CODESPACE_NAME_ENV_VAR).is_some()
+    has_env_var(CODESPACES_ENV_VAR)
+        || has_env_var(CODESPACE_NAME_ENV_VAR)
         || get_env_var(HOSTNAME_ENV_VAR)
             .map(|v| v.contains("codespaces-"))
             .unwrap_or(false)
