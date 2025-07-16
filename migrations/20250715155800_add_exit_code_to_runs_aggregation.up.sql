@@ -123,7 +123,7 @@ BEGIN
             0,
             '',
             '',
-            COALESCE((resource_attributes->>'system_properties.system_disk_io./dev/root.disk_total_space')::BIGINT, 0) --to be fixed
+            COALESCE((new.resource_attributes->>'system_properties.system_disk_io./dev/root.disk_total_space')::BIGINT, 0) --to be fixed
         )
         ON CONFLICT (trace_id, run_id) DO NOTHING; -- Avoid duplication if exists already
 
