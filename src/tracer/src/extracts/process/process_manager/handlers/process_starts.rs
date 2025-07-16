@@ -33,7 +33,8 @@ impl ProcessStartHandler {
 
         Self::log_matched_processes(logger, system_refresher, &matched_processes).await?;
 
-        Self::log_matching_tasks(logger, state_manager, &triggers, &matched_processes).await?;
+        Self::log_matching_tasks(logger, state_manager, &unique_triggers, &matched_processes)
+            .await?;
 
         Self::update_monitoring(state_manager, matched_processes).await?;
 

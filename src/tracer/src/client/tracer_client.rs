@@ -8,7 +8,6 @@ use crate::extracts::containers::DockerWatcher;
 use crate::extracts::ebpf_watcher::watcher::EbpfWatcher;
 use crate::extracts::metrics::system_metrics_collector::SystemMetricsCollector;
 use crate::process_identification::recorder::LogRecorder;
-use crate::process_identification::target_process::target_manager::TargetManager;
 use crate::process_identification::types::current_run::PipelineMetadata;
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::{Event, ProcessStatus};

@@ -1,6 +1,6 @@
-use crate::extracts::process::process_utils::create_short_lived_process_object;
+use crate::extracts::containers::DockerWatcher;
+use crate::extracts::process::extract_process_data;
 use crate::extracts::process::types::process_result::ProcessResult;
-use crate::extracts::{containers::DockerWatcher, process::extract_process_data};
 use crate::process_identification::recorder::LogRecorder;
 use crate::process_identification::target_pipeline::pipeline_manager::TaskMatch;
 use crate::process_identification::types::event::attributes::process::ProcessProperties;
