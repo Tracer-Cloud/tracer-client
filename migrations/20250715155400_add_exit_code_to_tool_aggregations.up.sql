@@ -52,11 +52,11 @@ WHERE NULLIF(COALESCE(
 ), '') IS NOT NULL
 GROUP BY ev.pipeline_name, ev.run_name, tool_name;
 
-UPDATE tool_aggregations
+UPDATE tool_aggregations ta
 SET exit_code = temp.exit_code,
     exit_reasons = temp.exit_reasons,
     exit_explanations = temp.exit_explanations
-FROM tool_aggregations ta, tool_aggregations_exit_code_temp temp
+FROM tool_aggregations_exit_code_temp temp
 WHERE ta.pipeline_name = temp.pipeline_name AND
       ta.run_name = temp.run_name AND
       ta.tool_name = temp.tool_name;
@@ -85,10 +85,10 @@ BEGIN
     END IF;
 
     IF NEW.process_status = 'finished_tool_execution' THEN
-        new_code := CAST(NULLIF(TRIM(NEW.attributes->>'process.exit_reason.code'), '') as integer)
+        new_code := CAST(NULLIF(TRIM(NEW.attributes->>'process.exit_reason.code'), '') as integer);
         IF new_code IS NOT NULL THEN
-            new_reason = NULLIF(TRIM(NEW.attributes->>'process.exit_reason.reason'), ''),
-            new_explanation = NULLIF(TRIM(NEW.attributes->>'process.exit_reason.explanation'), '')
+            new_reason = NULLIF(TRIM(NEW.attributes->>'process.exit_reason.reason'), '');
+            new_explanation = NULLIF(TRIM(NEW.attributes->>'process.exit_reason.explanation'), '');
             UPDATE tool_aggregations SET
                 exit_code = MAX(exit_code, new_code),
                 exit_reasons = CASE
