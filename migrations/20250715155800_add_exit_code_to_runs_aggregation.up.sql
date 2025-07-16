@@ -1,6 +1,66 @@
 ALTER TABLE runs_aggregations ADD COLUMN IF NOT EXISTS exit_code INT DEFAULT 0;
 ALTER TABLE runs_aggregations ADD COLUMN IF NOT EXISTS exit_explanations text DEFAULT '';
 
+CREATE TABLE IF NOT EXISTS runs_aggregations_exit_code_temp AS
+SELECT
+    ev.pipeline_name,
+    ev.run_name,
+    COALESCE(
+        NULLIF(TRIM(ev.attributes ->> 'process.tool_name'), ''),
+        NULLIF(TRIM(ev.attributes ->> 'completed_process.tool_name'), '')
+    ) as tool_name,
+    MAX(
+        DISTINCT CASE
+            WHEN NULLIF(COALESCE(ev.attributes->>'process.exit_reason', ev.attributes->>'completed_process.exit_reason'), '') IS NULL THEN NULL
+            WHEN NULLIF(COALESCE(ev.attributes->>'process.exit_reason.Code', ev.attributes->>'completed_process.exit_reason.Code'), '') IS NOT NULL THEN
+                CAST(TRIM(COALESCE(ev.attributes->>'process.exit_reason.Code', ev.attributes->>'completed_process.exit_reason.Code')) as integer)
+            WHEN NULLIF(COALESCE(ev.attributes->>'process.exit_reason.Signal', ev.attributes->>'completed_process.exit_reason.Signal'), '') IS NOT NULL THEN
+                CAST(TRIM(COALESCE(ev.attributes->>'process.exit_reason.Signal', ev.attributes->>'completed_process.exit_reason.Signal')) as integer) + 128
+            WHEN NULLIF(COALESCE(ev.attributes->>'process.exit_reason.Unknown', ev.attributes->>'completed_process.exit_reason.Unknown'), '') IS NOT NULL THEN
+                CAST(TRIM(COALESCE(ev.attributes->>'process.exit_reason.Unknown', ev.attributes->>'completed_process.exit_reason.Unknown')) as integer)
+            WHEN NULLIF(TRIM(COALESCE(ev.attributes->>'process.exit_reason', ev.attributes->>'completed_process.exit_reason')), '') IN ('OutOfMemoryKilled', 'OomKilled') THEN 137
+            WHEN NULLIF(TRIM(COALESCE(ev.attributes->>'process.exit_reason.code', ev.attributes->>'completed_process.exit_reason.code')), '') IS NOT NULL THEN
+                CAST(TRIM(COALESCE(ev.attributes->>'process.exit_reason.code', ev.attributes->>'completed_process.exit_reason.code')) as integer)
+        END
+    ) as exit_code,
+    STRING_AGG(
+        DISTINCT CASE
+            WHEN NULLIF(TRIM(COALESCE(ev.attributes->>'process.exit_reason', ev.attributes->>'completed_process.exit_reason')), '') IS NULL THEN NULL
+            WHEN NULLIF(TRIM(COALESCE(ev.attributes->>'process.exit_reason.Code', ev.attributes->>'completed_process.exit_reason.Code')), '') = '0' THEN 'Success'
+            WHEN NULLIF(TRIM(COALESCE(ev.attributes->>'process.exit_reason.Code', ev.attributes->>'completed_process.exit_reason.Code')), '') IS NOT NULL THEN
+                CONCAT('Exit code ', COALESCE(ev.attributes->>'process.exit_reason.Code', ev.attributes->>'completed_process.exit_reason.Code'))
+            WHEN NULLIF(TRIM(COALESCE(ev.attributes->>'process.exit_reason.Signal', ev.attributes->>'completed_process.exit_reason.Signal')), '') IS NOT NULL THEN
+                CONCAT('Signal ', COALESCE(ev.attributes->>'process.exit_reason.Signal', ev.attributes->>'completed_process.exit_reason.Signal'))
+            WHEN NULLIF(TRIM(COALESCE(ev.attributes->>'process.exit_reason.Unknown', ev.attributes->>'completed_process.exit_reason.Unknown')), '') IS NOT NULL THEN
+                CONCAT('Unknown code ', COALESCE(ev.attributes->>'process.exit_reason.Unknown', ev.attributes->>'completed_process.exit_reason.Unknown'))
+            WHEN NULLIF(TRIM(COALESCE(ev.attributes->>'process.exit_reason', ev.attributes->>'completed_process.exit_reason')), '') IN ('OutOfMemoryKilled', 'OomKilled') THEN
+                'Out of Memory, Killed'
+            WHEN NULLIF(TRIM(COALESCE(ev.attributes->>'process.exit_reason.reason', ev.attributes->>'completed_process.exit_reason.reason')), '') != '' THEN
+                TRIM(COALESCE(ev.attributes->>'process.exit_reason.reason', ev.attributes->>'completed_process.exit_reason.reason'))
+            ELSE COALESCE(TRIM(ev.attributes->>'process.exit_reason'), TRIM(ev.attributes->>'completed_process.exit_reason'))
+        END,
+        ', '
+    ) as exit_reasons,
+        STRING_AGG(
+            DISTINCT NULLIF(TRIM(ev.attributes->>'process.exit_reason.explanation'), ''),
+            ', '
+    ) as exit_explanations
+FROM events ev
+WHERE NULLIF(COALESCE(
+    TRIM(ev.attributes ->> 'process.tool_name'),
+    TRIM(ev.attributes ->> 'completed_process.tool_name')
+), '') IS NOT NULL
+GROUP BY ev.trace_id;
+
+UPDATE runs_aggregations
+SET exit_code = temp.exit_code,
+    exit_reasons = temp.exit_reasons,
+    exit_explanations = temp.exit_explanations
+FROM runs_aggregations ra, tool_aggregations_exit_code_temp temp
+WHERE ra.trace_id = temp.trace_id;
+
+DROP TABLE IF EXISTS runs_aggregations_exit_code_temp;
+
 CREATE OR REPLACE FUNCTION update_runs_aggregation()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -137,3 +197,12 @@ BEGIN
 RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+
+-- Now attach the trigger to the events table
+DROP TRIGGER IF EXISTS trigger_update_runs_aggregation ON batch_jobs_logs;
+
+CREATE TRIGGER trigger_update_runs_aggregation
+    AFTER INSERT ON batch_jobs_logs
+    FOR EACH ROW
+    EXECUTE FUNCTION update_runs_aggregation();

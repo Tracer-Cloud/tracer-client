@@ -52,7 +52,7 @@ WHERE NULLIF(COALESCE(
 ), '') IS NOT NULL
 GROUP BY ev.pipeline_name, ev.run_name, tool_name;
 
-UPDATE tool_aggregations ta
+UPDATE tool_aggregations
 SET exit_code = temp.exit_code,
     exit_reasons = temp.exit_reasons,
     exit_explanations = temp.exit_explanations
