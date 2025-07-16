@@ -28,11 +28,16 @@ impl ProcessStartHandler {
         let guard = state_manager.get_state().await;
         let existing = guard.get_processes();
 
-        let unique_triggers = Self::filter_unique_triggers(
-            triggers,
-            existing.values().cloned(),
-            PROCESS_POLLING_INTERVAL_MS as i64,
-        );
+        let unique_triggers: Vec<ProcessStartTrigger> = triggers
+            .into_iter()
+            .filter(|incoming| {
+                !existing.values().any(|stored| {
+                    stored.pid == incoming.pid
+                        && stored.command_string == incoming.command_string
+                        && stored.started_at == incoming.started_at
+                })
+            })
+            .collect();
 
         debug!(
             "Filtered {} duplicates; proceeding with {} unique triggers",
@@ -135,7 +140,7 @@ impl ProcessStartHandler {
         state_manager.update_monitoring(matched_processes).await
     }
 
-    fn filter_unique_triggers(
+    fn _filter_unique_triggers(
         incoming: Vec<ProcessStartTrigger>,
         existing: impl Iterator<Item = ProcessStartTrigger>,
         max_ms_drift: i64,
