@@ -25,8 +25,10 @@ impl ProcessStartHandler {
         let total_triggers = triggers.len();
         debug!("Handling {} process start triggers", total_triggers);
 
-        let guard = state_manager.get_state().await;
-        let existing = guard.get_processes();
+        let existing = {
+            let guard = state_manager.get_state().await;
+            guard.get_processes().clone()
+        };
 
         let unique_triggers = Self::filter_unique_triggers(
             triggers,
@@ -137,15 +139,14 @@ impl ProcessStartHandler {
 
     fn filter_unique_triggers(
         incoming: Vec<ProcessStartTrigger>,
-        existing: impl Iterator<Item = ProcessStartTrigger>,
+        mut existing: impl Iterator<Item = ProcessStartTrigger>,
         max_ms_drift: i64,
     ) -> Vec<ProcessStartTrigger> {
         let mut unique = Vec::new();
         let mut seen: Vec<ProcessStartTrigger> = Vec::new();
-        let existing: Vec<ProcessStartTrigger> = existing.collect();
 
         for inc in incoming {
-            let is_duplicate = existing.iter().chain(seen.iter()).any(|stored| {
+            let is_duplicate = existing.by_ref().chain(seen.iter().cloned()).any(|stored| {
                 stored.pid == inc.pid
                     && stored.command_string == inc.command_string
                     && (stored.started_at.timestamp_millis() - inc.started_at.timestamp_millis())
