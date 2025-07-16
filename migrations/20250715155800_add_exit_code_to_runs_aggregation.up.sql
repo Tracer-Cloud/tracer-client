@@ -3,12 +3,8 @@ ALTER TABLE runs_aggregations ADD COLUMN IF NOT EXISTS exit_explanations text DE
 
 CREATE TABLE IF NOT EXISTS runs_aggregations_exit_code_temp AS
 SELECT
-    ev.pipeline_name,
-    ev.run_name,
-    COALESCE(
-        NULLIF(TRIM(ev.attributes ->> 'process.tool_name'), ''),
-        NULLIF(TRIM(ev.attributes ->> 'completed_process.tool_name'), '')
-    ) as tool_name,
+    STRING_AGG(DISTINCT ev.pipeline_name, '') as pipeline_name,
+    STRING_AGG(DISTINCT ev.run_name, '') as run_name,
     MAX(
         DISTINCT CASE
             WHEN NULLIF(COALESCE(ev.attributes->>'process.exit_reason', ev.attributes->>'completed_process.exit_reason'), '') IS NULL THEN NULL
@@ -52,11 +48,17 @@ WHERE NULLIF(COALESCE(
 ), '') IS NOT NULL
 GROUP BY ev.trace_id;
 
-UPDATE runs_aggregations
+UPDATE runs_aggregations ra
 SET exit_code = temp.exit_code,
     exit_reasons = temp.exit_reasons,
-    exit_explanations = temp.exit_explanations
-FROM runs_aggregations ra, tool_aggregations_exit_code_temp temp
+    exit_explanations = temp.exit_explanations,
+    status = CASE
+        WHEN temp.exit_code = 0 THEN 'Completed'
+        WHEN temp.exit_code IS NOT NULL THEN 'Failed'
+        WHEN end_time IS NOT NULL THEN 'Unknown'
+        ELSE 'Running'
+    END
+FROM runs_aggregations_exit_code_temp temp
 WHERE ra.trace_id = temp.trace_id;
 
 DROP TABLE IF EXISTS runs_aggregations_exit_code_temp;
@@ -161,11 +163,11 @@ BEGIN
     ELSIF NEW.process_status = 'finished_tool_execution' THEN
         -- Extract and append exit reason
         IF NEW.attributes ? 'process.exit_reason' THEN
-            new_code := CAST(NULLIF(TRIM(NEW.attributes->>'process.exit_reason.code'), '') as integer)
+            new_code := CAST(NULLIF(TRIM(NEW.attributes->>'process.exit_reason.code'), '') as integer);
             IF new_code IS NOT NULL THEN
                 -- Only proceed if exit code is not empty
-                new_reason = NULLIF(TRIM(NEW.attributes->>'process.exit_reason.reason'), ''),
-                new_explanation = NULLIF(TRIM(NEW.attributes->>'process.exit_reason.explanation'), '')
+                new_reason = NULLIF(TRIM(NEW.attributes->>'process.exit_reason.reason'), '');
+                new_explanation = NULLIF(TRIM(NEW.attributes->>'process.exit_reason.explanation'), '');
                 UPDATE runs_aggregations SET
                     exit_code = MAX(exit_code, new_code),
                     exit_reasons = CASE
