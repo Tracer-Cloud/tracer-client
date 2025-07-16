@@ -1,16 +1,12 @@
-use std::sync::Arc;
-
-use crate::extracts::process::process_utils::create_short_lived_process_object;
 use crate::extracts::process::types::process_result::ProcessResult;
-use crate::extracts::{
-    containers::DockerWatcher, process::extract_process_data::ExtractProcessData,
-};
+use crate::extracts::{containers::DockerWatcher, process::extract_process_data};
 use crate::process_identification::recorder::LogRecorder;
 use crate::process_identification::types::event::attributes::process::ProcessProperties;
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::ProcessStatus as TracerProcessStatus;
 use anyhow::Result;
 use chrono::Utc;
+use std::sync::Arc;
 use sysinfo::Process;
 use tracer_ebpf::ebpf_trigger::{ProcessEndTrigger, ProcessStartTrigger};
 use tracing::debug;
@@ -42,7 +38,7 @@ impl ProcessLogger {
 
         let mut properties = match system_process {
             Some(system_process) => {
-                ExtractProcessData::gather_process_data(
+                extract_process_data::gather_process_data(
                     system_process,
                     display_name.clone(),
                     process.started_at,
@@ -52,9 +48,13 @@ impl ProcessLogger {
             }
             None => {
                 debug!("Process({}) wasn't found", process.pid);
-                create_short_lived_process_object(process, display_name.clone())
+                extract_process_data::create_short_lived_process_object(
+                    process,
+                    display_name.clone(),
+                )
             }
         };
+
         let ProcessProperties::Full(full) = &mut properties;
 
         // If we have a container ID, fetch and attach the container event
@@ -100,7 +100,7 @@ impl ProcessLogger {
         );
 
         // Don't process input files for update events
-        let properties = ExtractProcessData::gather_process_data(
+        let properties = extract_process_data::gather_process_data(
             system_process,
             display_name.clone(),
             process.started_at,
