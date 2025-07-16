@@ -1,33 +1,27 @@
-use crate::config::Config;
-
-use crate::cloud_providers::aws::pricing::PricingSource;
-use crate::extracts::containers::DockerWatcher;
-use crate::process_identification::target_process::target_manager::TargetManager;
-use anyhow::{Context, Result};
-
+use crate::cli::handlers::arguments::FinalizedInitArgs;
 use crate::client::events::send_start_run_event;
 use crate::client::exporters::client_export_manager::ExporterManager;
 use crate::client::exporters::log_writer::LogWriterEnum;
+use crate::cloud_providers::aws::pricing::PricingSource;
+use crate::config::Config;
+use crate::extracts::containers::DockerWatcher;
 use crate::extracts::ebpf_watcher::watcher::EbpfWatcher;
 use crate::extracts::metrics::system_metrics_collector::SystemMetricsCollector;
 use crate::process_identification::recorder::LogRecorder;
-use crate::process_identification::types::current_run::{
-    PipelineCostSummary, PipelineMetadata, Run,
-};
+use crate::process_identification::target_process::target_manager::TargetManager;
+use crate::process_identification::types::current_run::PipelineMetadata;
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::{Event, ProcessStatus};
-use chrono::{DateTime, Utc};
-use std::sync::Arc;
-use std::time::Instant;
-use sysinfo::System;
-use tokio::sync::{mpsc, RwLock};
-use tracing::{error, info};
-
-use crate::cli::handlers::arguments::FinalizedInitArgs;
 #[cfg(target_os = "linux")]
 use crate::utils::system_info::get_kernel_version;
+use anyhow::{Context, Result};
+use chrono::{DateTime, Utc};
+use std::sync::Arc;
+use sysinfo::System;
+use tokio::sync::{mpsc, RwLock};
 #[cfg(target_os = "linux")]
 use tracing::warn;
+use tracing::{error, info};
 
 pub struct TracerClient {
     system: Arc<RwLock<System>>, // todo: use arc swap
@@ -45,8 +39,9 @@ pub struct TracerClient {
     log_recorder: LogRecorder,
     pub exporter: Arc<ExporterManager>,
 
-    // todo: remove completely
-    initialization_id: Option<String>,
+    // deprecated
+    run_id: Option<String>,
+    run_name: Option<String>,
     pub user_id: Option<String>,
     pipeline_name: String,
 }
@@ -87,7 +82,8 @@ impl TracerClient {
             log_recorder,
 
             pipeline_name: cli_args.pipeline_name,
-            initialization_id: cli_args.run_id,
+            run_id: cli_args.run_id,
+            run_name: cli_args.run_name,
             user_id: cli_args.user_id,
             docker_watcher,
         })
@@ -228,27 +224,19 @@ impl TracerClient {
             self.stop_run().await?;
         }
 
-        let result = send_start_run_event(
+        let start_time = timestamp.unwrap_or_else(Utc::now);
+
+        let (run, system_properties) = send_start_run_event(
             &*self.system.read().await,
             &self.pipeline_name,
             &self.pricing_client,
-            &self.initialization_id,
+            &self.run_id,
+            &self.run_name,
+            start_time,
         )
         .await?;
-        let start_time = timestamp.unwrap_or_else(Utc::now);
 
-        self.pipeline.write().await.run = Some(Run {
-            last_interaction: Instant::now(),
-            parent_pid: None,
-            start_time,
-            name: result.run_name.clone(),
-            id: result.run_id.clone(),
-            cost_summary: result
-                .system_properties
-                .pricing_context
-                .as_ref()
-                .map(|ctx| PipelineCostSummary::new(start_time, ctx)),
-        });
+        self.pipeline.write().await.run = Some(run);
 
         // NOTE: Do we need to output a totally new event if self.initialization_id.is_some() ?
         self.log_recorder
@@ -256,7 +244,7 @@ impl TracerClient {
                 ProcessStatus::NewRun,
                 "[CLI] Starting new pipeline run".to_owned(),
                 Some(EventAttributes::SystemProperties(Box::new(
-                    result.system_properties,
+                    system_properties,
                 ))),
                 timestamp,
             )

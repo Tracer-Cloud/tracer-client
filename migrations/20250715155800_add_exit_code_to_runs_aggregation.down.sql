@@ -1,7 +1,9 @@
--- Add up migration script here
--- adding new column for the exit_reason
-ALTER TABLE runs_aggregations ADD COLUMN IF NOT EXISTS exit_reasons text;
-ALTER TABLE runs_aggregations ADD COLUMN IF NOT EXISTS system_disk_total bigint DEFAULT 0;
+
+-- Remove the trigger from the batch_jobs_logs table
+DROP TRIGGER IF EXISTS trigger_update_runs_aggregation ON batch_jobs_logs;
+
+-- Remove the trigger function
+DROP FUNCTION IF EXISTS update_runs_aggregation;
 
 CREATE OR REPLACE FUNCTION update_runs_aggregation()
 RETURNS TRIGGER AS $$
@@ -126,8 +128,8 @@ RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Now attach the trigger to the events table
-DROP TRIGGER IF EXISTS trigger_update_runs_aggregation ON batch_jobs_logs;
+ALTER TABLE runs_aggregations DROP COLUMN IF EXISTS exit_code;
+ALTER TABLE runs_aggregations DROP COLUMN IF EXISTS exit_explanations;
 
 CREATE TRIGGER trigger_update_runs_aggregation
     AFTER INSERT ON batch_jobs_logs

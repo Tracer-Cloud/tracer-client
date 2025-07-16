@@ -1,7 +1,10 @@
-use crate::extracts::process::process_manager::logger::ProcessLogger;
 use crate::extracts::process::process_manager::matcher::Filter;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
+use crate::{
+    constants::PROCESS_POLLING_INTERVAL_MS,
+    extracts::process::process_manager::logger::ProcessLogger,
+};
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
@@ -19,11 +22,30 @@ impl ProcessStartHandler {
         system_refresher: &SystemRefresher,
         triggers: Vec<ProcessStartTrigger>,
     ) -> Result<()> {
-        debug!("Handling {} process start triggers", triggers.len());
+        let total_triggers = triggers.len();
+        debug!("Handling {} process start triggers", total_triggers);
 
-        Self::store_triggers(state_manager, triggers.clone()).await;
+        let existing = {
+            let guard = state_manager.get_state().await;
+            guard.get_processes().clone()
+        };
 
-        let matched_processes = Self::match_processes(state_manager, matcher, triggers).await;
+        let unique_triggers = Self::filter_unique_triggers(
+            triggers,
+            existing.values().cloned(),
+            PROCESS_POLLING_INTERVAL_MS as i64,
+        );
+
+        debug!(
+            "Filtered {} duplicates; proceeding with {} unique triggers",
+            total_triggers - unique_triggers.len(),
+            unique_triggers.len()
+        );
+
+        Self::store_triggers(state_manager, unique_triggers.clone()).await;
+
+        let matched_processes =
+            Self::match_processes(state_manager, matcher, unique_triggers).await;
 
         if matched_processes.is_empty() {
             debug!("No matching processes found; exiting early.");
@@ -113,5 +135,31 @@ impl ProcessStartHandler {
     ) -> Result<()> {
         debug!("Updating monitoring for matched processes.");
         state_manager.update_monitoring(matched_processes).await
+    }
+
+    fn filter_unique_triggers(
+        incoming: Vec<ProcessStartTrigger>,
+        mut existing: impl Iterator<Item = ProcessStartTrigger>,
+        max_ms_drift: i64,
+    ) -> Vec<ProcessStartTrigger> {
+        let mut unique = Vec::new();
+        let mut seen: Vec<ProcessStartTrigger> = Vec::new();
+
+        for inc in incoming {
+            let is_duplicate = existing.by_ref().chain(seen.iter().cloned()).any(|stored| {
+                stored.pid == inc.pid
+                    && stored.command_string == inc.command_string
+                    && (stored.started_at.timestamp_millis() - inc.started_at.timestamp_millis())
+                        .abs()
+                        <= max_ms_drift
+            });
+
+            if !is_duplicate {
+                seen.push(inc.clone());
+                unique.push(inc);
+            }
+        }
+
+        unique
     }
 }

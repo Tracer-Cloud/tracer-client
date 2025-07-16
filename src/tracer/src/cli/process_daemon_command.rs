@@ -1,8 +1,7 @@
 use crate::cli::commands::Command;
 use crate::cli::handlers::info;
-use crate::cli::helper::handle_port_conflict;
 use crate::daemon::client::{DaemonClient, Result as DaemonResult};
-use crate::process_identification::constants::DEFAULT_DAEMON_PORT;
+use crate::daemon::server::DaemonServer;
 use crate::process_identification::debug_log::Logger;
 use anyhow::{anyhow, bail, Result};
 use tokio::runtime::Runtime;
@@ -11,12 +10,6 @@ pub fn process_daemon_command(command: Command, api_client: &DaemonClient) -> Re
     let runtime = Runtime::new()?;
     let result = match command {
         Command::Info { json } => runtime.block_on(async { info(api_client, json).await }),
-        Command::CleanupPort { port } => {
-            let port = port.unwrap_or(DEFAULT_DAEMON_PORT);
-            runtime
-                .block_on(async { handle_port_conflict(port).await })
-                .map(|_| ())
-        }
         command => process_retryable_daemon_command(command, api_client, runtime),
     };
     if let Err(e) = result {
@@ -58,8 +51,8 @@ async fn process_retryable_daemon_command_async(
     match command {
         Command::Terminate => {
             if let Err(e) = api_client.send_terminate_request().await {
-                // try to clean up the port
-                let _ = handle_port_conflict(DEFAULT_DAEMON_PORT).await;
+                // try to force shutdown if terminate fails
+                let _ = DaemonServer::shutdown_if_running();
                 return Err(e);
             }
         }

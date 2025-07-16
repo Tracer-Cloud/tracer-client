@@ -154,10 +154,10 @@ impl Installer {
     pub async fn patch_rc_files_async(user_id: Option<String>) -> Result<()> {
         print_title("Updating Shell Configs");
         if let Some(ref id) = user_id {
-            print_label(&format!("User ID provided: {}", id), PrintEmoji::Pass);
+            print_status("User ID provided", id, PrintEmoji::Pass);
         } else {
             print_label(
-                "No user ID provided (TRACER_USER_ID not set). Skipping user ID persistence...",
+                "No user ID provided. Skipping user ID persistence...",
                 PrintEmoji::Fail,
             );
         }
@@ -211,13 +211,6 @@ impl Installer {
                 } else {
                     updated_lines.push(line);
                 }
-            }
-
-            // Add new entries if they don't exist
-            let needs_comment = !has_path_export || (!has_user_export && export_user.is_some());
-            if needs_comment {
-                updated_lines.push("".to_string()); // Empty line
-                updated_lines.push("# Added by Tracer installer".to_string());
             }
 
             if !has_path_export {

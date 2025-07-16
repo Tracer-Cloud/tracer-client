@@ -1,8 +1,6 @@
-use serde::{Deserialize, Serialize};
-
-use tracer_ebpf::ebpf_trigger::ExitReason;
-
 use crate::extracts::containers::docker_watcher::event::ContainerEvent;
+use serde::{Deserialize, Serialize};
+use tracer_ebpf::ebpf_trigger::ExitReason;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct InputFile {
