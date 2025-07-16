@@ -67,7 +67,7 @@ SELECT
             WHEN NULLIF(TRIM(bjl.attributes->>'process.exit_reason.Unknown'), '') IS NOT NULL THEN
                 CONCAT('Unknown code ', bjl.attributes->>'process.exit_reason.Unknown')
             WHEN NULLIF(TRIM(bjl.attributes->>'process.exit_reason'), '') IN ('OutOfMemoryKilled', 'OomKilled') THEN
-                'OOM Killed'
+                'Out of Memory, Killed'
             WHEN NULLIF(TRIM(bjl.attributes->>'process.exit_reason.reason'), '') != '' THEN
                 TRIM(bjl.attributes->>'process.exit_reason.reason')
             ELSE TRIM(bjl.attributes->>'process.exit_reason')
@@ -81,8 +81,7 @@ SELECT
     NULL
 FROM batch_jobs_logs bjl
 WHERE NULLIF(TRIM(bjl.attributes ->> 'process.tool_name'), '') IS NOT NULL
-GROUP BY bjl.pipeline_name, bjl.run_name, tool_name
-LIMIT 10;
+GROUP BY bjl.pipeline_name, bjl.run_name, tool_name;
 
 CREATE OR REPLACE FUNCTION update_tool_aggregations()
 RETURNS TRIGGER AS $$
