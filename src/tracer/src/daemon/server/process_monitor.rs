@@ -102,15 +102,3 @@ async fn sentry_alert(client: &TracerClient) {
         Sentry::add_extra("Processes", processes);
     }
 }
-
-async fn try_submit_with_retries(config: &Config, exporter: Arc<ExporterManager>) {
-
-    match exporter.submit_batched_data().await {
-        Ok(_) => Ok(()),
-        Err(e) => {
-            debug!("Failed to submit batched data, retrying: {:?}", e);
-            Err(e)
-        }
-        }
-    }
-}
