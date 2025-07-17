@@ -12,7 +12,6 @@ use crate::daemon::state::DaemonState;
 use crate::process_identification::constants::{
     DEFAULT_DAEMON_PORT, PID_FILE, STDERR_FILE, STDOUT_FILE,
 };
-use anyhow::Context;
 use axum::Router;
 use std::net::SocketAddr;
 use tokio::task::JoinHandle;
@@ -131,10 +130,11 @@ impl DaemonServer {
         DaemonServer::cleanup()?;
         shutdown_successful
     }
+
     pub fn cleanup() -> anyhow::Result<()> {
-        std::fs::remove_file(PID_FILE).context("Failed to remove pid file")?;
-        std::fs::remove_file(STDOUT_FILE).context("Failed to remove stdout file")?;
-        std::fs::remove_file(STDERR_FILE).context("Failed to remove stderr file")?;
+        let _ = std::fs::remove_file(PID_FILE);
+        let _ = std::fs::remove_file(STDOUT_FILE);
+        let _ = std::fs::remove_file(STDERR_FILE);
         Ok(())
     }
 }
