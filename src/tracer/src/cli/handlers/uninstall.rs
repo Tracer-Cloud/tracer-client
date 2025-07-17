@@ -13,7 +13,7 @@ pub fn uninstall() -> Result<()> {
     }
 
     if !is_root() || !is_sudo() {
-        print!(
+        println!(
             "\n{} `uninstall` requires root privileges. Please run with elevated permissions.",
             "Warning:".yellow().bold()
         );

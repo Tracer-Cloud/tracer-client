@@ -51,7 +51,7 @@ async fn process_retryable_daemon_command_async(
 ) -> DaemonResult<bool> {
     match command {
         Command::Terminate => {
-            if !DaemonServer::is_running(){
+            if !DaemonServer::is_running() {
                 println!("Daemon server is not running, nothing to terminate.");
                 return Ok(true);
             }

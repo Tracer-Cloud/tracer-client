@@ -21,7 +21,7 @@ pub fn init(
 ) -> anyhow::Result<()> {
     // Check if running with sudo
     if !is_root() || !is_sudo() {
-        print!(
+        println!(
             "\n{} `init` requires root privileges. Please run with elevated permissions.",
             "Warning:".yellow().bold()
         );
