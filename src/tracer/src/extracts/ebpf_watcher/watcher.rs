@@ -46,7 +46,6 @@ impl EbpfWatcher {
     }
 
     pub async fn start_ebpf(self: &Arc<Self>) -> Result<()> {
-        println!("Starting ebpf");
         let mut initialized = self.ebpf_initialized.lock().await;
         if !*initialized {
             Arc::clone(self).initialize_ebpf()?;
@@ -67,7 +66,6 @@ impl EbpfWatcher {
         let interval = std::time::Duration::from_millis(process_polling_interval_ms);
 
         tokio::spawn(async move {
-            println!("Starting process polling loop");
             let mut system = sysinfo::System::new_all();
             let mut known_processes: HashSet<u32> = HashSet::new();
 
@@ -208,7 +206,6 @@ impl EbpfWatcher {
 
                     // Process all events
                     let triggers = std::mem::take(&mut buffer);
-                    println!("Received {:?}", triggers);
 
                     if let Err(e) = self.process_triggers(triggers).await {
                         error!("Failed to process triggers: {}", e);

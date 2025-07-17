@@ -15,8 +15,18 @@ use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
 pub(super) async fn monitor_processes(tracer_client: &mut TracerClient) -> Result<()> {
+    println!("[monitor_processes] Calling poll_process_metrics");
+    info!("[monitor_processes] Calling poll_process_metrics");
     tracer_client.poll_process_metrics().await?;
+    println!("[monitor_processes] poll_process_metrics returned");
+    info!("[monitor_processes] poll_process_metrics returned");
+
+    println!("[monitor_processes] Calling refresh_sysinfo");
+    info!("[monitor_processes] Calling refresh_sysinfo");
     tracer_client.refresh_sysinfo().await?;
+    println!("[monitor_processes] refresh_sysinfo returned");
+    info!("[monitor_processes] refresh_sysinfo returned");
+
     Ok(())
 }
 
@@ -66,6 +76,7 @@ pub async fn monitor(
 
             _ = submission_interval.tick() => {
                 debug!("DaemonServer submission interval ticked");
+                println!("DaemonServer monitor interval ticked");
                 println!("[process_monitor] Attempting to acquire client lock for submission");
                 info!("[process_monitor] Attempting to acquire client lock for submission");
                 let guard = client.lock().await;
@@ -76,6 +87,7 @@ pub async fn monitor(
             }
             _ = system_metrics_interval.tick() => {
                 debug!("DaemonServer metrics interval ticked");
+                println!("DaemonServer metrics interval ticked");
                 println!("[process_monitor] Attempting to acquire client lock for system metrics");
                 info!("[process_monitor] Attempting to acquire client lock for system metrics");
                 let guard = client.lock().await;
@@ -86,6 +98,7 @@ pub async fn monitor(
             }
             _ = process_metrics_interval.tick() => {
                 debug!("DaemonServer monitor interval ticked");
+                println!("DaemonServer monitor interval ticked");
                 println!("[process_monitor] Attempting to acquire client lock for process metrics");
                 info!("[process_monitor] Attempting to acquire client lock for process metrics");
                 let mut guard = client.lock().await;
