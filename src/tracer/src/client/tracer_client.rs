@@ -86,7 +86,7 @@ impl TracerClient {
             config,
             log_recorder,
 
-            pipeline_name: cli_args.pipeline_name,
+            pipeline_name: cli_args.pipeline_name, //ttest
             initialization_id: cli_args.run_id,
             user_id: cli_args.user_id,
             docker_watcher,
