@@ -75,6 +75,7 @@ impl PlatformInfo {
         Ok(PlatformInfo { os, arch, full_os })
     }
 
+    //comment for testing purposes
     pub fn print_summary(&self) {
         print_status("Operating System", self.full_os.as_str(), PrintEmoji::OS);
         print_status(
