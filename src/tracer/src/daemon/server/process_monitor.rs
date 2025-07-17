@@ -4,6 +4,7 @@ use crate::config::Config;
 use crate::daemon::handlers::info::get_info_response;
 use crate::utils::Sentry;
 use anyhow::Result;
+use log::info;
 use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
@@ -65,20 +66,31 @@ pub async fn monitor(
 
             _ = submission_interval.tick() => {
                 debug!("DaemonServer submission interval ticked");
+                println!("[process_monitor] Attempting to acquire client lock for submission");
+                info!("[process_monitor] Attempting to acquire client lock for submission");
                 let guard = client.lock().await;
+                println!("[process_monitor] Acquired client lock for submission");
+                info!("[process_monitor] Acquired client lock for submission");
                 let config = guard.get_config();
                 try_submit_with_retries(config, exporter.clone()).await;
             }
             _ = system_metrics_interval.tick() => {
                 debug!("DaemonServer metrics interval ticked");
+                println!("[process_monitor] Attempting to acquire client lock for system metrics");
+                info!("[process_monitor] Attempting to acquire client lock for system metrics");
                 let guard = client.lock().await;
-
+                println!("[process_monitor] Acquired client lock for system metrics");
+                info!("[process_monitor] Acquired client lock for system metrics");
                 guard.poll_metrics_data().await.unwrap();
                 sentry_alert(&guard).await;
             }
             _ = process_metrics_interval.tick() => {
                 debug!("DaemonServer monitor interval ticked");
+                println!("[process_monitor] Attempting to acquire client lock for process metrics");
+                info!("[process_monitor] Attempting to acquire client lock for process metrics");
                 let mut guard = client.lock().await;
+                println!("[process_monitor] Acquired client lock for process metrics");
+                info!("[process_monitor] Acquired client lock for process metrics");
                 monitor_processes(&mut guard).await.unwrap();
                 sentry_alert(&guard).await;
             }
