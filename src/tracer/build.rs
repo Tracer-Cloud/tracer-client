@@ -1,5 +1,6 @@
 use std::fs;
 
+
 fn trigger_yml_files_from_dir(dir_path: &str) {
     if let Ok(entries) = fs::read_dir(dir_path) {
         for entry in entries.flatten() {
