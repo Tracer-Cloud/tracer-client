@@ -13,6 +13,7 @@ pub fn process_daemon_command(command: Command, api_client: &DaemonClient) -> Re
         command => process_retryable_daemon_command(command, api_client, runtime),
     };
     if let Err(e) = result {
+        println!("{}", e);
         Logger::new().log_blocking(&format!("Error processing cli command: \n {e:?}."), None);
     }
     Ok(())
@@ -50,11 +51,16 @@ async fn process_retryable_daemon_command_async(
 ) -> DaemonResult<bool> {
     match command {
         Command::Terminate => {
+            if !DaemonServer::is_running(){
+                println!("Daemon server is not running, nothing to terminate.");
+                return Ok(true);
+            }
             if let Err(e) = api_client.send_terminate_request().await {
                 // try to force shutdown if terminate fails
                 let _ = DaemonServer::shutdown_if_running();
                 return Err(e);
             }
+            DaemonServer::shutdown_if_running().expect("Failed to shutdown daemon server");
         }
         Command::Start => {
             api_client.send_start_run_request().await.map(|response| {
