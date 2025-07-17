@@ -36,7 +36,7 @@ pub fn init(
     println!("Starting daemon...");
     let args = init_command_interactive_mode(args);
     {
-        // Layer tags on top of args
+        // Layer tags on top of argsasd
         let mut json_args = serde_json::to_value(&args)?.as_object().unwrap().clone();
         let tags_json = serde_json::to_value(&args.tags)?
             .as_object()
