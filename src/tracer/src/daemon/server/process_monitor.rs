@@ -63,12 +63,10 @@ pub async fn monitor(
                 break;
             }
 
-            // _ = submission_interval.tick() => {
-            //     debug!("DaemonServer submission interval ticked");
-            //     let guard = client.lock().await;
-            //     let config = guard.get_config();
-            //     try_submit_with_retries(config, exporter.clone()).await;
-            // }
+            _ = submission_interval.tick() => {
+                debug!("DaemonServer submission interval ticked");
+                exporter.submit_batched_data().await.unwrap();
+            }
             _ = system_metrics_interval.tick() => {
                 debug!("DaemonServer metrics interval ticked");
                 let guard = client.lock().await;
@@ -106,28 +104,13 @@ async fn sentry_alert(client: &TracerClient) {
 }
 
 async fn try_submit_with_retries(config: &Config, exporter: Arc<ExporterManager>) {
-    let max_attempts = config.batch_submission_retries;
 
-    let retry_strategy = ExponentialBackoff::from_millis(config.batch_submission_retry_delay_ms)
-        .map(jitter)
-        .take(max_attempts as usize);
-
-    let result = Retry::spawn(retry_strategy, || async {
-        match exporter.submit_batched_data().await {
-            Ok(_) => Ok(()),
-            Err(e) => {
-                debug!("Failed to submit batched data, retrying: {:?}", e);
-                Err(e)
-            }
+    match exporter.submit_batched_data().await {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            debug!("Failed to submit batched data, retrying: {:?}", e);
+            Err(e)
         }
-    })
-    .await;
-
-    if let Err(e) = result {
-        debug!(
-            "Giving up after {} attempts to submit batched data with error: {:?}",
-            max_attempts, e
-        );
-        //todo implement dead letter queue system
+        }
     }
 }

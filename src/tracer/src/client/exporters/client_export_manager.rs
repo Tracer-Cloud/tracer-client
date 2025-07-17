@@ -33,6 +33,7 @@ impl ExporterManager {
         if rx.is_empty() {
             return Ok(());
         }
+        
 
         let pipeline = self.pipeline.read().await;
 
