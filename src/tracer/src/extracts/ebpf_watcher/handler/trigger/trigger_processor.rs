@@ -47,14 +47,21 @@ impl TriggerProcessor {
                 debug!("Processing end trigger for PID: {}", trigger.pid);
             }
 
-            let process_manager = self.process_manager.write().await;
-            process_manager
-                .handle_out_of_memory_terminations(&mut process_end_triggers)
-                .await;
-
-            process_manager
-                .handle_process_terminations(process_end_triggers)
-                .await?;
+            // Acquire only a read lock to get Arc references, then drop the lock
+            let (state_manager, logger) = {
+                let process_manager = self.process_manager.read().await;
+                (
+                    Arc::clone(&process_manager.state_manager),
+                    Arc::clone(&process_manager.logger),
+                )
+            };
+            // Now call async functions outside the lock
+            crate::extracts::process::process_manager::handlers::oom::OomHandler::handle_out_of_memory_terminations(&state_manager, &mut process_end_triggers).await;
+            crate::extracts::process::process_manager::handlers::process_terminations::ProcessTerminationHandler::handle_process_terminations(
+                &state_manager,
+                &logger,
+                process_end_triggers,
+            ).await?;
         }
 
         Ok(())

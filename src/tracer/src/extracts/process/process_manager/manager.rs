@@ -21,8 +21,8 @@ use tracer_ebpf::ebpf_trigger::{OutOfMemoryTrigger, ProcessEndTrigger, ProcessSt
 /// Main coordinator for process management operations
 /// Uses functional programming principles with direct component access
 pub struct ProcessManager {
-    pub state_manager: StateManager,
-    pub logger: ProcessLogger,
+    pub state_manager: Arc<StateManager>,
+    pub logger: Arc<ProcessLogger>,
     pub matcher: Filter,
     pub system_refresher: SystemRefresher,
 }
@@ -33,8 +33,8 @@ impl ProcessManager {
         log_recorder: LogRecorder,
         docker_watcher: Arc<DockerWatcher>,
     ) -> Self {
-        let state_manager = StateManager::new(target_manager);
-        let logger = ProcessLogger::new(log_recorder, docker_watcher);
+        let state_manager = Arc::new(StateManager::new(target_manager));
+        let logger = Arc::new(ProcessLogger::new(log_recorder, docker_watcher));
         let matcher = Filter::new();
         let system_refresher = SystemRefresher::new();
 
