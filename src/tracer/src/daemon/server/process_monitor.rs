@@ -62,7 +62,10 @@ pub async fn monitor(
     };
 
     loop {
+        println!("DaemonServer monitor loop");
+
         if *paused.lock().await {
+            println!("DaemonServer paused");
             continue;
         }
         tokio::select! {
