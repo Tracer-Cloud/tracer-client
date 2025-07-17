@@ -20,7 +20,7 @@ pub fn init(
     api_client: DaemonClient,
 ) -> anyhow::Result<()> {
     // Check if running with sudo
-    if !is_root() || !is_sudo() {
+    if !is_root() && !is_sudo() {
         println!(
             "\n{} `init` requires root privileges. Please run with elevated permissions.",
             "Warning:".yellow().bold()
