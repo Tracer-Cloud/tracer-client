@@ -87,6 +87,7 @@ pub struct EnvironmentCheck {
 impl EnvironmentCheck {
     pub async fn new() -> Self {
         let detected = detect_environment_type().await;
+        crate::Sentry::add_tag("detected_env", &detected);
         Self { detected }
     }
 }
