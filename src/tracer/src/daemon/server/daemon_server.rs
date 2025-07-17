@@ -84,7 +84,7 @@ impl DaemonServer {
         println!("[daemon_server] Monitor loop exited");
         info!("[daemon_server] Monitor loop exited");
         self.terminate().await?;
-        DaemonServer::cleanup()?;
+        DaemonServer::cleanup();
         Ok(())
     }
 
@@ -138,14 +138,13 @@ impl DaemonServer {
         let port = DEFAULT_DAEMON_PORT;
         let shutdown_successful =
             tokio::runtime::Runtime::new()?.block_on(handle_port_conflict(port));
-        DaemonServer::cleanup()?;
+        DaemonServer::cleanup();
         shutdown_successful
     }
 
-    pub fn cleanup() -> anyhow::Result<()> {
+    pub fn cleanup() {
         let _ = std::fs::remove_file(PID_FILE);
         let _ = std::fs::remove_file(STDOUT_FILE);
         let _ = std::fs::remove_file(STDERR_FILE);
-        Ok(())
     }
 }

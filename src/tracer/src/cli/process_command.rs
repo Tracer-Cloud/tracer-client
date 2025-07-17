@@ -28,11 +28,9 @@ pub fn process_command() -> Result<()> {
     match cli.command {
         Command::Init(args) => handlers::init(*args, config, api_client),
         Command::Cleanup => {
-            let result = DaemonServer::cleanup();
-            if result.is_ok() {
-                println!("Daemon files cleaned up successfully.");
-            }
-            result
+            DaemonServer::cleanup();
+            println!("Daemon files cleanup completed.");
+            Ok(())
         }
         Command::Version => {
             println!("{}", Version::current());
