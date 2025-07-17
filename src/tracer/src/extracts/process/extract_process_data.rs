@@ -177,7 +177,7 @@ fn get_process_environment_variables<P: ProcessTrait>(
         }
     }
 
-    let container_id = get_container_id_from_cgroup(proc.pid().as_u32());
+    let container_id = "0"; //get_container_id_from_cgroup(proc.pid().as_u32());
 
     trace!("Got container_ID from cgroup: {:?}", container_id);
 
@@ -186,44 +186,44 @@ fn get_process_environment_variables<P: ProcessTrait>(
 
 /// Extracts the container ID (if any) from a process's cgroup file
 /// Returns `Some(container_id)` if found, else `None`
-fn get_container_id_from_cgroup(pid: u32) -> Option<String> {
-    let cgroup_path = PathBuf::from(format!("/proc/{}/cgroup", pid));
-    let content = std::fs::read_to_string(cgroup_path).ok()?;
-
-    for line in content.lines() {
-        // cgroup v1 format: <hierarchy_id>:<controllers>:<path>
-        // cgroup v2 format (single unified hierarchy): 0::/path
-        let fields: Vec<&str> = line.split(':').collect();
-        if fields.len() != 3 {
-            continue;
-        }
-
-        let path = fields[2];
-
-        // Try to match full container ID (64 hex chars)
-        if let Some(id) = path
-            .split('/')
-            .find(|part| part.len() == 64 && part.chars().all(|c| c.is_ascii_hexdigit()))
-        {
-            return Some(id.to_string());
-        }
-
-        // Fallback: check for systemd slice format: docker-<container_id>.scope
-        if let Some(slice) = path
-            .split('/')
-            .find(|part| part.starts_with("docker-") && part.ends_with(".scope"))
-        {
-            let id = slice
-                .trim_start_matches("docker-")
-                .trim_end_matches(".scope");
-            if id.len() == 64 && id.chars().all(|c| c.is_ascii_hexdigit()) {
-                return Some(id.to_string());
-            }
-        }
-    }
-
-    None
-}
+// fn get_container_id_from_cgroup(pid: u32) -> Option<String> {
+//     let cgroup_path = PathBuf::from(format!("/proc/{}/cgroup", pid));
+//     let content = std::fs::read_to_string(cgroup_path).ok()?;
+//
+//     for line in content.lines() {
+//         // cgroup v1 format: <hierarchy_id>:<controllers>:<path>
+//         // cgroup v2 format (single unified hierarchy): 0::/path
+//         let fields: Vec<&str> = line.split(':').collect();
+//         if fields.len() != 3 {
+//             continue;
+//         }
+//
+//         let path = fields[2];
+//
+//         // Try to match full container ID (64 hex chars)
+//         if let Some(id) = path
+//             .split('/')
+//             .find(|part| part.len() == 64 && part.chars().all(|c| c.is_ascii_hexdigit()))
+//         {
+//             return Some(id.to_string());
+//         }
+//
+//         // Fallback: check for systemd slice format: docker-<container_id>.scope
+//         if let Some(slice) = path
+//             .split('/')
+//             .find(|part| part.starts_with("docker-") && part.ends_with(".scope"))
+//         {
+//             let id = slice
+//                 .trim_start_matches("docker-")
+//                 .trim_end_matches(".scope");
+//             if id.len() == 64 && id.chars().all(|c| c.is_ascii_hexdigit()) {
+//                 return Some(id.to_string());
+//             }
+//         }
+//     }
+//
+//     None
+// }
 
 pub fn get_process_argv(pid: i32) -> Vec<String> {
     Command::new("ps")
