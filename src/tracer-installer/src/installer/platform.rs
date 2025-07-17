@@ -70,7 +70,7 @@ impl PlatformInfo {
             }
         };
 
-        Sentry::add_tag("platform", full_os.as_str());
+        Sentry::add_tag("platform",format!("{} ({})", full_os, raw_arch).as_str());
 
         Ok(PlatformInfo { os, arch, full_os })
     }
