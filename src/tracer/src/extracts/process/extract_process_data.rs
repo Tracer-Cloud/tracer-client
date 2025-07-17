@@ -177,7 +177,7 @@ fn get_process_environment_variables<P: ProcessTrait>(
         }
     }
 
-    let container_id = "0"; //get_container_id_from_cgroup(proc.pid().as_u32());
+    let container_id = Some("0".to_string()); //get_container_id_from_cgroup(proc.pid().as_u32());
 
     trace!("Got container_ID from cgroup: {:?}", container_id);
 
