@@ -6,14 +6,25 @@ use crate::process_identification::debug_log::Logger;
 use anyhow::{anyhow, bail, Result};
 use tokio::runtime::Runtime;
 
-pub fn process_daemon_command(command: Command, api_client: &DaemonClient) -> Result<()> {
-    let runtime = Runtime::new()?;
+pub async fn process_daemon_command(command: Command, api_client: &DaemonClient) -> Result<()> {
     let result = match command {
-        Command::Info { json } => runtime.block_on(async { info(api_client, json).await }),
-        command => process_retryable_daemon_command(command, api_client, runtime),
+        Command::Info { json } => info(api_client, json).await,
+        Command::Terminate => {
+            if !DaemonServer::is_running() {
+                println!("Daemon server is not running, nothing to terminate.");
+                return Ok(());
+            }
+            if let Err(e) = api_client.send_terminate_request().await {
+                DaemonServer::shutdown_if_running().await?;
+                return Err(anyhow!(
+                    "Failed to send terminate request to the daemon: {e}"
+                ));
+            }
+            Ok(())
+        }
+        command => process_retryable_daemon_command(command, api_client, Runtime::new()?),
     };
     if let Err(e) = result {
-        println!("{}", e);
         Logger::new().log_blocking(&format!("Error processing cli command: \n {e:?}."), None);
     }
     Ok(())
@@ -50,18 +61,6 @@ async fn process_retryable_daemon_command_async(
     api_client: &DaemonClient,
 ) -> DaemonResult<bool> {
     match command {
-        Command::Terminate => {
-            if !DaemonServer::is_running() {
-                println!("Daemon server is not running, nothing to terminate.");
-                return Ok(true);
-            }
-            if let Err(e) = api_client.send_terminate_request().await {
-                // try to force shutdown if terminate fails
-                let _ = DaemonServer::shutdown_if_running();
-                return Err(e);
-            }
-            DaemonServer::shutdown_if_running().expect("Failed to shutdown daemon server");
-        }
         Command::Start => {
             api_client.send_start_run_request().await.map(|response| {
                 match response {

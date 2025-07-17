@@ -9,7 +9,7 @@ use clap::Parser;
 
 /// Process the command line.
 /// Note: this has to be sync due to daemonizing
-pub fn process_command() -> Result<()> {
+pub async fn process_command() -> Result<()> {
     // setting env var to prevent fork safety issues on macOS
     // TODO: can we annotate this with #[cfg(target_os = "macos")]?
     std::env::set_var("OBJC_DISABLE_INITIALIZE_FORK_SAFETY", "YES");
@@ -26,7 +26,7 @@ pub fn process_command() -> Result<()> {
     let api_client = DaemonClient::new(format!("http://{}", config.server));
 
     match cli.command {
-        Command::Init(args) => handlers::init(*args, config, api_client),
+        Command::Init(args) => handlers::init(*args, config, api_client).await,
         Command::Cleanup => {
             DaemonServer::cleanup();
             println!("Daemon files cleanup completed.");
@@ -38,6 +38,6 @@ pub fn process_command() -> Result<()> {
         }
         Command::Update => handlers::update(),
         Command::Uninstall => handlers::uninstall(),
-        command => super::process_daemon_command(command, &api_client),
+        command => super::process_daemon_command(command, &api_client).await,
     }
 }
