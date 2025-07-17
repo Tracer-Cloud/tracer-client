@@ -4,7 +4,7 @@ use crate::daemon::structs::{InfoResponse, InnerInfoResponse};
 use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::Json;
-use tracing::{info};
+use tracing::info;
 
 pub const INFO_ENDPOINT: &str = "/info";
 
