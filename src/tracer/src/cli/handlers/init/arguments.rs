@@ -75,6 +75,7 @@ impl TracerCliInitArgs {
                         )
                         .default("demo_pipeline".into())
                         .interact_text()
+                        .inspect_err(|e| panic!("Error while prompting for pipeline type: {e}"))
                         .ok()
                 }
             })
@@ -105,13 +106,13 @@ impl TracerCliInitArgs {
                                 .items(ENVIRONMENTS)
                                 .default(0)
                                 .interact()
-                                .unwrap();
+                                .expect("Error while prompting for environment name");
                             if selection == 4 {
                                 Some(
                                     Input::with_theme(&*theme)
                                         .with_prompt("Enter custom environment name")
                                         .interact_text()
-                                        .unwrap(),
+                                        .expect("Error while prompting for environment name"),
                                 )
                             } else {
                                 Some(ENVIRONMENTS[selection].to_string())
@@ -147,14 +148,14 @@ impl TracerCliInitArgs {
                                 .items(PIPELINE_TYPES)
                                 .default(0)
                                 .interact()
-                                .unwrap();
+                                .expect("Error while prompting for pipeline type");
 
                             if selection == 8 {
                                 Some(
                                     Input::with_theme(&*theme)
                                         .with_prompt("Enter custom pipeline type")
                                         .interact_text()
-                                        .unwrap(),
+                                        .expect("Error while prompting for pipeline type"),
                                 )
                             } else {
                                 Some(PIPELINE_TYPES[selection].to_string())
@@ -178,6 +179,9 @@ impl TracerCliInitArgs {
                                 )
                                 .default(std::env::var("USER").unwrap_or_else(|_| "unknown".into()))
                                 .interact_text()
+                                .inspect_err(|e| {
+                                    panic!("Error while prompting for user operator: {e}")
+                                })
                                 .ok()
                         }
                     })
