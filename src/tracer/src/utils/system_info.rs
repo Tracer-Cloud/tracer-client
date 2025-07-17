@@ -3,7 +3,7 @@ use std::process::{exit, Command};
 use tracing::error;
 
 pub fn check_sudo(command: &str) {
-    if !is_root() || !is_sudo() {
+    if !is_root() && !is_sudo() {
         println!(
             "\n{} `{}` requires root privileges. Please run `sudo tracer {}`.",
             "Warning:".yellow().bold(),
