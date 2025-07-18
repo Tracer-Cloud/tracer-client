@@ -111,15 +111,15 @@ fill_sched_process_exec(struct event *e,
 // Process exited
 static __always_inline void
 fill_sched_process_exit(struct event *e,
-                        struct trace_event_raw_sched_process_template *ctx __attribute__((unused)))
+                        struct trace_event_raw_sched_process_template *ctx)
 {
   struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 
-  //u64 start_time = 0;
-  //start_time = BPF_CORE_READ(task, start_time);
-  //e->duration_ns = bpf_ktime_get_ns() - start_time;
-  //e->ppid = BPF_CORE_READ(task, real_parent, tgid);
-  
+  // u64 start_time = 0;
+  // start_time = BPF_CORE_READ(task, start_time);
+  // e->duration_ns = bpf_ktime_get_ns() - start_time;
+  // e->ppid = BPF_CORE_READ(task, real_parent, tgid);
+
   e->exit_code = (BPF_CORE_READ(task, exit_code) >> 8) & 0xff;
 }
 
