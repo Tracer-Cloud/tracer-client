@@ -22,7 +22,7 @@ impl ProcessStartHandler {
 
         Self::store_triggers(state_manager, triggers.clone()).await;
 
-        let matched_processes = Self::match_processes(state_manager, matcher, triggers).await;
+        let matched_processes = Self::match_processes(state_manager, &triggers).await;
 
         if matched_processes.is_empty() {
             debug!("No matching processes found; exiting early.");
@@ -33,8 +33,7 @@ impl ProcessStartHandler {
 
         Self::log_matched_processes(logger, system_refresher, &matched_processes).await?;
 
-        Self::log_matching_tasks(logger, state_manager, &unique_triggers, &matched_processes)
-            .await?;
+        Self::log_matching_tasks(logger, state_manager, &triggers, &matched_processes).await?;
 
         Self::update_monitoring(state_manager, matched_processes).await?;
 
