@@ -200,9 +200,9 @@ $$ LANGUAGE plpgsql;
 
 
 -- Now attach the trigger to the events table
-DROP TRIGGER IF EXISTS trigger_update_runs_aggregation ON batch_jobs_logs;
+DROP TRIGGER IF EXISTS trigger_update_runs_aggregation ON events;
 
 CREATE TRIGGER trigger_update_runs_aggregation
-    AFTER INSERT ON batch_jobs_logs
+    AFTER INSERT ON events
     FOR EACH ROW
     EXECUTE FUNCTION update_runs_aggregation();
