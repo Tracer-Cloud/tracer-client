@@ -6,6 +6,7 @@ use crate::daemon::client::{DaemonClient, Result as DaemonResult};
 use crate::daemon::server::DaemonServer;
 use crate::process_identification::debug_log::Logger;
 use anyhow::{anyhow, bail, Result};
+use colored::Colorize;
 use tokio::runtime::Runtime;
 
 pub async fn process_daemon_command(command: Command, config: Config) -> Result<()> {
@@ -24,6 +25,7 @@ pub async fn process_daemon_command(command: Command, config: Config) -> Result<
                     "Failed to send terminate request to the daemon: {e}"
                 ));
             }
+            println!("{}: Daemon server terminated successfully.", "Success".green().bold());
             Ok(())
         }
         command => process_retryable_daemon_command(command, api_client, Runtime::new()?),
