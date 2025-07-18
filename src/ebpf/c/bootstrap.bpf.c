@@ -120,7 +120,7 @@ fill_sched_process_exit(struct event *e,
   // e->duration_ns = bpf_ktime_get_ns() - start_time;
   // e->ppid = BPF_CORE_READ(task, real_parent, tgid);
 
-  e->exit_code = (BPF_CORE_READ(task, exit_code) >> 8) & 0xff;
+  e->sched__sched_process_exit__payload.exit_code = (BPF_CORE_READ(task, exit_code) >> 8) & 0xff;
 }
 
 // File open request started
