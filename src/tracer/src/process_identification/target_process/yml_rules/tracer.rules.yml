@@ -1,8 +1,4 @@
 rules:
-  - rule_name: break
-    display_name: Intentionally failing process
-    condition:
-      command_contains: break.py
   - rule_name: FastQC java process
     display_name: FastQC
     condition:
