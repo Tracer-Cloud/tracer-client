@@ -35,6 +35,7 @@ struct sched__sched_process_exec__payload
 
 struct sched__sched_process_exit__payload
 {
+    unsigned exit_code;
 };
 
 struct syscall__sys_enter_openat__payload

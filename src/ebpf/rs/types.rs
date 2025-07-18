@@ -26,6 +26,10 @@ pub struct SchedProcessExecPayload {
     pub argv: [[u8; MAX_STR_LEN]; MAX_ARR_LEN],
 }
 
+pub struct SchedProcessExitPayload {
+    pub exit_code: u8,
+}
+
 // Define the CEvent struct to match the memory layout of the C struct
 #[repr(C, packed)]
 pub struct CEvent {
@@ -86,7 +90,11 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                 ))
             }
             EVENT__SCHED__SCHED_PROCESS_EXIT => {
-                // Exit event is simpler - no payload fields needed
+                // Access the exec payload by casting
+                let payload_ptr = self.payload.as_ptr() as *const SchedProcessExitPayload;
+                let payload = unsafe { &*payload_ptr };
+                let exit_code = payload.exit_code as i64;
+
                 Ok(ebpf_trigger::Trigger::ProcessEnd(
                     ebpf_trigger::ProcessEndTrigger {
                         pid: self.pid as usize,
@@ -95,7 +103,7 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                             (self.timestamp_ns % 1_000_000_000) as u32,
                         )
                         .unwrap(),
-                        exit_reason: Some(ebpf_trigger::ExitReason::success()),
+                        exit_reason: Some(exit_code.into()),
                     },
                 ))
             }

@@ -1,8 +1,9 @@
 use crate::extracts::process::process_manager::logger::ProcessLogger;
 use crate::extracts::process::process_manager::state::StateManager;
 use anyhow::Result;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use tracer_ebpf::ebpf_trigger::ProcessEndTrigger;
+use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 use tracing::{debug, error};
 
 /// Handles process termination events
@@ -25,13 +26,13 @@ impl ProcessTerminationHandler {
             triggers.into_iter().map(|proc| (proc.pid, proc)).collect();
 
         // Find all processes that we were monitoring that have terminated
-        let terminated_processes: HashSet<_> = {
+        let terminated_processes: HashMap<String, Vec<ProcessStartTrigger>> = {
             let mut state = state_manager.get_state_mut().await;
             let monitoring = state.get_monitoring_mut();
 
             monitoring
                 .iter_mut()
-                .flat_map(|(_, procs)| {
+                .map(|(target, procs)| {
                     // Partition processes into terminated and still running
                     let (terminated, still_running): (Vec<_>, Vec<_>) = procs
                         .drain()
@@ -41,7 +42,7 @@ impl ProcessTerminationHandler {
                     *procs = still_running.into_iter().collect();
 
                     // Return terminated processes
-                    terminated
+                    (target.clone(), terminated)
                 })
                 .collect()
         };
@@ -54,15 +55,17 @@ impl ProcessTerminationHandler {
         );
 
         // Log completion events for each terminated process
-        for start_trigger in terminated_processes {
-            let Some(finish_trigger) = pid_to_finish.remove(&start_trigger.pid) else {
-                error!("Process doesn't exist: start_trigger={:?}", start_trigger);
-                continue;
-            };
+        for (target, start_triggers) in terminated_processes {
+            for start_trigger in start_triggers {
+                let Some(finish_trigger) = pid_to_finish.remove(&start_trigger.pid) else {
+                    error!("Process doesn't exist: start_trigger={:?}", start_trigger);
+                    continue;
+                };
 
-            logger
-                .log_process_completion(&start_trigger, &finish_trigger)
-                .await?;
+                logger
+                    .log_process_completion(&target, &start_trigger, &finish_trigger)
+                    .await?;
+            }
         }
 
         Ok(())
