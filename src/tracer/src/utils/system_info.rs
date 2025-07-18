@@ -1,6 +1,18 @@
-use std::process::Command;
+use colored::Colorize;
+use std::process::{exit, Command};
 use tracing::error;
 
+pub fn check_sudo(command: &str) {
+    if !is_root() && !is_sudo() {
+        println!(
+            "\n{} `{}` requires root privileges. Please run `sudo tracer {}`.",
+            "Warning:".yellow().bold(),
+            command,
+            command
+        );
+        exit(1);
+    }
+}
 pub fn is_root() -> bool {
     Command::new("id")
         .arg("-u")

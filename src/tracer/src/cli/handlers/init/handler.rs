@@ -7,32 +7,25 @@ use crate::daemon::initialization::create_and_run_server;
 use crate::daemon::server::DaemonServer;
 use crate::process_identification::constants::{PID_FILE, STDERR_FILE, STDOUT_FILE};
 use crate::utils::analytics::types::AnalyticsEventType;
-use crate::utils::system_info::{is_root, is_sudo};
+use crate::utils::system_info::check_sudo;
 use crate::utils::{analytics, Sentry};
-use colored::Colorize;
 use serde_json::Value;
 use std::fs::File;
 use std::process::{Command, Stdio};
 
-pub fn init(
+pub async fn init(
     args: TracerCliInitArgs,
     config: Config,
     api_client: DaemonClient,
 ) -> anyhow::Result<()> {
     // Check if running with sudo
-    if !is_root() && !is_sudo() {
-        println!(
-            "\n{} `init` requires root privileges. Please run with elevated permissions.",
-            "Warning:".yellow().bold()
-        );
-        return Ok(());
-    }
+    check_sudo("init");
 
     // Create necessary files for logging and daemonizing
     create_necessary_files().expect("Error while creating necessary files");
 
     // Check for port conflict before starting daemon
-    DaemonServer::shutdown_if_running()?;
+    DaemonServer::shutdown_if_running().await?;
 
     println!("Starting daemon...");
     let args = args.finalize();
@@ -85,17 +78,15 @@ pub fn init(
         println!("\nDaemon started successfully.");
 
         // Wait a moment for the daemon to start, then show info
-        tokio::runtime::Runtime::new()?.block_on(async {
-            analytics::spawn_event(
-                args.user_id.clone(),
-                AnalyticsEventType::DaemonStartAttempted,
-                None,
-            );
-            wait(&api_client).await?;
-            info(&api_client, false).await
-        })?;
+        analytics::spawn_event(
+            args.user_id.clone(),
+            AnalyticsEventType::DaemonStartAttempted,
+            None,
+        );
+        wait(&api_client).await?;
+        info(&api_client, false).await?;
 
         return Ok(());
     }
-    create_and_run_server(args, config)
+    create_and_run_server(args, config).await
 }
