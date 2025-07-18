@@ -162,32 +162,30 @@ BEGIN
 
     ELSIF NEW.process_status = 'finished_tool_execution' THEN
         -- Extract and append exit reason
-        IF NEW.attributes ? 'process.exit_reason' THEN
-            new_code := CAST(NULLIF(TRIM(NEW.attributes->>'process.exit_reason.code'), '') as integer);
-            IF new_code IS NOT NULL THEN
-                -- Only proceed if exit code is not empty
-                new_reason = NULLIF(TRIM(NEW.attributes->>'process.exit_reason.reason'), '');
-                new_explanation = NULLIF(TRIM(NEW.attributes->>'process.exit_reason.explanation'), '');
-                UPDATE runs_aggregations SET
-                    exit_code = MAX(exit_code, new_code),
-                    exit_reasons = CASE
-                        WHEN new_reason IS NOT NULL AND (exit_reasons IS NULL OR exit_reasons = '') THEN
-                            new_reason
-                        WHEN new_reason IS NOT NULL AND exit_reasons NOT LIKE '%' || new_reason || '%' THEN
-                            exit_reasons || ', ' || new_reason
-                        ELSE
-                            exit_reasons  -- Don't add duplicates
-                    END,
-                    exit_explanations = CASE
-                        WHEN new_explanation IS NOT NULL AND (exit_explanations IS NULL OR exit_explanations = '') THEN
-                            new_explanation
-                        WHEN new_explanation IS NOT NULL AND exit_explanations NOT LIKE '%' || new_explanation || '%' THEN
-                            exit_explanations || ', ' || new_explanation
-                        ELSE
-                            exit_explanations  -- Don't add duplicates
-                    END
-                WHERE trace_id = NEW.trace_id;
-            END IF;
+        new_code := CAST(NULLIF(TRIM(NEW.attributes->>'process.exit_reason.code'), '') as integer);
+        IF new_code IS NOT NULL THEN
+            -- Only proceed if exit code is not empty
+            new_reason = NULLIF(TRIM(NEW.attributes->>'process.exit_reason.reason'), '');
+            new_explanation = NULLIF(TRIM(NEW.attributes->>'process.exit_reason.explanation'), '');
+            UPDATE runs_aggregations SET
+                exit_code = GREATEST(exit_code, new_code),
+                exit_reasons = CASE
+                    WHEN new_reason IS NOT NULL AND (exit_reasons IS NULL OR exit_reasons = '') THEN
+                        new_reason
+                    WHEN new_reason IS NOT NULL AND exit_reasons NOT LIKE '%' || new_reason || '%' THEN
+                        exit_reasons || ', ' || new_reason
+                    ELSE
+                        exit_reasons  -- Don't add duplicates
+                END,
+                exit_explanations = CASE
+                    WHEN new_explanation IS NOT NULL AND (exit_explanations IS NULL OR exit_explanations = '') THEN
+                        new_explanation
+                    WHEN new_explanation IS NOT NULL AND exit_explanations NOT LIKE '%' || new_explanation || '%' THEN
+                        exit_explanations || ', ' || new_explanation
+                    ELSE
+                        exit_explanations  -- Don't add duplicates
+                END
+            WHERE trace_id = NEW.trace_id;
         END IF;
     END IF;
 

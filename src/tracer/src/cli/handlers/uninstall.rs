@@ -1,6 +1,6 @@
 use crate::daemon::server::DaemonServer;
 use crate::process_identification::constants::WORKING_DIR;
-use crate::utils::system_info::{is_root, is_sudo};
+use crate::utils::system_info::check_sudo;
 use anyhow::{Context, Result};
 use colored::Colorize;
 use std::fs;
@@ -12,13 +12,7 @@ pub fn uninstall() -> Result<()> {
         return Ok(());
     }
 
-    if !is_root() || !is_sudo() {
-        print!(
-            "\n{} Tracer uninstall requires root privileges. Please run with elevated permissions.",
-            "Warning:".yellow()
-        );
-        return Ok(());
-    }
+    check_sudo("uninstall");
 
     println!(">> Uninstalling Tracer...");
 

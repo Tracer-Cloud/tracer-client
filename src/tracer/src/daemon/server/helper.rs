@@ -1,25 +1,26 @@
+use crate::process_identification::constants::PID_FILE;
 use crate::utils::system_info::{is_root, is_sudo_installed};
 use anyhow::bail;
+use std::fs;
 use std::process::Command;
+
+fn get_pid() -> Option<String> {
+    let contents = fs::read_to_string(PID_FILE).ok()?;
+    let trimmed = contents.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
 pub(super) async fn handle_port_conflict(port: u16) -> anyhow::Result<bool> {
-    println!(
-        "\n⚠️  Port conflict detected: Port {} is already in use by another Tracer instance.",
-        port
-    );
     println!("Terminating the existing process...");
 
     // Run lsof to find the process
-    let output = if !is_root() && is_sudo_installed() {
-        Command::new("sudo")
-            .args(["lsof", "-nP", &format!("-iTCP:{}", port), "-sTCP:LISTEN"])
-            .output()?
-    } else {
-        Command::new("lsof")
-            .args(["-nP", &format!("-iTCP:{}", port), "-sTCP:LISTEN"])
-            .output()?
-    };
+    let pid = get_pid();
 
-    if !output.status.success() {
+    if pid.is_none() {
         bail!(
             "Failed to find process using port {}. Please check the port manually using:\n  sudo lsof -nP -iTCP:{} -sTCP:LISTEN",
             port,
@@ -27,15 +28,9 @@ pub(super) async fn handle_port_conflict(port: u16) -> anyhow::Result<bool> {
         );
     }
 
-    let output_str = String::from_utf8_lossy(&output.stdout);
-    println!("\nProcess using port {}:\n{}", port, output_str);
-
     // Extract PID from lsof output (assuming it's in the second column)
-    if let Some(pid) = output_str
-        .lines()
-        .nth(1)
-        .and_then(|line| line.split_whitespace().nth(1))
-    {
+    if let Some(pid) = pid {
+        let pid = pid.as_str();
         println!("\nKilling process with PID {}...", pid);
 
         let kill_output = if !is_root() && is_sudo_installed() {
