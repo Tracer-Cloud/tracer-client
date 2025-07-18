@@ -125,7 +125,7 @@ impl ProcessLogger {
     /// Logs completion of a process
     pub async fn log_process_completion(
         &self,
-        target: &String,
+        target: &str,
         start_trigger: &ProcessStartTrigger,
         finish_trigger: &ProcessEndTrigger,
     ) -> Result<()> {
@@ -136,7 +136,7 @@ impl ProcessLogger {
 
         let properties =
             crate::process_identification::types::event::attributes::process::CompletedProcess {
-                tool_name: target.clone(),
+                tool_name: target.to_owned(),
                 tool_pid: start_trigger.pid.to_string(),
                 duration_sec,
                 exit_reason: finish_trigger.exit_reason.clone(),
