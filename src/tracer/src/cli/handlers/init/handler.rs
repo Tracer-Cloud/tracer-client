@@ -88,5 +88,6 @@ pub async fn init(
 
         return Ok(());
     }
+
     create_and_run_server(args, config).await
 }

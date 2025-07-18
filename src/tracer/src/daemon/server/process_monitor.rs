@@ -1,4 +1,3 @@
-use crate::client::exporters::client_export_manager::ExporterManager;
 use crate::client::TracerClient;
 use crate::daemon::handlers::info::get_info_response;
 use crate::utils::Sentry;
@@ -69,7 +68,7 @@ pub async fn monitor(
             }
 
             _ = submission_interval.tick() => {
-                try_submit_with_retries(exporter.clone(),retry_delay,retry_attempts).await;
+                let _ = exporter.submit_batched_data(retry_attempts,retry_delay).await;
             }
             _ = system_metrics_interval.tick() => {
                 let guard = client.lock().await;
@@ -104,24 +103,4 @@ async fn sentry_alert(client: &TracerClient) {
         );
         Sentry::add_extra("Processes", processes);
     }
-}
-
-async fn try_submit_with_retries(exporter: Arc<ExporterManager>, delay: u64, attempts: u64) {
-    for i in 1..attempts {
-        match exporter.submit_batched_data().await {
-            Ok(_) => return,
-            Err(e) => {
-                debug!(
-                    "Failed to submit batched data, tried: {} retrying: {:?}",
-                    i, e
-                );
-                tokio::time::sleep(Duration::from_millis(delay)).await;
-            }
-        }
-    }
-    debug!(
-        "Giving up after {} attempts to submit batched data",
-        attempts
-    );
-    //todo implement dead letter queue system
 }

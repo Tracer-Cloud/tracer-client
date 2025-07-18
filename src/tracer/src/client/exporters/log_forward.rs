@@ -68,35 +68,17 @@ impl LogWriter for LogForward {
             payload.events.len()
         );
 
-        let res = match self.client.post(&self.endpoint).json(&payload).send().await {
-            Ok(response) => response,
-            Err(e) => {
-                return Err(anyhow::anyhow!("HTTP request failed: {:?}", e));
+        match self.client.post(&self.endpoint).json(&payload).send().await {
+            Ok(_) => {
+                debug!(
+                    "Successfully sent {} events with run_name: {}, elapsed: {:?}",
+                    payload.events.len(),
+                    run_name,
+                    now.elapsed()
+                );
+                Ok(())
             }
-        };
-
-        let status = res.status();
-        debug!("Response status: {}", status);
-
-        if !status.is_success() {
-            let error_body = res
-                .text()
-                .await
-                .unwrap_or_else(|_| "Could not read error response".to_string());
-            return Err(anyhow::anyhow!(
-                "Failed to send logs: {} - {}",
-                status,
-                error_body
-            ));
+            Err(e) => Err(anyhow::anyhow!("HTTP request failed: {:?}", e)),
         }
-
-        debug!(
-            "Successfully sent {} events with run_name: {}, elapsed: {:?}",
-            payload.events.len(),
-            run_name,
-            now.elapsed()
-        );
-
-        Ok(())
     }
 }

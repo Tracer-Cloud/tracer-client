@@ -60,7 +60,6 @@ impl DaemonServer {
             panic!("Server already running"); //todo use custom error;
         }
 
-        println!("[daemon_server] Attempting to acquire client lock in run()");
         info!("[daemon_server] Attempting to acquire client lock in run()");
         let client = self.client.clone();
         let cancellation_token = CancellationToken::new();
@@ -68,20 +67,16 @@ impl DaemonServer {
         let state = DaemonState::new(client.clone(), cancellation_token.clone());
 
         // spawn DaemonServer Router for DaemonClient
-        println!("[daemon_server] Attempting to acquire client lock for server_url");
         info!("[daemon_server] Attempting to acquire client lock for server_url");
         let server_url = client.lock().await.get_config().server.clone();
-        println!("[daemon_server] Acquired client lock for server_url");
         info!("[daemon_server] Acquired client lock for server_url");
         let listener = create_listener(server_url).await;
         self.server = Some(tokio::spawn(
             axum::serve(listener, get_router(state)).into_future(),
         ));
 
-        println!("[daemon_server] Entering monitor loop, acquiring client lock");
         info!("[daemon_server] Entering monitor loop, acquiring client lock");
         monitor(client, cancellation_token, self.paused.clone()).await;
-        println!("[daemon_server] Monitor loop exited");
         info!("[daemon_server] Monitor loop exited");
         self.terminate().await?;
         DaemonServer::cleanup();
@@ -97,7 +92,14 @@ impl DaemonServer {
         self.server = None;
         let guard = self.client.lock().await;
         // all data left
-        guard.exporter.submit_batched_data().await?;
+        let config = guard.get_config();
+        guard
+            .exporter
+            .submit_batched_data(
+                config.batch_submission_retries,
+                config.batch_submission_retry_delay_ms,
+            )
+            .await?;
         // close the connection pool to aurora
         let _ = guard.close().await;
         Ok(())
