@@ -153,9 +153,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS trigger_update_tool_aggregations ON batch_jobs_logs;
+DROP TRIGGER IF EXISTS trigger_update_tool_aggregations ON events;
 
 CREATE TRIGGER trigger_update_tool_aggregations
-    AFTER INSERT ON batch_jobs_logs
+    AFTER INSERT ON events
     FOR EACH ROW
     EXECUTE FUNCTION update_tool_aggregations();
