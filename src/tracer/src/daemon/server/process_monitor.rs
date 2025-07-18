@@ -6,11 +6,8 @@ use anyhow::Result;
 use log::info;
 use serde_json::json;
 use std::sync::Arc;
-use std::thread::sleep;
 use std::time::Duration;
 use tokio::sync::Mutex;
-use tokio_retry::strategy::{jitter, ExponentialBackoff};
-use tokio_retry::Retry;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
@@ -33,7 +30,7 @@ pub async fn monitor(
         mut submission_interval,
         exporter,
         retry_attempts,
-        retry_delay
+        retry_delay,
     ) = {
         let client = client.lock().await;
         client.start_new_run(None).await.unwrap();
@@ -53,7 +50,7 @@ pub async fn monitor(
             submission_interval,
             Arc::clone(&client.exporter),
             config.batch_submission_retries,
-            config.batch_submission_retry_delay_ms
+            config.batch_submission_retry_delay_ms,
         )
     };
 
@@ -110,26 +107,21 @@ async fn sentry_alert(client: &TracerClient) {
 }
 
 async fn try_submit_with_retries(exporter: Arc<ExporterManager>, delay: u64, attempts: u64) {
-
-    let retry_strategy = ExponentialBackoff::from_millis(delay)
-        .map(jitter)
-        .take(attempts as usize);
-
-    let result = Retry::spawn(retry_strategy, || async {
+    for i in 1..attempts {
         match exporter.submit_batched_data().await {
-            Ok(_) => Ok(()),
+            Ok(_) => return,
             Err(e) => {
-                debug!("Failed to submit batched data, retrying: {:?}", e);
-                Err(e)
+                debug!(
+                    "Failed to submit batched data, tried: {} retrying: {:?}",
+                    i, e
+                );
+                tokio::time::sleep(Duration::from_millis(delay)).await;
             }
         }
-    })        .await;
-
-    if let Err(e) = result {
-        debug!(
-            "Giving up after {} attempts to submit batched data with error: {:?}",
-            attempts, e
-        );
-        //todo implement dead letter queue system
     }
+    debug!(
+        "Giving up after {} attempts to submit batched data",
+        attempts
+    );
+    //todo implement dead letter queue system
 }

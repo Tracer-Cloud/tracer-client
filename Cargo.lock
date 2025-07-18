@@ -1250,15 +1250,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "daemonize"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab8bfdaacb3c887a54d41bdf48d3af8873b3f5566469f8ba21b92057509f116e"
-dependencies = [
- "libc",
-]
-
-[[package]]
 name = "darrentsung_debug_parser"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4093,16 +4084,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_regex"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8136f1a4ea815d7eac4101cfd0b16dc0cb5e1fe1b8609dfd728058656b7badf"
-dependencies = [
- "regex",
- "serde",
-]
-
-[[package]]
 name = "serde_repr"
 version = "0.1.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5083,7 +5064,6 @@ dependencies = [
  "colored",
  "config",
  "console 0.16.0",
- "daemonize",
  "dashmap",
  "dialoguer",
  "dirs",
@@ -5106,7 +5086,6 @@ dependencies = [
  "serde",
  "serde-query",
  "serde_json",
- "serde_regex",
  "serial_test",
  "shlex",
  "sqlx",
