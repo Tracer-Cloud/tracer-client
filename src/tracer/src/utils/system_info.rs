@@ -1,18 +1,18 @@
-use std::process::Command;
+use colored::Colorize;
+use std::process::{exit, Command};
 use tracing::error;
 
-pub fn check_sudo_privileges() {
-    if !is_sudo() && !is_root() {
-        println!("⚠️ Warning: Running without sudo privileges. Some operations may fail.");
-        // Get the current executable path and arguments
-        let current_exe =
-            std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("tracer"));
-        let args: Vec<String> = std::env::args().collect();
-        let sudo_command = format!("sudo {} {}", current_exe.display(), args[1..].join(" "));
-        println!("Try running with elevated privileges:\n {}", sudo_command);
+pub fn check_sudo(command: &str) {
+    if !is_root() && !is_sudo() {
+        println!(
+            "\n{} `{}` requires root privileges. Please run `sudo tracer {}`.",
+            "Warning:".yellow().bold(),
+            command,
+            command
+        );
+        exit(1);
     }
 }
-
 pub fn is_root() -> bool {
     Command::new("id")
         .arg("-u")

@@ -84,7 +84,7 @@ impl DaemonServer {
         println!("[daemon_server] Monitor loop exited");
         info!("[daemon_server] Monitor loop exited");
         self.terminate().await?;
-        DaemonServer::cleanup()?;
+        DaemonServer::cleanup();
         Ok(())
     }
 
@@ -119,7 +119,7 @@ impl DaemonServer {
         Ok(())
     }
     pub fn is_running() -> bool {
-        let port = DEFAULT_DAEMON_PORT; // Default Tracer port
+        let port = DEFAULT_DAEMON_PORT;
         if let Err(e) = std::net::TcpListener::bind(format!("127.0.0.1:{}", port)) {
             if e.kind() == io::ErrorKind::AddrInUse {
                 return true;
@@ -128,24 +128,22 @@ impl DaemonServer {
         false
     }
 
-    pub fn shutdown_if_running() -> anyhow::Result<bool> {
+    pub async fn shutdown_if_running() -> anyhow::Result<()> {
         if !Self::is_running() {
-            return Ok(false);
+            return Ok(());
         }
-        Self::shutdown()
+        Self::shutdown().await
     }
-    pub fn shutdown() -> anyhow::Result<bool> {
+    pub async fn shutdown() -> anyhow::Result<()> {
         let port = DEFAULT_DAEMON_PORT;
-        let shutdown_successful =
-            tokio::runtime::Runtime::new()?.block_on(handle_port_conflict(port));
-        DaemonServer::cleanup()?;
-        shutdown_successful
+        handle_port_conflict(port).await?;
+        DaemonServer::cleanup();
+        Ok(())
     }
 
-    pub fn cleanup() -> anyhow::Result<()> {
+    pub fn cleanup() {
         let _ = std::fs::remove_file(PID_FILE);
         let _ = std::fs::remove_file(STDOUT_FILE);
         let _ = std::fs::remove_file(STDERR_FILE);
-        Ok(())
     }
 }

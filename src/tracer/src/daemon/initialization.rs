@@ -55,7 +55,6 @@ async fn create_server(cli_config_args: FinalizedInitArgs, config: Config) -> Da
     server
 }
 
-#[tokio::main]
 pub async fn create_and_run_server(
     cli_config_args: FinalizedInitArgs,
     config: Config,
