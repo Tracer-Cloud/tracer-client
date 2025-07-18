@@ -34,4 +34,4 @@ We follow responsible disclosure practices to ensure vulnerabilities are address
 
 ## Contact
 
-If you have any further questions about security practices at Tracer, you may contact the maintainers via the email above.
+If you have any further questions about security practices at Tracer, you may contact the us at the email above.
