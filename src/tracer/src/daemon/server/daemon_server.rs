@@ -12,11 +12,11 @@ use crate::daemon::state::DaemonState;
 use crate::process_identification::constants::{
     DEFAULT_DAEMON_PORT, PID_FILE, STDERR_FILE, STDOUT_FILE,
 };
-use anyhow::Context;
 use axum::Router;
 use std::net::SocketAddr;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
+use tracing::info;
 
 pub struct DaemonServer {
     client: Arc<Mutex<TracerClient>>,
@@ -60,21 +60,31 @@ impl DaemonServer {
             panic!("Server already running"); //todo use custom error;
         }
 
+        println!("[daemon_server] Attempting to acquire client lock in run()");
+        info!("[daemon_server] Attempting to acquire client lock in run()");
         let client = self.client.clone();
         let cancellation_token = CancellationToken::new();
         self.paused = Arc::new(Mutex::new(false));
         let state = DaemonState::new(client.clone(), cancellation_token.clone());
 
         // spawn DaemonServer Router for DaemonClient
+        println!("[daemon_server] Attempting to acquire client lock for server_url");
+        info!("[daemon_server] Attempting to acquire client lock for server_url");
         let server_url = client.lock().await.get_config().server.clone();
+        println!("[daemon_server] Acquired client lock for server_url");
+        info!("[daemon_server] Acquired client lock for server_url");
         let listener = create_listener(server_url).await;
         self.server = Some(tokio::spawn(
             axum::serve(listener, get_router(state)).into_future(),
         ));
 
+        println!("[daemon_server] Entering monitor loop, acquiring client lock");
+        info!("[daemon_server] Entering monitor loop, acquiring client lock");
         monitor(client, cancellation_token, self.paused.clone()).await;
+        println!("[daemon_server] Monitor loop exited");
+        info!("[daemon_server] Monitor loop exited");
         self.terminate().await?;
-        DaemonServer::cleanup()?;
+        DaemonServer::cleanup();
         Ok(())
     }
 
@@ -128,13 +138,13 @@ impl DaemonServer {
         let port = DEFAULT_DAEMON_PORT;
         let shutdown_successful =
             tokio::runtime::Runtime::new()?.block_on(handle_port_conflict(port));
-        DaemonServer::cleanup()?;
+        DaemonServer::cleanup();
         shutdown_successful
     }
-    pub fn cleanup() -> anyhow::Result<()> {
-        std::fs::remove_file(PID_FILE).context("Failed to remove pid file")?;
-        std::fs::remove_file(STDOUT_FILE).context("Failed to remove stdout file")?;
-        std::fs::remove_file(STDERR_FILE).context("Failed to remove stderr file")?;
-        Ok(())
+
+    pub fn cleanup() {
+        let _ = std::fs::remove_file(PID_FILE);
+        let _ = std::fs::remove_file(STDOUT_FILE);
+        let _ = std::fs::remove_file(STDERR_FILE);
     }
 }
