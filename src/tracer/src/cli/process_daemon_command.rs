@@ -25,7 +25,10 @@ pub async fn process_daemon_command(command: Command, config: Config) -> Result<
                     "Failed to send terminate request to the daemon: {e}"
                 ));
             }
-            println!("{}: Daemon server terminated successfully.", "Success".green().bold());
+            println!(
+                "{}: Daemon server terminated successfully.",
+                "Success".green().bold()
+            );
             Ok(())
         }
         command => process_retryable_daemon_command(command, api_client, Runtime::new()?),
