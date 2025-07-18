@@ -5,12 +5,22 @@ rules:
       and:
         - process_name_is: java
         - command_contains: uk.ac.babraham.FastQC.FastQCApplication
-  - rule_name: STAR process
-    display_name: STAR
+  - rule_name: STAR index process
+    display_name: STAR index
     condition:
       and:
         - process_name_is: STAR
-        - command_contains: STAR
+        - command_contains: --runMode genomeGenerate
+  - rule_name: STAR align process
+    display_name: STAR align
+    condition:
+      and:
+        - process_name_is: STAR
+        - or:
+            - command_contains: --runMode alignReads
+            - and:
+                - command_not_contains: --runMode genomeGenerate
+                - command_contains: --readFilesIn
   - rule_name: bowtie2 process
     display_name: bowtie2
     condition:
@@ -28,9 +38,11 @@ rules:
     condition:
       process_name_is: bowtie2-build
   - rule_name: bwa process
-    display_name: bwa
+    display_name: bwa {subcommand}
     condition:
-      process_name_is: bwa
+      and:
+        - process_name_is: bwa
+        - subcommand_is_one_of: [index, mem, aln, samse, sampe, bwasw]
   - rule_name: salmon process
     display_name: salmon
     condition:

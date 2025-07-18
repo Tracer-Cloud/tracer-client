@@ -2,14 +2,14 @@ use crate::process_identification::target_process::target_match::{CachedRegex, M
 use anyhow::{Error, Result};
 use tracing::error;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum Condition {
     Simple(SimpleCondition),
     And(CompoundCondition),
     Or(CompoundCondition),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum SimpleCondition {
     /// Matches if the process name is exactly the given string.
     ProcessNameIs { process_name_is: String },
@@ -18,6 +18,9 @@ pub enum SimpleCondition {
     /// Matches if the command has at least the given number of arguments (not including the
     /// process name)
     MinArgs { min_args: usize },
+    /// Matches if one of the arguments in the command string (split using shlex) matches the
+    /// given string.
+    ArgsContain { args_contain: String },
     /// Matches if none of the arguments in the command string (split using shlex) match the
     /// given string.
     ArgsNotContain { args_not_contain: String },
@@ -39,7 +42,7 @@ pub enum SimpleCondition {
     JavaCommandIsOneOf { jar: String, commands: Vec<String> },
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct CompoundCondition(pub Vec<Condition>);
 
 impl CompoundCondition {
@@ -70,6 +73,9 @@ impl TryFrom<Condition> for MatchType {
             }) => MatchType::ProcessNameContains(process_name_contains.clone()),
             Condition::Simple(SimpleCondition::MinArgs { min_args }) => {
                 MatchType::MinArgs(min_args)
+            }
+            Condition::Simple(SimpleCondition::ArgsContain { args_contain }) => {
+                MatchType::ArgsContain(args_contain.clone())
             }
             Condition::Simple(SimpleCondition::ArgsNotContain { args_not_contain }) => {
                 MatchType::ArgsNotContain(args_not_contain.clone())

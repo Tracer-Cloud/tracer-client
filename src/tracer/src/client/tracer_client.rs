@@ -8,7 +8,6 @@ use crate::extracts::containers::DockerWatcher;
 use crate::extracts::ebpf_watcher::watcher::EbpfWatcher;
 use crate::extracts::metrics::system_metrics_collector::SystemMetricsCollector;
 use crate::process_identification::recorder::LogRecorder;
-use crate::process_identification::target_process::target_manager::TargetManager;
 use crate::process_identification::types::current_run::PipelineMetadata;
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::{Event, ProcessStatus};
@@ -113,12 +112,7 @@ impl TracerClient {
         log_recorder: &LogRecorder,
         docker_watcher: Arc<DockerWatcher>,
     ) -> Arc<EbpfWatcher> {
-        let target_manager = TargetManager::default(); //TODO add possibility to pass in targets
-        Arc::new(EbpfWatcher::new(
-            target_manager,
-            log_recorder.clone(),
-            docker_watcher,
-        ))
+        Arc::new(EbpfWatcher::new(log_recorder.clone(), docker_watcher))
     }
 
     fn init_watchers(

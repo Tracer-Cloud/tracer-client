@@ -3,12 +3,22 @@ use crate::process_identification::target_process::parser::conditions::{
 };
 use crate::process_identification::target_process::parser::rule::Rule;
 use crate::process_identification::target_process::target::Target;
-use crate::utils::yaml::{self, Yaml, YamlExt, YamlFile};
+use crate::utils::yaml::{Yaml, YamlExt, YamlFile};
 use anyhow::{anyhow, bail, Result};
 use std::collections::HashSet;
+use tracing::error;
 
 pub fn load_targets_from_yaml(yaml_files: &[YamlFile]) -> HashSet<Target> {
-    yaml::load_from_yaml_array_files(yaml_files, "rules")
+    let mut result = HashSet::new();
+    for yaml_file in yaml_files {
+        match yaml_file.load::<Target>("rules") {
+            Ok(targets) => result.extend(targets),
+            Err(e) => {
+                error!("Error loading yaml file {:?}: {}", yaml_file, e);
+            }
+        }
+    }
+    result
 }
 
 impl TryFrom<Yaml> for Target {
