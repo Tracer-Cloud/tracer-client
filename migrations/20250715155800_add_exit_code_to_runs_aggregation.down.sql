@@ -1,6 +1,6 @@
 
 -- Remove the trigger from the batch_jobs_logs table
-DROP TRIGGER IF EXISTS trigger_update_runs_aggregation ON batch_jobs_logs;
+DROP TRIGGER IF EXISTS trigger_update_runs_aggregation ON events;
 
 -- Remove the trigger function
 DROP FUNCTION IF EXISTS update_runs_aggregation;
@@ -132,6 +132,6 @@ ALTER TABLE runs_aggregations DROP COLUMN IF EXISTS exit_code;
 ALTER TABLE runs_aggregations DROP COLUMN IF EXISTS exit_explanations;
 
 CREATE TRIGGER trigger_update_runs_aggregation
-    AFTER INSERT ON batch_jobs_logs
+    AFTER INSERT ON events
     FOR EACH ROW
     EXECUTE FUNCTION update_runs_aggregation();
