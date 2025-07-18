@@ -3,6 +3,7 @@ ALTER TABLE runs_aggregations ADD COLUMN IF NOT EXISTS exit_explanations text DE
 
 CREATE TABLE IF NOT EXISTS runs_aggregations_exit_code_temp AS
 SELECT
+    ev.trace_id,
     STRING_AGG(DISTINCT ev.pipeline_name, '') as pipeline_name,
     STRING_AGG(DISTINCT ev.run_name, '') as run_name,
     MAX(
