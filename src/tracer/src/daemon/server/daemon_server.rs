@@ -16,7 +16,6 @@ use axum::Router;
 use std::net::SocketAddr;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
-use tracing::info;
 
 pub struct DaemonServer {
     client: Arc<Mutex<TracerClient>>,
@@ -60,24 +59,21 @@ impl DaemonServer {
             panic!("Server already running"); //todo use custom error;
         }
 
-        info!("[daemon_server] Attempting to acquire client lock in run()");
         let client = self.client.clone();
         let cancellation_token = CancellationToken::new();
         self.paused = Arc::new(Mutex::new(false));
         let state = DaemonState::new(client.clone(), cancellation_token.clone());
 
         // spawn DaemonServer Router for DaemonClient
-        info!("[daemon_server] Attempting to acquire client lock for server_url");
         let server_url = client.lock().await.get_config().server.clone();
-        info!("[daemon_server] Acquired client lock for server_url");
+
         let listener = create_listener(server_url).await;
         self.server = Some(tokio::spawn(
             axum::serve(listener, get_router(state)).into_future(),
         ));
 
-        info!("[daemon_server] Entering monitor loop, acquiring client lock");
         monitor(client, cancellation_token, self.paused.clone()).await;
-        info!("[daemon_server] Monitor loop exited");
+
         self.terminate().await?;
         DaemonServer::cleanup();
         Ok(())
