@@ -158,12 +158,12 @@ impl ProcessLogger {
     }
 
     /// Logs a match for a set of processes to a job.
-    pub async fn log_task_match(&self, job_match: TaskMatch) -> Result<()> {
+    pub async fn log_task_match(&self, task_match: TaskMatch) -> Result<()> {
         self.log_recorder
             .log(
                 TracerProcessStatus::TaskMatch,
-                format!("[{}] Job match: {}", Utc::now(), &job_match),
-                Some(EventAttributes::TaskMatch(job_match)),
+                format!("[{}] Job match: {}", Utc::now(), &task_match),
+                Some(EventAttributes::TaskMatch(task_match)),
                 None,
             )
             .await

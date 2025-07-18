@@ -1,5 +1,5 @@
 use crate::extracts::process::process_manager::logger::ProcessLogger;
-use crate::extracts::process::process_manager::matcher::Filter;
+use crate::extracts::process::process_manager::matcher;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
 use anyhow::Result;
@@ -62,7 +62,7 @@ impl ProcessStartHandler {
             triggers.len()
         );
         let state = state_manager.get_state().await;
-        Filter.find_matching_processes(triggers, &state)
+        matcher::find_matching_processes(triggers, &state)
     }
 
     /// Step 3: Refresh system data for matched processes.
