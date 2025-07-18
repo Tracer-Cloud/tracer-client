@@ -116,6 +116,16 @@ impl TargetPipelineManager {
                             return None;
                         }
                     }
+                    // if the task already has a PID with the same rule, don't add it again
+                    for existing_task_pid in self.task_pids.get_by_task_id(&task.id) {
+                        if self
+                            .pid_to_process
+                            .get(&existing_task_pid.pid)
+                            .is_some_and(|p| p.name == *rule && p.matched == matched)
+                        {
+                            return None;
+                        }
+                    }
                     // add the PID to the list for candidate task
                     self.task_pids.insert(TaskPid {
                         task_id: task.id.clone(),
