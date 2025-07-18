@@ -169,7 +169,7 @@ BEGIN
                 new_reason = NULLIF(TRIM(NEW.attributes->>'process.exit_reason.reason'), '');
                 new_explanation = NULLIF(TRIM(NEW.attributes->>'process.exit_reason.explanation'), '');
                 UPDATE runs_aggregations SET
-                    exit_code = MAX(exit_code, new_code),
+                    exit_code = GREATEST(exit_code, new_code),
                     exit_reasons = CASE
                         WHEN new_reason IS NOT NULL AND (exit_reasons IS NULL OR exit_reasons = '') THEN
                             new_reason
