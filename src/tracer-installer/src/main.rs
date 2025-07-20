@@ -52,12 +52,10 @@ async fn main() {
                 channel,
                 user_id,
             };
-            println!("\n\n different installer  ....\n\n");
             if let Err(err) = installer.run().await {
                 eprintln!("Error Running Installer: {err}");
                 std::process::exit(1);
             }
-            panic!("Just testing... No worries");
         }
     }
 }
