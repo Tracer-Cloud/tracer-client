@@ -52,7 +52,6 @@ async fn main() {
                 channel,
                 user_id,
             };
-            panic!("Testing out Panics... With Ec2 Contexts");
             if let Err(err) = installer.run().await {
                 eprintln!("Error Running Installer: {err}");
                 std::process::exit(1);
