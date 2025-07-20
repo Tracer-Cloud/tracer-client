@@ -2,6 +2,8 @@ use std::env;
 use std::fs;
 use std::path::Path;
 
+use ec2_instance_metadata::InstanceMetadata;
+
 use super::InstallCheck;
 
 fn is_docker() -> bool {
@@ -34,7 +36,13 @@ pub async fn detect_environment_type() -> String {
         return "AWS Batch".into();
     }
 
-    if detect_ec2_environment().await.is_some() {
+    if let Some(metadata) = get_aws_instance_metadata().await {
+        crate::Sentry::add_tag("aws_instance_id", &metadata.instance_id);
+        crate::Sentry::add_tag("aws_region", metadata.region);
+        crate::Sentry::add_tag("aws_account_id", &metadata.account_id);
+        crate::Sentry::add_tag("aws_ami_id", &metadata.ami_id);
+        crate::Sentry::add_tag("aws_instance_type", &metadata.instance_type);
+
         return if running_in_docker {
             "AWS EC2 (Docker)".into()
         } else {
@@ -55,29 +63,15 @@ fn is_codespaces() -> bool {
         || env::var("HOSTNAME").is_ok_and(|v| v.contains("codespaces-"))
 }
 
-async fn detect_ec2_environment() -> Option<String> {
-    // Try DMI UUID
-    if let Ok(uuid) = fs::read_to_string("/sys/devices/virtual/dmi/id/product_uuid") {
-        if uuid.to_lowercase().starts_with("ec2") {
-            return Some("AWS EC2".into());
+pub async fn get_aws_instance_metadata() -> Option<InstanceMetadata> {
+    let client = ec2_instance_metadata::InstanceMetadataClient::new();
+    match client.get() {
+        Ok(metadata) => Some(metadata),
+        Err(err) => {
+            println!("error getting metadata: {err}");
+            None
         }
     }
-
-    // Fallback to metadata service with 200ms timeout
-    let url = "http://169.254.169.254/latest/meta-data/instance-id";
-    let client = reqwest::Client::new();
-    if let Ok(resp) = client
-        .get(url)
-        .timeout(std::time::Duration::from_millis(200))
-        .send()
-        .await
-    {
-        if resp.status() == 200 {
-            return Some("AWS EC2".into());
-        }
-    }
-
-    None
 }
 
 pub struct EnvironmentCheck {

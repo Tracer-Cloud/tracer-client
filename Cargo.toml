@@ -39,7 +39,8 @@ sqlx = { version = "0.8.6", features = [
     "chrono",
 ] }
 
-ec2_instance_metadata = "0.3.0"
+ec2_instance_metadata = { git = "https://github.com/Tracer-Cloud/ec2-instance-metadata-rs.git", branch = "master" }
+
 rand = "0.9.1"
 uuid = { version = "1.17.0", features = [
     "v4",
