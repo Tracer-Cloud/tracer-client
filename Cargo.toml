@@ -74,7 +74,7 @@ config = { version = "0.15.13", default-features = false, features = [
     "convert-case",
 ] }
 serial_test = "3.2.0"
-dotenv = "0.15.0"
+dotenvy = "0.15.7"
 sentry = { version = "0.41.0", default-features = false, features = [
     "anyhow",
     "backtrace",

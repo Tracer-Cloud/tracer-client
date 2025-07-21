@@ -995,7 +995,7 @@ version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fde0e0ec90c9dfb3b4b1a0891a7dcd0e2bffde2f7efed5fe7c9bb00e5bfb915e"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -1329,12 +1329,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dotenv"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
-
-[[package]]
 name = "dotenvy"
 version = "0.15.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1361,9 +1355,10 @@ checksum = "1c7a8fb8a9fbf66c1f703fe16184d10ca0ee9d23be5b4436400408ba54a95005"
 [[package]]
 name = "ec2_instance_metadata"
 version = "0.3.0"
-source = "git+https://github.com/Tracer-Cloud/ec2-instance-metadata-rs.git?branch=master#b641e5180ba875dd3a8e1fd66abb16dc07632c9e"
+source = "git+https://github.com/Tracer-Cloud/ec2-instance-metadata-rs.git?branch=master#3e0c6dc7243516dfbdd893bf757b6512190d568a"
 dependencies = [
- "json",
+ "serde",
+ "serde_json",
  "ureq",
 ]
 
@@ -2299,12 +2294,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "json"
-version = "0.12.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "078e285eafdfb6c4b434e0d31e8cfcb5115b651496faca5749b88fafd4f23bfd"
-
-[[package]]
 name = "jsonwebtoken"
 version = "9.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2359,7 +2348,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07033963ba89ebaf1584d767badaa2e8fcec21aedea6b8c0346d487d49c28667"
 dependencies = [
  "cfg-if",
- "windows-targets 0.53.2",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -4788,7 +4777,7 @@ dependencies = [
  "dashmap",
  "dialoguer",
  "dirs",
- "dotenv",
+ "dotenvy",
  "ec2_instance_metadata",
  "futures-util",
  "itertools 0.14.0",
