@@ -27,15 +27,15 @@ impl SystemMetricsCollector {
     pub fn gather_disk_data() -> HashMap<String, DiskStatistic> {
         let disks: Disks = Disks::new_with_refreshed_list();
 
-        let mut d_stats: HashMap<String, DiskStatistic> = HashMap::new();
+        let mut disk_stats: HashMap<String, DiskStatistic> = HashMap::new();
 
-        for d in disks.iter() {
-            let Some(d_name) = d.name().to_str() else {
+        for disk in disks.iter() {
+            let Some(d_name) = disk.name().to_str() else {
                 continue;
             };
 
-            let total_space = d.total_space();
-            let available_space = d.available_space();
+            let total_space = disk.total_space();
+            let available_space = disk.available_space();
             let used_space = total_space - available_space;
             let disk_utilization = (used_space as f64 / total_space as f64) * 100.0;
 
@@ -46,10 +46,10 @@ impl SystemMetricsCollector {
                 disk_utilization,
             };
 
-            d_stats.insert(d_name.to_string(), disk_data);
+            disk_stats.insert(d_name.to_string(), disk_data);
         }
 
-        d_stats
+        disk_stats
     }
 
     pub async fn gather_metrics_object_attributes(&self) -> SystemMetric {
@@ -57,15 +57,13 @@ impl SystemMetricsCollector {
 
         let used_memory = system.used_memory();
         let total_memory = system.total_memory();
-        // System::host_name()
+
         let memory_utilization = (used_memory as f64 / total_memory as f64) * 100.0;
 
         let cpu_usage = system.global_cpu_usage();
 
-        let d_stats = Self::gather_disk_data();
-        let system_disk_total_space = d_stats
-            .values()
-            .fold(0u64, |sum, d| sum.saturating_add(d.disk_total_space));
+        let disk_stats = Self::gather_disk_data();
+        let system_disk_total_space = Self::calculate_total_disk_available_space(disk_stats.clone());
 
         SystemMetric {
             events_name: "global_system_metrics".to_string(),
@@ -77,7 +75,7 @@ impl SystemMetricsCollector {
             system_memory_swap_used: system.used_swap(),
             system_cpu_utilization: cpu_usage,
             system_disk_total_space,
-            system_disk_io: d_stats,
+            system_disk_io: disk_stats,
         }
     }
 
@@ -95,6 +93,14 @@ impl SystemMetricsCollector {
             .await?;
 
         Ok(())
+    }
+
+    pub fn calculate_total_disk_available_space(system_disks: HashMap<String, DiskStatistic>) -> u64 {
+        // for each DiskStatistic object in the hashmap, summing the value of the disk_available_space
+        // to retrieve the total disk available in the machine
+        system_disks
+            .values()
+            .fold(0u64, |sum, disk_statistic | sum.saturating_add(disk_statistic.disk_available_space))
     }
 }
 

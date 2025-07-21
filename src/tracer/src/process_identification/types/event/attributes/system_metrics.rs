@@ -42,4 +42,5 @@ pub struct SystemProperties {
     // cost analysis
     pub ec2_cost_per_hour: Option<f64>,
     pub pricing_context: Option<InstancePricingContext>,
+    pub system_disk_total_space: u64, // sum of the different disks size of the machine, because a machine can have multiple disk mounted
 }
