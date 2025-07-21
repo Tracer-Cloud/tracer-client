@@ -81,7 +81,7 @@ impl LogWriter for LogForward {
                     Ok(())
                 } else {
                     let status = response.status();
-                    error!("⚠️  Failed to send events: {} [{}]", run_name, status);
+                    error!("Failed to send events: {} [{}]", run_name, status);
                     Err(anyhow::anyhow!("Failed to send events: {}", status))
                 }
             }
