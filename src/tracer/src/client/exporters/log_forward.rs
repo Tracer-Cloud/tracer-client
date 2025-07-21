@@ -2,6 +2,7 @@ use crate::client::exporters::log_writer::LogWriter;
 use crate::process_identification::types::event::Event;
 use crate::process_identification::types::extracts::db::EventInsert;
 use anyhow::Result;
+use log::error;
 use reqwest::Client;
 use serde::Serialize;
 use std::convert::TryFrom;
@@ -69,14 +70,20 @@ impl LogWriter for LogForward {
         );
 
         match self.client.post(&self.endpoint).json(&payload).send().await {
-            Ok(_) => {
-                debug!(
-                    "Successfully sent {} events with run_name: {}, elapsed: {:?}",
-                    payload.events.len(),
-                    run_name,
-                    now.elapsed()
-                );
-                Ok(())
+            Ok(response) => {
+                if response.status() == 200 {
+                    println!(
+                        "Successfully sent {} events with run_name: {}, elapsed: {:?}",
+                        payload.events.len(),
+                        run_name,
+                        now.elapsed()
+                    );
+                    Ok(())
+                } else {
+                    let status = response.status();
+                    error!("Failed to send events: {} [{}]", run_name, status);
+                    Err(anyhow::anyhow!("Failed to send events: {}", status))
+                }
             }
             Err(e) => Err(anyhow::anyhow!("HTTP request failed: {:?}", e)),
         }
