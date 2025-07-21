@@ -1,5 +1,4 @@
 use crate::extracts::process::types::process_state::ProcessState;
-use crate::process_identification::target_process::target_manager::TargetManager;
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -8,17 +7,12 @@ use tokio::task::JoinHandle;
 use tracer_ebpf::ebpf_trigger::{OutOfMemoryTrigger, ProcessStartTrigger};
 
 /// Manages the process state and provides controlled access to it
+#[derive(Default)]
 pub struct StateManager {
     state: Arc<RwLock<ProcessState>>,
 }
 
 impl StateManager {
-    pub fn new(target_manager: TargetManager) -> Self {
-        Self {
-            state: Arc::new(RwLock::new(ProcessState::new(target_manager))),
-        }
-    }
-
     /// Gets a write lock on the process state
     pub async fn get_state_mut(&self) -> RwLockWriteGuard<ProcessState> {
         self.state.write().await
@@ -87,6 +81,17 @@ impl StateManager {
             .get_monitoring()
             .iter()
             .flat_map(|(_, processes)| processes.iter().map(|p| p.pid))
+            .collect()
+    }
+
+    /// Returns a set of matched tasks
+    pub async fn get_matched_tasks(&self) -> HashSet<String> {
+        let state = self.state.read().await;
+        state
+            .get_pipeline_manager()
+            .matched_tasks()
+            .into_iter()
+            .cloned()
             .collect()
     }
 }
