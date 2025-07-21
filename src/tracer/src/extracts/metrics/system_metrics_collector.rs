@@ -66,8 +66,7 @@ impl SystemMetricsCollector {
 
         let disk_stats = Self::gather_disk_data();
 
-        let system_disk_total_space =
-            Self::calculate_total_disk_available_space(disk_stats.clone());
+        let system_disk_total_space = Self::calculate_total_disk_space(disk_stats.clone());
         let system_disk_used_space = Self::calculate_total_disk_used_space(disk_stats.clone());
 
         SystemMetric {
@@ -101,13 +100,11 @@ impl SystemMetricsCollector {
         Ok(())
     }
 
-    pub fn calculate_total_disk_available_space(
-        system_disks: HashMap<String, DiskStatistic>,
-    ) -> u64 {
+    pub fn calculate_total_disk_space(system_disks: HashMap<String, DiskStatistic>) -> u64 {
         // for each DiskStatistic object in the hashmap, summing the value of the disk_available_space
         // to retrieve the total disk available in the machine
         system_disks.values().fold(0u64, |sum, disk_statistic| {
-            sum.saturating_add(disk_statistic.disk_available_space)
+            sum.saturating_add(disk_statistic.disk_total_space)
         })
     }
 
