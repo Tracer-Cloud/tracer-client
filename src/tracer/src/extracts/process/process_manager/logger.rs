@@ -1,6 +1,8 @@
+use crate::extracts::containers::DockerWatcher;
+use crate::extracts::process::extract_process_data;
 use crate::extracts::process::types::process_result::ProcessResult;
-use crate::extracts::{containers::DockerWatcher, process::extract_process_data};
 use crate::process_identification::recorder::LogRecorder;
+use crate::process_identification::target_pipeline::pipeline_manager::TaskMatch;
 use crate::process_identification::types::event::attributes::process::ProcessProperties;
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::ProcessStatus as TracerProcessStatus;
@@ -14,6 +16,8 @@ use tracing::debug;
 /// Handles logging of process-related events
 pub struct ProcessLogger {
     log_recorder: LogRecorder,
+    /// shared reference to the docker watcher - used to get the ContainerEvent associated
+    /// with a process
     docker_watcher: Arc<DockerWatcher>,
 }
 
@@ -125,6 +129,7 @@ impl ProcessLogger {
     /// Logs completion of a process
     pub async fn log_process_completion(
         &self,
+        target: &str,
         start_trigger: &ProcessStartTrigger,
         finish_trigger: &ProcessEndTrigger,
     ) -> Result<()> {
@@ -135,7 +140,7 @@ impl ProcessLogger {
 
         let properties =
             crate::process_identification::types::event::attributes::process::CompletedProcess {
-                tool_name: start_trigger.comm.clone(),
+                tool_name: target.to_owned(),
                 tool_pid: start_trigger.pid.to_string(),
                 duration_sec,
                 exit_reason: finish_trigger.exit_reason.clone(),
@@ -151,5 +156,17 @@ impl ProcessLogger {
             .await?;
 
         Ok(())
+    }
+
+    /// Logs a match for a set of processes to a job.
+    pub async fn log_task_match(&self, task_match: TaskMatch) -> Result<()> {
+        self.log_recorder
+            .log(
+                TracerProcessStatus::TaskMatch,
+                format!("[{}] Job match: {}", Utc::now(), &task_match),
+                Some(EventAttributes::TaskMatch(task_match)),
+                None,
+            )
+            .await
     }
 }

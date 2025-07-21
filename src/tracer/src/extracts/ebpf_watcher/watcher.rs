@@ -3,7 +3,6 @@ use crate::extracts::ebpf_watcher::handler::trigger::trigger_processor::TriggerP
 use crate::extracts::process::extract_process_data::get_process_argv;
 use crate::extracts::process::process_manager::ProcessManager;
 use crate::process_identification::recorder::LogRecorder;
-use crate::process_identification::target_process::target_manager::TargetManager;
 use anyhow::{Error, Result};
 use std::collections::HashSet;
 use std::fs::{self};
@@ -26,14 +25,9 @@ pub struct EbpfWatcher {
 }
 
 impl EbpfWatcher {
-    pub fn new(
-        target_manager: TargetManager,
-        log_recorder: LogRecorder,
-        docker_watcher: Arc<DockerWatcher>,
-    ) -> Self {
+    pub fn new(log_recorder: LogRecorder, docker_watcher: Arc<DockerWatcher>) -> Self {
         // instantiate the process manager
         let process_manager = Arc::new(RwLock::new(ProcessManager::new(
-            target_manager.clone(),
             log_recorder.clone(),
             docker_watcher,
         )));
@@ -295,5 +289,9 @@ impl EbpfWatcher {
             .await
             .get_monitored_processes()
             .await
+    }
+
+    pub async fn get_matched_tasks(&self) -> HashSet<String> {
+        self.process_manager.read().await.get_matched_tasks().await
     }
 }
