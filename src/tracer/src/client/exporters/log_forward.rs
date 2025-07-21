@@ -65,7 +65,7 @@ impl LogWriter for LogForward {
 
         let payload_string = serde_json::to_string_pretty(&payload)
             .unwrap_or_else(|_| "Failed to serialize payload".to_string());
-        
+
         info!(
             "Sending payload to endpoint {} with {} events\nPayload: {}",
             self.endpoint,
@@ -85,8 +85,15 @@ impl LogWriter for LogForward {
                     Ok(())
                 } else {
                     let status = response.status();
-                    println!("Failed to send events: {} [{}], Payload: {}", run_name, status, payload_string);
-                    Err(anyhow::anyhow!("Failed to send events: {}, Payload: {}", status, payload_string))
+                    error!(
+                        "Failed to send events: {} [{}], Payload: {}",
+                        run_name, status, payload_string
+                    );
+                    Err(anyhow::anyhow!(
+                        "Failed to send events: {}, Payload: {}",
+                        status,
+                        payload_string
+                    ))
                 }
             }
             Err(e) => Err(anyhow::anyhow!("HTTP request failed: {:?}", e)),
