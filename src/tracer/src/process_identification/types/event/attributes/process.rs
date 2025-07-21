@@ -34,6 +34,7 @@ pub struct FullProcessProperties {
     pub working_directory: Option<String>,
     pub trace_id: Option<String>,
     pub container_event: Option<ContainerEvent>,
+    pub tool_id: String, // the tool_id is useful to uniquely identify a tool
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
