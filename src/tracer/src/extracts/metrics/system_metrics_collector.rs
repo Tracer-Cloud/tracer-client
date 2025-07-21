@@ -28,9 +28,7 @@ impl SystemMetricsCollector {
         Disks::new_with_refreshed_list()
             .iter()
             .filter_map(|disk| {
-                let Some(d_name) = disk.name().to_str() else {
-                    return None;
-                };
+                let d_name = disk.name().to_str()?;
 
                 let total_space = disk.total_space();
                 let available_space = disk.available_space();
