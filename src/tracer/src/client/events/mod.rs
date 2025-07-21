@@ -33,7 +33,7 @@ async fn gather_system_properties(
     let system_disk_io = SystemMetricsCollector::gather_disk_data();
 
     let system_disk_total_space =
-        SystemMetricsCollector::calculate_total_disk_space(system_disk_io.clone());
+        SystemMetricsCollector::calculate_total_disk_space(&system_disk_io);
 
     SystemProperties {
         os: System::name(),
