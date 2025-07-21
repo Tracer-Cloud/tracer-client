@@ -36,6 +36,7 @@ pub enum MatchType {
     ProcessNameIs(String),
     ProcessNameContains(String),
     MinArgs(usize),
+    ArgsContain(String),
     ArgsNotContain(String),
     FirstArgIs(String),
     CommandContains(String),
@@ -64,6 +65,11 @@ impl MatchType {
                 Some(ProcessMatch::Simple)
             }
             MatchType::MinArgs(n) if process.argv.len() > *n => Some(ProcessMatch::Simple),
+            MatchType::ArgsContain(content)
+                if process.argv.iter().skip(1).any(|arg| arg == content) =>
+            {
+                Some(ProcessMatch::Simple)
+            }
             MatchType::ArgsNotContain(content)
                 if !process.argv.iter().skip(1).any(|arg| arg == content) =>
             {

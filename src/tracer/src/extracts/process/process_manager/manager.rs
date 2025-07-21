@@ -1,7 +1,6 @@
 use crate::extracts::process::process_manager::handlers::process_starts::ProcessStartHandler;
 use crate::extracts::process::process_manager::handlers::process_terminations::ProcessTerminationHandler;
 use crate::extracts::process::process_manager::logger::ProcessLogger;
-use crate::extracts::process::process_manager::matcher::Filter;
 use crate::extracts::process::process_manager::metrics::ProcessMetricsHandler;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
@@ -9,7 +8,6 @@ use crate::extracts::{
     containers::DockerWatcher, process::process_manager::handlers::oom::OomHandler,
 };
 use crate::process_identification::recorder::LogRecorder;
-use crate::process_identification::target_process::target_manager::TargetManager;
 use anyhow::Result;
 use std::{
     collections::{HashMap, HashSet},
@@ -23,25 +21,18 @@ use tracer_ebpf::ebpf_trigger::{OutOfMemoryTrigger, ProcessEndTrigger, ProcessSt
 pub struct ProcessManager {
     pub state_manager: StateManager,
     pub logger: ProcessLogger,
-    pub matcher: Filter,
     pub system_refresher: SystemRefresher,
 }
 
 impl ProcessManager {
-    pub fn new(
-        target_manager: TargetManager,
-        log_recorder: LogRecorder,
-        docker_watcher: Arc<DockerWatcher>,
-    ) -> Self {
-        let state_manager = StateManager::new(target_manager);
+    pub fn new(log_recorder: LogRecorder, docker_watcher: Arc<DockerWatcher>) -> Self {
+        let state_manager = StateManager::default();
         let logger = ProcessLogger::new(log_recorder, docker_watcher);
-        let matcher = Filter::new();
         let system_refresher = SystemRefresher::new();
 
         ProcessManager {
             state_manager,
             logger,
-            matcher,
             system_refresher,
         }
     }
@@ -85,7 +76,6 @@ impl ProcessManager {
         ProcessStartHandler::handle_process_starts(
             &self.state_manager,
             &self.logger,
-            &self.matcher,
             &self.system_refresher,
             triggers,
         )
@@ -105,5 +95,10 @@ impl ProcessManager {
     /// Returns a set of monitored process names
     pub async fn get_monitored_processes(&self) -> HashSet<String> {
         self.state_manager.get_monitored_processes().await
+    }
+
+    /// Returns a set of matched tasks
+    pub async fn get_matched_tasks(&self) -> HashSet<String> {
+        self.state_manager.get_matched_tasks().await
     }
 }
