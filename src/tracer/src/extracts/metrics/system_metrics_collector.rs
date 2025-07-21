@@ -37,6 +37,8 @@ impl SystemMetricsCollector {
             let total_space = disk.total_space();
             let available_space = disk.available_space();
             let used_space = total_space - available_space;
+
+            // disk utilization in percentage
             let disk_utilization = (used_space as f64 / total_space as f64) * 100.0;
 
             let disk_data = DiskStatistic {
@@ -63,7 +65,10 @@ impl SystemMetricsCollector {
         let cpu_usage = system.global_cpu_usage();
 
         let disk_stats = Self::gather_disk_data();
-        let system_disk_total_space = Self::calculate_total_disk_available_space(disk_stats.clone());
+
+        let system_disk_total_space =
+            Self::calculate_total_disk_available_space(disk_stats.clone());
+        let system_disk_used_space = Self::calculate_total_disk_used_space(disk_stats.clone());
 
         SystemMetric {
             events_name: "global_system_metrics".to_string(),
@@ -76,6 +81,7 @@ impl SystemMetricsCollector {
             system_cpu_utilization: cpu_usage,
             system_disk_total_space,
             system_disk_io: disk_stats,
+            system_disk_used_space,
         }
     }
 
@@ -95,12 +101,22 @@ impl SystemMetricsCollector {
         Ok(())
     }
 
-    pub fn calculate_total_disk_available_space(system_disks: HashMap<String, DiskStatistic>) -> u64 {
+    pub fn calculate_total_disk_available_space(
+        system_disks: HashMap<String, DiskStatistic>,
+    ) -> u64 {
         // for each DiskStatistic object in the hashmap, summing the value of the disk_available_space
         // to retrieve the total disk available in the machine
-        system_disks
-            .values()
-            .fold(0u64, |sum, disk_statistic | sum.saturating_add(disk_statistic.disk_available_space))
+        system_disks.values().fold(0u64, |sum, disk_statistic| {
+            sum.saturating_add(disk_statistic.disk_available_space)
+        })
+    }
+
+    pub fn calculate_total_disk_used_space(system_disks: HashMap<String, DiskStatistic>) -> u64 {
+        // for each DiskStatistic object in the hashmap, summing the value of the disk_used_space
+        // to retrieve the total disk used in the machine
+        system_disks.values().fold(0u64, |sum, disk_statistic| {
+            sum.saturating_add(disk_statistic.disk_used_space)
+        })
     }
 }
 

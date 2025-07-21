@@ -23,6 +23,7 @@ pub struct SystemMetric {
     pub system_cpu_utilization: f32,
     pub system_disk_total_space: u64,
     pub system_disk_io: HashMap<String, DiskStatistic>,
+    pub system_disk_used_space: u64,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
