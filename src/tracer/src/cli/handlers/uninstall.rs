@@ -6,6 +6,8 @@ use colored::Colorize;
 use std::fs;
 use std::path::Path;
 
+const INSTALL_PATH: &str = "/usr/local/bin/tracer";
+
 pub fn uninstall() -> Result<()> {
     if DaemonServer::is_running() {
         println!("\n{} Tracer daemon is currently running. Please run `tracer terminate` before uninstalling", "Warning:".yellow());
@@ -35,19 +37,16 @@ pub fn uninstall() -> Result<()> {
 }
 
 fn remove_binary() -> Result<()> {
-    let current_exe = std::env::current_exe().context("failed to get current exe path")?;
+    let tracer_path = Path::new(INSTALL_PATH);
 
-    let current_dir = current_exe
-        .parent()
-        .context("failed to get parent directory of binary")?;
-
-    println!("🔍 Binary path: {}", current_exe.display());
-    println!("📂 Directory containing binary: {}", current_dir.display());
-
-    fs::remove_file(&current_exe)
-        .with_context(|| format!("Failed to remove binary at {}", current_exe.display()))?;
-
-    println!("✅  Binary removed successfully");
+    if tracer_path.exists() {
+        println!("🔍 Binary path: {}", tracer_path.display());
+        fs::remove_file(tracer_path)
+            .with_context(|| format!("Failed to remove binary at {}", tracer_path.display()))?;
+        println!("✅  Binary removed successfully");
+    } else {
+        println!("⚠️  Binary not found at: {}", tracer_path.display());
+    }
 
     Ok(())
 }
@@ -63,7 +62,7 @@ fn remove_env_paths() -> Result<()> {
         }
     }
 
-    println!("✅  Tracer environment file removed");
+    println!("✅  Tracer environment variables removed (if any)");
     Ok(())
 }
 

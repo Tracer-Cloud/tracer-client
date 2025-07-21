@@ -25,6 +25,7 @@ use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
 use crate::utils::{print_label, print_status, print_summary, print_title, PrintEmoji};
 
 const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics";
+const TRACER_INSTALLATION_PATH: &str = "/usr/local/bin";
 
 pub struct Installer {
     pub platform: PlatformInfo,
@@ -35,7 +36,7 @@ pub struct Installer {
 impl Installer {
     /// Executes the tracer binary download process:
     /// - Downloads the appropriate Tracer binary based on platform and version
-    /// - Extracts and installs it to `~/.tracerbio/bin`
+    /// - Extracts and installs it to `/usr/local/bin`
     /// - Updates shell configuration files to include Tracer in the PATH
     /// - Emits analytics events if a user ID is provided
     pub async fn run(&self) -> Result<()> {
@@ -132,12 +133,12 @@ impl Installer {
     }
 
     fn install_to_final_dir(&self, extracted_dir: &Path) -> Result<PathBuf> {
-        let home_dir = dirs::home_dir().context("Could not determine home directory")?;
-        let bin_dir = home_dir.join(".tracerbio/bin");
-        std::fs::create_dir_all(&bin_dir)?;
-
         let extracted_binary = extracted_dir.join("tracer");
-        let final_path = bin_dir.join("tracer");
+        let final_path = PathBuf::from(TRACER_INSTALLATION_PATH).join("tracer");
+
+        if let Some(parent_path) = final_path.parent() {
+            std::fs::create_dir_all(parent_path)?;
+        }
 
         std::fs::copy(&extracted_binary, &final_path)
             .with_context(|| format!("Failed to copy tracer binary from {:?}", extracted_binary))?;
@@ -163,8 +164,6 @@ impl Installer {
         }
 
         let home = dirs::home_dir().context("Could not find home directory")?;
-
-        let export_path = r#"export PATH="$HOME/.tracerbio/bin:$PATH""#;
         let export_user = user_id
             .as_ref()
             .map(|id| format!(r#"export TRACER_USER_ID="{}""#, id));
@@ -186,47 +185,33 @@ impl Installer {
                 lines.push(line);
             }
 
-            let mut has_path_export = false;
             let mut has_user_export = false;
             let mut updated = false;
             let mut updated_lines = Vec::new();
 
-            // Process existing lines
             for line in lines {
-                if line.contains(".tracerbio/bin") {
-                    // Update existing PATH export
-                    updated_lines.push(export_path.to_string());
-                    has_path_export = true;
-                    updated = true;
-                } else if line.contains("export TRACER_USER_ID=") {
-                    // Update existing TRACER_USER_ID export if we have a user ID
+                if line.contains("export TRACER_USER_ID=") {
                     if let Some(ref user_export) = export_user {
                         updated_lines.push(user_export.clone());
-                        has_user_export = true;
-                    } else {
-                        // Remove the line if no user ID provided
-                        has_user_export = true; // Mark as handled
                     }
+                    // Even if no user ID, we’re removing the line
+                    has_user_export = true;
                     updated = true;
                 } else {
                     updated_lines.push(line);
                 }
             }
 
-            if !has_path_export {
-                updated_lines.push(export_path.to_string());
-            }
-
             if !has_user_export {
                 if let Some(user_export) = export_user.as_ref() {
                     updated_lines.push(user_export.clone());
+                    updated = true;
                 }
             }
 
             if updated {
                 print_label(&format!("Updating {}", rc), PrintEmoji::Updated);
             }
-
             // Write all lines back to file
             let mut file = OpenOptions::new()
                 .write(true)
