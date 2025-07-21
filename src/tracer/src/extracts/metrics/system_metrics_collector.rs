@@ -63,6 +63,9 @@ impl SystemMetricsCollector {
         let cpu_usage = system.global_cpu_usage();
 
         let d_stats = Self::gather_disk_data();
+        let system_disk_total_space = d_stats
+            .values()
+            .fold(0u64, |sum, d| sum.saturating_add(d.disk_total_space));
 
         SystemMetric {
             events_name: "global_system_metrics".to_string(),
@@ -73,6 +76,7 @@ impl SystemMetricsCollector {
             system_memory_swap_total: system.total_swap(),
             system_memory_swap_used: system.used_swap(),
             system_cpu_utilization: cpu_usage,
+            system_disk_total_space,
             system_disk_io: d_stats,
         }
     }

@@ -21,6 +21,7 @@ pub struct SystemMetric {
     pub system_memory_swap_total: u64,
     pub system_memory_swap_used: u64,
     pub system_cpu_utilization: f32,
+    pub system_disk_total_space: u64,
     pub system_disk_io: HashMap<String, DiskStatistic>,
 }
 
