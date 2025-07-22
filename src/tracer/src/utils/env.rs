@@ -18,7 +18,10 @@ pub const CODESPACE_NAME_ENV_VAR: &str = "CODESPACE_NAME";
 pub const HOSTNAME_ENV_VAR: &str = "HOSTNAME";
 
 pub fn get_env_var(var: &str) -> Option<String> {
-    env::var(var).ok()
+    println!("Checking for env var: {}", var);
+    let res = env::var(var).ok();
+    println!("Found env var: {:?}", res);
+    res
 }
 
 pub fn has_env_var(var: &str) -> bool {
