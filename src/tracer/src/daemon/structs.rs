@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::constants::{GRAFANA_PIPELINE_DASHBOARD_BASE, GRAFANA_RUN_DASHBOARD_BASE};
+use crate::constants::DASHBOARD_BASE;
 use crate::process_identification::types::current_run::{PipelineCostSummary, PipelineMetadata};
 use crate::process_identification::types::pipeline_tags::PipelineTags;
 use chrono::{DateTime, TimeDelta, Utc};
@@ -90,16 +90,10 @@ impl TryFrom<PipelineMetadata> for InnerInfoResponse {
 }
 
 impl InnerInfoResponse {
-    pub fn get_pipeline_url(&self) -> String {
-        format!(
-            "{}?var-pipeline_name={}",
-            GRAFANA_PIPELINE_DASHBOARD_BASE, self.pipeline_name
-        )
-    }
     pub fn get_run_url(&self) -> String {
         format!(
-            "{}?var-run_name={}&var-pipeline_name={}",
-            GRAFANA_RUN_DASHBOARD_BASE, self.run_name, self.pipeline_name
+            "{}/{}/{}",
+            DASHBOARD_BASE, self.pipeline_name, self.run_name
         )
     }
     pub fn total_runtime(&self) -> TimeDelta {
