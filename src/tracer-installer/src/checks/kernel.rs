@@ -60,7 +60,11 @@ impl InstallCheck for KernelCheck {
         }
 
         match Self::get_kernel_version() {
-            Some(version) => Self::is_compatible_kernel(version),
+            Some(version) => {
+                let version_str = format!("{}.{}", version.0, version.1);
+                crate::Sentry::add_tag("kernel_version", &version_str);
+                Self::is_compatible_kernel(version)
+            }
             None => false,
         }
     }
