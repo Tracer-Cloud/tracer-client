@@ -176,9 +176,7 @@ impl TracerCliInitArgs {
                             .with_prompt("Enter your name/username (who is running this pipeline)")
                             .default(std::env::var("USER").unwrap_or_else(|_| "unknown".into()))
                             .interact_text()
-                            .inspect_err(|e| {
-                                panic!("Error while prompting for user operator: {e}")
-                            })
+                            .inspect_err(|e| panic!("Error while prompting for user operator: {e}"))
                             .ok()
                     }
                 })
