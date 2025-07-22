@@ -173,7 +173,7 @@ impl InfoDisplay {
                 &format!("  $ {:.4}", summary.estimated_total),
                 "yellow",
             );
-            formatter.add_field("Instance ID (EC2)", &summary.instance_id, "yellow");
+            formatter.add_field("Instance ID (EC2)", &summary.instance_id, "white");
             formatter.add_empty_line();
         }
     }
