@@ -12,6 +12,7 @@ use crate::utils::{analytics, Sentry};
 use serde_json::Value;
 use std::fs::File;
 use std::process::{Command, Stdio};
+use crate::utils::env::get_env_var;
 
 pub async fn init(
     args: TracerCliInitArgs,
@@ -20,6 +21,8 @@ pub async fn init(
 ) -> anyhow::Result<()> {
     // Check if running with sudo
     check_sudo("init");
+
+    get_env_var("TRACER_USER_ID");
 
     // Create necessary files for logging and daemonizing
     create_necessary_files().expect("Error while creating necessary files");

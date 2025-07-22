@@ -1,6 +1,7 @@
 use std::env;
 use std::fs;
 use std::path::Path;
+use tracing::error;
 
 // Environment variables that control init parameters
 pub const TRACE_ID_ENV_VAR: &str = "TRACER_TRACE_ID";
@@ -19,8 +20,10 @@ pub const HOSTNAME_ENV_VAR: &str = "HOSTNAME";
 
 pub fn get_env_var(var: &str) -> Option<String> {
     println!("Checking for env var: {}", var);
+    error!("Checking for env var: {}", var);
     let res = env::var(var).ok();
     println!("Found env var: {:?}", res);
+    error!("Checking for env var: {}", var);
     res
 }
 
