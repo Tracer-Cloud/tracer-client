@@ -12,7 +12,6 @@ use crate::daemon::state::DaemonState;
 use crate::process_identification::constants::{
     DEFAULT_DAEMON_PORT, PID_FILE, STDERR_FILE, STDOUT_FILE,
 };
-use anyhow::Context;
 use axum::Router;
 use std::net::SocketAddr;
 use tokio::task::JoinHandle;
@@ -67,14 +66,16 @@ impl DaemonServer {
 
         // spawn DaemonServer Router for DaemonClient
         let server_url = client.lock().await.get_config().server.clone();
+
         let listener = create_listener(server_url).await;
         self.server = Some(tokio::spawn(
             axum::serve(listener, get_router(state)).into_future(),
         ));
 
         monitor(client, cancellation_token, self.paused.clone()).await;
+
         self.terminate().await?;
-        DaemonServer::cleanup()?;
+        DaemonServer::cleanup();
         Ok(())
     }
 
@@ -87,7 +88,14 @@ impl DaemonServer {
         self.server = None;
         let guard = self.client.lock().await;
         // all data left
-        guard.exporter.submit_batched_data().await?;
+        let config = guard.get_config();
+        guard
+            .exporter
+            .submit_batched_data(
+                config.batch_submission_retries,
+                config.batch_submission_retry_delay_ms,
+            )
+            .await?;
         // close the connection pool to aurora
         let _ = guard.close().await;
         Ok(())
@@ -109,7 +117,7 @@ impl DaemonServer {
         Ok(())
     }
     pub fn is_running() -> bool {
-        let port = DEFAULT_DAEMON_PORT; // Default Tracer port
+        let port = DEFAULT_DAEMON_PORT;
         if let Err(e) = std::net::TcpListener::bind(format!("127.0.0.1:{}", port)) {
             if e.kind() == io::ErrorKind::AddrInUse {
                 return true;
@@ -118,23 +126,22 @@ impl DaemonServer {
         false
     }
 
-    pub fn shutdown_if_running() -> anyhow::Result<bool> {
+    pub async fn shutdown_if_running() -> anyhow::Result<()> {
         if !Self::is_running() {
-            return Ok(false);
+            return Ok(());
         }
-        Self::shutdown()
+        Self::shutdown().await
     }
-    pub fn shutdown() -> anyhow::Result<bool> {
+    pub async fn shutdown() -> anyhow::Result<()> {
         let port = DEFAULT_DAEMON_PORT;
-        let shutdown_successful =
-            tokio::runtime::Runtime::new()?.block_on(handle_port_conflict(port));
-        DaemonServer::cleanup()?;
-        shutdown_successful
-    }
-    pub fn cleanup() -> anyhow::Result<()> {
-        std::fs::remove_file(PID_FILE).context("Failed to remove pid file")?;
-        std::fs::remove_file(STDOUT_FILE).context("Failed to remove stdout file")?;
-        std::fs::remove_file(STDERR_FILE).context("Failed to remove stderr file")?;
+        handle_port_conflict(port).await?;
+        DaemonServer::cleanup();
         Ok(())
+    }
+
+    pub fn cleanup() {
+        let _ = std::fs::remove_file(PID_FILE);
+        let _ = std::fs::remove_file(STDOUT_FILE);
+        let _ = std::fs::remove_file(STDERR_FILE);
     }
 }

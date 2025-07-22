@@ -7,6 +7,6 @@ pub const TERMINATE_ENDPOINT: &str = "/terminate";
 pub async fn terminate(
     State(state): State<DaemonState>,
 ) -> axum::response::Result<impl IntoResponse> {
-    state.cancel(); // todo: gracefully shutdown
+    state.cancel();
     Ok("Terminating...")
 }

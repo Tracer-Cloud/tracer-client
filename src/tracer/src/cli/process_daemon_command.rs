@@ -1,16 +1,37 @@
 use crate::cli::commands::Command;
+use crate::cli::handlers;
 use crate::cli::handlers::info;
+use crate::config::Config;
 use crate::daemon::client::{DaemonClient, Result as DaemonResult};
 use crate::daemon::server::DaemonServer;
 use crate::process_identification::debug_log::Logger;
 use anyhow::{anyhow, bail, Result};
+use colored::Colorize;
 use tokio::runtime::Runtime;
 
-pub fn process_daemon_command(command: Command, api_client: &DaemonClient) -> Result<()> {
-    let runtime = Runtime::new()?;
+pub async fn process_daemon_command(command: Command, config: Config) -> Result<()> {
+    let api_client = DaemonClient::new(format!("http://{}", config.server));
     let result = match command {
-        Command::Info { json } => runtime.block_on(async { info(api_client, json).await }),
-        command => process_retryable_daemon_command(command, api_client, runtime),
+        Command::Init(args) => handlers::init(*args, config, api_client).await,
+        Command::Info { json } => info(&api_client, json).await,
+        Command::Terminate => {
+            if !DaemonServer::is_running() {
+                println!("Daemon server is not running, nothing to terminate.");
+                return Ok(());
+            }
+            if let Err(e) = api_client.send_terminate_request().await {
+                DaemonServer::shutdown_if_running().await?;
+                return Err(anyhow!(
+                    "Failed to send terminate request to the daemon: {e}"
+                ));
+            }
+            println!(
+                "{}: Daemon server terminated successfully.",
+                "Success".green().bold()
+            );
+            Ok(())
+        }
+        command => process_retryable_daemon_command(command, api_client, Runtime::new()?),
     };
     if let Err(e) = result {
         Logger::new().log_blocking(&format!("Error processing cli command: \n {e:?}."), None);
@@ -22,7 +43,7 @@ pub fn process_daemon_command(command: Command, api_client: &DaemonClient) -> Re
 /// Note: currently we have not implemented retry behavior.
 fn process_retryable_daemon_command(
     command: Command,
-    api_client: &DaemonClient,
+    api_client: DaemonClient,
     runtime: Runtime,
 ) -> Result<()> {
     if !runtime
@@ -46,16 +67,9 @@ fn process_retryable_daemon_command(
 
 async fn process_retryable_daemon_command_async(
     command: &Command,
-    api_client: &DaemonClient,
+    api_client: DaemonClient,
 ) -> DaemonResult<bool> {
     match command {
-        Command::Terminate => {
-            if let Err(e) = api_client.send_terminate_request().await {
-                // try to force shutdown if terminate fails
-                let _ = DaemonServer::shutdown_if_running();
-                return Err(e);
-            }
-        }
         Command::Start => {
             api_client.send_start_run_request().await.map(|response| {
                 match response {
