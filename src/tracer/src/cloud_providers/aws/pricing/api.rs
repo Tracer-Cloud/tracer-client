@@ -92,6 +92,7 @@ impl ApiPricingClient {
             source: "API".into(),
             ec2_pricing_best_matches: ec2_data.top_matches,
             match_confidence: best_match_score,
+            instance_id: metadata.instance_id.clone(),
         })
     }
 
