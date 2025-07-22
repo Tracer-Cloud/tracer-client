@@ -32,6 +32,9 @@ async fn gather_system_properties(
 
     let system_disk_io = SystemMetricsCollector::gather_disk_data();
 
+    let system_disk_total_space =
+        SystemMetricsCollector::calculate_total_disk_space(&system_disk_io);
+
     SystemProperties {
         os: System::name(),
         os_version: System::os_version(),
@@ -47,6 +50,7 @@ async fn gather_system_properties(
         system_disk_io,
         ec2_cost_per_hour: pricing_context.as_ref().map(|c| c.total_hourly_cost),
         pricing_context,
+        system_disk_total_space,
     }
 }
 
