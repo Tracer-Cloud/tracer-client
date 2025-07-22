@@ -18,10 +18,38 @@ pub const CODESPACE_NAME_ENV_VAR: &str = "CODESPACE_NAME";
 pub const HOSTNAME_ENV_VAR: &str = "HOSTNAME";
 
 pub fn get_user_id() -> Option<String> {
-    env::var(USER_ID_ENV_VAR)
-        .ok()
-        .map(|id| id.trim().to_string())
-        .filter(|id| !id.is_empty())
+    // Read directly from shell profile files
+    // if tracer is installed in user space (non-root):
+    // TRACER_USER_ID cannot be retrieved if we use sudo as it creates a new environment
+    // so to retrieve in both cases, we need to extract it from the user's shell profile files directly.
+    //
+    // if tracer is installed in root space (root):
+    //
+
+    if let Some(home_dir) = dirs::home_dir() {
+        let profile_files = [".zshrc", ".bashrc", ".bash_profile", ".profile"];
+
+        for profile in &profile_files {
+            let profile_path = home_dir.join(profile);
+            if let Ok(content) = fs::read_to_string(&profile_path) {
+                for line in content.lines() {
+                    let line = line.trim();
+                    if line.starts_with("export TRACER_USER_ID=") {
+                        let value = line
+                            .trim_start_matches("export TRACER_USER_ID=")
+                            .trim_matches('"')
+                            .trim_matches('\'')
+                            .trim();
+                        if !value.is_empty() {
+                            return Some(value.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    None
 }
 
 pub fn get_env_var(var: &str) -> Option<String> {
