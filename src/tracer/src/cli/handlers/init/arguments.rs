@@ -1,5 +1,6 @@
 use crate::process_identification::types::pipeline_tags::PipelineTags;
 use crate::utils::env;
+use crate::utils::env::get_user_id;
 use clap::Args;
 use console::Emoji;
 use dialoguer::theme::ColorfulTheme;
@@ -165,10 +166,9 @@ impl TracerCliInitArgs {
                     .expect("Failed to get pipeline type from environment variable or prompt"),
             );
         }
-
         if tags.user_operator.is_none() {
             let _ = tags.user_operator.insert(
-                env::get_env_var(env::USER_OPERATOR_ENV_VAR)
+                get_user_id()
                     .or_else(|| {
                         if self.non_interactive {
                             None

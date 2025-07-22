@@ -2,6 +2,7 @@ pub mod types;
 
 use crate::constants::TRACER_ANALYTICS_ENDPOINT;
 use crate::utils::analytics::types::{AnalyticsEventType, AnalyticsPayload};
+use crate::utils::env::get_user_id;
 use reqwest::Client;
 use std::collections::HashMap;
 use tokio_retry::strategy::{jitter, ExponentialBackoff};
@@ -23,8 +24,8 @@ pub async fn send_event(
     let client = Client::new();
     let user_id = match user_id {
         Some(id) => id,
-        None => match std::env::var("TRACER_USER_ID") {
-            Ok(val) if !val.trim().is_empty() => val,
+        None => match get_user_id() {
+            Some(val) => val,
             _ => return Ok(()), // silently skip if no user ID
         },
     };

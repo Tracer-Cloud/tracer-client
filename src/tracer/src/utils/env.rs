@@ -8,7 +8,7 @@ pub const RUN_NAME_ENV_VAR: &str = "TRACER_RUN_NAME";
 pub const PIPELINE_NAME_ENV_VAR: &str = "TRACER_PIPELINE_NAME";
 pub const PIPELINE_TYPE_ENV_VAR: &str = "TRACER_PIPELINE_TYPE";
 pub const ENVIRONMENT_ENV_VAR: &str = "TRACER_ENVIRONMENT";
-pub const USER_OPERATOR_ENV_VAR: &str = "TRACER_USER_OPERATOR";
+pub const USER_ID_ENV_VAR: &str = "TRACER_USER_ID";
 
 // Environment variables that control environment detection
 pub const GITHUB_ACTIONS_ENV_VAR: &str = "GITHUB_ACTIONS";
@@ -16,6 +16,13 @@ pub const AWS_BATCH_JOB_ID_ENV_VAR: &str = "AWS_BATCH_JOB_ID";
 pub const CODESPACES_ENV_VAR: &str = "CODESPACES";
 pub const CODESPACE_NAME_ENV_VAR: &str = "CODESPACE_NAME";
 pub const HOSTNAME_ENV_VAR: &str = "HOSTNAME";
+
+pub fn get_user_id() -> Option<String> {
+    env::var(USER_ID_ENV_VAR)
+        .ok()
+        .map(|id| id.trim().to_string())
+        .filter(|id| !id.is_empty())
+}
 
 pub fn get_env_var(var: &str) -> Option<String> {
     env::var(var).ok()
