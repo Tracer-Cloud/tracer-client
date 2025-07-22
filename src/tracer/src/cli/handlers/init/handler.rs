@@ -19,7 +19,10 @@ pub async fn init(
     api_client: DaemonClient,
 ) -> anyhow::Result<()> {
     // Check if running with sudo
-    check_sudo("init");
+
+    if !args.force_procfs && cfg!(target_os = "linux") {
+        check_sudo("init");
+    }
 
     // Create necessary files for logging and daemonizing
     create_necessary_files().expect("Error while creating necessary files");
@@ -65,8 +68,12 @@ pub async fn init(
             .arg(args.tags.pipeline_type.as_deref().unwrap_or(""))
             .arg("--user-operator")
             .arg(args.tags.user_operator.as_deref().unwrap_or(""))
-            .arg("--is-dev")
-            .arg(args.is_dev.unwrap_or_default().to_string())
+            .args(if args.dev { vec!["--dev"] } else { vec![] })
+            .args(if args.force_procfs {
+                vec!["--force-procfs"]
+            } else {
+                vec![]
+            })
             .stdin(Stdio::null())
             .stdout(Stdio::from(File::create(STDOUT_FILE)?))
             .stderr(Stdio::from(File::create(STDERR_FILE)?))

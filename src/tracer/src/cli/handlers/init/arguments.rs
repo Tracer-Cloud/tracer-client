@@ -38,7 +38,11 @@ pub struct TracerCliInitArgs {
 
     // For testing purposes only
     #[clap(long, hide = true)]
-    pub is_dev: Option<bool>,
+    pub dev: bool,
+
+    /// Force process polling when eBPF is not available
+    #[clap(long)]
+    pub force_procfs: bool,
 }
 
 impl TracerCliInitArgs {
@@ -195,7 +199,8 @@ impl TracerCliInitArgs {
             run_name,
             tags,
             no_daemonize: self.no_daemonize,
-            is_dev: self.is_dev,
+            dev: self.dev,
+            force_procfs: self.force_procfs,
             user_id: self.user_id,
         }
     }
@@ -209,6 +214,7 @@ pub struct FinalizedInitArgs {
     pub run_name: Option<String>,
     pub tags: PipelineTags,
     pub no_daemonize: bool,
-    pub is_dev: Option<bool>,
+    pub dev: bool,
+    pub force_procfs: bool,
     pub user_id: Option<String>,
 }
