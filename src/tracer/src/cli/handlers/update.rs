@@ -71,7 +71,6 @@ pub fn update() -> Result<()> {
     if !status.success() {
         bail!("Failed to update Tracer. Please try again.");
     }
-
     println!(
         "\n{} Tracer has been successfully updated!",
         "Success:".green(),
