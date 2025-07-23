@@ -1,12 +1,12 @@
+use crate::warning_message;
 use colored::Colorize;
 use std::process::{exit, Command};
 use tracing::error;
 
 pub fn check_sudo(command: &str) {
     if !is_root() && !is_sudo() {
-        println!(
-            "\n{} `{}` requires root privileges. Please run `sudo tracer {}`.",
-            "Warning:".yellow().bold(),
+        warning_message!(
+            "`{}` requires root privileges. Please run `sudo tracer {}`.",
             command,
             command
         );
