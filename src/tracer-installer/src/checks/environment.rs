@@ -32,15 +32,15 @@ pub async fn detect_environment_type() -> String {
     let is_batch = env::var("AWS_BATCH_JOB_ID").is_ok();
 
     if let Some(metadata) = get_aws_instance_metadata().await {
-        let instance_id_label = format!("Instance ID: {}", &metadata.instance_id);
+        let instance_type = &metadata.instance_type;
         annotate_ec2_metadata(&metadata);
         if is_batch {
-            return format!("AWS Batch - {instance_id_label}");
+            return format!("AWS Batch - {instance_type}");
         }
         return if running_in_docker {
-            format!("AWS EC2 (Docker) - {instance_id_label}")
+            format!("AWS EC2 (Docker) - {instance_type}")
         } else {
-            format!("AWS EC2 - {instance_id_label}")
+            format!("AWS EC2 - {instance_type}")
         };
     }
 

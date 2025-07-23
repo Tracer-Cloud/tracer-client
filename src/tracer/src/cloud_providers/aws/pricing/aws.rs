@@ -175,7 +175,7 @@ impl PricingClient {
             source: "Live".to_string(),
             ec2_pricing_best_matches: ec2_matches,
             match_confidence: best_match_score,
-            instance_id: metadata.instance_id.clone(),
+            instance_type: metadata.instance_type.clone(),
         })
     }
 

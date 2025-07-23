@@ -56,7 +56,7 @@ impl Run {
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct PipelineCostSummary {
-    pub instance_id: String,
+    pub instance_type: String,
     pub hourly: f64,
     pub per_minute: f64,
     pub estimated_total: f64,
@@ -78,7 +78,7 @@ impl PipelineCostSummary {
             per_minute: cost_per_minute,
             estimated_total,
             source: pricing.source.clone(),
-            instance_id: pricing.instance_id.clone(),
+            instance_type: pricing.instance_type.clone(),
         }
     }
 
@@ -94,7 +94,7 @@ impl PipelineCostSummary {
             per_minute: self.per_minute,
             estimated_total: total_cost,
             source: self.source.clone(),
-            instance_id: self.instance_id.clone(),
+            instance_type: self.instance_type.clone(),
         }
     }
 }

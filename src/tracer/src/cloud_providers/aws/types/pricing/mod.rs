@@ -21,7 +21,7 @@ pub struct InstancePricingContext {
     #[serde(rename = "matchConfidence")]
     pub match_confidence: Option<f64>,
 
-    pub instance_id: String,
+    pub instance_type: String,
 }
 
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
