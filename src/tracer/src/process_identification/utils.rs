@@ -5,7 +5,7 @@ use serde_json::{Map, Value};
 use std::fs::OpenOptions;
 use std::io::Write;
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
-use tracing::error;
+use tracing::{error, info};
 
 /// Flattens the `attributes` field of an event with prefixing, e.g.:
 /// `process.tool_name` or `system_properties.ec2_cost_per_hour`
@@ -70,7 +70,7 @@ pub fn log_matched_process(trigger: &ProcessStartTrigger, matched_rule: &str, is
         matched_string,
         matched_rule,
     );
-
+    info!(log_line);
     if let Err(e) = OpenOptions::new()
         .create(true)
         .append(true)
