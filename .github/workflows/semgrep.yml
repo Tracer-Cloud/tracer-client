@@ -1,0 +1,52 @@
+name: Semgrep Security Scanning
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 1 * * 6'  # weekly full scan
+
+jobs:
+  # Full Scan (Scheduled or Manual)
+  semgrep-full:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    container:
+      image: returntocorp/semgrep
+    steps:
+      - uses: actions/checkout@v4.1.4
+      - name: Run full Semgrep scan
+        run: |
+          semgrep ci --config p/default --sarif > semgrep-full.sarif
+      - uses: actions/upload-artifact@v3
+        with:
+          name: semgrep-full-report
+          path: semgrep-full.sarif
+      - uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: semgrep-full.sarif
+          category: semgrep
+
+  # PR/Diff‑Aware Scan
+  semgrep-pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    container:
+      image: returntocorp/semgrep
+    steps:
+      - uses: actions/checkout@v4.1.4
+        with:
+          fetch-depth: 0
+      - name: Run diff‑aware Semgrep scan
+        run: |
+          semgrep ci --config p/default --sarif > semgrep-pr.sarif
+      - uses: actions/upload-artifact@v3
+        with:
+          name: semgrep-pr-report
+          path: semgrep-pr.sarif
+      - uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: semgrep-pr.sarif
+          category: semgrep
