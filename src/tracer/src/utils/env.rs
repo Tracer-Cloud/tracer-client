@@ -8,7 +8,7 @@ pub const RUN_NAME_ENV_VAR: &str = "TRACER_RUN_NAME";
 pub const PIPELINE_NAME_ENV_VAR: &str = "TRACER_PIPELINE_NAME";
 pub const PIPELINE_TYPE_ENV_VAR: &str = "TRACER_PIPELINE_TYPE";
 pub const ENVIRONMENT_ENV_VAR: &str = "TRACER_ENVIRONMENT";
-pub const USER_OPERATOR_ENV_VAR: &str = "TRACER_USER_OPERATOR";
+pub const USER_OPERATOR_ENV_VAR: &str = "TRACER_USER_ID";
 
 // Environment variables that control environment detection
 pub const GITHUB_ACTIONS_ENV_VAR: &str = "GITHUB_ACTIONS";

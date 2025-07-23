@@ -171,26 +171,21 @@ impl TracerCliInitArgs {
         }
 
         if tags.user_operator.is_none() {
-            let _ = tags.user_operator.insert(
-                env::get_env_var(env::USER_OPERATOR_ENV_VAR)
-                    .or_else(|| {
-                        if self.non_interactive {
-                            None
-                        } else {
-                            Input::with_theme(&*theme)
-                                .with_prompt(
-                                    "Enter your name/username (who is running this pipeline)",
-                                )
-                                .default(std::env::var("USER").unwrap_or_else(|_| "unknown".into()))
-                                .interact_text()
-                                .inspect_err(|e| {
-                                    panic!("Error while prompting for user operator: {e}")
-                                })
-                                .ok()
-                        }
-                    })
-                    .expect("Failed to get user operator from environment variable or prompt"),
-            );
+            let user_operator = env::get_env_var(env::USER_OPERATOR_ENV_VAR)
+                .or_else(|| {
+                    if self.non_interactive {
+                        None
+                    } else {
+                        Input::with_theme(&*theme)
+                            .with_prompt("Enter your name/username (who is running this pipeline)")
+                            .default(std::env::var("USER").unwrap_or_else(|_| "unknown".into()))
+                            .interact_text()
+                            .inspect_err(|e| panic!("Error while prompting for user operator: {e}"))
+                            .ok()
+                    }
+                })
+                .expect("Failed to get user operator from environment variable or prompt");
+            tags.user_operator = Some(user_operator);
         }
 
         FinalizedInitArgs {
