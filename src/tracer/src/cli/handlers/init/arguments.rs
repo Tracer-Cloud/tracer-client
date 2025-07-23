@@ -43,6 +43,12 @@ pub struct TracerCliInitArgs {
     /// Force process polling when eBPF is not available
     #[clap(long)]
     pub force_procfs: bool,
+
+    /// Capture logs at the specified level and above (default: info)
+    /// Valid values: trace, debug, info, warn, error
+    /// Output will be written to `daemon.log` in the working directory.
+    #[clap(long, default_value = "info")]
+    pub log_level: String,
 }
 
 impl TracerCliInitArgs {
@@ -196,6 +202,7 @@ impl TracerCliInitArgs {
             dev: self.dev,
             force_procfs: self.force_procfs,
             user_id: self.user_id,
+            log_level: self.log_level,
         }
     }
 }
@@ -211,4 +218,5 @@ pub struct FinalizedInitArgs {
     pub dev: bool,
     pub force_procfs: bool,
     pub user_id: Option<String>,
+    pub log_level: String,
 }

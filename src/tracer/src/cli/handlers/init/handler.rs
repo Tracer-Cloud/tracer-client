@@ -5,14 +5,20 @@ use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::initialization::create_and_run_server;
 use crate::daemon::server::DaemonServer;
-use crate::process_identification::constants::{PID_FILE, STDERR_FILE, STDOUT_FILE};
+use crate::process_identification::constants::{
+    LOG_FILE, PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR,
+};
 use crate::utils::analytics::types::AnalyticsEventType;
 use crate::utils::system_info::check_sudo;
 use crate::utils::{analytics, Sentry};
+use anyhow::Context;
 use serde_json::Value;
 use std::fs::File;
 use std::process::{Command, Stdio};
-
+use tracing_appender::rolling::{RollingFileAppender, Rotation};
+use tracing_subscriber::fmt::time::SystemTime;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::{fmt, EnvFilter};
 pub async fn init(
     args: TracerCliInitArgs,
     config: Config,
@@ -73,6 +79,8 @@ pub async fn init(
             } else {
                 vec![]
             })
+            .arg("--log-level")
+            .arg(args.log_level)
             .stdin(Stdio::null())
             .stdout(Stdio::from(File::create(STDOUT_FILE)?))
             .stderr(Stdio::from(File::create(STDERR_FILE)?))
@@ -93,6 +101,40 @@ pub async fn init(
 
         return Ok(());
     }
+    setup_logging(&args.log_level)?;
 
     create_and_run_server(args, config).await
+}
+
+fn setup_logging(log_level: &String) -> anyhow::Result<()> {
+    // Set up the filter
+    // Capture all levels from log_level and up
+    let filter = EnvFilter::from(log_level);
+
+    // Create a file appender that writes to daemon.log
+    let file_appender = RollingFileAppender::new(Rotation::NEVER, WORKING_DIR, "daemon.log");
+
+    // Create a custom format for the logs without colors
+    let file_layer = fmt::layer()
+        .with_file(true)
+        .with_line_number(true)
+        .with_thread_ids(true)
+        .with_thread_names(true)
+        .with_target(true)
+        .with_level(true)
+        .with_timer(SystemTime)
+        .with_ansi(false) // This disables ANSI color codes
+        .with_writer(file_appender);
+
+    // Set up the subscriber with our custom layer
+    let subscriber = tracing_subscriber::registry().with(filter).with(file_layer);
+
+    // Set the subscriber as the default
+    tracing::subscriber::set_global_default(subscriber)
+        .context("Failed to set tracing subscriber")?;
+
+    // Log initialization message
+    tracing::info!("Logging system initialized. Writing to {}", LOG_FILE);
+
+    Ok(())
 }
