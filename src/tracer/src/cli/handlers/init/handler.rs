@@ -18,14 +18,13 @@ pub async fn init(
     config: Config,
     api_client: DaemonClient,
 ) -> anyhow::Result<()> {
-    // Check if running with sudo
-
     if !args.force_procfs && cfg!(target_os = "linux") {
+        // Check if running with sudo
         check_sudo("init");
     }
 
     // Create necessary files for logging and daemonizing
-    create_necessary_files().expect("Error while creating necessary files");
+    create_necessary_files()?;
 
     // Check for port conflict before starting daemon
     DaemonServer::shutdown_if_running().await?;
@@ -79,7 +78,6 @@ pub async fn init(
             .stderr(Stdio::from(File::create(STDERR_FILE)?))
             .spawn()?;
 
-        // Write PID file
         std::fs::write(PID_FILE, child.id().to_string())?;
 
         println!("\nDaemon started successfully.");

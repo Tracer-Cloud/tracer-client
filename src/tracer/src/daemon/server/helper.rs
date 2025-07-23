@@ -1,5 +1,4 @@
 use crate::process_identification::constants::PID_FILE;
-use crate::utils::system_info::{is_root, is_sudo_installed};
 use anyhow::bail;
 use std::fs;
 use std::process::Command;
@@ -33,11 +32,7 @@ pub(super) async fn handle_port_conflict(port: u16) -> anyhow::Result<bool> {
         let pid = pid.as_str();
         println!("\nKilling process with PID {}...", pid);
 
-        let kill_output = if !is_root() && is_sudo_installed() {
-            Command::new("sudo").args(["kill", "-9", pid]).output()?
-        } else {
-            Command::new("kill").args(["-9", pid]).output()?
-        };
+        let kill_output = Command::new("kill").args(["-9", pid]).output()?;
         if !kill_output.status.success() {
             bail!(
                 "Failed to kill process. Please try manually using:\n  sudo kill -9 {}",

@@ -4,7 +4,6 @@ use crate::cli::handlers::info;
 use crate::config::Config;
 use crate::daemon::client::{DaemonClient, Result as DaemonResult};
 use crate::daemon::server::DaemonServer;
-use crate::process_identification::debug_log::Logger;
 use anyhow::{anyhow, bail, Result};
 use colored::Colorize;
 use tokio::runtime::Runtime;
@@ -34,7 +33,7 @@ pub async fn process_daemon_command(command: Command, config: Config) -> Result<
         command => process_retryable_daemon_command(command, api_client, Runtime::new()?),
     };
     if let Err(e) = result {
-        Logger::new().log_blocking(&format!("Error processing cli command: \n {e:?}."), None);
+        eprintln!("Daemon command failed: {}", e);
     }
     Ok(())
 }

@@ -12,7 +12,7 @@ pub(super) fn create_necessary_files() -> Result<()> {
 
     // Ensure directories for all files exist
     for file_path in [STDOUT_FILE, STDERR_FILE, PID_FILE] {
-        ensure_file_can_be_created(file_path)?
+        ensure_file_can_be_created(file_path)?;
     }
 
     Ok(())
@@ -30,7 +30,6 @@ pub(super) async fn wait(api_client: &DaemonClient) -> Result<()> {
                 if resp.status().is_success() {
                     return Ok(());
                 }
-
                 debug!("Got response, retrying: {:?}", resp);
             }
         }

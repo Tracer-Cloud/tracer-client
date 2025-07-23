@@ -169,7 +169,6 @@ impl TracerCliInitArgs {
                     .expect("Failed to get pipeline type from environment variable or prompt"),
             );
         }
-
         if tags.user_operator.is_none() {
             let user_operator = env::get_env_var(env::USER_OPERATOR_ENV_VAR)
                 .or_else(|| {
