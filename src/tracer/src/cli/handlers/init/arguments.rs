@@ -39,6 +39,12 @@ pub struct TracerCliInitArgs {
     // For testing purposes only
     #[clap(long, hide = true)]
     pub is_dev: Option<bool>,
+
+    /// Capture logs at the specified level and above (default: info)
+    /// Valid values: trace, debug, info, warn, error
+    /// Output will be written to `daemon.log` in the working directory.
+    #[clap(long, default_value = "info")]
+    pub log_level: String,
 }
 
 impl TracerCliInitArgs {
@@ -192,6 +198,7 @@ impl TracerCliInitArgs {
             no_daemonize: self.no_daemonize,
             is_dev: self.is_dev,
             user_id: self.user_id,
+            log_level: self.log_level,
         }
     }
 }
@@ -206,4 +213,5 @@ pub struct FinalizedInitArgs {
     pub no_daemonize: bool,
     pub is_dev: Option<bool>,
     pub user_id: Option<String>,
+    pub log_level: String,
 }
