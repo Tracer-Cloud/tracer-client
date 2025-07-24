@@ -23,15 +23,13 @@ pub fn process_command() {
     let _guard = Sentry::setup();
     Sentry::add_context("Config", config.to_safe_json());
 
-    let result = match cli.command {
+    match cli.command {
         Command::Cleanup => {
             DaemonServer::cleanup();
             success_message!("Daemon files cleanup completed.");
-            Ok(())
         }
         Command::Version => {
             println!("{}", Version::current());
-            Ok(())
         }
         Command::Update => handlers::update(),
         Command::Uninstall => handlers::uninstall(),
@@ -39,8 +37,4 @@ pub fn process_command() {
             .unwrap()
             .block_on(super::process_daemon_command(command, config)),
     };
-
-    if let Err(e) = result {
-        panic!("{}", e);
-    }
 }

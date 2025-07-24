@@ -1,6 +1,7 @@
 use crate::daemon::server::DaemonServer;
 use crate::process_identification::constants::WORKING_DIR;
 use crate::utils::system_info::check_sudo;
+use crate::{success_message, warning_message};
 use anyhow::{Context, Result};
 use colored::Colorize;
 use std::fs;
@@ -8,10 +9,12 @@ use std::path::Path;
 
 const INSTALL_PATH: &str = "/usr/local/bin/tracer";
 
-pub fn uninstall() -> Result<()> {
+pub fn uninstall() {
     if DaemonServer::is_running() {
-        println!("\n{} Tracer daemon is currently running. Please run `tracer terminate` before uninstalling", "Warning:".yellow());
-        return Ok(());
+        warning_message!(
+            "Tracer daemon is currently running. Please run `tracer terminate` before uninstalling"
+        );
+        return;
     }
 
     check_sudo("uninstall");
@@ -19,21 +22,16 @@ pub fn uninstall() -> Result<()> {
     println!(">> Uninstalling Tracer...");
 
     if Path::new(WORKING_DIR).exists() {
-        fs::remove_dir_all(WORKING_DIR)?;
-        println!(
-            "✅  Working directory removed successfully: {}",
-            WORKING_DIR
-        );
+        let _ = fs::remove_dir_all(WORKING_DIR);
+        success_message!("Working directory removed successfully: {}", WORKING_DIR);
     } else {
         println!("Working directory {} does not exist", WORKING_DIR);
     }
     println!();
-    remove_binary()?;
+    remove_binary().unwrap();
     println!();
-    remove_env_paths()?;
-    println!("✅  Tracer uninstalled successfully");
-
-    Ok(())
+    remove_env_paths().unwrap();
+    success_message!("Tracer uninstalled successfully");
 }
 
 fn remove_binary() -> Result<()> {
@@ -43,9 +41,9 @@ fn remove_binary() -> Result<()> {
         println!("🔍 Binary path: {}", tracer_path.display());
         fs::remove_file(tracer_path)
             .with_context(|| format!("Failed to remove binary at {}", tracer_path.display()))?;
-        println!("✅  Binary removed successfully");
+        success_message!("Binary removed successfully");
     } else {
-        println!("⚠️  Binary not found at: {}", tracer_path.display());
+        warning_message!("Binary not found at: {}", tracer_path.display());
     }
 
     Ok(())
@@ -62,7 +60,7 @@ fn remove_env_paths() -> Result<()> {
         }
     }
 
-    println!("✅  Tracer environment variables removed (if any)");
+    success_message!("Tracer environment variables removed (if any)");
     Ok(())
 }
 
@@ -107,7 +105,7 @@ fn remove_env(file_path: &Path) -> Result<()> {
         fs::write(file_path, new_content)
             .with_context(|| format!("Failed to write updated {}", file_path.display()))?;
 
-        println!("✅  Updated {}", file_path.display());
+        success_message!("Updated {}", file_path.display());
         println!();
     }
 
