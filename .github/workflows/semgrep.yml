@@ -71,6 +71,7 @@ jobs:
             --config "p/default"
 
       - name: Save full Semgrep scan (Rust + OWASP + Secrets, scoped to Rust files)
+        if: always()
         env:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
         run: |
@@ -105,6 +106,7 @@ jobs:
           fi
 
       - name: Comment on PR with Semgrep findings
+        if: always()
         uses: marocchino/sticky-pull-request-comment@v2.9.4
         with:
           header: semgrep
