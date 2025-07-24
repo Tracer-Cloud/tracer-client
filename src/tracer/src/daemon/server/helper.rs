@@ -21,9 +21,8 @@ pub(super) async fn handle_port_conflict(port: u16) -> anyhow::Result<bool> {
 
     if pid.is_none() {
         bail!(
-            "Failed to find process using port {}. Please check the port manually using:\n  sudo lsof -nP -iTCP:{} -sTCP:LISTEN",
+            "Failed to find the process for the daemon. Please check the port manually using:\n  sudo lsof -nP -iTCP:{} -sTCP:LISTEN",
             port,
-            port
         );
     }
 
@@ -39,6 +38,7 @@ pub(super) async fn handle_port_conflict(port: u16) -> anyhow::Result<bool> {
                 pid
             );
         }
+        let _ = fs::remove_file(PID_FILE);
 
         println!("✅  Process killed successfully.");
 
@@ -66,7 +66,7 @@ pub(super) async fn handle_port_conflict(port: u16) -> anyhow::Result<bool> {
         );
     } else {
         bail!(
-            "Could not find PID in lsof output. Please check the port manually using:\n  sudo lsof -nP -iTCP:{} -sTCP:LISTEN",
+            "Could not find PID in tracer pid file. Please check the port manually using:\n  sudo lsof -nP -iTCP:{} -sTCP:LISTEN",
             port
         );
     }

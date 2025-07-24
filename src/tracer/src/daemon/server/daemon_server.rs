@@ -9,9 +9,7 @@ use crate::daemon::routes::ROUTES;
 use crate::daemon::server::helper::handle_port_conflict;
 use crate::daemon::server::process_monitor::monitor;
 use crate::daemon::state::DaemonState;
-use crate::process_identification::constants::{
-    DEFAULT_DAEMON_PORT, PID_FILE, STDERR_FILE, STDOUT_FILE,
-};
+use crate::process_identification::constants::{DEFAULT_DAEMON_PORT, STDERR_FILE, STDOUT_FILE};
 use axum::Router;
 use std::net::SocketAddr;
 use tokio::task::JoinHandle;
@@ -140,7 +138,6 @@ impl DaemonServer {
     }
 
     pub fn cleanup() {
-        let _ = std::fs::remove_file(PID_FILE);
         let _ = std::fs::remove_file(STDOUT_FILE);
         let _ = std::fs::remove_file(STDERR_FILE);
     }
