@@ -47,7 +47,7 @@ pub struct TracerCliInitArgs {
     /// Capture logs at the specified level and above (default: info)
     /// Valid values: trace, debug, info, warn, error
     /// Output will be written to `daemon.log` in the working directory.
-    #[clap(long, default_value = "debug")]
+    #[clap(long, default_value = "info")]
     pub log_level: String,
 }
 

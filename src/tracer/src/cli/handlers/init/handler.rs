@@ -1,5 +1,5 @@
-use crate::cli::handlers::info;
 use crate::cli::handlers::init::arguments::TracerCliInitArgs;
+use crate::cli::handlers::{info, terminate};
 use crate::cli::helper::{create_necessary_files, wait};
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
@@ -11,7 +11,9 @@ use crate::process_identification::constants::{
 use crate::utils::analytics::types::AnalyticsEventType;
 use crate::utils::system_info::check_sudo;
 use crate::utils::{analytics, Sentry};
+use crate::{error_message, info_message, success_message, warning_message};
 use anyhow::Context;
+use colored::Colorize;
 use serde_json::Value;
 use std::fs::File;
 use std::process::{Command, Stdio};
@@ -19,6 +21,7 @@ use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::fmt::time::SystemTime;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::{fmt, EnvFilter};
+
 pub async fn init(
     args: TracerCliInitArgs,
     config: Config,
@@ -31,11 +34,15 @@ pub async fn init(
 
     // Create necessary files for logging and daemonizing
     create_necessary_files()?;
-
     // Check for port conflict before starting daemon
-    DaemonServer::shutdown_if_running().await?;
+    if DaemonServer::is_running() {
+        warning_message!("Daemon server is already running, trying to terminate it...");
+        if !terminate(&api_client).await {
+            return Ok(());
+        }
+    }
 
-    println!("Starting daemon...");
+    info_message!("Starting daemon...");
     let args = args.finalize();
     {
         // Layer tags on top of args
@@ -57,10 +64,11 @@ pub async fn init(
     }
 
     if !args.no_daemonize {
+        DaemonServer::cleanup();
         // Serialize the finalized args to pass to the spawned process
         let current_exe = std::env::current_exe()?;
 
-        println!("Spawning child process...");
+        info_message!("Spawning child process...");
 
         let child = Command::new(current_exe)
             .arg("init")
@@ -87,8 +95,7 @@ pub async fn init(
             .spawn()?;
 
         std::fs::write(PID_FILE, child.id().to_string())?;
-
-        println!("\nDaemon started successfully.");
+        success_message!("Daemon started successfully.");
 
         // Wait a moment for the daemon to start, then show info
         analytics::spawn_event(
@@ -96,8 +103,11 @@ pub async fn init(
             AnalyticsEventType::DaemonStartAttempted,
             None,
         );
-        wait(&api_client).await?;
-        info(&api_client, false).await?;
+        if !wait(&api_client).await {
+            error_message!("Daemon is not responding, please check logs");
+            return Ok(());
+        }
+        info(&api_client, false).await;
 
         return Ok(());
     }

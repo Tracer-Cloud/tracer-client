@@ -1,15 +1,16 @@
 use std::future::IntoFuture;
-use std::io;
 use std::sync::Arc;
+use std::{fs, io};
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 
 use crate::client::TracerClient;
 use crate::daemon::routes::ROUTES;
-use crate::daemon::server::helper::handle_port_conflict;
 use crate::daemon::server::process_monitor::monitor;
 use crate::daemon::state::DaemonState;
-use crate::process_identification::constants::{DEFAULT_DAEMON_PORT, STDERR_FILE, STDOUT_FILE};
+use crate::process_identification::constants::{
+    DEFAULT_DAEMON_PORT, LOG_FILE, MATCHES_FILE, PID_FILE, STDERR_FILE, STDOUT_FILE,
+};
 use axum::Router;
 use std::net::SocketAddr;
 use tokio::task::JoinHandle;
@@ -73,7 +74,6 @@ impl DaemonServer {
         monitor(client, cancellation_token, self.paused.clone()).await;
 
         self.terminate().await?;
-        DaemonServer::cleanup();
         Ok(())
     }
 
@@ -124,21 +124,11 @@ impl DaemonServer {
         false
     }
 
-    pub async fn shutdown_if_running() -> anyhow::Result<()> {
-        if !Self::is_running() {
-            return Ok(());
-        }
-        Self::shutdown().await
-    }
-    pub async fn shutdown() -> anyhow::Result<()> {
-        let port = DEFAULT_DAEMON_PORT;
-        handle_port_conflict(port).await?;
-        DaemonServer::cleanup();
-        Ok(())
-    }
-
     pub fn cleanup() {
-        let _ = std::fs::remove_file(STDOUT_FILE);
-        let _ = std::fs::remove_file(STDERR_FILE);
+        let _ = fs::remove_file(STDOUT_FILE);
+        let _ = fs::remove_file(STDERR_FILE);
+        let _ = fs::remove_file(PID_FILE);
+        let _ = fs::remove_file(LOG_FILE);
+        let _ = fs::remove_file(MATCHES_FILE);
     }
 }
