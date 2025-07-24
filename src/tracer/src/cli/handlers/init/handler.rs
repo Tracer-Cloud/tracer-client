@@ -1,5 +1,5 @@
-use crate::cli::handlers::info;
 use crate::cli::handlers::init::arguments::TracerCliInitArgs;
+use crate::cli::handlers::{info, terminate};
 use crate::cli::helper::{create_necessary_files, wait};
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
@@ -11,6 +11,7 @@ use crate::process_identification::constants::{
 use crate::utils::analytics::types::AnalyticsEventType;
 use crate::utils::system_info::check_sudo;
 use crate::utils::{analytics, Sentry};
+use crate::warning_message;
 use anyhow::Context;
 use serde_json::Value;
 use std::fs::File;
@@ -19,6 +20,7 @@ use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::fmt::time::SystemTime;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::{fmt, EnvFilter};
+
 pub async fn init(
     args: TracerCliInitArgs,
     config: Config,
@@ -33,7 +35,10 @@ pub async fn init(
     create_necessary_files()?;
 
     // Check for port conflict before starting daemon
-    DaemonServer::shutdown_if_running().await?;
+    if DaemonServer::is_running() {
+        warning_message!("Daemon server is already running, trying to terminate it...");
+        terminate(&api_client).await;
+    }
 
     println!("Starting daemon...");
     let args = args.finalize();
@@ -97,7 +102,7 @@ pub async fn init(
             None,
         );
         wait(&api_client).await?;
-        info(&api_client, false).await?;
+        info(&api_client, false).await;
 
         return Ok(());
     }

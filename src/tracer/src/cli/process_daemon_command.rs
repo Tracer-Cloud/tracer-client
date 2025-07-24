@@ -4,7 +4,7 @@ use crate::cli::handlers::info;
 use crate::config::Config;
 use crate::daemon::client::{DaemonClient, Result as DaemonResult};
 use crate::daemon::server::DaemonServer;
-use crate::{error_message, success_message, warning_message};
+use crate::warning_message;
 use anyhow::{anyhow, bail, Result};
 use colored::Colorize;
 use tokio::runtime::Runtime;
@@ -13,18 +13,13 @@ pub async fn process_daemon_command(command: Command, config: Config) {
     let api_client = DaemonClient::new(format!("http://{}", config.server));
     match command {
         Command::Init(args) => handlers::init(*args, config, api_client).await.unwrap(),
-        Command::Info { json } => info(&api_client, json).await.unwrap(),
+        Command::Info { json } => info(&api_client, json).await,
         Command::Terminate => {
             if !DaemonServer::is_running() {
                 warning_message!("Daemon server is not running, nothing to terminate.");
                 return;
             }
-            if let Err(e) = api_client.send_terminate_request().await {
-                DaemonServer::shutdown_if_running().await.unwrap();
-                error_message!("Failed to send terminate request to the daemon: {e}");
-                return;
-            }
-            success_message!("Daemon server terminated successfully.",);
+            handlers::terminate(&api_client).await
         }
         command => {
             process_retryable_daemon_command(command, api_client, Runtime::new().unwrap()).unwrap()

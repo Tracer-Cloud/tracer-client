@@ -2,21 +2,19 @@ use crate::daemon::client::DaemonClient;
 use crate::daemon::structs::InfoResponse;
 use crate::utils::cli::BoxFormatter;
 use crate::utils::Version;
-use anyhow::Result;
 
-pub async fn info(api_client: &DaemonClient, json: bool) -> Result<()> {
+pub async fn info(api_client: &DaemonClient, json: bool) {
     let info = match api_client.send_info_request().await {
         Ok(info) => info,
         Err(e) => {
             let mut display = InfoDisplay::new(80, json);
             tracing::error!("Error getting info response: {e}");
             display.print_error();
-            return Ok(());
+            return;
         }
     };
     let display = InfoDisplay::new(150, json);
     display.print(info);
-    Ok(())
 }
 
 pub struct InfoDisplay {

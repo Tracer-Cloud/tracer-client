@@ -6,7 +6,6 @@ use tokio::sync::Mutex;
 
 use crate::client::TracerClient;
 use crate::daemon::routes::ROUTES;
-use crate::daemon::server::helper::handle_port_conflict;
 use crate::daemon::server::process_monitor::monitor;
 use crate::daemon::state::DaemonState;
 use crate::process_identification::constants::{
@@ -124,19 +123,6 @@ impl DaemonServer {
             }
         }
         false
-    }
-
-    pub async fn shutdown_if_running() -> anyhow::Result<()> {
-        if !Self::is_running() {
-            return Ok(());
-        }
-        Self::shutdown().await
-    }
-    pub async fn shutdown() -> anyhow::Result<()> {
-        let port = DEFAULT_DAEMON_PORT;
-        handle_port_conflict(port).await?;
-        DaemonServer::cleanup();
-        Ok(())
     }
 
     pub fn cleanup() {
