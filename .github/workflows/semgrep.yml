@@ -98,7 +98,7 @@ jobs:
             echo "" >> semgrep.md
             jq -r '
               .results[] |
-              "### 🔍 [`\(.check_id)`](\(.extra.metadata.source // "#")) – **\(.extra.metadata.severity // "UNKNOWN")**\n" +
+              "### 🔍 [`\(.check_id)`](\(.extra.metadata.source // "#")) – **\(.extra.severity // "UNKNOWN")**\n" +
               "**File:** `\(.path):\(.start.line)`\n" +
               "**Message:** \(.extra.message)\n\n" +
               "<details><summary>Code Snippet</summary>\n\n```rust\n\(.extra.lines)\n```\n</details>\n"
