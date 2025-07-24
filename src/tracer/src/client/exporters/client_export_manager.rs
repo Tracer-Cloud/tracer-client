@@ -74,12 +74,10 @@ impl ExporterManager {
                     .await
                 {
                     Ok(_) => {
-                        debug!("Batch insert successful for attempt {}", i);
                         buff.clear();
                         return Ok(());
                     }
                     Err(e) => {
-                        debug!("Batch insert failed for attempt {}: {}", i, e);
                         error = Some(e);
                     }
                 }
@@ -87,7 +85,8 @@ impl ExporterManager {
             }
             panic!(
                 "Batch insert failed after {} attempts: {:?}",
-                attempts, error
+                attempts - 1,
+                error
             );
         }
 

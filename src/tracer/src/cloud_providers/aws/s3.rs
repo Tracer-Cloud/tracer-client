@@ -221,7 +221,7 @@ impl S3Client {
 pub mod tests {
     use super::*;
     use aws_config::meta::region::RegionProviderChain;
-    use dotenv::dotenv;
+    use dotenvy::dotenv;
     use serial_test::serial;
     use std::env;
     use tokio::time::{sleep, Duration};

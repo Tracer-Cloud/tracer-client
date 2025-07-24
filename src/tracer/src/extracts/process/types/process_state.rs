@@ -1,29 +1,21 @@
+use crate::process_identification::target_pipeline::pipeline_manager::TargetPipelineManager;
 use crate::process_identification::target_process::target_manager::TargetManager;
 use std::collections::{HashMap, HashSet};
 use tokio::task::JoinHandle;
 use tracer_ebpf::ebpf_trigger::{OutOfMemoryTrigger, ProcessStartTrigger};
 
 /// Internal state of the process manager
+#[derive(Default)]
 pub struct ProcessState {
     processes: HashMap<usize, ProcessStartTrigger>,
     monitoring: HashMap<String, HashSet<ProcessStartTrigger>>,
     target_manager: TargetManager,
+    pipeline_manager: TargetPipelineManager,
     ebpf_task: Option<JoinHandle<()>>,
     out_of_memory_victims: HashMap<usize, OutOfMemoryTrigger>,
 }
 
 impl ProcessState {
-    /// Creates a new empty ProcessState
-    pub fn new(target_manager: TargetManager) -> Self {
-        Self {
-            processes: HashMap::new(),
-            monitoring: HashMap::new(),
-            target_manager,
-            ebpf_task: None,
-            out_of_memory_victims: HashMap::new(),
-        }
-    }
-
     /// Removes a process trigger and returns it if it existed
     pub fn remove_process(&mut self, pid: &usize) -> Option<ProcessStartTrigger> {
         self.processes.remove(pid)
@@ -77,6 +69,14 @@ impl ProcessState {
 
     pub fn get_target_manager(&self) -> &TargetManager {
         &self.target_manager
+    }
+
+    pub fn get_pipeline_manager(&self) -> &TargetPipelineManager {
+        &self.pipeline_manager
+    }
+
+    pub fn get_pipeline_manager_mut(&mut self) -> &mut TargetPipelineManager {
+        &mut self.pipeline_manager
     }
 
     pub fn update_monitoring(

@@ -55,7 +55,7 @@ fi
 TRACER_HOME="$HOME/.tracerbio"
 
 PACKAGE_NAME="" # set later
-BINDIRS=("$HOME/bin" "$HOME/.local/bin" "$TRACER_HOME/bin")
+BINDIRS=("/usr/local/bin" "$HOME/bin" "$HOME/.local/bin" "$TRACER_HOME/bin")
 BINDIR="" # set later
 API_KEY="" # set later
 SUID_SETUP_FAILED=false  # Flag for SUID setup status

@@ -2,13 +2,14 @@ use super::commands::{Cli, Command};
 use super::handlers;
 use crate::config::Config;
 use crate::daemon::server::DaemonServer;
+use crate::success_message;
 use crate::utils::{Sentry, Version};
-use anyhow::Result;
 use clap::Parser;
+use colored::Colorize;
 
 /// Process the command line.
 /// Note: this has to be sync due to daemonizing
-pub fn process_command() -> Result<()> {
+pub fn process_command() {
     // setting env var to prevent fork safety issues on macOS
     // TODO: can we annotate this with #[cfg(target_os = "macos")]?
     std::env::set_var("OBJC_DISABLE_INITIALIZE_FORK_SAFETY", "YES");
@@ -25,17 +26,15 @@ pub fn process_command() -> Result<()> {
     match cli.command {
         Command::Cleanup => {
             DaemonServer::cleanup();
-            println!("Daemon files cleanup completed.");
-            Ok(())
+            success_message!("Daemon files cleanup completed.");
         }
         Command::Version => {
             println!("{}", Version::current());
-            Ok(())
         }
         Command::Update => handlers::update(),
         Command::Uninstall => handlers::uninstall(),
-        command => {
-            tokio::runtime::Runtime::new()?.block_on(super::process_daemon_command(command, config))
-        }
-    }
+        command => tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(super::process_daemon_command(command, config)),
+    };
 }

@@ -99,9 +99,15 @@ pub async fn gather_process_data<P: ProcessTrait>(
     // calculate process run time in milliseconds
     let process_run_time = (Utc::now() - process_start_time).num_milliseconds().max(0) as u64;
 
+    // getting the process PID
+    let process_pid = proc.pid().as_u32().to_string();
+
+    // generating the tool_id to uniquely identify the tool
+    let tool_id = construct_tool_id(&process_pid, process_start_time);
+
     ProcessProperties::Full(Box::new(FullProcessProperties {
         tool_name: display_name,
-        tool_pid: proc.pid().as_u32().to_string(),
+        tool_pid: process_pid,
         tool_parent_pid: proc.parent().unwrap_or(0.into()).to_string(),
         tool_binary_path: proc
             .exe()
@@ -124,6 +130,7 @@ pub async fn gather_process_data<P: ProcessTrait>(
         working_directory,
         trace_id,
         container_event: None,
+        tool_id,
     }))
 }
 
@@ -154,6 +161,7 @@ pub fn create_short_lived_process_object(
         working_directory: None,
         trace_id: None,
         container_event: None,
+        tool_id: construct_tool_id(&process.pid.to_string(), Utc::now()),
     }))
 }
 
@@ -243,6 +251,16 @@ pub fn get_process_argv(pid: i32) -> Vec<String> {
                 })
         })
         .unwrap_or_default()
+}
+
+// function to construct a unique identifier for the tool
+// it will be done by relating the PID and the start timestamp of the process
+// the start time will be converted in nanosecond to have the minimum possible chances of conflicts
+pub fn construct_tool_id(pid: &String, start_time: DateTime<Utc>) -> String {
+    // Convert to nanoseconds
+    let timestamp_nano_seconds = start_time.timestamp_nanos_opt().unwrap();
+
+    format!("{}-{}", pid, timestamp_nano_seconds)
 }
 
 #[cfg(test)]
