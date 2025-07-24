@@ -5,28 +5,25 @@ use crate::client::exporters::log_writer::LogWriterEnum;
 use crate::cloud_providers::aws::pricing::PricingSource;
 use crate::config::Config;
 use crate::extracts::containers::DockerWatcher;
-use crate::extracts::ebpf_watcher::watcher::EbpfWatcher;
 use crate::extracts::metrics::system_metrics_collector::SystemMetricsCollector;
+use crate::extracts::process_watcher::watcher::ProcessWatcher;
 use crate::process_identification::recorder::LogRecorder;
-use crate::process_identification::target_process::target_manager::TargetManager;
 use crate::process_identification::types::current_run::PipelineMetadata;
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::{Event, ProcessStatus};
-#[cfg(target_os = "linux")]
+
 use crate::utils::system_info::get_kernel_version;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use sysinfo::System;
 use tokio::sync::{mpsc, RwLock};
-#[cfg(target_os = "linux")]
-use tracing::warn;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 pub struct TracerClient {
     system: Arc<RwLock<System>>, // todo: use arc swap
 
-    pub ebpf_watcher: Arc<EbpfWatcher>,
+    pub process_watcher: Arc<ProcessWatcher>,
     docker_watcher: Arc<DockerWatcher>,
 
     metrics_collector: SystemMetricsCollector,
@@ -35,7 +32,7 @@ pub struct TracerClient {
 
     pub pricing_client: PricingSource,
     config: Config,
-
+    force_procfs: bool,
     log_recorder: LogRecorder,
     pub exporter: Arc<ExporterManager>,
 
@@ -62,7 +59,7 @@ impl TracerClient {
 
         let docker_watcher = Arc::new(DockerWatcher::new(log_recorder.clone()));
 
-        let ebpf_watcher = Self::init_ebpf_watcher(&log_recorder, docker_watcher.clone());
+        let process_watcher = Self::init_process_watcher(&log_recorder, docker_watcher.clone());
 
         let exporter = Arc::new(ExporterManager::new(db_client, rx, pipeline.clone()));
 
@@ -75,12 +72,12 @@ impl TracerClient {
             pipeline,
 
             metrics_collector,
-            ebpf_watcher,
+            process_watcher,
             exporter,
             pricing_client,
             config,
             log_recorder,
-
+            force_procfs: cli_args.force_procfs,
             pipeline_name: cli_args.pipeline_name,
             run_id: cli_args.run_id,
             run_name: cli_args.run_name,
@@ -109,16 +106,11 @@ impl TracerClient {
         (log_recorder, rx)
     }
 
-    fn init_ebpf_watcher(
+    fn init_process_watcher(
         log_recorder: &LogRecorder,
         docker_watcher: Arc<DockerWatcher>,
-    ) -> Arc<EbpfWatcher> {
-        let target_manager = TargetManager::default(); //TODO add possibility to pass in targets
-        Arc::new(EbpfWatcher::new(
-            target_manager,
-            log_recorder.clone(),
-            docker_watcher,
-        ))
+    ) -> Arc<ProcessWatcher> {
+        Arc::new(ProcessWatcher::new(log_recorder.clone(), docker_watcher))
     }
 
     fn init_watchers(
@@ -135,16 +127,15 @@ impl TracerClient {
     /// On non-Linux platforms, polling is used by default.
     pub async fn start_monitoring(&self) -> Result<()> {
         self.start_docker_monitoring().await;
-        #[cfg(target_os = "linux")]
-        {
+        if !self.force_procfs && cfg!(target_os = "linux") {
             let kernel_version = get_kernel_version();
-            match kernel_version {
+            return match kernel_version {
                 Some((major, minor)) if major > 5 || (major == 5 && minor >= 15) => {
                     info!(
                         "Starting eBPF monitoring on Linux kernel {}.{}",
                         major, minor
                     );
-                    match self.ebpf_watcher.start_ebpf().await {
+                    match self.process_watcher.start_ebpf().await {
                         Ok(_) => {
                             info!("eBPF monitoring started successfully");
                             Ok(())
@@ -154,11 +145,7 @@ impl TracerClient {
                                 "Failed to start eBPF monitoring: {}. Falling back to process polling.",
                                 e
                             );
-                            info!("Starting process polling monitoring (eBPF fallback)");
-                            self.ebpf_watcher
-                                .start_process_polling(self.config.process_polling_interval_ms)
-                                .await
-                                .context("Failed to start process polling after eBPF failure")
+                            self.start_process_polling().await
                         }
                     }
                 }
@@ -167,41 +154,31 @@ impl TracerClient {
                         "Kernel version {}.{} is too old for eBPF support (requires 5.15+), falling back to process polling",
                         major, minor
                     );
-                    self.ebpf_watcher
-                        .start_process_polling(self.config.process_polling_interval_ms)
-                        .await
-                        .context(
-                            "Failed to start process polling due to unsupported kernel version",
-                        )
+                    self.start_process_polling().await
                 }
                 None => {
                     error!("Failed to detect kernel version, falling back to process polling");
-                    self.ebpf_watcher
-                        .start_process_polling(self.config.process_polling_interval_ms)
-                        .await
-                        .context("Failed to start process polling after kernel version detection failure")
+                    self.start_process_polling().await
                 }
-            }
+            };
         }
 
-        #[cfg(not(target_os = "linux"))]
+        self.start_process_polling().await
+    }
+    async fn start_process_polling(&self) -> Result<()> {
+        info!("Starting process polling monitoring");
+        match self
+            .process_watcher
+            .start_process_polling(self.get_config().process_polling_interval_ms)
+            .await
         {
-            info!("Detected MacOS. eBPF is not supported on MacOS.");
-            info!("Starting process polling monitoring on non-Linux platform");
-            match self
-                .ebpf_watcher
-                .start_process_polling(self.get_config().process_polling_interval_ms)
-                .await
-            {
-                Ok(_) => {
-                    info!("Process polling monitoring started successfully");
-                    Ok(())
-                }
-                Err(e) => {
-                    error!("Failed to start process polling monitoring: {}", e);
-                    Err(e)
-                        .context("Failed to start process polling monitoring on non-Linux platform")
-                }
+            Ok(_) => {
+                info!("Process polling monitoring started successfully");
+                Ok(())
+            }
+            Err(e) => {
+                error!("Failed to start process polling monitoring: {}", e);
+                Err(e).context("Failed to start process polling monitoring on non-Linux platform")
             }
         }
     }
@@ -275,7 +252,7 @@ impl TracerClient {
 
     #[tracing::instrument(skip(self))]
     pub async fn poll_process_metrics(&mut self) -> Result<()> {
-        self.ebpf_watcher.poll_process_metrics().await
+        self.process_watcher.poll_process_metrics().await
     }
 
     #[tracing::instrument(skip(self))]

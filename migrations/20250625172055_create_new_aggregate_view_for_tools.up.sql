@@ -28,7 +28,7 @@ INSERT INTO tool_aggregations (
 SELECT
     bjl.pipeline_name,
     bjl.run_name,
-    NULLIF(TRIM(bjl.attributes ->> 'process.tool_name'), '') as tool_name,
+    bjl.attributes->>'process.tool_name' AS tool_name,
     MIN(bjl.attributes->>'process.tool_cmd') AS tool_cmd,
     COUNT(*) AS times_called,
     MAX((bjl.attributes->>'process.process_cpu_utilization')::FLOAT) AS max_cpu_utilization,
@@ -40,11 +40,13 @@ SELECT
     SUM(COALESCE((bjl.attributes->>'process.process_run_time')::BIGINT,0)) AS total_runtime,
     MIN(bjl.timestamp) AS first_seen,
     MAX(bjl.timestamp) AS last_seen,
-    STRING_AGG(DISTINCT NULLIF(TRIM(bjl.attributes->>'completed_process.exit_reason'),''), ', ') AS exit_reasons,
-    NULL
+    string_agg(DISTINCT NULLIF(TRIM(bjl.attributes->>'completed_process.exit_reason'),''), ', ') AS exit_reasons,
+    null
 FROM batch_jobs_logs bjl
-WHERE NULLIF(TRIM(bjl.attributes ->> 'process.tool_name'), '') IS NOT NULL
-GROUP BY bjl.pipeline_name, bjl.run_name, tool_name;
+WHERE bjl.attributes->>'process.tool_name' IS NOT NULL
+  AND bjl.attributes->>'process.tool_name' != ''
+GROUP BY bjl.pipeline_name, bjl.run_name, bjl.attributes->>'process.tool_name';
+
 
 CREATE OR REPLACE FUNCTION update_tool_aggregations()
 RETURNS TRIGGER AS $$

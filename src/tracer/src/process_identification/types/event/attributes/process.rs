@@ -1,4 +1,5 @@
 use crate::extracts::containers::docker_watcher::event::ContainerEvent;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use tracer_ebpf::ebpf_trigger::ExitReason;
 
@@ -34,6 +35,7 @@ pub struct FullProcessProperties {
     pub working_directory: Option<String>,
     pub trace_id: Option<String>,
     pub container_event: Option<ContainerEvent>,
+    pub tool_id: String, // the tool_id is useful to uniquely identify a tool
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -43,10 +45,13 @@ pub enum ProcessProperties {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompletedProcess {
+    pub tool_id: String,
     pub tool_name: String,
     pub tool_pid: String,
     pub duration_sec: u64,
     pub exit_reason: Option<ExitReason>,
+    pub started_at: DateTime<Utc>,
+    pub ended_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

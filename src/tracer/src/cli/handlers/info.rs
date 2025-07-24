@@ -1,23 +1,20 @@
 use crate::daemon::client::DaemonClient;
 use crate::daemon::structs::InfoResponse;
-use crate::process_identification::constants::{LOG_FILE, STDERR_FILE, STDOUT_FILE};
 use crate::utils::cli::BoxFormatter;
 use crate::utils::Version;
-use anyhow::Result;
 
-pub async fn info(api_client: &DaemonClient, json: bool) -> Result<()> {
+pub async fn info(api_client: &DaemonClient, json: bool) {
     let info = match api_client.send_info_request().await {
         Ok(info) => info,
         Err(e) => {
             let mut display = InfoDisplay::new(80, json);
             tracing::error!("Error getting info response: {e}");
             display.print_error();
-            return Ok(());
+            return;
         }
     };
     let display = InfoDisplay::new(150, json);
     display.print(info);
-    Ok(())
 }
 
 pub struct InfoDisplay {
@@ -41,7 +38,6 @@ impl InfoDisplay {
 
         self.format_status_pipeline_info(&mut formatter, info);
 
-        self.format_log_files(&mut formatter);
         formatter.add_footer();
         println!("{}", formatter.get_output());
     }
@@ -63,9 +59,13 @@ impl InfoDisplay {
                 "name": &inner.run_name,
                 "id": &inner.run_id,
                 "monitored_processes": &info.process_count(),
+                "monitored_tasks": &info.tasks_count(),
             });
             if info.process_count() > 0 {
                 json["run"]["processes"] = serde_json::json!(info.processes_preview(None));
+            }
+            if info.tasks_count() > 0 {
+                json["run"]["tasks"] = serde_json::json!(info.tasks_preview(None));
             }
             json["run"]["dashboard_url"] = serde_json::json!(inner.get_run_url());
             if let Some(summary) = &inner.cost_summary {
@@ -79,11 +79,6 @@ impl InfoDisplay {
             });
             return;
         }
-        json["log_files"] = serde_json::json!({
-            "stdout": STDOUT_FILE,
-            "stderr": STDERR_FILE,
-            "daemon": LOG_FILE,
-        });
         println!("{}", serde_json::to_string_pretty(&json).unwrap());
     }
 
@@ -121,6 +116,7 @@ impl InfoDisplay {
         let pipeline_user = inner.tags.user_operator.as_deref().unwrap_or("Not set");
 
         let monitored_processes = info.process_count();
+        let monitored_tasks = info.tasks_count();
 
         formatter.add_field("Pipeline name", &inner.pipeline_name, "cyan");
         formatter.add_field("Pipeline type", pipeline_type, "white");
@@ -142,6 +138,18 @@ impl InfoDisplay {
             formatter.add_field(
                 "Processes preview",
                 &info.processes_preview(Self::PREVIEW_LENGTH),
+                "white",
+            );
+        }
+        formatter.add_field(
+            "Monitored tasks",
+            &format!("{} tasks", monitored_tasks),
+            "yellow",
+        );
+        if monitored_tasks > 0 {
+            formatter.add_field(
+                "Tasks preview",
+                &info.tasks_preview(Self::PREVIEW_LENGTH),
                 "white",
             );
         }
@@ -182,15 +190,5 @@ impl InfoDisplay {
         formatter.add_empty_line();
         formatter.add_footer();
         println!("{}", formatter.get_output());
-    }
-
-    fn format_log_files(&self, formatter: &mut BoxFormatter) {
-        formatter.add_section_header("Log files");
-        formatter.add_empty_line();
-
-        formatter.add_field("Standard output", &format!("  {}", STDOUT_FILE), "white");
-        formatter.add_field("Err output", &format!("  {}", STDERR_FILE), "white");
-        formatter.add_field("Daemon output", &format!("  {}", LOG_FILE), "white");
-        formatter.add_empty_line();
     }
 }

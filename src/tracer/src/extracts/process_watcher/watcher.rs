@@ -1,9 +1,8 @@
 use crate::extracts::containers::DockerWatcher;
-use crate::extracts::ebpf_watcher::handler::trigger::trigger_processor::TriggerProcessor;
 use crate::extracts::process::extract_process_data::get_process_argv;
 use crate::extracts::process::process_manager::ProcessManager;
+use crate::extracts::process_watcher::handler::trigger::trigger_processor::TriggerProcessor;
 use crate::process_identification::recorder::LogRecorder;
-use crate::process_identification::target_process::target_manager::TargetManager;
 use anyhow::{Error, Result};
 use std::collections::HashSet;
 use std::fs::{self};
@@ -18,27 +17,22 @@ use tracer_ebpf::ebpf_trigger::{
 use tracing::{debug, error, info};
 
 /// Watches system processes and records events related to them
-pub struct EbpfWatcher {
+pub struct ProcessWatcher {
     ebpf_initialized: Arc<Mutex<bool>>,
     process_manager: Arc<RwLock<ProcessManager>>,
     trigger_processor: TriggerProcessor,
     // here will go the file manager for dataset recognition operations
 }
 
-impl EbpfWatcher {
-    pub fn new(
-        target_manager: TargetManager,
-        log_recorder: LogRecorder,
-        docker_watcher: Arc<DockerWatcher>,
-    ) -> Self {
+impl ProcessWatcher {
+    pub fn new(log_recorder: LogRecorder, docker_watcher: Arc<DockerWatcher>) -> Self {
         // instantiate the process manager
         let process_manager = Arc::new(RwLock::new(ProcessManager::new(
-            target_manager.clone(),
             log_recorder.clone(),
             docker_watcher,
         )));
 
-        EbpfWatcher {
+        ProcessWatcher {
             ebpf_initialized: Arc::new(Mutex::new(false)),
             trigger_processor: TriggerProcessor::new(Arc::clone(&process_manager)),
             process_manager,
@@ -295,5 +289,9 @@ impl EbpfWatcher {
             .await
             .get_monitored_processes()
             .await
+    }
+
+    pub async fn get_matched_tasks(&self) -> HashSet<String> {
+        self.process_manager.read().await.get_matched_tasks().await
     }
 }

@@ -3,6 +3,7 @@ ALTER TABLE runs_aggregations ADD COLUMN IF NOT EXISTS exit_explanations text DE
 
 CREATE TABLE IF NOT EXISTS runs_aggregations_exit_code_temp AS
 SELECT
+    ev.trace_id,
     STRING_AGG(DISTINCT ev.pipeline_name, '') as pipeline_name,
     STRING_AGG(DISTINCT ev.run_name, '') as run_name,
     MAX(
@@ -200,9 +201,9 @@ $$ LANGUAGE plpgsql;
 
 
 -- Now attach the trigger to the events table
-DROP TRIGGER IF EXISTS trigger_update_runs_aggregation ON batch_jobs_logs;
+DROP TRIGGER IF EXISTS trigger_update_runs_aggregation ON events;
 
 CREATE TRIGGER trigger_update_runs_aggregation
-    AFTER INSERT ON batch_jobs_logs
+    AFTER INSERT ON events
     FOR EACH ROW
     EXECUTE FUNCTION update_runs_aggregation();

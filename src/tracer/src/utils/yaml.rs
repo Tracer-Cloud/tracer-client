@@ -1,26 +1,10 @@
 use anyhow::{anyhow, bail, Result};
-use std::collections::HashSet;
 use std::fs;
-use std::hash::Hash;
 use std::path::Path;
-use tracing::error;
 use yaml_rust2::YamlLoader;
 
 // re-export Yaml for convenience
 pub use yaml_rust2::Yaml;
-
-pub fn load_from_yaml_array_files<T: TryFrom<Yaml, Error = anyhow::Error> + Hash + Eq>(
-    yaml_files: &[YamlFile],
-    key: &str,
-) -> HashSet<T> {
-    let mut result = HashSet::new();
-    for yaml_file in yaml_files {
-        if let Err(e) = yaml_file.load_into(key, &mut result) {
-            error!("Error loading yaml file {:?}: {}", yaml_file, e);
-        }
-    }
-    result
-}
 
 #[derive(Clone, Debug)]
 pub enum YamlFile {
@@ -30,36 +14,27 @@ pub enum YamlFile {
 }
 
 impl YamlFile {
-    fn load_into<T: TryFrom<Yaml, Error = anyhow::Error> + Hash + Eq>(
-        &self,
-        key: &str,
-        dest: &mut HashSet<T>,
-    ) -> Result<()> {
+    pub fn load<T: TryFrom<Yaml, Error = anyhow::Error>>(&self, key: &str) -> Result<Vec<T>> {
         match self {
-            Self::Embedded(yaml) => load_from_yaml_array_str(yaml, key, dest),
-            Self::StaticPath(path) => load_from_yaml_array_file(path, key, dest),
-            Self::DynamicPath(path) => load_from_yaml_array_file(path, key, dest),
+            Self::Embedded(yaml) => load_from_yaml_array_str(yaml, key),
+            Self::StaticPath(path) => load_from_yaml_array_file(path, key),
+            Self::DynamicPath(path) => load_from_yaml_array_file(path, key),
         }
     }
 }
 
-pub fn load_from_yaml_array_file<
-    P: AsRef<Path>,
-    T: TryFrom<Yaml, Error = anyhow::Error> + Hash + Eq,
->(
+pub fn load_from_yaml_array_file<P: AsRef<Path>, T: TryFrom<Yaml, Error = anyhow::Error>>(
     path: P,
     key: &str,
-    dest: &mut HashSet<T>,
-) -> Result<()> {
+) -> Result<Vec<T>> {
     let yaml_str = fs::read_to_string(path.as_ref())?;
-    load_from_yaml_array_str(&yaml_str, key, dest)
+    load_from_yaml_array_str(&yaml_str, key)
 }
 
-pub fn load_from_yaml_array_str<T: TryFrom<Yaml, Error = anyhow::Error> + Hash + Eq>(
+pub fn load_from_yaml_array_str<T: TryFrom<Yaml, Error = anyhow::Error>>(
     yaml_str: &str,
     key: &str,
-    dest: &mut HashSet<T>,
-) -> Result<()> {
+) -> Result<Vec<T>> {
     let docs = YamlLoader::load_from_str(yaml_str)?;
     docs.into_iter()
         .next()
@@ -69,11 +44,8 @@ pub fn load_from_yaml_array_str<T: TryFrom<Yaml, Error = anyhow::Error> + Hash +
         .remove(&Yaml::String(key.into()))
         .ok_or(anyhow!("Missing top-level key {}", key))?
         .into_iter()
-        .try_for_each(|yaml| {
-            yaml.try_into().map(|t| {
-                dest.insert(t);
-            })
-        })
+        .map(|yaml| yaml.try_into())
+        .collect()
 }
 
 pub trait YamlExt: Sized {

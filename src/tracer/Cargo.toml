@@ -14,7 +14,6 @@ build = "build.rs"
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true }
-daemonize = { workspace = true }
 octocrab = { workspace = true }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
 tokio-retry = { workspace = true }
@@ -59,13 +58,12 @@ shlex = { workspace = true }
 bollard = { workspace = true }
 futures-util = { workspace = true }
 multi_index_map = { workspace = true }
-serde_regex = { workspace = true }
 dashmap = { workspace = true }
 termion = { workspace = true }
 
 [dev-dependencies]
 sqlx = { workspace = true }
-dotenv = { workspace = true }
+dotenvy = { workspace = true }
 serial_test = { workspace = true }
 uuid = { workspace = true }
 rstest = { workspace = true }

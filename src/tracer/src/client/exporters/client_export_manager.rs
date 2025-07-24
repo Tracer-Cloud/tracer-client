@@ -27,10 +27,15 @@ impl ExporterManager {
         }
     }
 
-    pub async fn submit_batched_data(self: &Arc<Self>) -> anyhow::Result<()> {
+    pub async fn submit_batched_data(
+        self: &Arc<Self>,
+        attempts: u64,
+        delay: u64,
+    ) -> anyhow::Result<()> {
         let mut rx = self.rx.lock().await;
 
         if rx.is_empty() {
+            println!("No data to submit, exiting submit_batched_data");
             return Ok(());
         }
 
@@ -55,14 +60,34 @@ impl ExporterManager {
 
         let mut buff: Vec<Event> = Vec::with_capacity(100);
         if rx.recv_many(&mut buff, 100).await > 0 {
-            debug!("inserting: {:?}", buff);
-
-            self.db_client
-                .batch_insert_events(run_name, run_id, &pipeline.pipeline_name, buff.as_slice())
-                .await
-                .map_err(|err| anyhow::anyhow!("Error submitting batch events {:?}", err))?;
-
-            buff.clear();
+            let attempts = attempts + 1;
+            let mut error = None;
+            for i in 1..attempts {
+                debug!("inserting (attempt {}): {:?} with attempt P", i, buff);
+                if buff.is_empty() {
+                    debug!("No data received in batch, exiting submit_batched_data");
+                    return Ok(());
+                }
+                match self
+                    .db_client
+                    .batch_insert_events(run_name, run_id, &pipeline.pipeline_name, buff.as_slice())
+                    .await
+                {
+                    Ok(_) => {
+                        buff.clear();
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        error = Some(e);
+                    }
+                }
+                tokio::time::sleep(tokio::time::Duration::from_millis(delay)).await;
+            }
+            panic!(
+                "Batch insert failed after {} attempts: {:?}",
+                attempts - 1,
+                error
+            );
         }
 
         Ok(())

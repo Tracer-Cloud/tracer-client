@@ -68,6 +68,8 @@ impl ProcessMetricsHandler {
                     ProcessResult::NotFound => {
                         debug!("Process PID={} no longer running - will be cleaned up on next termination event", proc.pid);
                         not_found_count += 1;
+
+                        // TODO bug process polling on EXITTRIGGER
                     }
                 }
             }

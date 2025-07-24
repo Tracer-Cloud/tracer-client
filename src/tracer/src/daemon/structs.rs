@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::constants::{GRAFANA_PIPELINE_DASHBOARD_BASE, GRAFANA_RUN_DASHBOARD_BASE};
+use crate::constants::DASHBOARD_BASE;
 use crate::process_identification::types::current_run::{PipelineCostSummary, PipelineMetadata};
 use crate::process_identification::types::pipeline_tags::PipelineTags;
 use chrono::{DateTime, TimeDelta, Utc};
@@ -12,6 +12,7 @@ use serde_json::Value;
 pub struct InfoResponse {
     pub inner: Option<InnerInfoResponse>,
     processes: HashSet<String>,
+    tasks: HashSet<String>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -23,13 +24,24 @@ pub struct InnerInfoResponse {
     pub tags: PipelineTags,
     pub cost_summary: Option<PipelineCostSummary>,
 }
+
 impl InfoResponse {
-    pub fn new(inner: Option<InnerInfoResponse>, processes: HashSet<String>) -> Self {
-        Self { inner, processes }
+    pub fn new(
+        inner: Option<InnerInfoResponse>,
+        processes: HashSet<String>,
+        tasks: HashSet<String>,
+    ) -> Self {
+        Self {
+            inner,
+            processes,
+            tasks,
+        }
     }
+
     pub fn process_count(&self) -> usize {
         self.processes.len()
     }
+
     pub fn processes_preview(&self, limit: Option<usize>) -> String {
         if let Some(limit) = limit {
             self.processes.iter().take(limit).join(", ")
@@ -40,6 +52,18 @@ impl InfoResponse {
 
     pub fn processes_json(&self) -> Value {
         serde_json::json!(self.processes)
+    }
+
+    pub fn tasks_count(&self) -> usize {
+        self.tasks.len()
+    }
+
+    pub fn tasks_preview(&self, limit: Option<usize>) -> String {
+        if let Some(limit) = limit {
+            self.tasks.iter().take(limit).join(", ")
+        } else {
+            self.tasks.iter().join(", ")
+        }
     }
 }
 
@@ -66,16 +90,10 @@ impl TryFrom<PipelineMetadata> for InnerInfoResponse {
 }
 
 impl InnerInfoResponse {
-    pub fn get_pipeline_url(&self) -> String {
-        format!(
-            "{}?var-pipeline_name={}",
-            GRAFANA_PIPELINE_DASHBOARD_BASE, self.pipeline_name
-        )
-    }
     pub fn get_run_url(&self) -> String {
         format!(
-            "{}?var-run_name={}&var-pipeline_name={}",
-            GRAFANA_RUN_DASHBOARD_BASE, self.run_name, self.pipeline_name
+            "{}/{}/{}",
+            DASHBOARD_BASE, self.pipeline_name, self.run_name
         )
     }
     pub fn total_runtime(&self) -> TimeDelta {

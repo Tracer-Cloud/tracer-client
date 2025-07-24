@@ -1,9 +1,9 @@
 use crate::daemon::server::DaemonServer;
-use anyhow::{bail, Context, Result};
+use crate::{success_message, warning_message};
 use colored::Colorize;
 use std::process::Command;
 
-pub fn update() -> Result<()> {
+pub fn update() {
     // TODO commenting out for now, as we get the s3 main release
     // let octocrab = octocrab::instance();
     // let release = octocrab
@@ -43,8 +43,10 @@ pub fn update() -> Result<()> {
     // println!("\nUpdating Tracer to version {}...", latest_ver);
 
     if DaemonServer::is_running() {
-        println!("\n{} Tracer daemon is currently running. Please run `tracer terminate` before updating", "Warning:".yellow());
-        return Ok(());
+        warning_message!(
+            "Tracer daemon is currently running. Please run `tracer terminate` before updating"
+        );
+        return;
     }
 
     let install_cmd = format!(
@@ -64,24 +66,18 @@ pub fn update() -> Result<()> {
 
     let mut command = Command::new("sh");
     command.arg("-c").arg(install_cmd);
-    let status = command
-        .status()
-        .context("Failed to update Tracer. Please try again.")?;
+    let status = command.status();
 
-    if !status.success() {
-        bail!("Failed to update Tracer. Please try again.");
+    if status.is_err() || !status.unwrap().success() {
+        warning_message!("Failed to update Tracer. Please try again.");
+        return;
     }
 
-    println!(
-        "\n{} Tracer has been successfully updated!",
-        "Success:".green(),
-        // latest_ver
-    );
+    success_message!("Tracer has been successfully updated!");
 
     // println!(
     //     "\n{} Tracer has been successfully updated to version {}!",
     //     "Success:".green(),
     //     latest_ver
     // );
-    Ok(())
 }
