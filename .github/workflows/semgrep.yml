@@ -53,11 +53,13 @@ jobs:
           fetch-depth: 0
 
       - name: Run Semgrep diff-aware scan (Rust + OWASP)
+        env:
+          BASELINE_COMMIT: ${{ github.event.pull_request.base.sha }}
         run: |
           semgrep scan \
             --error \
             --metrics=off \
-            --baseline-commit $ \
+            --baseline-commit "$BASELINE_COMMIT" \
             --config "p/rust" \
             --config "p/owasp-top-ten"
      
