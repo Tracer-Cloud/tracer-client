@@ -29,7 +29,6 @@ jobs:
       - name: Run Semgrep scan (Rust + OWASP)
         env:
           SEMGREP_SUPPRESS_ERRORS: true
-          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
         # https://semgrep.dev/docs/semgrep-ci/configuring-blocking-and-errors-in-ci#configuration-options-for-blocking-findings-and-errors-in-ci
         run: |
           semgrep ci \
