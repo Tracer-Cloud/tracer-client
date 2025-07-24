@@ -28,7 +28,10 @@ jobs:
         env:
           SEMGREP_SUPPRESS_ERRORS: true
         run: |
-          semgrep ci --config "p/rust" --config "p/owasp-top-ten" --sarif --suppress-errors > semgrep.sarif || true
+          semgrep ci \
+            --config "p/rust" \
+            --config "p/owasp-top-ten" \
+            --sarif --suppress-errors > semgrep.sarif || true
 
       - name: Upload SARIF report to GitHub Security tab
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -51,12 +54,10 @@ jobs:
 
       - name: Run Semgrep diff-aware scan (Rust + OWASP)
         run: |
-          semgrep ci \
+          semgrep scan \
+            --error \
+            --metrics=off \
+            --baseline-commit $ \
             --config "p/rust" \
-            --config "p/owasp-top-ten" \
-            --sarif > semgrep-pr.sarif
-
-      - uses: github/codeql-action/upload-sarif@v3.29.4
-        with:
-          sarif_file: semgrep-pr.sarif
-          category: semgrep
+            --config "p/owasp-top-ten"
+     
