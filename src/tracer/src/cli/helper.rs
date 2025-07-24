@@ -2,6 +2,7 @@ use crate::daemon::client::DaemonClient;
 use crate::process_identification::constants::{PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR};
 use crate::utils::file_system::ensure_file_can_be_created;
 use anyhow::{bail, Context, Result};
+use std::os::unix::fs::PermissionsExt;
 use tokio::time::sleep;
 use tracing::debug;
 
@@ -10,6 +11,14 @@ pub(super) fn create_necessary_files() -> Result<()> {
     std::fs::create_dir_all(WORKING_DIR)
         .with_context(|| format!("Failed to create working directory: {}", WORKING_DIR))?;
 
+    let mut perms = std::fs::metadata(WORKING_DIR)?.permissions();
+    perms.set_mode(0o777);
+    std::fs::set_permissions(WORKING_DIR, perms).with_context(|| {
+        format!(
+            "Failed to set permissions for working directory: {}",
+            WORKING_DIR
+        )
+    })?;
     // Ensure directories for all files exist
     for file_path in [STDOUT_FILE, STDERR_FILE, PID_FILE] {
         ensure_file_can_be_created(file_path)?;
