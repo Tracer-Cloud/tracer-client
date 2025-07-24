@@ -1,3 +1,8 @@
+use super::platform::PlatformInfo;
+use crate::constants::WORKING_DIR;
+use crate::installer::url_builder::TracerUrlFinder;
+use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
+use crate::utils::{print_label, print_status, print_summary, print_title, PrintEmoji};
 use anyhow::{Context, Result};
 use colored::Colorize;
 use flate2::read::GzDecoder;
@@ -6,8 +11,8 @@ use futures_util::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::Client;
 use std::collections::HashMap;
-use std::fs::File as StdFile;
-use std::os::unix::fs::PermissionsExt;
+use std::fs::{DirBuilder, File as StdFile};
+use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use tar::Archive;
 use tokio::fs::OpenOptions;
@@ -18,11 +23,6 @@ use tokio::{
 };
 use tokio_retry::strategy::{jitter, ExponentialBackoff};
 use tokio_retry::Retry;
-
-use super::platform::PlatformInfo;
-use crate::installer::url_builder::TracerUrlFinder;
-use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
-use crate::utils::{print_label, print_status, print_summary, print_title, PrintEmoji};
 
 const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics";
 const TRACER_INSTALLATION_PATH: &str = "/usr/local/bin";
@@ -272,8 +272,11 @@ impl Installer {
 
     /// Creates a temporary working directory at `/tmp/tracer`.
     fn create_tracer_tmp_dir() -> Result<()> {
-        let path = Path::new("/tmp/tracer");
-        std::fs::create_dir_all(path).map_err(|err| anyhow::anyhow!(err))
+        let mut builder = DirBuilder::new();
+        builder.mode(0o777);
+        builder.recursive(true);
+        builder.create(WORKING_DIR)?;
+        Ok(())
     }
 
     async fn build_install_metadata(&self) -> HashMap<String, String> {
