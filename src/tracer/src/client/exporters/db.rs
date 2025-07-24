@@ -2,7 +2,6 @@ use crate::process_identification::types::{event::Event, extracts::db::EventInse
 use anyhow::{bail, Context, Result};
 use log::info;
 use sqlx::pool::PoolOptions;
-use sqlx::postgres::PgPoolOptions;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 
 use crate::config::Config;
@@ -60,14 +59,20 @@ impl AuroraClient {
         let Some(database_host) = config.database_host.as_deref() else {
             bail!("No database host found");
         };
-        println!("db host and password: {encoded_password} ..> db host: {database_host}");
 
-        let url = "postgresql://myuser:mypassword@localhost/mydb";
-        let pool = PgPoolOptions::new()
-            .max_connections(5)
-            .connect(url) // ruleid: pg-connection-url
+        let url = format!(
+            "postgres://{}:{}@{}/{}",
+            db_secrets.username, encoded_password, database_host, config.database_name
+        );
+
+        // Use PgPoolOptions to set max_size
+        let pool = PoolOptions::new()
+            .max_connections(pool_size.unwrap_or(100))
+            .connect(&url)
             .await
-            .context("Failed to connect")?;
+            .context("Failed establish connection")?;
+
+        info!("Successfully created connection pool");
 
         Ok(AuroraClient { pool })
     }
