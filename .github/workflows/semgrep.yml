@@ -3,6 +3,8 @@ name: Semgrep Security Scanning
 permissions:
   contents: read
   security-events: write
+  pull-requests: write
+
 
 on:
   push:
@@ -98,6 +100,8 @@ jobs:
         with:
           header: semgrep
           path: semgrep.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
             
