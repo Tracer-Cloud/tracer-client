@@ -62,5 +62,43 @@ jobs:
             --metrics=off \
             --baseline-commit "$BASELINE_COMMIT" \
             --config "p/rust" \
-            --config "p/owasp-top-ten"
-     
+            --config "p/owasp-top-ten" \
+            --config "p/secrets" \
+            --config "p/default"
+
+      - name: Save full Semgrep scan (Rust + OWASP + Secrets, scoped to Rust files)
+        run: |
+          semgrep scan \
+            --error \
+            --metrics=off \
+            --config "p/rust" \
+            --config "p/owasp-top-ten" \
+            --config "p/secrets" \
+            --include '**/*.rs' \
+            --include 'Cargo.toml' \
+            --include 'Cargo.lock' \
+            --exclude '**/tests/**' \
+            --exclude 'src/ebpf/**' \
+            --json > semgrep.json
+
+          echo "## 🕵️ Semgrep Findings" > semgrep.md
+
+          count=$(jq '.results | length' semgrep.json)
+          if [ "$count" -eq 0 ]; then
+            echo "✅ No findings found." >> semgrep.md
+          else
+            jq -r '
+              .results[] |
+              "- [`\(.check_id)`] **\(.path):\(.start.line)**\n  \(.extra.message)\n  ```rust\n  \(.extra.lines)\n  ```\n"
+            ' semgrep.json >> semgrep.md
+          fi
+
+      - name: Comment on PR with Semgrep findings
+        uses: marocchino/sticky-pull-request-comment@v2.9.4
+        with:
+          header: semgrep
+          path: semgrep.md
+
+
+            
+  
