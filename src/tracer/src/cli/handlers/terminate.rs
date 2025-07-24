@@ -13,7 +13,7 @@ fn get_pid() -> Option<String> {
         Some(trimmed.to_string())
     }
 }
-pub async fn terminate(api_client: &DaemonClient) -> bool{
+pub async fn terminate(api_client: &DaemonClient) -> bool {
     if let Err(e) = api_client.send_terminate_request().await {
         error_message!("Failed to send terminate request to the daemon: {e}");
         error_message!(
@@ -23,7 +23,9 @@ pub async fn terminate(api_client: &DaemonClient) -> bool{
         return false;
     }
     if !check_port_conflict().await {
-        error_message!("Port conflict detected. Please wait up to a minute for the port to be released.");
+        error_message!(
+            "Port conflict detected. Please wait up to a minute for the port to be released."
+        );
         return false;
     }
     success_message!("Daemon server terminated successfully.");
@@ -42,7 +44,8 @@ async fn check_port_conflict() -> bool {
     for attempt in 1..=MAX_RETRIES {
         info_message!(
             "Waiting for port to be released (attempt {}/{})...",
-            attempt, MAX_RETRIES
+            attempt,
+            MAX_RETRIES
         );
         tokio::time::sleep(tokio::time::Duration::from_millis(RETRY_DELAY_MS)).await;
 
