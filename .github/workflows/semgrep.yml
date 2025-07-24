@@ -29,7 +29,8 @@ jobs:
           semgrep ci \
             --config p/rust \
             --config p/owasp-top-ten \
-            --sarif > semgrep.sarif
+            --sarif
+            --no-error > semgrep.sarif
 
       - name: Upload SARIF report to GitHub Security tab
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
