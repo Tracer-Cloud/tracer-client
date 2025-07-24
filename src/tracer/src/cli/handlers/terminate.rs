@@ -13,14 +13,15 @@ fn get_pid() -> Option<String> {
         Some(trimmed.to_string())
     }
 }
-pub async fn terminate(api_client: &DaemonClient) {
+pub async fn terminate(api_client: &DaemonClient) -> bool{
     if let Err(e) = api_client.send_terminate_request().await {
         error_message!("Failed to send terminate request to the daemon: {e}");
         error_message!(
             "Try running `sudo kill -9 {}` to forcefully terminate the daemon.",
             get_pid().unwrap_or_else(|| "unknown PID".to_string())
         );
-        return;
+        return false;
     }
     success_message!("Daemon server terminated successfully.");
+    true
 }

@@ -19,7 +19,7 @@ pub async fn process_daemon_command(command: Command, config: Config) {
                 warning_message!("Daemon server is not running, nothing to terminate.");
                 return;
             }
-            handlers::terminate(&api_client).await
+            let _ = handlers::terminate(&api_client).await;
         }
         command => {
             process_retryable_daemon_command(command, api_client, Runtime::new().unwrap()).unwrap()

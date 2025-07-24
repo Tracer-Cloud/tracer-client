@@ -34,12 +34,12 @@ pub async fn init(
 
     // Create necessary files for logging and daemonizing
     create_necessary_files()?;
-
     // Check for port conflict before starting daemon
     if DaemonServer::is_running() {
         warning_message!("Daemon server is already running, trying to terminate it...");
-        terminate(&api_client).await;
-        DaemonServer::cleanup();
+        if !terminate(&api_client).await {
+            return Ok(());
+        }
     }
 
     info_message!("Starting daemon...");
@@ -64,6 +64,7 @@ pub async fn init(
     }
 
     if !args.no_daemonize {
+        DaemonServer::cleanup();
         // Serialize the finalized args to pass to the spawned process
         let current_exe = std::env::current_exe()?;
 
