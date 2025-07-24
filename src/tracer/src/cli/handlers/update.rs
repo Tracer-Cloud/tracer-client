@@ -1,4 +1,5 @@
 use crate::daemon::server::DaemonServer;
+use crate::{success_message, warning_message};
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use std::process::Command;
@@ -43,7 +44,9 @@ pub fn update() -> Result<()> {
     // println!("\nUpdating Tracer to version {}...", latest_ver);
 
     if DaemonServer::is_running() {
-        println!("\n{} Tracer daemon is currently running. Please run `tracer terminate` before updating", "Warning:".yellow());
+        warning_message!(
+            "Tracer daemon is currently running. Please run `tracer terminate` before updating"
+        );
         return Ok(());
     }
 
@@ -71,11 +74,8 @@ pub fn update() -> Result<()> {
     if !status.success() {
         bail!("Failed to update Tracer. Please try again.");
     }
-    println!(
-        "\n{} Tracer has been successfully updated!",
-        "Success:".green(),
-        // latest_ver
-    );
+
+    success_message!("Tracer has been successfully updated!",);
 
     // println!(
     //     "\n{} Tracer has been successfully updated to version {}!",

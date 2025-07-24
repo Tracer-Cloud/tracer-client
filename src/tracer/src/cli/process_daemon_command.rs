@@ -4,19 +4,19 @@ use crate::cli::handlers::info;
 use crate::config::Config;
 use crate::daemon::client::{DaemonClient, Result as DaemonResult};
 use crate::daemon::server::DaemonServer;
-use crate::process_identification::debug_log::Logger;
+use crate::{success_message, warning_message};
 use anyhow::{anyhow, bail, Result};
 use colored::Colorize;
 use tokio::runtime::Runtime;
 
 pub async fn process_daemon_command(command: Command, config: Config) -> Result<()> {
     let api_client = DaemonClient::new(format!("http://{}", config.server));
-    let result = match command {
+    match command {
         Command::Init(args) => handlers::init(*args, config, api_client).await,
         Command::Info { json } => info(&api_client, json).await,
         Command::Terminate => {
             if !DaemonServer::is_running() {
-                println!("Daemon server is not running, nothing to terminate.");
+                warning_message!("Daemon server is not running, nothing to terminate.");
                 return Ok(());
             }
             if let Err(e) = api_client.send_terminate_request().await {
@@ -25,18 +25,11 @@ pub async fn process_daemon_command(command: Command, config: Config) -> Result<
                     "Failed to send terminate request to the daemon: {e}"
                 ));
             }
-            println!(
-                "{}: Daemon server terminated successfully.",
-                "Success".green().bold()
-            );
+            success_message!("Daemon server terminated successfully.",);
             Ok(())
         }
         command => process_retryable_daemon_command(command, api_client, Runtime::new()?),
-    };
-    if let Err(e) = result {
-        Logger::new().log_blocking(&format!("Error processing cli command: \n {e:?}."), None);
     }
-    Ok(())
 }
 
 /// Process a command that could be retried.

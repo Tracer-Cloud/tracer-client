@@ -38,7 +38,11 @@ pub struct TracerCliInitArgs {
 
     // For testing purposes only
     #[clap(long, hide = true)]
-    pub is_dev: Option<bool>,
+    pub dev: bool,
+
+    /// Force process polling when eBPF is not available
+    #[clap(long)]
+    pub force_procfs: bool,
 
     /// Capture logs at the specified level and above (default: info)
     /// Valid values: trace, debug, info, warn, error
@@ -171,7 +175,6 @@ impl TracerCliInitArgs {
                     .expect("Failed to get pipeline type from environment variable or prompt"),
             );
         }
-
         if tags.user_operator.is_none() {
             let user_operator = env::get_env_var(env::USER_OPERATOR_ENV_VAR)
                 .or_else(|| {
@@ -196,7 +199,8 @@ impl TracerCliInitArgs {
             run_name,
             tags,
             no_daemonize: self.no_daemonize,
-            is_dev: self.is_dev,
+            dev: self.dev,
+            force_procfs: self.force_procfs,
             user_id: self.user_id,
             log_level: self.log_level,
         }
@@ -211,7 +215,8 @@ pub struct FinalizedInitArgs {
     pub run_name: Option<String>,
     pub tags: PipelineTags,
     pub no_daemonize: bool,
-    pub is_dev: Option<bool>,
+    pub dev: bool,
+    pub force_procfs: bool,
     pub user_id: Option<String>,
     pub log_level: String,
 }
