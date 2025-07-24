@@ -9,7 +9,7 @@ use crate::daemon::routes::ROUTES;
 use crate::daemon::server::process_monitor::monitor;
 use crate::daemon::state::DaemonState;
 use crate::process_identification::constants::{
-    DEFAULT_DAEMON_PORT, PID_FILE, STDERR_FILE, STDOUT_FILE,
+    DEFAULT_DAEMON_PORT, LOG_FILE, MATCHES_FILE, PID_FILE, STDERR_FILE, STDOUT_FILE,
 };
 use axum::Router;
 use std::net::SocketAddr;
@@ -74,7 +74,6 @@ impl DaemonServer {
         monitor(client, cancellation_token, self.paused.clone()).await;
 
         self.terminate().await?;
-        DaemonServer::cleanup();
         Ok(())
     }
 
@@ -129,5 +128,7 @@ impl DaemonServer {
         let _ = fs::remove_file(STDOUT_FILE);
         let _ = fs::remove_file(STDERR_FILE);
         let _ = fs::remove_file(PID_FILE);
+        let _ = fs::remove_file(LOG_FILE);
+        let _ = fs::remove_file(MATCHES_FILE);
     }
 }

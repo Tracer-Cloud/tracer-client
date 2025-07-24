@@ -1,3 +1,4 @@
+use crate::process_identification::constants::MATCHES_FILE;
 use crate::process_identification::types::event::attributes::process::ProcessProperties;
 use crate::process_identification::types::event::{attributes::EventAttributes, Event};
 use anyhow::{Context, Result};
@@ -74,7 +75,7 @@ pub fn log_matched_process(trigger: &ProcessStartTrigger, matched_rule: &str, is
     if let Err(e) = OpenOptions::new()
         .create(true)
         .append(true)
-        .open("/tmp/tracer/matches.txt")
+        .open(MATCHES_FILE)
         .and_then(|mut file| file.write_all(log_line.as_bytes()))
     {
         error!("Failed to write match log: {}", e);

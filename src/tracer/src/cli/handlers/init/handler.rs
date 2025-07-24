@@ -11,7 +11,7 @@ use crate::process_identification::constants::{
 use crate::utils::analytics::types::AnalyticsEventType;
 use crate::utils::system_info::check_sudo;
 use crate::utils::{analytics, Sentry};
-use crate::{info_message, success_message, warning_message};
+use crate::{error_message, info_message, success_message, warning_message};
 use anyhow::Context;
 use colored::Colorize;
 use serde_json::Value;
@@ -39,6 +39,7 @@ pub async fn init(
     if DaemonServer::is_running() {
         warning_message!("Daemon server is already running, trying to terminate it...");
         terminate(&api_client).await;
+        DaemonServer::cleanup();
     }
 
     info_message!("Starting daemon...");
@@ -93,7 +94,6 @@ pub async fn init(
             .spawn()?;
 
         std::fs::write(PID_FILE, child.id().to_string())?;
-        println!();
         success_message!("Daemon started successfully.");
 
         // Wait a moment for the daemon to start, then show info
@@ -102,7 +102,10 @@ pub async fn init(
             AnalyticsEventType::DaemonStartAttempted,
             None,
         );
-        wait(&api_client).await?;
+        if !wait(&api_client).await {
+            error_message!("Daemon is not responding, please check logs");
+            return Ok(());
+        }
         info(&api_client, false).await;
 
         return Ok(());
