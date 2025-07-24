@@ -1,5 +1,4 @@
 use super::platform::PlatformInfo;
-use crate::constants::WORKING_DIR;
 use crate::installer::url_builder::TracerUrlFinder;
 use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
 use crate::utils::{print_label, print_status, print_summary, print_title, PrintEmoji};
@@ -11,8 +10,8 @@ use futures_util::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::Client;
 use std::collections::HashMap;
-use std::fs::{DirBuilder, File as StdFile};
-use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
+use std::fs::File as StdFile;
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use tar::Archive;
 use tokio::fs::OpenOptions;
@@ -73,8 +72,6 @@ impl Installer {
         Self::patch_rc_files_async(self.user_id.clone())
             .await
             .expect("failed to write to rc files");
-
-        Self::create_tracer_tmp_dir()?;
 
         if let Some(handle) = self
             .emit_analytic_event(AnalyticsEventType::InstallScriptCompleted)
@@ -268,15 +265,6 @@ impl Installer {
             }
         })
         .await
-    }
-
-    /// Creates a temporary working directory at `/tmp/tracer`.
-    fn create_tracer_tmp_dir() -> Result<()> {
-        let mut builder = DirBuilder::new();
-        builder.mode(0o777);
-        builder.recursive(true);
-        builder.create(WORKING_DIR)?;
-        Ok(())
     }
 
     async fn build_install_metadata(&self) -> HashMap<String, String> {
