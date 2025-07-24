@@ -38,7 +38,6 @@ pub(super) async fn handle_port_conflict(port: u16) -> anyhow::Result<bool> {
                 pid
             );
         }
-        let _ = fs::remove_file(PID_FILE);
 
         println!("✅  Process killed successfully.");
 
