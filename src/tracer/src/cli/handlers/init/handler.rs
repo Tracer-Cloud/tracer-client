@@ -11,8 +11,9 @@ use crate::process_identification::constants::{
 use crate::utils::analytics::types::AnalyticsEventType;
 use crate::utils::system_info::check_sudo;
 use crate::utils::{analytics, Sentry};
-use crate::warning_message;
+use crate::{info_message, success_message, warning_message};
 use anyhow::Context;
+use colored::Colorize;
 use serde_json::Value;
 use std::fs::File;
 use std::process::{Command, Stdio};
@@ -40,7 +41,7 @@ pub async fn init(
         terminate(&api_client).await;
     }
 
-    println!("Starting daemon...");
+    info_message!("Starting daemon...");
     let args = args.finalize();
     {
         // Layer tags on top of args
@@ -65,7 +66,7 @@ pub async fn init(
         // Serialize the finalized args to pass to the spawned process
         let current_exe = std::env::current_exe()?;
 
-        println!("Spawning child process...");
+        info_message!("Spawning child process...");
 
         let child = Command::new(current_exe)
             .arg("init")
@@ -92,8 +93,8 @@ pub async fn init(
             .spawn()?;
 
         std::fs::write(PID_FILE, child.id().to_string())?;
-
-        println!("\nDaemon started successfully.");
+        println!();
+        success_message!("Daemon started successfully.");
 
         // Wait a moment for the daemon to start, then show info
         analytics::spawn_event(
