@@ -3,11 +3,13 @@ updates:
   - package-ecosystem: cargo
     directory: "/"
     schedule:
-      interval: weekly
+      interval: "every_2_weeks"
+      day: "monday"
     target-branch: main
     labels: [auto-dependencies]
     groups:
-      minor-and-patch:
+      all-minor-and-patch:
+        patterns: ["*"]
         update-types:
           - "minor"
           - "patch"
@@ -16,11 +18,21 @@ updates:
   - package-ecosystem: docker
     directory: "/"
     schedule:
-      interval: weekly
+      interval: "every_2_weeks"
+      day: "monday"
+    labels: [auto-dependencies]
+    groups:
+      docker-deps:
+        patterns: ["*"]
     open-pull-requests-limit: 5
 
   - package-ecosystem: gitsubmodule
     directory: "/"
     schedule:
-      interval: weekly
+      interval: "every_2_weeks"
+      day: "monday"
+    labels: [auto-dependencies]
+    groups:
+      submodules:
+        patterns: ["*"]
     open-pull-requests-limit: 10
