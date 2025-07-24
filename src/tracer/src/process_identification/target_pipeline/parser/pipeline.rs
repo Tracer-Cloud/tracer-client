@@ -1,6 +1,9 @@
+use crate::process_identification::target_process::parser::conditions::Condition;
 use std::collections::HashMap;
 
+// TODO: use or remove the currently unused fields
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct Pipeline {
     pub id: String,
     pub description: Option<String>,
@@ -28,51 +31,64 @@ pub struct Subworkflow {
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct Job {
+pub struct Task {
     pub id: String,
     pub description: Option<String>,
     pub rules: Vec<String>,
+    pub optional_rules: Option<Vec<String>>,
+    pub specialized_rules: Option<Vec<SpecializedRule>>,
+    pub optional_specialized_rules: Option<Vec<SpecializedRule>>,
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct SpecializedRule {
+    pub name: String,
+    pub condition: Condition,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum Step {
-    Job(String),
-    OptionalJob(String),
+    Task(String),
+    OptionalTask(String),
     Subworkflow(String),
     OptionalSubworkflow(String),
     And(Vec<Step>),
     Or(Vec<Step>),
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Dependencies {
     pub subworkflows: HashMap<String, Subworkflow>,
-    pub jobs: HashMap<String, Job>,
-    pub parent: Option<Box<&'static Dependencies>>,
+    pub tasks: HashMap<String, Task>,
+    pub parent: Option<&'static Dependencies>,
 }
 
 impl Dependencies {
     pub fn new(
         subworkflows: Option<Vec<Subworkflow>>,
-        jobs: Option<Vec<Job>>,
+        tasks: Option<Vec<Task>>,
         parent: Option<&'static Dependencies>,
     ) -> Self {
         Self {
             subworkflows: subworkflows
                 .map(|v| v.into_iter().map(|s| (s.id.clone(), s)).collect())
                 .unwrap_or_default(),
-            jobs: jobs
+            tasks: tasks
                 .map(|v| v.into_iter().map(|s| (s.id.clone(), s)).collect())
                 .unwrap_or_default(),
-            parent: parent.map(Box::new),
+            parent,
         }
     }
 
-    pub fn get_job(&self, id: &str) -> Option<&Job> {
-        self.jobs.get(id)
+    pub fn get_task(&self, id: &str) -> Option<&Task> {
+        self.tasks
+            .get(id)
+            .or_else(|| self.parent.as_ref().and_then(|p| p.get_task(id)))
     }
 
     pub fn get_subworkflow(&self, id: &str) -> Option<&Subworkflow> {
-        self.subworkflows.get(id)
+        self.subworkflows
+            .get(id)
+            .or_else(|| self.parent.as_ref().and_then(|p| p.get_subworkflow(id)))
     }
 }

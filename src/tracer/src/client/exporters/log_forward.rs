@@ -2,6 +2,7 @@ use crate::client::exporters::log_writer::LogWriter;
 use crate::process_identification::types::event::Event;
 use crate::process_identification::types::extracts::db::EventInsert;
 use anyhow::Result;
+use log::error;
 use reqwest::Client;
 use serde::Serialize;
 use std::convert::TryFrom;
@@ -62,21 +63,38 @@ impl LogWriter for LogForward {
 
         let payload = EventPayload { events };
 
+        let payload_string = serde_json::to_string_pretty(&payload)
+            .unwrap_or_else(|_| "Failed to serialize payload".to_string());
+
         info!(
-            "Sending payload to endpoint {} with {} events",
+            "Sending payload to endpoint {} with {} events\nPayload: {}",
             self.endpoint,
-            payload.events.len()
+            payload.events.len(),
+            payload_string
         );
 
         match self.client.post(&self.endpoint).json(&payload).send().await {
-            Ok(_) => {
-                debug!(
-                    "Successfully sent {} events with run_name: {}, elapsed: {:?}",
-                    payload.events.len(),
-                    run_name,
-                    now.elapsed()
-                );
-                Ok(())
+            Ok(response) => {
+                if response.status() == 200 {
+                    println!(
+                        "Successfully sent {} events with run_name: {}, elapsed: {:?}",
+                        payload.events.len(),
+                        run_name,
+                        now.elapsed()
+                    );
+                    Ok(())
+                } else {
+                    let status = response.status();
+                    error!(
+                        "Failed to send events: {} [{}], Payload: {}",
+                        run_name, status, payload_string
+                    );
+                    Err(anyhow::anyhow!(
+                        "Failed to send events: {}, Payload: {}",
+                        status,
+                        payload_string
+                    ))
+                }
             }
             Err(e) => Err(anyhow::anyhow!("HTTP request failed: {:?}", e)),
         }

@@ -65,10 +65,6 @@ impl TriggerProcessor {
         process_start_triggers: Vec<ProcessStartTrigger>,
     ) -> Result<()> {
         if !process_start_triggers.is_empty() {
-            info!(
-                "Processing {} process start triggers",
-                process_start_triggers.len()
-            );
             for trigger in &process_start_triggers {
                 debug!(
                     "Processing start trigger - PID: {}, Name: {}, Parent PID: {}",
