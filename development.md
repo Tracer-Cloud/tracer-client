@@ -9,19 +9,19 @@ This page provides additional notes for developers installing and testing Tracer
 Install Tracer from the `main` branch:
 
 ```bash
-curl -sSL https://install.tracer.cloud | sh && source ~/.bashrc && source ~/.zshrc
+curl -sSL https://install.tracer.cloud | sh
 ```
 
 Install Tracer from a custom branch, e.g. `custom-client` (Requires branch to be a pull request):
 
 ```bash
-curl -sSL https://install.tracer.cloud | CLI_BRANCH="custom-client" sh && source ~/.bashrc && source ~/.zshrc
+curl -sSL https://install.tracer.cloud | CLI_BRANCH="custom-client" sh
 ```
 
 Use Installer from a custom branch, e.g. `custom-installer` (Requires branch to be a pull request):
 
 ```bash
-curl -sSL https://install.tracer.cloud | INS_BRANCH="custom-installer" sh && source ~/.bashrc && source ~/.zshrc
+curl -sSL https://install.tracer.cloud | INS_BRANCH="custom-installer" sh
 ```
 
 Click the 'Open In Github Codespaces' button to use GitHub Codespaces.
