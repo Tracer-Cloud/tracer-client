@@ -1,23 +1,20 @@
 use crate::daemon::client::DaemonClient;
 use crate::daemon::structs::InfoResponse;
-use crate::process_identification::constants::{LOG_FILE, STDERR_FILE, STDOUT_FILE};
 use crate::utils::cli::BoxFormatter;
 use crate::utils::Version;
-use anyhow::Result;
 
-pub async fn info(api_client: &DaemonClient, json: bool) -> Result<()> {
+pub async fn info(api_client: &DaemonClient, json: bool) {
     let info = match api_client.send_info_request().await {
         Ok(info) => info,
         Err(e) => {
             let mut display = InfoDisplay::new(80, json);
             tracing::error!("Error getting info response: {e}");
             display.print_error();
-            return Ok(());
+            return;
         }
     };
     let display = InfoDisplay::new(150, json);
     display.print(info);
-    Ok(())
 }
 
 pub struct InfoDisplay {
@@ -41,7 +38,6 @@ impl InfoDisplay {
 
         self.format_status_pipeline_info(&mut formatter, info);
 
-        self.format_log_files(&mut formatter);
         formatter.add_footer();
         println!("{}", formatter.get_output());
     }
@@ -83,11 +79,6 @@ impl InfoDisplay {
             });
             return;
         }
-        json["log_files"] = serde_json::json!({
-            "stdout": STDOUT_FILE,
-            "stderr": STDERR_FILE,
-            "daemon": LOG_FILE,
-        });
         println!("{}", serde_json::to_string_pretty(&json).unwrap());
     }
 
@@ -199,15 +190,5 @@ impl InfoDisplay {
         formatter.add_empty_line();
         formatter.add_footer();
         println!("{}", formatter.get_output());
-    }
-
-    fn format_log_files(&self, formatter: &mut BoxFormatter) {
-        formatter.add_section_header("Log files");
-        formatter.add_empty_line();
-
-        formatter.add_field("Standard output", &format!("  {}", STDOUT_FILE), "white");
-        formatter.add_field("Err output", &format!("  {}", STDERR_FILE), "white");
-        formatter.add_field("Daemon output", &format!("  {}", LOG_FILE), "white");
-        formatter.add_empty_line();
     }
 }

@@ -1,7 +1,7 @@
 use crate::extracts::containers::DockerWatcher;
-use crate::extracts::ebpf_watcher::handler::trigger::trigger_processor::TriggerProcessor;
 use crate::extracts::process::extract_process_data::get_process_argv;
 use crate::extracts::process::process_manager::ProcessManager;
+use crate::extracts::process_watcher::handler::trigger::trigger_processor::TriggerProcessor;
 use crate::process_identification::recorder::LogRecorder;
 use anyhow::{Error, Result};
 use std::collections::HashSet;
@@ -17,14 +17,14 @@ use tracer_ebpf::ebpf_trigger::{
 use tracing::{debug, error, info};
 
 /// Watches system processes and records events related to them
-pub struct EbpfWatcher {
+pub struct ProcessWatcher {
     ebpf_initialized: Arc<Mutex<bool>>,
     process_manager: Arc<RwLock<ProcessManager>>,
     trigger_processor: TriggerProcessor,
     // here will go the file manager for dataset recognition operations
 }
 
-impl EbpfWatcher {
+impl ProcessWatcher {
     pub fn new(log_recorder: LogRecorder, docker_watcher: Arc<DockerWatcher>) -> Self {
         // instantiate the process manager
         let process_manager = Arc::new(RwLock::new(ProcessManager::new(
@@ -32,7 +32,7 @@ impl EbpfWatcher {
             docker_watcher,
         )));
 
-        EbpfWatcher {
+        ProcessWatcher {
             ebpf_initialized: Arc::new(Mutex::new(false)),
             trigger_processor: TriggerProcessor::new(Arc::clone(&process_manager)),
             process_manager,

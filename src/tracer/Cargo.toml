@@ -63,7 +63,7 @@ termion = { workspace = true }
 
 [dev-dependencies]
 sqlx = { workspace = true }
-dotenv = { workspace = true }
+dotenvy = { workspace = true }
 serial_test = { workspace = true }
 uuid = { workspace = true }
 rstest = { workspace = true }

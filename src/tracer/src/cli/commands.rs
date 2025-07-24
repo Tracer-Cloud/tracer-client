@@ -1,12 +1,28 @@
 use crate::cli::handlers::arguments::TracerCliInitArgs;
+use crate::process_identification::constants::{LOG_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR};
 use crate::utils::Version;
 use clap::{Parser, Subcommand};
+
+fn about_message() -> String {
+    format!(
+        "A tool for monitoring bioinformatics applications\nVersion: {}",
+        Version::current_str()
+    )
+}
+
+fn footer_message() -> String {
+    format!(
+        "Working Directory: {}\nDaemon stdout: {}\nDaemon stderr: {}Daemon log: {}\nFor more information, visit: https://tracer.cloud\n",
+        WORKING_DIR, STDOUT_FILE, STDERR_FILE, LOG_FILE
+    )
+}
 
 #[derive(Parser, Clone)]
 #[clap(
     name = "tracer",
-    about = "A tool for monitoring bioinformatics applications",
-    version = Version::current_str()
+    about = about_message(),
+    version = Version::current_str(),
+    after_help = footer_message()
 )]
 pub struct Cli {
     #[clap(long, global = true)]

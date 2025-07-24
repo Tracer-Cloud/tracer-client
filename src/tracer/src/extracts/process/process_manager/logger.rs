@@ -1,5 +1,6 @@
 use crate::extracts::containers::DockerWatcher;
 use crate::extracts::process::extract_process_data;
+use crate::extracts::process::extract_process_data::construct_tool_id;
 use crate::extracts::process::types::process_result::ProcessResult;
 use crate::process_identification::recorder::LogRecorder;
 use crate::process_identification::target_pipeline::pipeline_manager::TaskMatch;
@@ -8,6 +9,7 @@ use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::ProcessStatus as TracerProcessStatus;
 use anyhow::Result;
 use chrono::Utc;
+use log::error;
 use std::sync::Arc;
 use sysinfo::Process;
 use tracer_ebpf::ebpf_trigger::{ProcessEndTrigger, ProcessStartTrigger};
@@ -138,12 +140,25 @@ impl ProcessLogger {
             .try_into()
             .unwrap_or(0);
 
+        error!(
+            "log_process_completion: START: finish trigger: {:?}",
+            finish_trigger
+        );
+
+        // CompletedProcess contains the exit reason, the tool_id, the tool_name, and started and ended at
+        // started and ended at might not seem very useful, but might help in the future with duration calculations
         let properties =
             crate::process_identification::types::event::attributes::process::CompletedProcess {
+                tool_id: construct_tool_id(
+                    &start_trigger.pid.to_string(),
+                    start_trigger.started_at,
+                ),
                 tool_name: target.to_owned(),
                 tool_pid: start_trigger.pid.to_string(),
                 duration_sec,
                 exit_reason: finish_trigger.exit_reason.clone(),
+                started_at: start_trigger.started_at,
+                ended_at: finish_trigger.finished_at,
             };
 
         self.log_recorder

@@ -39,8 +39,9 @@ sqlx = { version = "0.8.6", features = [
     "chrono",
 ] }
 
-ec2_instance_metadata = "0.3.0"
 rand = "0.9.2"
+ec2_instance_metadata = { git = "https://github.com/Tracer-Cloud/ec2-instance-metadata-rs.git", branch = "master" }
+
 uuid = { version = "1.17.0", features = [
     "v4",
     "fast-rng",
@@ -73,7 +74,7 @@ config = { version = "0.15.13", default-features = false, features = [
     "convert-case",
 ] }
 serial_test = "3.2.0"
-dotenv = "0.15.0"
+dotenvy = "0.15.7"
 sentry = { version = "0.41.0", default-features = false, features = [
     "anyhow",
     "backtrace",

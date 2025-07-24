@@ -9,7 +9,7 @@ use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::RwLock;
 use tracer::extracts::containers::DockerWatcher;
-use tracer::extracts::ebpf_watcher::watcher::EbpfWatcher;
+use tracer::extracts::process_watcher::watcher::ProcessWatcher;
 use tracer::process_identification::recorder::LogRecorder;
 use tracer::process_identification::types::current_run::{PipelineMetadata, Run};
 use tracer::process_identification::types::event::attributes::process::ProcessProperties;
@@ -48,10 +48,10 @@ fn async_runtime() -> Runtime {
     Runtime::new().unwrap()
 }
 
-fn watcher(pipeline: &PipelineMetadata, event_sender: Sender<Event>) -> Arc<EbpfWatcher> {
+fn watcher(pipeline: &PipelineMetadata, event_sender: Sender<Event>) -> Arc<ProcessWatcher> {
     let log_recorder = LogRecorder::new(Arc::new(RwLock::new(pipeline.clone())), event_sender);
     let docker_watcher = DockerWatcher::new(log_recorder.clone());
-    Arc::new(EbpfWatcher::new(log_recorder, Arc::new(docker_watcher)))
+    Arc::new(ProcessWatcher::new(log_recorder, Arc::new(docker_watcher)))
 }
 
 #[rstest]
