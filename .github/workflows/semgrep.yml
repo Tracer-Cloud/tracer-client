@@ -29,6 +29,7 @@ jobs:
       - name: Run Semgrep scan (Rust + OWASP)
         env:
           SEMGREP_SUPPRESS_ERRORS: true
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
         # https://semgrep.dev/docs/semgrep-ci/configuring-blocking-and-errors-in-ci#configuration-options-for-blocking-findings-and-errors-in-ci
         run: |
           semgrep ci \
@@ -58,6 +59,7 @@ jobs:
       - name: Run Semgrep diff-aware scan (Rust + OWASP)
         env:
           BASELINE_COMMIT: ${{ github.event.pull_request.base.sha }}
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
         run: |
           semgrep scan \
             --error \
@@ -69,6 +71,8 @@ jobs:
             --config "p/default"
 
       - name: Save full Semgrep scan (Rust + OWASP + Secrets, scoped to Rust files)
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
         run: |
           semgrep scan \
             --error \
