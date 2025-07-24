@@ -28,7 +28,7 @@ jobs:
         env:
           SEMGREP_SUPPRESS_ERRORS: true
         run: |
-          semgrep ci --config "p/rust" --config "p/owasp-top-ten" --sarif --suppress-errors > semgrep-pr.sarif || true
+          semgrep ci --config "p/rust" --config "p/owasp-top-ten" --sarif --suppress-errors > semgrep.sarif || true
 
       - name: Upload SARIF report to GitHub Security tab
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
