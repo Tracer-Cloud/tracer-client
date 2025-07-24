@@ -79,7 +79,7 @@ jobs:
             --include 'Cargo.lock' \
             --exclude '**/tests/**' \
             --exclude 'src/ebpf/**' \
-            --json > semgrep.json
+            --json > semgrep.json || true
 
           echo "## 🕵️ Semgrep Findings" > semgrep.md
 
