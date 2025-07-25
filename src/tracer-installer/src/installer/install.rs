@@ -1,3 +1,7 @@
+use super::platform::PlatformInfo;
+use crate::installer::url_builder::TracerUrlFinder;
+use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
+use crate::utils::{print_label, print_status, print_summary, print_title, PrintEmoji};
 use anyhow::{Context, Result};
 use colored::Colorize;
 use flate2::read::GzDecoder;
@@ -18,11 +22,6 @@ use tokio::{
 };
 use tokio_retry::strategy::{jitter, ExponentialBackoff};
 use tokio_retry::Retry;
-
-use super::platform::PlatformInfo;
-use crate::installer::url_builder::TracerUrlFinder;
-use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
-use crate::utils::{print_label, print_status, print_summary, print_title, PrintEmoji};
 
 const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics";
 const TRACER_INSTALLATION_PATH: &str = "/usr/local/bin";
@@ -73,8 +72,6 @@ impl Installer {
         Self::patch_rc_files_async(self.user_id.clone())
             .await
             .expect("failed to write to rc files");
-
-        Self::create_tracer_tmp_dir()?;
 
         if let Some(handle) = self
             .emit_analytic_event(AnalyticsEventType::InstallScriptCompleted)
@@ -268,12 +265,6 @@ impl Installer {
             }
         })
         .await
-    }
-
-    /// Creates a temporary working directory at `/tmp/tracer`.
-    fn create_tracer_tmp_dir() -> Result<()> {
-        let path = Path::new("/tmp/tracer");
-        std::fs::create_dir_all(path).map_err(|err| anyhow::anyhow!(err))
     }
 
     async fn build_install_metadata(&self) -> HashMap<String, String> {

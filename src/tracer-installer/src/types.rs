@@ -17,7 +17,7 @@ impl FromStr for TracerVersion {
         match input.to_lowercase().as_str() {
             "development" | "dev" => Ok(Self::Development),
             "production" | "prod" => Ok(Self::Production),
-            other => Ok(Self::Feature(other.to_string())),
+            _other => Ok(Self::Feature(input.to_string())),
         }
     }
 }

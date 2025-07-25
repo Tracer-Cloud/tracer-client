@@ -71,6 +71,8 @@ impl InfoDisplay {
             if let Some(summary) = &inner.cost_summary {
                 json["run"]["estimated_cost_since_start"] =
                     serde_json::json!(format!("{:.4}", summary.estimated_total));
+                json["run"]["detected_ec2_instance_type"] =
+                    serde_json::json!(summary.instance_type);
             }
         } else {
             //todo Can we even print info active if no pipeline is running? Should inner even be an option?
@@ -163,6 +165,7 @@ impl InfoDisplay {
                 &format!("  $ {:.4}", summary.estimated_total),
                 "yellow",
             );
+            formatter.add_field("Instance Type (EC2)", &summary.instance_type, "white");
             formatter.add_empty_line();
         }
     }

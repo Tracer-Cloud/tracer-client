@@ -39,6 +39,7 @@ impl PricingSource {
                 cost_per_minute: 0.0,
                 ec2_pricing_best_matches: vec![],
                 match_confidence: None,
+                instance_type: metadata.instance_type.clone(),
             }),
             PricingSource::Live(client) => {
                 client
