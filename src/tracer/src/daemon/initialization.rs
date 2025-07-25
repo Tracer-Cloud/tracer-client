@@ -1,4 +1,4 @@
-use crate::cli::handlers::arguments::FinalizedInitArgs;
+use crate::cli::handlers::init_arguments::FinalizedInitArgs;
 use crate::client::exporters::log_forward::LogForward;
 use crate::client::exporters::log_writer::LogWriterEnum;
 use crate::client::TracerClient;

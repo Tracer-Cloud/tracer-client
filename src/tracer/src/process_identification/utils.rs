@@ -1,6 +1,6 @@
-use crate::process_identification::constants::MATCHES_FILE;
 use crate::process_identification::types::event::attributes::process::ProcessProperties;
 use crate::process_identification::types::event::{attributes::EventAttributes, Event};
+use crate::utils::workdir::TRACER_WORK_DIR;
 use anyhow::{Context, Result};
 use serde_json::{Map, Value};
 use std::fs::OpenOptions;
@@ -75,7 +75,7 @@ pub fn log_matched_process(trigger: &ProcessStartTrigger, matched_rule: &str, is
     if let Err(e) = OpenOptions::new()
         .create(true)
         .append(true)
-        .open(MATCHES_FILE)
+        .open(&TRACER_WORK_DIR.matches_file)
         .and_then(|mut file| file.write_all(log_line.as_bytes()))
     {
         error!("Failed to write match log: {}", e);

@@ -1,5 +1,6 @@
-use crate::cli::handlers::arguments::TracerCliInitArgs;
-use crate::process_identification::constants::{LOG_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR};
+use crate::cli::handlers::init_arguments::TracerCliInitArgs;
+use crate::cli::handlers::test_arguments::TracerCliTestArgs;
+use crate::utils::workdir::TRACER_WORK_DIR;
 use crate::utils::Version;
 use clap::{Parser, Subcommand};
 
@@ -12,8 +13,11 @@ fn about_message() -> String {
 
 fn footer_message() -> String {
     format!(
-        "Working Directory: {}\nDaemon stdout: {}\nDaemon stderr: {}Daemon log: {}\nFor more information, visit: https://tracer.cloud\n",
-        WORKING_DIR, STDOUT_FILE, STDERR_FILE, LOG_FILE
+        "Working Directory: {:?}\nDaemon stdout: {:?}\nDaemon stderr: {:?}Daemon log: {:?}\nFor more information, visit: https://tracer.cloud\n",
+        &TRACER_WORK_DIR.path,
+        &TRACER_WORK_DIR.stdout_file,
+        &TRACER_WORK_DIR.stderr_file,
+        &TRACER_WORK_DIR.log_file
     )
 }
 
@@ -51,6 +55,9 @@ pub enum Command {
         #[clap(long)]
         json: bool,
     },
+
+    /// Execute example pipelines
+    Test(TracerCliTestArgs),
 
     /// Update the daemon to the latest version
     Update,
