@@ -1,13 +1,13 @@
 use crate::cli::handlers::info;
-use crate::cli::handlers::init::arguments::TracerCliInitArgs;
-use crate::cli::helper::{create_necessary_files, wait};
+use crate::cli::handlers::init::arguments::{PromptMode, TracerCliInitArgs};
+use crate::cli::helper::wait;
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::initialization::create_and_run_server;
 use crate::daemon::server::DaemonServer;
-use crate::process_identification::constants::{PID_FILE, STDERR_FILE, STDOUT_FILE};
 use crate::utils::analytics::types::AnalyticsEventType;
 use crate::utils::system_info::check_sudo;
+use crate::utils::workdir::TRACER_WORK_DIR;
 use crate::utils::{analytics, Sentry};
 use serde_json::Value;
 use std::fs::File;
@@ -18,17 +18,28 @@ pub async fn init(
     config: Config,
     api_client: DaemonClient,
 ) -> anyhow::Result<()> {
+    init_with_default_prompt(args, config, &api_client, PromptMode::WhenMissing).await
+}
+
+pub async fn init_with_default_prompt(
+    args: TracerCliInitArgs,
+    config: Config,
+    api_client: &DaemonClient,
+    prompt_mode: PromptMode,
+) -> anyhow::Result<()> {
     // Check if running with sudo
     check_sudo("init");
 
     // Create necessary files for logging and daemonizing
-    create_necessary_files().expect("Error while creating necessary files");
+    TRACER_WORK_DIR
+        .init()
+        .expect("Error while creating necessary files");
 
     // Check for port conflict before starting daemon
     DaemonServer::shutdown_if_running().await?;
 
     println!("Starting daemon...");
-    let args = args.finalize();
+    let args = args.finalize(prompt_mode);
     {
         // Layer tags on top of args
         let mut json_args = serde_json::to_value(&args)?.as_object().unwrap().clone();
@@ -68,12 +79,12 @@ pub async fn init(
             .arg("--is-dev")
             .arg(args.is_dev.unwrap_or_default().to_string())
             .stdin(Stdio::null())
-            .stdout(Stdio::from(File::create(STDOUT_FILE)?))
-            .stderr(Stdio::from(File::create(STDERR_FILE)?))
+            .stdout(Stdio::from(File::create(&TRACER_WORK_DIR.stdout_file)?))
+            .stderr(Stdio::from(File::create(&TRACER_WORK_DIR.stderr_file)?))
             .spawn()?;
 
         // Write PID file
-        std::fs::write(PID_FILE, child.id().to_string())?;
+        std::fs::write(&TRACER_WORK_DIR.pid_file, child.id().to_string())?;
 
         println!("\nDaemon started successfully.");
 

@@ -1,11 +1,11 @@
-use crate::process_identification::constants::PID_FILE;
 use crate::utils::system_info::{is_root, is_sudo_installed};
+use crate::utils::workdir::TRACER_WORK_DIR;
 use anyhow::bail;
 use std::fs;
 use std::process::Command;
 
 fn get_pid() -> Option<String> {
-    let contents = fs::read_to_string(PID_FILE).ok()?;
+    let contents = fs::read_to_string(&TRACER_WORK_DIR.pid_file).ok()?;
     let trimmed = contents.trim();
     if trimmed.is_empty() {
         None

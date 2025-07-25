@@ -13,6 +13,7 @@ pub async fn process_daemon_command(command: Command, config: Config) -> Result<
     let api_client = DaemonClient::new(format!("http://{}", config.server));
     let result = match command {
         Command::Init(args) => handlers::init(*args, config, api_client).await,
+        Command::Test(args) => handlers::test(args, config, api_client).await,
         Command::Info { json } => info(&api_client, json).await,
         Command::Terminate => {
             if !DaemonServer::is_running() {

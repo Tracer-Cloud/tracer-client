@@ -33,7 +33,7 @@ tokio-util = "0.7.15"
 toml = "0.9.2"
 tracing = { version = "0.1.41" }
 tracing-appender = "0.2.3"
-sqlx = { version = "0.8.6", features = [
+sqlx = { version = "0.8.6", default-features = false, features = [
     "runtime-tokio-rustls",
     "postgres",
     "chrono",
@@ -99,4 +99,6 @@ multi_index_map = "0.15.0"
 tokio-retry = "0.3.0"
 serde_regex = "1.1.0"
 dashmap = "6.1.0"
-termion= "4.0.5"
+termion = "4.0.5"
+git2 = "0.20.2"
+which = "8.0.0"

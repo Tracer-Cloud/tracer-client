@@ -1,13 +1,14 @@
-use crate::process_identification::constants::DEBUG_LOG;
+use crate::utils::workdir::TRACER_WORK_DIR;
 use anyhow::Context;
 use chrono::Utc;
 use serde_json::Value;
 use std::io::Write;
+use std::path::PathBuf;
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 
 pub struct Logger {
-    log_file_path: String,
+    log_file_path: PathBuf,
 }
 
 impl Default for Logger {
@@ -19,7 +20,7 @@ impl Default for Logger {
 impl Logger {
     pub fn new() -> Self {
         Self {
-            log_file_path: DEBUG_LOG.to_string(),
+            log_file_path: TRACER_WORK_DIR.debug_log.clone(),
         }
     }
 
@@ -44,6 +45,7 @@ impl Logger {
         }
     }
 
+    // TODO: why can't we maintain a persistant handle on the file?
     async fn write_to_log_file(&self, log_message: &str) {
         let file = OpenOptions::new()
             .create(true)

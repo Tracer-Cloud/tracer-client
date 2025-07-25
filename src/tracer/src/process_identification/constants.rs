@@ -1,9 +1,3 @@
-pub const WORKING_DIR: &str = "/tmp/tracer/";
-pub const PID_FILE: &str = "/tmp/tracer/tracerd.pid";
-pub const STDOUT_FILE: &str = "/tmp/tracer/tracerd.out";
-pub const STDERR_FILE: &str = "/tmp/tracer/tracerd.err";
-pub const LOG_FILE: &str = "/tmp/tracer/daemon.log";
-pub const DEBUG_LOG: &str = "/tmp/tracer/debug.log";
 pub const SYSLOG_FILE: &str = "/var/log/syslog";
 
 pub const REPO_OWNER: &str = "Tracer-Cloud";

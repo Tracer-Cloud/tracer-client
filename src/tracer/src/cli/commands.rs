@@ -1,4 +1,5 @@
-use crate::cli::handlers::arguments::TracerCliInitArgs;
+use crate::cli::handlers::init_arguments::TracerCliInitArgs;
+use crate::cli::handlers::test_arguments::TracerCliTestArgs;
 use crate::utils::Version;
 use clap::{Parser, Subcommand};
 
@@ -23,7 +24,8 @@ pub enum Command {
     /// Stop the daemon
     Terminate,
 
-    /// Remove all the temporary files created by the daemon, in a case of the process being terminated unexpectedly
+    /// Remove all the temporary files created by the daemon, in a case of the process being
+    /// terminated unexpectedly
     Cleanup,
 
     /// Shows the current configuration and the daemon status
@@ -32,6 +34,9 @@ pub enum Command {
         #[clap(long)]
         json: bool,
     },
+
+    /// Execute example pipelines
+    Test(TracerCliTestArgs),
 
     /// Update the daemon to the latest version
     Update,

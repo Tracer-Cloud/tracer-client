@@ -1,6 +1,6 @@
 use crate::daemon::server::DaemonServer;
-use crate::process_identification::constants::WORKING_DIR;
 use crate::utils::system_info::check_sudo;
+use crate::utils::workdir::TRACER_WORK_DIR;
 use anyhow::{Context, Result};
 use colored::Colorize;
 use std::fs;
@@ -18,15 +18,10 @@ pub fn uninstall() -> Result<()> {
 
     println!(">> Uninstalling Tracer...");
 
-    if Path::new(WORKING_DIR).exists() {
-        fs::remove_dir_all(WORKING_DIR)?;
-        println!(
-            "✅  Working directory removed successfully: {}",
-            WORKING_DIR
-        );
-    } else {
-        println!("Working directory {} does not exist", WORKING_DIR);
-    }
+    TRACER_WORK_DIR
+        .cleanup()
+        .context("Failed to cleanup working directory")?;
+
     println!();
     remove_binary()?;
     println!();
