@@ -28,6 +28,7 @@ pub fn process_command() {
             DaemonServer::cleanup();
             success_message!("Daemon files cleanup completed.");
         }
+        Command::CleanupPort => handlers::cleanup_port(),
         Command::Version => {
             println!("{}", Version::current());
         }

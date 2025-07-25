@@ -42,6 +42,9 @@ pub enum Command {
     /// Remove all the temporary files created by the daemon, in a case of the process being terminated unexpectedly
     Cleanup,
 
+    /// Free up the port used by the daemon in case of an issue with it being unresponsive.
+    CleanupPort,
+
     /// Shows the current configuration and the daemon status
     Info {
         /// Output information in JSON format
