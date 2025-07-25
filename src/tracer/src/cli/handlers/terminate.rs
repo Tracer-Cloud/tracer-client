@@ -4,7 +4,7 @@ use crate::{error_message, info_message, success_message};
 use colored::Colorize;
 use std::fs;
 
-fn get_pid() -> Option<String> {
+pub(super) fn get_pid() -> Option<String> {
     let contents = fs::read_to_string(PID_FILE).ok()?;
     let trimmed = contents.trim();
     if trimmed.is_empty() {
