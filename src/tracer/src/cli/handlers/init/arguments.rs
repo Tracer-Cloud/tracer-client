@@ -115,8 +115,14 @@ impl TracerCliInitArgs {
                     if self.non_interactive {
                         None
                     } else {
-                        const ENVIRONMENTS: &[&str] =
-                            &["local", "development", "staging", "production", "custom"];
+                        const ENVIRONMENTS: &[&str] = &[
+                            "Local",
+                            "CI/CD",
+                            "EC2",
+                            "AWS Batch",
+                            "Google Cloud",
+                            "Custom",
+                        ];
                         let selection = Select::with_theme(&*theme)
                             .with_prompt(
                                 "Select environment (or choose 'custom' to enter your own)",
@@ -125,7 +131,7 @@ impl TracerCliInitArgs {
                             .default(0)
                             .interact()
                             .expect("Error while prompting for environment name");
-                        if selection == 4 {
+                        if selection == 5 {
                             Some(get_validated_input(
                                 &theme,
                                 "Enter custom environment name",
