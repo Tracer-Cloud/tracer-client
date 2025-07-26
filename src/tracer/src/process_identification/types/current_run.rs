@@ -10,6 +10,7 @@ pub struct PipelineMetadata {
     pub pipeline_name: String,
     pub run: Option<Run>,
     pub tags: PipelineTags,
+    pub is_dev: bool,
 }
 
 #[derive(Clone)]
