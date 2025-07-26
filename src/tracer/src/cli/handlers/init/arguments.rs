@@ -107,8 +107,14 @@ impl TracerCliInitArgs {
                         if self.non_interactive {
                             None
                         } else {
-                            const ENVIRONMENTS: &[&str] =
-                                &["local", "development", "staging", "production", "custom"];
+                            const ENVIRONMENTS: &[&str] = &[
+                                "Local",
+                                "CI/CD",
+                                "EC2",
+                                "AWS Batch",
+                                "Google Cloud",
+                                "Custom",
+                            ];
                             let selection = Select::with_theme(&*theme)
                                 .with_prompt(
                                     "Select environment (or choose 'custom' to enter your own)",
@@ -117,7 +123,7 @@ impl TracerCliInitArgs {
                                 .default(0)
                                 .interact()
                                 .expect("Error while prompting for environment name");
-                            if selection == 4 {
+                            if selection == 5 {
                                 Some(
                                     Input::with_theme(&*theme)
                                         .with_prompt("Enter custom environment name")
@@ -134,46 +140,7 @@ impl TracerCliInitArgs {
         }
 
         if tags.pipeline_type.is_none() {
-            let _ = tags.pipeline_type.insert(
-                env::get_env_var(env::PIPELINE_TYPE_ENV_VAR)
-                    .or_else(|| {
-                        if self.non_interactive {
-                            None
-                        } else {
-                            const PIPELINE_TYPES: &[&str] = &[
-                                "RNA-seq",
-                                "scRNA-seq",
-                                "ChIP-seq",
-                                "ATAC-seq",
-                                "WGS",
-                                "WES",
-                                "Metabolomics",
-                                "Proteomics",
-                                "custom",
-                            ];
-                            let selection = Select::with_theme(&*theme)
-                                .with_prompt(
-                                    "Select pipeline type (or choose 'custom' to enter your own)",
-                                )
-                                .items(PIPELINE_TYPES)
-                                .default(0)
-                                .interact()
-                                .expect("Error while prompting for pipeline type");
-
-                            if selection == 8 {
-                                Some(
-                                    Input::with_theme(&*theme)
-                                        .with_prompt("Enter custom pipeline type")
-                                        .interact_text()
-                                        .expect("Error while prompting for pipeline type"),
-                                )
-                            } else {
-                                Some(PIPELINE_TYPES[selection].to_string())
-                            }
-                        }
-                    })
-                    .expect("Failed to get pipeline type from environment variable or prompt"),
-            );
+            tags.pipeline_type = env::get_env_var(env::PIPELINE_TYPE_ENV_VAR);
         }
         if tags.user_operator.is_none() {
             let user_operator = env::get_env_var(env::USER_OPERATOR_ENV_VAR)

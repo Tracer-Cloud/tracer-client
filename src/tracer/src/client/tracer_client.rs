@@ -95,6 +95,7 @@ impl TracerClient {
             pipeline_name: cli_args.pipeline_name.clone(),
             run: None,
             tags: cli_args.tags.clone(),
+            is_dev: cli_args.dev,
         }))
     }
 
