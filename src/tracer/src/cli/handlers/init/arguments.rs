@@ -154,51 +154,7 @@ impl TracerCliInitArgs {
         }
 
         if tags.pipeline_type.is_none() {
-            let pipeline_type = env::get_env_var(env::PIPELINE_TYPE_ENV_VAR)
-                .or_else(|| {
-                    if self.non_interactive {
-                        None
-                    } else {
-                        const PIPELINE_TYPES: &[&str] = &[
-                            "RNA-seq",
-                            "scRNA-seq",
-                            "ChIP-seq",
-                            "ATAC-seq",
-                            "WGS",
-                            "WES",
-                            "Metabolomics",
-                            "Proteomics",
-                            "custom",
-                        ];
-                        let selection = Select::with_theme(&*theme)
-                            .with_prompt(
-                                "Select pipeline type (or choose 'custom' to enter your own)",
-                            )
-                            .items(PIPELINE_TYPES)
-                            .default(0)
-                            .interact()
-                            .expect("Error while prompting for pipeline type");
-
-                        if selection == 8 {
-                            Some(get_validated_input(
-                                &theme,
-                                "Enter custom pipeline type",
-                                None,
-                                "pipeline type",
-                            ))
-                        } else {
-                            Some(PIPELINE_TYPES[selection].to_string())
-                        }
-                    }
-                })
-                .expect("Failed to get pipeline type from environment variable or prompt");
-
-            // Validate pipeline type
-            if let Err(e) = validate_input_string(&pipeline_type, "pipeline type") {
-                panic!("Invalid pipeline type: {}", e);
-            }
-
-            tags.pipeline_type = Some(pipeline_type);
+            tags.pipeline_type = env::get_env_var(env::PIPELINE_TYPE_ENV_VAR);
         }
         if tags.user_operator.is_none() {
             let user_operator = env::get_env_var(env::USER_OPERATOR_ENV_VAR)

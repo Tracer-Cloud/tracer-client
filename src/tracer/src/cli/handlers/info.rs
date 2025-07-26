@@ -51,7 +51,6 @@ impl InfoDisplay {
             });
             json["pipeline"] = serde_json::json!({
                 "name": &inner.pipeline_name,
-                "type": inner.tags.pipeline_type.as_deref().unwrap_or("Not set"),
                 "environment": inner.tags.environment.as_deref().unwrap_or("Not set"),
                 "user": inner.tags.user_operator.as_deref().unwrap_or("Not set")
             });
@@ -117,7 +116,6 @@ impl InfoDisplay {
         formatter.add_section_header("Pipeline details");
         formatter.add_empty_line();
 
-        let pipeline_type = inner.tags.pipeline_type.as_deref().unwrap_or("Not set");
         let pipeline_environment = inner.tags.environment.as_deref().unwrap_or("Not set");
         let pipeline_user = inner.tags.user_operator.as_deref().unwrap_or("Not set");
 
@@ -125,7 +123,6 @@ impl InfoDisplay {
         let monitored_tasks = info.tasks_count();
 
         formatter.add_field("Pipeline name", &inner.pipeline_name, "cyan");
-        formatter.add_field("Pipeline type", pipeline_type, "white");
         formatter.add_field("Environment", pipeline_environment, "yellow");
         formatter.add_field("User", pipeline_user, "magenta");
 
