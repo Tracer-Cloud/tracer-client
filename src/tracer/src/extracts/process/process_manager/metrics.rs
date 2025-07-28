@@ -1,7 +1,6 @@
 use crate::extracts::process::process_manager::logger::ProcessLogger;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
-use crate::extracts::process::types::process_result::ProcessResult;
 use anyhow::Result;
 use tracing::debug;
 
@@ -51,34 +50,16 @@ impl ProcessMetricsHandler {
         debug!("System data refreshed for {} PIDs", monitored_pids.len());
 
         // Step 3: Extract and log metrics for each monitored process
-        let mut processed_count = 0;
-        let mut not_found_count = 0;
-
         for (target, processes) in state_manager.get_state().await.get_monitoring().iter() {
             for proc in processes {
                 let system = system_refresher.get_system().read().await;
                 let sys_proc = system.process(proc.pid.into());
 
-                let result = logger.log_process_metrics(target, proc, sys_proc).await?;
-
-                match result {
-                    ProcessResult::Found => {
-                        processed_count += 1;
-                    }
-                    ProcessResult::NotFound => {
-                        debug!("Process PID={} no longer running - will be cleaned up on next termination event", proc.pid);
-                        not_found_count += 1;
-
-                        // TODO bug process polling on EXITTRIGGER
-                    }
-                }
+                logger.log_process_metrics(target, proc, sys_proc).await?;
             }
         }
 
-        debug!(
-            "Metrics polling completed: {} processes updated, {} not found",
-            processed_count, not_found_count
-        );
+        debug!("Metrics polling completed");
 
         Ok(())
     }
