@@ -78,11 +78,11 @@ get_download_slug() {
         GLIBC_MAJOR=$(echo "$GLIBC_VERSION" | cut -d'.' -f1)
         GLIBC_MINOR=$(echo "$GLIBC_VERSION" | cut -d'.' -f2)
 
-        if [ "$GLIBC_MAJOR" -lt 2 ] || { [ "$GLIBC_MAJOR" -eq 2 ] && [ "$GLIBC_MINOR" -lt 34 ]; }; then
+        if [ "$GLIBC_MAJOR" -lt 2 ] || { [ "$GLIBC_MAJOR" -eq 2 ] && [ "$GLIBC_MINOR" -lt 28 ]; }; then
           send_sentry_alert "Unsupported glibc version: $GLIBC_VERSION on $OS_FULL." "info"
 
-          echo "$(error) Linux support requires GLIBC version >= 2.36. Detected GLIBC version: $GLIBC_VERSION." >&2
-          echo "Tested on Ubuntu 22.04 and Amazon Linux 2023." >&2
+          echo "$(error) Linux support requires GLIBC version >= 2.28. Detected GLIBC version: $GLIBC_VERSION." >&2
+          echo "Tested on Ubuntu 20.04 and Amazon Linux 2023." >&2
           echo "Please update your Linux distribution, or contact support@tracer.cloud if Tracer is not working with your preferred distribution." >&2
           exit 1
         fi
