@@ -68,46 +68,18 @@ pub async fn monitor(
             }
 
             _ = submission_interval.tick() => {
-                let timeout_result = tokio::time::timeout(
-                    Duration::from_secs(10),
-                    exporter.submit_batched_data(retry_attempts, retry_delay)
-                ).await;
-
-                match timeout_result {
-                    Ok(_) => {},
-                    Err(_) => {
-                        panic!("❌ CRITICAL: Batch submission timed out after 10 seconds");
-
-                    }
-                }
+                exporter.submit_batched_data(retry_attempts, retry_delay).await?;
             }
             _ = system_metrics_interval.tick() => {
-                let timeout_result = tokio::time::timeout(Duration::from_secs(10), async {
-                    let guard = client.lock().await;
-                    guard.poll_metrics_data().await.unwrap();
-                    sentry_alert(&guard).await;
-                }).await;
+                let guard = client.lock().await;
+                guard.poll_metrics_data().await.unwrap();
+                sentry_alert(&guard).await;
 
-                match timeout_result {
-                    Ok(_) => {},
-                    Err(_) => {
-                        panic!("❌ CRITICAL: System metrics polling timed out after 10 seconds");
-                    }
-                }
             }
             _ = process_metrics_interval.tick() => {
-                let timeout_result = tokio::time::timeout(Duration::from_secs(10), async {
-                    let mut guard = client.lock().await;
-                    monitor_processes(&mut guard).await.unwrap();
-                    sentry_alert(&guard).await;
-                }).await;
-
-                match timeout_result {
-                    Ok(_) => {},
-                    Err(_) => {
-                        panic!("❌ CRITICAL: Process metrics polling timed out after 10 seconds");
-                    }
-                }
+                let mut guard = client.lock().await;
+                monitor_processes(&mut guard).await.unwrap();
+                sentry_alert(&guard).await;
             }
 
         }
