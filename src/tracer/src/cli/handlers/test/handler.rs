@@ -65,6 +65,7 @@ pub async fn test(
         run_name: Some(format!("test-{}", test_args.pipeline.name())),
         tags,
         non_interactive,
+        log_level: test_args.log_level,
         ..Default::default()
     };
 

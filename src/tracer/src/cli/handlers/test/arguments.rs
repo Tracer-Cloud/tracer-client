@@ -10,11 +10,11 @@ const DEFAULT_PIPELINE_NAME: &str = "fastquorum";
 #[derive(Default, Args, Debug, Clone)]
 pub struct TracerCliTestArgs {
     /// Name of example workflow to test
-    #[clap(long, short)]
+    #[clap(long, short = 'n')]
     pub pipeline_name: Option<String>,
 
     /// Path to a local pipeline to test
-    #[clap(long, short)]
+    #[clap(long, short = 'p')]
     pub pipeline_path: Option<PathBuf>,
 
     /// Don't use pixi for local pipeline, even if pixi.toml exists
@@ -22,16 +22,25 @@ pub struct TracerCliTestArgs {
     pub no_pixi: bool,
 
     /// Name of a GitHub repo with a pipeline to test
-    #[clap(long, short)]
+    #[clap(long, short = 'r')]
     pub pipeline_repo: Option<String>,
 
     /// Path to a local tool to test
     #[clap(long, short)]
     pub tool_path: Option<PathBuf>,
 
+    #[clap(trailing_var_arg = true, allow_hyphen_values = true)]
+    pub args: Vec<String>,
+
     /// Do not prompt for missing inputs
     #[clap(short = 'f', long)]
     pub non_interactive: bool,
+
+    /// Capture logs at the specified level and above (default: info)
+    /// Valid values: trace, debug, info, warn, error
+    /// Output will be written to `daemon.log` in the working directory.
+    #[clap(long, default_value = "info")]
+    pub log_level: String,
 }
 
 impl TracerCliTestArgs {
@@ -63,20 +72,32 @@ impl TracerCliTestArgs {
                 let task = Self::prompt_for_pixi_task();
                 Pipeline::local_pixi(self.pipeline_path.unwrap(), &task).unwrap()
             } else {
-                let args = Self::prompt_for_args("pipeline");
+                let args = if !self.args.is_empty() {
+                    self.args
+                } else {
+                    Self::prompt_for_args("pipeline")
+                };
                 Pipeline::LocalCustom {
                     path: self.pipeline_path.unwrap(),
                     args,
                 }
             }
         } else if self.pipeline_repo.is_some() {
-            let args = Self::prompt_for_args("pipeline");
+            let args = if !self.args.is_empty() {
+                self.args
+            } else {
+                Self::prompt_for_args("pipeline")
+            };
             Pipeline::GitHub {
                 repo: self.pipeline_repo.unwrap(),
                 args,
             }
         } else if self.tool_path.is_some() {
-            let args = Self::prompt_for_args("tool");
+            let args = if !self.args.is_empty() {
+                self.args
+            } else {
+                Self::prompt_for_args("tool")
+            };
             Pipeline::LocalTool {
                 path: self.tool_path.unwrap(),
                 args,
@@ -115,7 +136,11 @@ impl TracerCliTestArgs {
                     .with_prompt("Enter custom pipeline local path")
                     .interact_text()
                     .expect("Error while prompting for pipeline path");
-                let args = Self::prompt_for_args("pipeline");
+                let args = if !self.args.is_empty() {
+                    self.args
+                } else {
+                    Self::prompt_for_args("pipeline")
+                };
                 Pipeline::LocalCustom {
                     path: pipeline_path.into(),
                     args,
@@ -125,14 +150,22 @@ impl TracerCliTestArgs {
                     .with_prompt("Enter custom pipeline GitHub repo")
                     .interact_text()
                     .expect("Error while prompting for pipeline repo");
-                let args = Self::prompt_for_args("pipeline");
+                let args = if !self.args.is_empty() {
+                    self.args
+                } else {
+                    Self::prompt_for_args("pipeline")
+                };
                 Pipeline::GitHub { repo, args }
             } else if pipeline_index == custom_index + 3 {
                 let tool_path: String = Input::with_theme(&*INTERACTIVE_THEME)
                     .with_prompt("Enter custom tool local path")
                     .interact_text()
                     .expect("Error while prompting for tool path");
-                let args = Self::prompt_for_args("tool");
+                let args = if !self.args.is_empty() {
+                    self.args
+                } else {
+                    Self::prompt_for_args("tool")
+                };
                 Pipeline::LocalTool {
                     path: tool_path.into(),
                     args,
@@ -142,7 +175,10 @@ impl TracerCliTestArgs {
             }
         };
 
-        FinalizedTestArgs { pipeline }
+        FinalizedTestArgs {
+            pipeline,
+            log_level: self.log_level,
+        }
     }
 
     fn prompt_for_pixi_task() -> String {
@@ -167,6 +203,7 @@ impl TracerCliTestArgs {
 
 pub struct FinalizedTestArgs {
     pub pipeline: Pipeline,
+    pub log_level: String,
 }
 
 #[cfg(test)]
@@ -182,7 +219,9 @@ mod tests {
             pipeline_repo: None,
             tool_path: None,
             no_pixi: false,
+            args: vec![],
             non_interactive: true,
+            log_level: "info".into(),
         };
 
         let finalized_args = args.finalize();
