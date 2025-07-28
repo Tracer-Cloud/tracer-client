@@ -191,7 +191,7 @@ impl ProcessWatcher {
             match tokio::time::timeout(std::time::Duration::from_secs(5), rx.recv()).await {
                 Ok(Some(event)) => {
                     buffer.push(event);
-
+                    debug!("Received trigger event");
                     // Try to receive more events non-blockingly (up to 99 more)
                     while let Ok(Some(event)) =
                         tokio::time::timeout(std::time::Duration::from_millis(10), rx.recv()).await
@@ -201,7 +201,7 @@ impl ProcessWatcher {
                             break;
                         }
                     }
-
+                    debug!("Buffer size after receiving events: {}", buffer.len());
                     // Process all events
                     let triggers = std::mem::take(&mut buffer);
 
