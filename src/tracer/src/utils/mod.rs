@@ -6,5 +6,6 @@ pub mod analytics;
 pub mod cli;
 pub mod env;
 pub mod file_system;
+pub mod input_validation;
 pub mod system_info;
 pub mod yaml;
