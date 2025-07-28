@@ -1,12 +1,10 @@
+use crate::cli::handlers::INTERACTIVE_THEME;
 use crate::process_identification::types::pipeline_tags::PipelineTags;
 use crate::utils::env;
 use crate::utils::input_validation::{get_validated_input, validate_input_string};
 use clap::Args;
-use console::Emoji;
-use dialoguer::theme::ColorfulTheme;
-use dialoguer::Select;
+use dialoguer::{Input, Select};
 use serde::Serialize;
-use std::sync::LazyLock;
 
 #[derive(Default, Args, Debug, Clone)]
 pub struct TracerCliInitArgs {
@@ -52,48 +50,39 @@ pub struct TracerCliInitArgs {
     pub log_level: String,
 }
 
-impl TracerCliInitArgs {
-    pub fn finalize(self) -> FinalizedInitArgs {
-        let theme: LazyLock<ColorfulTheme> = LazyLock::new(|| {
-            let arrow = Emoji("👉 ", "> ").to_string();
-            ColorfulTheme {
-                prompt_prefix: dialoguer::console::Style::new().green().apply_to(arrow),
-                prompt_suffix: dialoguer::console::Style::new()
-                    .dim()
-                    .apply_to(":".to_string()),
-                success_prefix: dialoguer::console::Style::new()
-                    .green()
-                    .apply_to("✔".to_string()),
-                success_suffix: dialoguer::console::Style::new()
-                    .dim()
-                    .apply_to("".to_string()),
-                values_style: dialoguer::console::Style::new().yellow(),
-                active_item_style: dialoguer::console::Style::new().cyan().bold(),
-                ..ColorfulTheme::default()
-            }
-        });
+pub enum PromptMode {
+    Always,
+    Never,
+    WhenMissing,
+}
 
-        let pipeline_name = self
+impl TracerCliInitArgs {
+    pub fn finalize(self, default_prompt_mode: PromptMode) -> FinalizedInitArgs {
+        let prompt_mode = if self.non_interactive {
+            PromptMode::Never
+        } else {
+            default_prompt_mode
+        };
+
+        let arg_pipeline_name = self
             .pipeline_name
-            .or_else(|| env::get_env_var(env::PIPELINE_NAME_ENV_VAR))
-            .or_else(|| {
-                if self.non_interactive {
-                    None
-                } else {
-                    Some(get_validated_input(
-                        &theme,
-                        "Enter pipeline name (e.g., RNA-seq_analysis_v1, scRNA-seq_2024)",
-                        Some("demo_pipeline".into()),
-                        "pipeline name",
-                    ))
+            .or_else(|| env::get_env_var(env::PIPELINE_NAME_ENV_VAR));
+        let pipeline_name = match (arg_pipeline_name, &prompt_mode) {
+            (Some(name), PromptMode::Never | PromptMode::WhenMissing) => {
+                if let Err(e) = validate_input_string(&name, "pipeline name") {
+                    panic!("Invalid pipeline name: {}", e);
                 }
-            })
-            .expect("Failed to get pipeline name from environment variable or prompt");
+                Some(name)
+            }
+            (Some(name), PromptMode::Always) => Some(Self::prompt_for_pipeline_name(&name)),
+            (None, PromptMode::Always | PromptMode::WhenMissing) => {
+                Some(Self::prompt_for_pipeline_name("demo_pipeline"))
+            }
+            (None, PromptMode::Never) => None,
+        }
+        .expect("Failed to get pipeline name from environment variable or prompt");
 
         // Validate pipeline name
-        if let Err(e) = validate_input_string(&pipeline_name, "pipeline name") {
-            panic!("Invalid pipeline name: {}", e);
-        }
 
         // Ignore empty run names
         let run_name = self
@@ -109,76 +98,60 @@ impl TracerCliInitArgs {
 
         let mut tags = self.tags;
 
-        if tags.environment.is_none() {
-            let environment = env::get_env_var(env::ENVIRONMENT_ENV_VAR)
-                .or_else(|| {
-                    if self.non_interactive {
-                        None
-                    } else {
-                        const ENVIRONMENTS: &[&str] = &[
-                            "Local",
-                            "CI/CD",
-                            "EC2",
-                            "AWS Batch",
-                            "Google Cloud",
-                            "Custom",
-                        ];
-                        let selection = Select::with_theme(&*theme)
-                            .with_prompt(
-                                "Select environment (or choose 'custom' to enter your own)",
-                            )
-                            .items(ENVIRONMENTS)
-                            .default(0)
-                            .interact()
-                            .expect("Error while prompting for environment name");
-                        if selection == 5 {
-                            Some(get_validated_input(
-                                &theme,
-                                "Enter custom environment name",
-                                None,
-                                "environment name",
-                            ))
-                        } else {
-                            Some(ENVIRONMENTS[selection].to_string())
-                        }
-                    }
-                })
-                .expect("Failed to get environment from environment variable or prompt");
-
-            // Validate environment
-            if let Err(e) = validate_input_string(&environment, "environment") {
-                panic!("Invalid environment: {}", e);
+        let arg_environment = tags
+            .environment
+            .or_else(|| env::get_env_var(env::ENVIRONMENT_ENV_VAR));
+        let environment = match (arg_environment, &prompt_mode) {
+            (Some(name), PromptMode::Never | PromptMode::WhenMissing) => {
+                if let Err(e) = validate_input_string(&name, "environment name") {
+                    panic!("Invalid environment name: {}", e);
+                }
+                Some(name)
             }
-
-            tags.environment = Some(environment);
-        }
-
-        if tags.pipeline_type.is_none() {
-            tags.pipeline_type = env::get_env_var(env::PIPELINE_TYPE_ENV_VAR);
-        }
-        if tags.user_operator.is_none() {
-            let user_operator = env::get_env_var(env::USER_OPERATOR_ENV_VAR)
-                .or_else(|| {
-                    if self.non_interactive {
-                        None
-                    } else {
-                        Some(get_validated_input(
-                            &theme,
-                            "Enter your API key",
-                            None,
-                            "API key",
-                        ))
-                    }
-                })
-                .expect("Failed to get API key from environment variable or prompt");
-
-            // Validate API key
-            if let Err(e) = validate_input_string(&user_operator, "API key") {
-                panic!("Invalid API key: {}", e);
+            (Some(name), PromptMode::Always) => Some(Self::prompt_for_environment_name(&name)),
+            (None, PromptMode::Always | PromptMode::WhenMissing) => {
+                Some(Self::prompt_for_environment_name("local"))
             }
-
-            tags.user_operator = Some(user_operator);
+            (None, PromptMode::Never) => None,
         }
+        .expect("Failed to get environment from environment variable or prompt");
+        tags.environment = Some(environment);
+
+        let arg_pipeline_type = tags
+            .pipeline_type
+            .map(|e| e.clone())
+            .or_else(|| env::get_env_var(env::PIPELINE_TYPE_ENV_VAR));
+        let pipeline_type = match (arg_pipeline_type, &prompt_mode) {
+            (Some(name), PromptMode::Never | PromptMode::WhenMissing) => Some(name),
+            (Some(name), PromptMode::Always) => Self::prompt_for_pipeline_type(&name),
+            (None, PromptMode::Always | PromptMode::WhenMissing) => {
+                Self::prompt_for_pipeline_type("RNA-seq")
+            }
+            (None, PromptMode::Never) => None,
+        }
+        .expect("Failed to get pipeline type from environment variable or prompt");
+        tags.pipeline_type = Some(pipeline_type);
+
+        let arg_user_operator = tags
+            .user_operator
+            .or_else(|| env::get_env_var(env::USER_OPERATOR_ENV_VAR));
+        let user_operator = match (arg_user_operator, &prompt_mode) {
+            (Some(name), PromptMode::Never | PromptMode::WhenMissing) => {
+                if let Err(e) = validate_input_string(&name, "user operator") {
+                    panic!("Invalid API Key: {}", e);
+                }
+                Some(name)
+            }
+            (Some(name), PromptMode::Always) => {
+                Some(Self::prompt_for_api_key(Some(name.to_owned())))
+            }
+            (None, PromptMode::Always | PromptMode::WhenMissing) => {
+                Some(Self::prompt_for_api_key(None))
+            }
+            (None, PromptMode::Never) => None,
+        }
+        .expect("Failed to get user operator from environment variable or prompt");
+        tags.user_operator = Some(user_operator);
 
         // Validate department
         if let Err(e) = validate_input_string(&tags.department, "department") {
@@ -234,6 +207,86 @@ impl TracerCliInitArgs {
             user_id,
             log_level: self.log_level,
         }
+    }
+
+    fn prompt_for_pipeline_name(default: &str) -> String {
+        get_validated_input(
+            &*INTERACTIVE_THEME,
+            "Enter pipeline name (e.g., RNA-seq_analysis_v1, scRNA-seq_2024)",
+            Some(default.into()),
+            "pipeline name",
+        )
+    }
+
+    fn prompt_for_environment_name(default: &str) -> String {
+        const ENVIRONMENTS: &[&str] = &["local", "development", "staging", "production", "custom"];
+        let default_index = ENVIRONMENTS.iter().position(|e| e == &default).unwrap();
+        let selection = Select::with_theme(&*INTERACTIVE_THEME)
+            .with_prompt("Select environment (or choose 'custom' to enter your own)")
+            .items(ENVIRONMENTS)
+            .default(default_index)
+            .interact()
+            .expect("Error while prompting for environment name");
+        let environment = ENVIRONMENTS[selection];
+        if environment == "custom" {
+            get_validated_input(
+                &*INTERACTIVE_THEME,
+                "Enter custom environment name",
+                None,
+                "environment name",
+            )
+        } else {
+            environment.to_string()
+        }
+    }
+
+    fn prompt_for_pipeline_type(default: &str) -> Option<String> {
+        const PIPELINE_TYPES: &[&str] = &[
+            "RNA-seq",
+            "scRNA-seq",
+            "ChIP-seq",
+            "ATAC-seq",
+            "WGS",
+            "WES",
+            "Metabolomics",
+            "Proteomics",
+            "custom",
+        ];
+        const CUSTOM_INDEX: usize = 8;
+        let default_index = PIPELINE_TYPES
+            .iter()
+            .position(|e| e == &default)
+            .unwrap_or(CUSTOM_INDEX);
+        let selection = Select::with_theme(&*INTERACTIVE_THEME)
+            .with_prompt("Select pipeline type (or choose 'custom' to enter your own)")
+            .items(PIPELINE_TYPES)
+            .default(default_index)
+            .interact()
+            .expect("Error while prompting for pipeline type");
+        let pipeline_type = PIPELINE_TYPES[selection];
+        if pipeline_type == "custom" {
+            let mut prompt =
+                Input::with_theme(&*INTERACTIVE_THEME).with_prompt("Enter custom pipeline type");
+            if default_index == CUSTOM_INDEX {
+                prompt = prompt.default(default.into());
+            }
+            Some(
+                prompt
+                    .interact_text()
+                    .expect("Error while prompting for pipeline type"),
+            )
+        } else {
+            Some(pipeline_type.to_string())
+        }
+    }
+
+    fn prompt_for_api_key(default: Option<String>) -> String {
+        get_validated_input(
+            &*INTERACTIVE_THEME,
+            "Enter your API key",
+            default,
+            "API key",
+        )
     }
 }
 

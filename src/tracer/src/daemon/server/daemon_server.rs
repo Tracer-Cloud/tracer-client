@@ -1,6 +1,6 @@
 use std::future::IntoFuture;
+use std::io;
 use std::sync::Arc;
-use std::{fs, io};
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 
@@ -8,9 +8,8 @@ use crate::client::TracerClient;
 use crate::daemon::routes::ROUTES;
 use crate::daemon::server::process_monitor::monitor;
 use crate::daemon::state::DaemonState;
-use crate::process_identification::constants::{
-    DEFAULT_DAEMON_PORT, LOG_FILE, MATCHES_FILE, PID_FILE, STDERR_FILE, STDOUT_FILE,
-};
+use crate::process_identification::constants::DEFAULT_DAEMON_PORT;
+use crate::utils::workdir::TRACER_WORK_DIR;
 use axum::Router;
 use std::net::SocketAddr;
 use tokio::task::JoinHandle;
@@ -125,10 +124,6 @@ impl DaemonServer {
     }
 
     pub fn cleanup() {
-        let _ = fs::remove_file(STDOUT_FILE);
-        let _ = fs::remove_file(STDERR_FILE);
-        let _ = fs::remove_file(PID_FILE);
-        let _ = fs::remove_file(LOG_FILE);
-        let _ = fs::remove_file(MATCHES_FILE);
+        let _ = &TRACER_WORK_DIR.cleanup_run();
     }
 }
