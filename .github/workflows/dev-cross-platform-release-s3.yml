@@ -271,7 +271,7 @@ jobs:
 
       - name: Build the binary
         run: |
-          source $HOME/.cargo/env
+          . $HOME/.cargo/env
           cargo build --release
 
       - name: Prepare binary for release
