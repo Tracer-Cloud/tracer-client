@@ -280,12 +280,7 @@ impl TracerCliInitArgs {
     }
 
     fn prompt_for_api_key(default: Option<String>) -> String {
-        get_validated_input(
-            &INTERACTIVE_THEME,
-            "Enter your API key",
-            default,
-            "API key",
-        )
+        get_validated_input(&INTERACTIVE_THEME, "Enter your API key", default, "API key")
     }
 }
 
