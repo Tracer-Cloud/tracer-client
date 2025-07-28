@@ -9,6 +9,7 @@ use utils::print_anteater_banner;
 mod checks;
 mod constants;
 mod installer;
+mod message;
 mod sentry;
 mod types;
 mod utils;

@@ -128,21 +128,21 @@ get_download_slug() {
 
 fetch_execute_installer() {
   SLUG=$(get_download_slug) || exit 1
-  DOWNLOAD_URL="$1/$SLUG"
+  BINARY_NAME="tracer-installer"
+  DOWNLOAD_URL="$1/$BINARY_NAME-$SLUG"
   USER_ID="$2"
   CLIENT_BRANCH="$3"
 
   # Download, extract, and run
-  BINARY_NAME="tracer-installer"
   TEMP_DIR=$(mktemp -d)
   ARCHIVE_PATH="$TEMP_DIR/${BINARY_NAME}.tar.gz"
   EXTRACT_DIR="$TEMP_DIR/extracted"
 
   mkdir -p "$EXTRACT_DIR"
   printf "\n"
-  echo "$(colorize "[DOWNLOADING]" "blue") Tracer Installer from: $DOWNLOAD_URL"
+  echo "$(colorize "[DOWNLOADING]" "blue") $DOWNLOAD_URL"
   curl -L "$DOWNLOAD_URL" -o "$ARCHIVE_PATH" || {
-    echo "${EMOJI_CANCEL}Failed to download binary"
+    echo "$(error) Failed to download binary"
     send_sentry_alert "Failed to download binary from $DOWNLOAD_URL." "info"
     exit 1
   }
@@ -184,8 +184,3 @@ fetch_execute_installer() {
   eval "$cmd"
 
 }
-
-# Usage examples:
-# echo "$(colorize "Downloading" "blue") from: $(colorize "$DOWNLOAD_URL" "green")"
-# echo "$(colorize "ERROR" "red"): Something went wrong"
-# echo "$(colorize "Normal text" "green")"  # Bold defaults to false

@@ -3,14 +3,15 @@ mod environment;
 pub mod kernel;
 mod root;
 
-use crate::utils::{print_status, PrintEmoji};
+use crate::error_message;
+use crate::installer::{Os, PlatformInfo};
+use crate::utils::{print_status, TagColor};
 use api::APICheck;
+use colored::Colorize;
+pub(crate) use environment::detect_environment_type;
 use environment::EnvironmentCheck;
 use kernel::KernelCheck;
 use root::RootCheck;
-
-use crate::installer::{Os, PlatformInfo};
-pub(crate) use environment::detect_environment_type;
 
 /// Trait defining functions a Requirement check must implement before being called
 /// as a preflight step or readiness check for installing the tracer binary
@@ -45,22 +46,23 @@ impl CheckManager {
 
         for check in &self.checks {
             if check.check().await {
-                print_status(check.name(), &check.success_message(), PrintEmoji::Pass);
+                print_status(
+                    "PASSED",
+                    check.name(),
+                    &check.success_message(),
+                    TagColor::Green,
+                );
             } else {
                 all_passed = false;
                 let reason = check.error_message();
-                print_status(check.name(), &reason, PrintEmoji::Fail);
+                print_status("FAILED", check.name(), &reason, TagColor::Red);
             }
         }
 
         println!(); // spacing after checks
 
         if !all_passed {
-            print_status(
-                "Environment",
-                "Required Checks Failed. Please contact support.",
-                PrintEmoji::Fail,
-            );
+            error_message!("Required environment checks failed. Please contact support.");
             std::process::exit(1);
         }
     }
