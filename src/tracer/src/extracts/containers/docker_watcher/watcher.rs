@@ -64,25 +64,26 @@ impl DockerWatcher {
                                 state.remove(&container_id);
                             }
                         }
+                        tracing::debug!("3 Container event: {:?}", container_event);
                         // Log the container event
                         if let Err(e) = recorder
                         .log(
                             crate::process_identification::types::event::ProcessStatus::ContainerExecution,
                             format!("[container] {} - {:?}",
-                            container_event.name, container_event.state
-                        ),
+                                container_event.name, container_event.state
+                            ),
                             Some(
                                 crate::process_identification::types::event::attributes::EventAttributes::ContainerEvents(
-                                container_event.clone().into(),
+                                    container_event.clone().into(),
+                                ),
                             ),
-                        ),
                             Some(container_event.timestamp),
                         )
                         .await
                         {
                             tracing::error!("Failed to log container event: {:?}", e);
                         }
-                        tracing::debug!("3 Container event: {:?}", container_event);
+                        tracing::debug!("4 Container event: {:?}", container_event);
                     }
                 }
             });

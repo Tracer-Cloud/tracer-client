@@ -48,7 +48,9 @@ impl LogRecorder {
         attributes: Option<EventAttributes>,
         timestamp: Option<DateTime<Utc>>,
     ) -> anyhow::Result<()> {
+        tracing::debug!("1 log");
         let run_metadata = self.pipeline.read().await;
+        tracing::debug!("2 log");
         self.log_with_metadata(
             process_status,
             message,
