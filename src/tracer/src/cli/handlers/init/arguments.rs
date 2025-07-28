@@ -1,9 +1,10 @@
 use crate::process_identification::types::pipeline_tags::PipelineTags;
 use crate::utils::env;
+use crate::utils::input_validation::{get_validated_input, validate_input_string};
 use clap::Args;
 use console::Emoji;
 use dialoguer::theme::ColorfulTheme;
-use dialoguer::{Input, Select};
+use dialoguer::Select;
 use serde::Serialize;
 use std::sync::LazyLock;
 
@@ -79,101 +80,119 @@ impl TracerCliInitArgs {
                 if self.non_interactive {
                     None
                 } else {
-                    Input::with_theme(&*theme)
-                        .with_prompt(
-                            "Enter pipeline name (e.g., RNA-seq_analysis_v1, scRNA-seq_2024)",
-                        )
-                        .default("demo_pipeline".into())
-                        .interact_text()
-                        .inspect_err(|e| panic!("Error while prompting for pipeline type: {e}"))
-                        .ok()
+                    Some(get_validated_input(
+                        &theme,
+                        "Enter pipeline name (e.g., RNA-seq_analysis_v1, scRNA-seq_2024)",
+                        Some("demo_pipeline".into()),
+                        "pipeline name",
+                    ))
                 }
             })
             .expect("Failed to get pipeline name from environment variable or prompt");
+
+        // Validate pipeline name
+        if let Err(e) = validate_input_string(&pipeline_name, "pipeline name") {
+            panic!("Invalid pipeline name: {}", e);
+        }
 
         // Ignore empty run names
         let run_name = self
             .run_name
             .map(|name| name.trim().to_string())
             .filter(|name| !name.is_empty())
-            .or_else(|| env::get_env_var(env::RUN_NAME_ENV_VAR));
+            .or_else(|| env::get_env_var(env::RUN_NAME_ENV_VAR))
+            .inspect(|name| {
+                if let Err(e) = validate_input_string(name, "run name") {
+                    panic!("Invalid run name: {}", e);
+                }
+            });
 
         let mut tags = self.tags;
 
         if tags.environment.is_none() {
-            let _ = tags.environment.insert(
-                env::get_env_var(env::ENVIRONMENT_ENV_VAR)
-                    .or_else(|| {
-                        if self.non_interactive {
-                            None
+            let environment = env::get_env_var(env::ENVIRONMENT_ENV_VAR)
+                .or_else(|| {
+                    if self.non_interactive {
+                        None
+                    } else {
+                        const ENVIRONMENTS: &[&str] =
+                            &["local", "development", "staging", "production", "custom"];
+                        let selection = Select::with_theme(&*theme)
+                            .with_prompt(
+                                "Select environment (or choose 'custom' to enter your own)",
+                            )
+                            .items(ENVIRONMENTS)
+                            .default(0)
+                            .interact()
+                            .expect("Error while prompting for environment name");
+                        if selection == 4 {
+                            Some(get_validated_input(
+                                &theme,
+                                "Enter custom environment name",
+                                None,
+                                "environment name",
+                            ))
                         } else {
-                            const ENVIRONMENTS: &[&str] =
-                                &["local", "development", "staging", "production", "custom"];
-                            let selection = Select::with_theme(&*theme)
-                                .with_prompt(
-                                    "Select environment (or choose 'custom' to enter your own)",
-                                )
-                                .items(ENVIRONMENTS)
-                                .default(0)
-                                .interact()
-                                .expect("Error while prompting for environment name");
-                            if selection == 4 {
-                                Some(
-                                    Input::with_theme(&*theme)
-                                        .with_prompt("Enter custom environment name")
-                                        .interact_text()
-                                        .expect("Error while prompting for environment name"),
-                                )
-                            } else {
-                                Some(ENVIRONMENTS[selection].to_string())
-                            }
+                            Some(ENVIRONMENTS[selection].to_string())
                         }
-                    })
-                    .expect("Failed to get environment from environment variable or prompt"),
-            );
+                    }
+                })
+                .expect("Failed to get environment from environment variable or prompt");
+
+            // Validate environment
+            if let Err(e) = validate_input_string(&environment, "environment") {
+                panic!("Invalid environment: {}", e);
+            }
+
+            tags.environment = Some(environment);
         }
 
         if tags.pipeline_type.is_none() {
-            let _ = tags.pipeline_type.insert(
-                env::get_env_var(env::PIPELINE_TYPE_ENV_VAR)
-                    .or_else(|| {
-                        if self.non_interactive {
-                            None
-                        } else {
-                            const PIPELINE_TYPES: &[&str] = &[
-                                "RNA-seq",
-                                "scRNA-seq",
-                                "ChIP-seq",
-                                "ATAC-seq",
-                                "WGS",
-                                "WES",
-                                "Metabolomics",
-                                "Proteomics",
-                                "custom",
-                            ];
-                            let selection = Select::with_theme(&*theme)
-                                .with_prompt(
-                                    "Select pipeline type (or choose 'custom' to enter your own)",
-                                )
-                                .items(PIPELINE_TYPES)
-                                .default(0)
-                                .interact()
-                                .expect("Error while prompting for pipeline type");
+            let pipeline_type = env::get_env_var(env::PIPELINE_TYPE_ENV_VAR)
+                .or_else(|| {
+                    if self.non_interactive {
+                        None
+                    } else {
+                        const PIPELINE_TYPES: &[&str] = &[
+                            "RNA-seq",
+                            "scRNA-seq",
+                            "ChIP-seq",
+                            "ATAC-seq",
+                            "WGS",
+                            "WES",
+                            "Metabolomics",
+                            "Proteomics",
+                            "custom",
+                        ];
+                        let selection = Select::with_theme(&*theme)
+                            .with_prompt(
+                                "Select pipeline type (or choose 'custom' to enter your own)",
+                            )
+                            .items(PIPELINE_TYPES)
+                            .default(0)
+                            .interact()
+                            .expect("Error while prompting for pipeline type");
 
-                            if selection == 8 {
-                                Some(
-                                    Input::with_theme(&*theme)
-                                        .with_prompt("Enter custom pipeline type")
-                                        .interact_text()
-                                        .expect("Error while prompting for pipeline type"),
-                                )
-                            } else {
-                                Some(PIPELINE_TYPES[selection].to_string())
-                            }
+                        if selection == 8 {
+                            Some(get_validated_input(
+                                &theme,
+                                "Enter custom pipeline type",
+                                None,
+                                "pipeline type",
+                            ))
+                        } else {
+                            Some(PIPELINE_TYPES[selection].to_string())
                         }
-                    })
-                    .expect("Failed to get pipeline type from environment variable or prompt"),
-            );
+                    }
+                })
+                .expect("Failed to get pipeline type from environment variable or prompt");
+
+            // Validate pipeline type
+            if let Err(e) = validate_input_string(&pipeline_type, "pipeline type") {
+                panic!("Invalid pipeline type: {}", e);
+            }
+
+            tags.pipeline_type = Some(pipeline_type);
         }
         if tags.user_operator.is_none() {
             let user_operator = env::get_env_var(env::USER_OPERATOR_ENV_VAR)
@@ -181,27 +200,76 @@ impl TracerCliInitArgs {
                     if self.non_interactive {
                         None
                     } else {
-                        Input::with_theme(&*theme)
-                            .with_prompt("Enter your name/username (who is running this pipeline)")
-                            .default(std::env::var("USER").unwrap_or_else(|_| "unknown".into()))
-                            .interact_text()
-                            .inspect_err(|e| panic!("Error while prompting for user operator: {e}"))
-                            .ok()
+                        Some(get_validated_input(
+                            &theme,
+                            "Enter your API key",
+                            None,
+                            "API key",
+                        ))
                     }
                 })
-                .expect("Failed to get user operator from environment variable or prompt");
+                .expect("Failed to get API key from environment variable or prompt");
+
+            // Validate API key
+            if let Err(e) = validate_input_string(&user_operator, "API key") {
+                panic!("Invalid API key: {}", e);
+            }
+
             tags.user_operator = Some(user_operator);
+        }
+
+        // Validate department
+        if let Err(e) = validate_input_string(&tags.department, "department") {
+            panic!("Invalid department: {}", e);
+        }
+
+        // Validate team
+        if let Err(e) = validate_input_string(&tags.team, "team") {
+            panic!("Invalid team: {}", e);
+        }
+
+        // Validate organization_id if provided
+        if let Some(ref org_id) = tags.organization_id {
+            if let Err(e) = validate_input_string(org_id, "organization_id") {
+                panic!("Invalid organization_id: {}", e);
+            }
+        }
+
+        // Validate others tags
+        for (i, other_tag) in tags.others.iter().enumerate() {
+            if let Err(e) = validate_input_string(other_tag, &format!("others[{}]", i)) {
+                panic!("Invalid others tag at index {}: {}", i, e);
+            }
+        }
+
+        // Validate user_id if provided
+        let user_id = self.user_id.inspect(|id| {
+            if let Err(e) = validate_input_string(id, "user_id") {
+                panic!("Invalid user_id: {}", e);
+            }
+        });
+
+        // Validate run_id if provided
+        let run_id = self.run_id.inspect(|id| {
+            if let Err(e) = validate_input_string(id, "run_id") {
+                panic!("Invalid run_id: {}", e);
+            }
+        });
+
+        // Validate log_level
+        if let Err(e) = validate_input_string(&self.log_level, "log_level") {
+            panic!("Invalid log_level: {}", e);
         }
 
         FinalizedInitArgs {
             pipeline_name,
-            run_id: self.run_id,
+            run_id,
             run_name,
             tags,
             no_daemonize: self.no_daemonize,
             dev: self.dev,
             force_procfs: self.force_procfs,
-            user_id: self.user_id,
+            user_id,
             log_level: self.log_level,
         }
     }
