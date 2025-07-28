@@ -21,9 +21,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - arch: x86_64
-            target: x86_64-unknown-linux-gnu
-            runner: ubuntu-20.04
           - arch: aarch64
             target: aarch64-unknown-linux-gnu
             runner: ubuntu-22.04-arm # Native ARM runner
@@ -232,3 +229,81 @@ jobs:
         run: |
           aws s3 cp release-files/tracer-x86_64-amazon-linux-gnu.tar.gz s3://tracer-releases/tracer-x86_64-amazon-linux-gnu.tar.gz
           aws s3 cp release-files/tracer-x86_64-amazon-linux-gnu.tar.gz s3://tracer-releases/${{ github.head_ref || github.ref_name }}/tracer-x86_64-amazon-linux-gnu.tar.gz
+
+
+
+  build-and-release-ubuntu-x86_64:
+    permissions: write-all
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:20.04
+
+    steps:
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y build-essential curl git clang llvm libelf-dev libbpf-dev linux-headers-generic unzip
+
+      - name: Install Rust
+        run: |
+          curl https://sh.rustup.rs -sSf | sh -s -- -y
+          echo 'source $HOME/.cargo/env' >> ~/.bashrc
+          source $HOME/.cargo/env
+          rustup target add x86_64-unknown-linux-gnu
+          rustup toolchain install nightly-2025-04-15 --component rust-src
+
+      - name: Check out repository with submodules
+        uses: actions/checkout@v4.1.4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Configure Git safe directory
+        run: git config --global --add safe.directory $GITHUB_WORKSPACE
+
+      - name: Update version in Cargo.toml
+        run: |
+          DATE=$(date +'%Y.%-m.%-d')
+          TIME=$(date +'%H%M')
+          NEW_VERSION="${DATE}+${TIME}"
+          sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
+          echo "Updated version to: ${NEW_VERSION}"
+
+      - name: Build the binary
+        run: |
+          source $HOME/.cargo/env
+          cargo build --release
+
+      - name: Prepare binary for release
+        run: |
+          mkdir -p release-files/ubuntu-x86_64
+          cp target/release/tracer release-files/ubuntu-x86_64/tracer
+          chmod +x release-files/ubuntu-x86_64/tracer
+          tar -czf release-files/tracer-x86_64-unknown-linux-gnu.tar.gz -C release-files/ubuntu-x86_64 tracer
+
+          # Copy Tracer Installer binary if present
+          if [ -f target/release/tracer-installer ]; then
+            cp target/release/tracer-installer release-files/ubuntu-x86_64/tracer-installer
+            chmod +x release-files/ubuntu-x86_64/tracer-installer
+            tar -czf release-files/tracer-installer-x86_64-unknown-linux-gnu.tar.gz -C release-files/ubuntu-x86_64 tracer-installer
+          fi
+
+      - name: Install AWS CLI
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          ./aws/install
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Upload to S3
+        run: |
+          aws s3 cp release-files/tracer-x86_64-unknown-linux-gnu.tar.gz s3://tracer-releases/tracer-x86_64-unknown-linux-gnu.tar.gz
+          aws s3 cp release-files/tracer-x86_64-unknown-linux-gnu.tar.gz s3://tracer-releases/${{ github.head_ref || github.ref_name }}/tracer-x86_64-unknown-linux-gnu.tar.gz
+
+          aws s3 cp release-files/tracer-installer-x86_64-unknown-linux-gnu.tar.gz s3://tracer-installer-releases/${{ github.head_ref || github.ref_name }}/tracer-installer-x86_64-unknown-linux-gnu.tar.gz
