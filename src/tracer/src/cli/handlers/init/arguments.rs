@@ -81,7 +81,7 @@ impl TracerCliInitArgs {
                     None
                 } else {
                     Some(get_validated_input(
-                        &*theme,
+                        &theme,
                         "Enter pipeline name (e.g., RNA-seq_analysis_v1, scRNA-seq_2024)",
                         Some("demo_pipeline".into()),
                         "pipeline name",
@@ -101,11 +101,10 @@ impl TracerCliInitArgs {
             .map(|name| name.trim().to_string())
             .filter(|name| !name.is_empty())
             .or_else(|| env::get_env_var(env::RUN_NAME_ENV_VAR))
-            .map(|name| {
-                if let Err(e) = validate_input_string(&name, "run name") {
+            .inspect(|name| {
+                if let Err(e) = validate_input_string(name, "run name") {
                     panic!("Invalid run name: {}", e);
                 }
-                name
             });
 
         let mut tags = self.tags;
@@ -128,7 +127,7 @@ impl TracerCliInitArgs {
                             .expect("Error while prompting for environment name");
                         if selection == 4 {
                             Some(get_validated_input(
-                                &*theme,
+                                &theme,
                                 "Enter custom environment name",
                                 None,
                                 "environment name",
@@ -176,7 +175,7 @@ impl TracerCliInitArgs {
 
                         if selection == 8 {
                             Some(get_validated_input(
-                                &*theme,
+                                &theme,
                                 "Enter custom pipeline type",
                                 None,
                                 "pipeline type",
@@ -202,7 +201,7 @@ impl TracerCliInitArgs {
                         None
                     } else {
                         Some(get_validated_input(
-                            &*theme,
+                            &theme,
                             "Enter your API key",
                             None,
                             "API key",
@@ -244,19 +243,17 @@ impl TracerCliInitArgs {
         }
 
         // Validate user_id if provided
-        let user_id = self.user_id.map(|id| {
-            if let Err(e) = validate_input_string(&id, "user_id") {
+        let user_id = self.user_id.inspect(|id| {
+            if let Err(e) = validate_input_string(id, "user_id") {
                 panic!("Invalid user_id: {}", e);
             }
-            id
         });
 
         // Validate run_id if provided
-        let run_id = self.run_id.map(|id| {
-            if let Err(e) = validate_input_string(&id, "run_id") {
+        let run_id = self.run_id.inspect(|id| {
+            if let Err(e) = validate_input_string(id, "run_id") {
                 panic!("Invalid run_id: {}", e);
             }
-            id
         });
 
         // Validate log_level
