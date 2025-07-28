@@ -1,7 +1,8 @@
 #!/bin/bash
 # installer for the tracer installer github need to update based on dev installer
 
-. ./binary-installer-common.sh
+curl -sSL https://install.tracer.cloud/binary-installer-common.sh -o /tmp/binary-installer-common.sh
+. /tmp/binary-installer-common.sh
 
 USER_ID="$1"
 

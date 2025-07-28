@@ -1,7 +1,8 @@
 #!/bin/sh
 # installer for the tracer installer using s3
 
-. ./binary-installer-common.sh
+curl -sSL https://install.tracer.cloud/binary-installer-common.sh -o /tmp/binary-installer-common.sh
+. /tmp/binary-installer-common.sh
 
 USER_ID="$1"
 CLIENT_BRANCH="${CLI_BRANCH:-}"
