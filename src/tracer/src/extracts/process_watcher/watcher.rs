@@ -64,7 +64,11 @@ impl ProcessWatcher {
             let mut known_processes: HashSet<u32> = HashSet::new();
 
             loop {
-                system.refresh_processes(ProcessesToUpdate::All, false);
+                // refreshing the current processes and passing remove_dead_processes = true
+                // the remove_dead_processes = true removes the pids of the terminated processes and
+                // allows us to compare the available PIDs with the old one, in order to see which processes
+                // have been terminated
+                system.refresh_processes(ProcessesToUpdate::All, true);
                 let mut current_processes = HashSet::new();
 
                 // Check for new processes (started)
@@ -103,7 +107,7 @@ impl ProcessWatcher {
                 // Check for ended processes
                 for &old_pid in &known_processes {
                     if !current_processes.contains(&old_pid) {
-                        info!("Process ended - PID: {}", old_pid);
+                        debug!("Process ended - PID: {}", old_pid);
                         // Process ended
                         let end_trigger = ProcessEndTrigger {
                             pid: old_pid as usize,
