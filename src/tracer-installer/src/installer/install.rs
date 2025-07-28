@@ -1,7 +1,8 @@
 use super::platform::PlatformInfo;
 use crate::installer::url_builder::TracerUrlFinder;
 use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
-use crate::utils::{print_label, print_status, print_summary, print_title, PrintEmoji};
+use crate::utils::{print_message, print_status, print_title, TagColor};
+use crate::{success_message, warning_message};
 use anyhow::{Context, Result};
 use colored::Colorize;
 use flate2::read::GzDecoder;
@@ -53,10 +54,7 @@ impl Installer {
             .get_binary_url(self.channel.clone(), &self.platform)
             .await?;
 
-        print_summary(
-            &format!("Downloading Tracer from:\n {url}"),
-            PrintEmoji::Downloading,
-        );
+        print_message("DOWNLOADING", url.as_str(), TagColor::Blue);
 
         let temp_dir = tempfile::tempdir()?;
         let archive_path = temp_dir.path().join("tracer.tar.gz");
@@ -121,9 +119,10 @@ impl Installer {
         archive.unpack(dest)?;
 
         println!();
-        print_label(
-            &format!("Extracting Tracer to: {}", dest.display()),
-            PrintEmoji::Extract,
+        print_message(
+            "EXTRACTING",
+            &format!("Output: {}", dest.display()),
+            TagColor::Blue,
         );
 
         Ok(())
@@ -141,10 +140,7 @@ impl Installer {
             .with_context(|| format!("Failed to copy tracer binary from {:?}", extracted_binary))?;
 
         std::fs::set_permissions(&final_path, std::fs::Permissions::from_mode(0o755))?;
-        print_label(
-            &format!("Tracer installed to: {}", final_path.display()),
-            PrintEmoji::Pass,
-        );
+        success_message!("Tracer installed to: {}", final_path.display());
 
         Ok(final_path)
     }
@@ -152,12 +148,9 @@ impl Installer {
     pub async fn patch_rc_files_async(user_id: Option<String>) -> Result<()> {
         print_title("Updating Shell Configs");
         if let Some(ref id) = user_id {
-            print_status("User ID provided", id, PrintEmoji::Pass);
+            print_message("USER ID", id, TagColor::Cyan);
         } else {
-            print_label(
-                "No user ID provided. Skipping user ID persistence...",
-                PrintEmoji::Fail,
-            );
+            warning_message!("No user ID provided, skipping user ID persistence");
         }
 
         let home = dirs::home_dir().context("Could not find home directory")?;
@@ -207,7 +200,7 @@ impl Installer {
             }
 
             if updated {
-                print_label(&format!("Updating {}", rc), PrintEmoji::Updated);
+                print_message("UPDATED", rc, TagColor::Green);
             }
             // Write all lines back to file
             let mut file = OpenOptions::new()
@@ -252,13 +245,10 @@ impl Installer {
                 Ok(())
             } else {
                 print_status(
+                    "WARNING",
                     "Analytics",
-                    &format!(
-                        "Failed to send event: {} [{}]",
-                        event.as_str(),
-                        res.status()
-                    ),
-                    PrintEmoji::Warning,
+                    &format!("Event: {} [{}]", event.as_str(), res.status()),
+                    TagColor::Cyan,
                 );
 
                 Err(anyhow::anyhow!("status = {}", res.status()))
@@ -291,7 +281,7 @@ impl Installer {
     }
 
     pub fn print_next_steps() {
-        print_summary("Next Steps", PrintEmoji::Next);
+        print_title("Next Steps");
         println!(
             "- {} please follow the instructions at {}\n",
             "For a better onboarding".bold().yellow(),

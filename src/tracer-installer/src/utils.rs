@@ -1,41 +1,28 @@
-use colored::Colorize;
-use console::Emoji;
-
 use crate::types::TracerVersion;
+use colored::Colorize;
 
-#[derive(Debug, Clone, Copy)]
-pub enum PrintEmoji {
-    Pass,
-    Warning,
-    Fail,
-    OS,
-    Arch,
-    Cpu,
-    Ram,
-    Extract,
-    Updated,
-    Next,
-    Downloading,
+pub enum TagColor {
+    Green,
+    Red,
+    Blue,
+    Cyan,
 }
-impl PrintEmoji {
-    pub fn to_emoji(self) -> Emoji<'static, 'static> {
-        match self {
-            PrintEmoji::Pass => Emoji("✅ ", "[OK] "),
-            PrintEmoji::Warning => Emoji("⚠️ ", "[WARN] "),
-            PrintEmoji::Fail => Emoji("❌ ", "[X] "),
-            PrintEmoji::OS => Emoji("🐧 ", "[OS]"),
-            PrintEmoji::Arch => Emoji("💻 ", "[ARCH]"),
-            PrintEmoji::Cpu => Emoji("⚙️ ", "[CPU]"),
-            PrintEmoji::Ram => Emoji("💾 ", "[RAM]"),
-            PrintEmoji::Extract => Emoji("📂 ", "[DONE]"),
-            PrintEmoji::Updated => Emoji("🔄 ", "[UPDATED]"),
-            PrintEmoji::Next => Emoji("🚀 ", "[NEXT]"),
-            PrintEmoji::Downloading => Emoji("📥 ", "[DOWNLOADING]"),
-        }
+
+pub fn print_message(tag: &str, message: &str, color: TagColor) {
+    let tag = format!("[{tag}]");
+    let tag = match color {
+        TagColor::Green => tag.green(),
+        TagColor::Red => tag.red(),
+        TagColor::Blue => tag.blue(),
+        TagColor::Cyan => tag.cyan(),
     }
+    .bold();
+    const PADDING: usize = 9;
+    let padded = format!("{tag:>width$}", width = PADDING);
+    println!("{padded} {message}");
 }
-pub fn print_status(label: &str, reason: &str, emoji: PrintEmoji) {
-    const PADDING: usize = 40;
+pub fn print_status(tag: &str, label: &str, reason: &str, color: TagColor) {
+    const PADDING: usize = 30;
 
     let label = if !reason.is_empty() {
         format!("{}:", label)
@@ -43,17 +30,7 @@ pub fn print_status(label: &str, reason: &str, emoji: PrintEmoji) {
         label.to_string()
     };
     let padded = format!("{label:<width$}", width = PADDING);
-    let emoji = emoji.to_emoji();
-    println!("{emoji} {padded}{reason}");
-}
-
-pub fn print_label(label: &str, emoji: PrintEmoji) {
-    print_status(label, "", emoji);
-}
-pub fn print_summary(label: &str, emoji: PrintEmoji) {
-    println!(); // spacer before
-    print_status(label, "", emoji);
-    println!(); // spacer after
+    print_message(tag, format!("{padded}{reason}").as_str(), color);
 }
 
 pub fn _print_anteater_banner_v2(version: &TracerVersion) {
