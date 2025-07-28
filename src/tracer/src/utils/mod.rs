@@ -4,6 +4,7 @@ mod sentry;
 pub use sentry::Sentry;
 pub mod analytics;
 pub mod cli;
+pub mod command;
 pub mod env;
 pub mod file_system;
 pub mod input_validation;

@@ -3,19 +3,20 @@ use crate::cli::handlers::init::arguments::{PromptMode, TracerCliInitArgs};
 use crate::cli::handlers::terminate;
 use crate::cli::handlers::test::arguments::TracerCliTestArgs;
 use crate::cli::handlers::test::pipeline::Pipeline;
+use crate::cli::handlers::test::pixi;
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::server::DaemonServer;
 use crate::process_identification::types::pipeline_tags::PipelineTags;
+use crate::utils::command::check_status;
 use crate::utils::system_info::check_sudo;
 use crate::utils::workdir::TRACER_WORK_DIR;
 use crate::warning_message;
 use anyhow::Result;
 use colored::Colorize;
 use std::ffi::OsStr;
-use std::io;
 use std::path::PathBuf;
-use std::process::{Command, ExitStatus};
+use std::process::Command;
 
 /// TODO: I am getting a segfault running fastquorum on ARM mac
 /// It works if I run with Rosetta emulation
@@ -106,15 +107,7 @@ fn run_pixi_task(manifest: PathBuf, task: String) -> Result<()> {
         path
     } else {
         println!("Installing pixi...");
-        let install_cmd = "curl -fsSL https://pixi.sh/install.sh | bash";
-        let pixi_dir = TRACER_WORK_DIR.path.join(".pixi");
-        let status = Command::new("sh")
-            .arg("-c")
-            .arg(install_cmd)
-            .env("PIXI_HOME", &pixi_dir)
-            .status();
-        check_status(status, "Failed to install pixi")?;
-        pixi_dir.join("bin/pixi")
+        pixi::install()?
     };
 
     let status = Command::new(pixi_path)
@@ -150,12 +143,4 @@ fn run_tool<S: AsRef<OsStr>>(tool: S, args: Vec<String>) -> Result<()> {
         .spawn()
         .and_then(|mut child| child.wait());
     check_status(status, "Tool run failed")
-}
-
-fn check_status(status: io::Result<ExitStatus>, err_msg: &str) -> Result<()> {
-    match status {
-        Ok(status) if status.success() => Ok(()),
-        Ok(status) => Err(anyhow::anyhow!("{err_msg}: {status}")),
-        Err(e) => Err(anyhow::anyhow!("{err_msg}: {e}")),
-    }
 }
