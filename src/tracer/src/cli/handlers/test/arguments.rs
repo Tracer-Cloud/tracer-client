@@ -77,7 +77,7 @@ impl TracerCliTestArgs {
                 } else {
                     Self::prompt_for_args("pipeline")
                 };
-                Pipeline::LocalCustom {
+                Pipeline::LocalNextflow {
                     path: self.pipeline_path.unwrap(),
                     args,
                 }
@@ -88,7 +88,7 @@ impl TracerCliTestArgs {
             } else {
                 Self::prompt_for_args("pipeline")
             };
-            Pipeline::GitHub {
+            Pipeline::GithubNextflow {
                 repo: self.pipeline_repo.unwrap(),
                 args,
             }
@@ -141,7 +141,7 @@ impl TracerCliTestArgs {
                 } else {
                     Self::prompt_for_args("pipeline")
                 };
-                Pipeline::LocalCustom {
+                Pipeline::LocalNextflow {
                     path: pipeline_path.into(),
                     args,
                 }
@@ -155,7 +155,7 @@ impl TracerCliTestArgs {
                 } else {
                     Self::prompt_for_args("pipeline")
                 };
-                Pipeline::GitHub { repo, args }
+                Pipeline::GithubNextflow { repo, args }
             } else if pipeline_index == custom_index + 3 {
                 let tool_path: String = Input::with_theme(&*INTERACTIVE_THEME)
                     .with_prompt("Enter custom tool local path")

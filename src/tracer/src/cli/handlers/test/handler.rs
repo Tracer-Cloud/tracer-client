@@ -81,8 +81,8 @@ pub async fn test(
     println!("Running pipeline...");
     let result = match test_args.pipeline {
         Pipeline::LocalPixi { manifest, task, .. } => run_pixi_task(manifest, task),
-        Pipeline::LocalCustom { path, args } => run_nextflow(path, args),
-        Pipeline::GitHub { repo, args } => run_nextflow(repo, args),
+        Pipeline::LocalNextflow { path, args } => run_nextflow(path, args),
+        Pipeline::GithubNextflow { repo, args } => run_nextflow(repo, args),
         Pipeline::LocalTool { path, args } => run_tool(path, args),
     };
 

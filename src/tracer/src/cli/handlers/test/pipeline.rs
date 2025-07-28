@@ -7,16 +7,16 @@ pub enum Pipeline {
         manifest: PathBuf,
         task: String,
     },
-    LocalCustom {
+    LocalNextflow {
         path: PathBuf,
+        args: Vec<String>,
+    },
+    GithubNextflow {
+        repo: String,
         args: Vec<String>,
     },
     LocalTool {
         path: PathBuf,
-        args: Vec<String>,
-    },
-    GitHub {
-        repo: String,
         args: Vec<String>,
     },
 }
@@ -42,9 +42,9 @@ impl Pipeline {
     pub fn name(&self) -> &str {
         match self {
             Pipeline::LocalPixi { path, .. } => path.file_name().unwrap().to_str().unwrap(),
-            Pipeline::LocalCustom { path, .. } => path.file_name().unwrap().to_str().unwrap(),
+            Pipeline::LocalNextflow { path, .. } => path.file_name().unwrap().to_str().unwrap(),
             Pipeline::LocalTool { path, .. } => path.file_name().unwrap().to_str().unwrap(),
-            Pipeline::GitHub { repo, .. } => repo,
+            Pipeline::GithubNextflow { repo, .. } => repo,
         }
     }
 }
