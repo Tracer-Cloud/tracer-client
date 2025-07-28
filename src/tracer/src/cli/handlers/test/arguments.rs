@@ -3,6 +3,7 @@ use crate::cli::handlers::test::pipeline::Pipeline;
 use crate::cli::handlers::INTERACTIVE_THEME;
 use clap::Args;
 use dialoguer::{Input, Select};
+use std::path::PathBuf;
 
 const DEFAULT_PIPELINE_NAME: &str = "fastquorum";
 
@@ -11,6 +12,23 @@ pub struct TracerCliTestArgs {
     /// Name of example workflow to test
     #[clap(long, short)]
     pub pipeline_name: Option<String>,
+
+    /// Path to a local pipeline to test
+    #[clap(long, short)]
+    pub pipeline_path: Option<PathBuf>,
+
+    /// Don't use pixi for local pipeline, even if pixi.toml exists
+    #[clap(long)]
+    pub no_pixi: bool,
+
+    /// Name of a GitHub repo with a pipeline to test
+    #[clap(long, short)]
+    pub pipeline_repo: Option<String>,
+
+    /// Path to a local tool to test
+    #[clap(long, short)]
+    pub tool_path: Option<PathBuf>,
+
     /// Do not prompt for missing inputs
     #[clap(short = 'f', long)]
     pub non_interactive: bool,
@@ -33,84 +51,117 @@ impl TracerCliTestArgs {
         pipeline_names.push("Custom nextflow (GitHub repo)");
         pipeline_names.push("Custom tool (local path, host environment)");
 
-        let pipeline_index = self
-            .pipeline_name
-            .map(|n| {
-                pipeline_names
-                    .iter()
-                    .position(|p| p == &n)
-                    .expect("Invalid pipline name")
-            })
-            .unwrap_or_else(|| {
-                let default_index = pipeline_names
-                    .iter()
-                    .position(|n| *n == DEFAULT_PIPELINE_NAME)
-                    .unwrap_or(0);
-                Select::with_theme(theme)
-                    .with_prompt("Select pipeline to run")
-                    .items(&pipeline_names)
-                    .default(default_index)
-                    .interact()
-                    .expect("Error while prompting for pipeline name")
-            });
-
-        let pipeline = if pipeline_index == custom_index {
-            let pipeline_path: String = Input::with_theme(&*INTERACTIVE_THEME)
-                .with_prompt("Enter custom pipeline local path")
-                .interact_text()
-                .expect("Error while prompting for pipeline path");
-            let task: String = Input::with_theme(&*INTERACTIVE_THEME)
-                .with_prompt("Pixi task name")
-                .interact_text()
-                .expect("Error while prompting for pixi task");
-            Pipeline::local_pixi(pipeline_path, &task).expect("Invalid local pixi pipeline")
-        } else if pipeline_index == custom_index + 1 {
-            let pipeline_path: String = Input::with_theme(&*INTERACTIVE_THEME)
-                .with_prompt("Enter custom pipeline local path")
-                .interact_text()
-                .expect("Error while prompting for pipeline path");
-            let args_str: String = Input::with_theme(&*INTERACTIVE_THEME)
-                .with_prompt("Enter custom pipeline arguments (separated by spaces)")
-                .allow_empty(true)
-                .interact_text()
-                .expect("Error while prompting for pipeline arguments");
-            let args = shlex::split(&args_str).expect("Error parsing arguments");
-            Pipeline::LocalCustom {
-                path: pipeline_path.into(),
+        let pipeline = if self.pipeline_path.is_some() {
+            if !self.no_pixi
+                && self
+                    .pipeline_path
+                    .as_ref()
+                    .unwrap()
+                    .join("pixi.toml")
+                    .exists()
+            {
+                let task = Self::prompt_for_pixi_task();
+                Pipeline::local_pixi(self.pipeline_path.unwrap(), &task).unwrap()
+            } else {
+                let args = Self::prompt_for_args("pipeline");
+                Pipeline::LocalCustom {
+                    path: self.pipeline_path.unwrap(),
+                    args,
+                }
+            }
+        } else if self.pipeline_repo.is_some() {
+            let args = Self::prompt_for_args("pipeline");
+            Pipeline::GitHub {
+                repo: self.pipeline_repo.unwrap(),
                 args,
             }
-        } else if pipeline_index == custom_index + 2 {
-            let repo = Input::with_theme(&*INTERACTIVE_THEME)
-                .with_prompt("Enter custom pipeline GitHub repo")
-                .interact_text()
-                .expect("Error while prompting for pipeline repo");
-            let args_str: String = Input::with_theme(&*INTERACTIVE_THEME)
-                .with_prompt("Enter custom pipeline arguments (separated by spaces)")
-                .allow_empty(true)
-                .interact_text()
-                .expect("Error while prompting for pipeline arguments");
-            let args = shlex::split(&args_str).expect("Error parsing arguments");
-            Pipeline::GitHub { repo, args }
-        } else if pipeline_index == custom_index + 3 {
-            let tool_path: String = Input::with_theme(&*INTERACTIVE_THEME)
-                .with_prompt("Enter custom tool local path")
-                .interact_text()
-                .expect("Error while prompting for tool path");
-            let args_str: String = Input::with_theme(&*INTERACTIVE_THEME)
-                .with_prompt("Enter custom tool arguments (separated by spaces)")
-                .allow_empty(true)
-                .interact_text()
-                .expect("Error while prompting for tool arguments");
-            let args = shlex::split(&args_str).expect("Error parsing arguments");
+        } else if self.tool_path.is_some() {
+            let args = Self::prompt_for_args("tool");
             Pipeline::LocalTool {
-                path: tool_path.into(),
+                path: self.tool_path.unwrap(),
                 args,
             }
         } else {
-            pipelines.into_iter().nth(pipeline_index).unwrap()
+            let pipeline_index = self
+                .pipeline_name
+                .map(|n| {
+                    pipeline_names
+                        .iter()
+                        .position(|p| p == &n)
+                        .expect("Invalid pipline name")
+                })
+                .unwrap_or_else(|| {
+                    let default_index = pipeline_names
+                        .iter()
+                        .position(|n| *n == DEFAULT_PIPELINE_NAME)
+                        .unwrap_or(0);
+                    Select::with_theme(theme)
+                        .with_prompt("Select pipeline to run")
+                        .items(&pipeline_names)
+                        .default(default_index)
+                        .interact()
+                        .expect("Error while prompting for pipeline name")
+                });
+
+            if pipeline_index == custom_index {
+                let pipeline_path: String = Input::with_theme(&*INTERACTIVE_THEME)
+                    .with_prompt("Enter custom pipeline local path")
+                    .interact_text()
+                    .expect("Error while prompting for pipeline path");
+                let task = Self::prompt_for_pixi_task();
+                Pipeline::local_pixi(pipeline_path, &task).expect("Invalid local pixi pipeline")
+            } else if pipeline_index == custom_index + 1 {
+                let pipeline_path: String = Input::with_theme(&*INTERACTIVE_THEME)
+                    .with_prompt("Enter custom pipeline local path")
+                    .interact_text()
+                    .expect("Error while prompting for pipeline path");
+                let args = Self::prompt_for_args("pipeline");
+                Pipeline::LocalCustom {
+                    path: pipeline_path.into(),
+                    args,
+                }
+            } else if pipeline_index == custom_index + 2 {
+                let repo = Input::with_theme(&*INTERACTIVE_THEME)
+                    .with_prompt("Enter custom pipeline GitHub repo")
+                    .interact_text()
+                    .expect("Error while prompting for pipeline repo");
+                let args = Self::prompt_for_args("pipeline");
+                Pipeline::GitHub { repo, args }
+            } else if pipeline_index == custom_index + 3 {
+                let tool_path: String = Input::with_theme(&*INTERACTIVE_THEME)
+                    .with_prompt("Enter custom tool local path")
+                    .interact_text()
+                    .expect("Error while prompting for tool path");
+                let args = Self::prompt_for_args("tool");
+                Pipeline::LocalTool {
+                    path: tool_path.into(),
+                    args,
+                }
+            } else {
+                pipelines.into_iter().nth(pipeline_index).unwrap()
+            }
         };
 
         FinalizedTestArgs { pipeline }
+    }
+
+    fn prompt_for_pixi_task() -> String {
+        Input::with_theme(&*INTERACTIVE_THEME)
+            .with_prompt("Enter pixi task name")
+            .interact_text()
+            .expect("Error while prompting for pixi task")
+    }
+
+    fn prompt_for_args(arg_type: &str) -> Vec<String> {
+        let args_str: String = Input::with_theme(&*INTERACTIVE_THEME)
+            .with_prompt(format!(
+                "Enter custom {} arguments (separated by spaces)",
+                arg_type
+            ))
+            .allow_empty(true)
+            .interact_text()
+            .expect("Error while prompting for arguments");
+        shlex::split(&args_str).expect("Error parsing arguments")
     }
 }
 
@@ -127,6 +178,10 @@ mod tests {
     fn test_finalize() {
         let args = TracerCliTestArgs {
             pipeline_name: Some("fastquorum".to_string()),
+            pipeline_path: None,
+            pipeline_repo: None,
+            tool_path: None,
+            no_pixi: false,
             non_interactive: true,
         };
 
