@@ -48,7 +48,7 @@ pub async fn init_with_default_prompt(
     // Check for port conflict before starting daemon
     if DaemonServer::is_running() {
         warning_message!("Daemon server is already running, trying to terminate it...");
-        if !terminate(&api_client).await {
+        if !terminate(api_client).await {
             return Ok(());
         }
     }
@@ -114,11 +114,11 @@ pub async fn init_with_default_prompt(
             AnalyticsEventType::DaemonStartAttempted,
             None,
         );
-        if !wait(&api_client).await {
+        if !wait(api_client).await {
             error_message!("Daemon is not responding, please check logs");
             return Ok(());
         }
-        info(&api_client, false).await;
+        info(api_client, false).await;
 
         return Ok(());
     }

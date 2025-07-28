@@ -22,7 +22,6 @@ use std::process::{Command, ExitStatus};
 /// env /usr/bin/arch -x86_64 -c -e TERM=$TERM /bin/sh --login
 /// We may want to offer The option to install the x86 version of
 /// pixi and run nextflow under x86 emulation
-
 pub async fn test(
     args: TracerCliTestArgs,
     config: Config,

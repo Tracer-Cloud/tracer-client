@@ -59,7 +59,7 @@ impl TracerWorkDir {
     }
 
     pub fn cleanup_run(&self) -> Result<()> {
-        vec![
+        [
             &self.pid_file,
             &self.stdout_file,
             &self.stderr_file,
@@ -67,14 +67,13 @@ impl TracerWorkDir {
             &self.matches_file,
         ]
         .iter()
-        .map(|path| {
+        .try_for_each(|path| {
             if path.exists() {
                 std::fs::remove_file(path)
             } else {
                 Ok(())
             }
-        })
-        .collect::<io::Result<()>>()?;
+        })?;
         Ok(())
     }
 

@@ -119,7 +119,6 @@ impl TracerCliInitArgs {
 
         let arg_pipeline_type = tags
             .pipeline_type
-            .map(|e| e.clone())
             .or_else(|| env::get_env_var(env::PIPELINE_TYPE_ENV_VAR));
         let pipeline_type = match (arg_pipeline_type, &prompt_mode) {
             (Some(name), PromptMode::Never | PromptMode::WhenMissing) => Some(name),
@@ -211,7 +210,7 @@ impl TracerCliInitArgs {
 
     fn prompt_for_pipeline_name(default: &str) -> String {
         get_validated_input(
-            &*INTERACTIVE_THEME,
+            &INTERACTIVE_THEME,
             "Enter pipeline name (e.g., RNA-seq_analysis_v1, scRNA-seq_2024)",
             Some(default.into()),
             "pipeline name",
@@ -230,7 +229,7 @@ impl TracerCliInitArgs {
         let environment = ENVIRONMENTS[selection];
         if environment == "custom" {
             get_validated_input(
-                &*INTERACTIVE_THEME,
+                &INTERACTIVE_THEME,
                 "Enter custom environment name",
                 None,
                 "environment name",
@@ -282,7 +281,7 @@ impl TracerCliInitArgs {
 
     fn prompt_for_api_key(default: Option<String>) -> String {
         get_validated_input(
-            &*INTERACTIVE_THEME,
+            &INTERACTIVE_THEME,
             "Enter your API key",
             default,
             "API key",
