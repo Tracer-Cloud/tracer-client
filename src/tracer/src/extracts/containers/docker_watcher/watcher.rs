@@ -54,6 +54,7 @@ impl DockerWatcher {
 
                         let container_id = ContainerId(container_event.id.clone());
                         let mut state = container_state.write().await;
+                        tracing::debug!("2 Container event: {:?}", container_event);
 
                         match container_event.state {
                             ContainerState::Started => {
@@ -78,9 +79,10 @@ impl DockerWatcher {
                             Some(container_event.timestamp),
                         )
                         .await
-                    {
-                        tracing::error!("Failed to log container event: {:?}", e);
-                    }
+                        {
+                            tracing::error!("Failed to log container event: {:?}", e);
+                        }
+                        tracing::debug!("3 Container event: {:?}", container_event);
                     }
                 }
             });
