@@ -125,6 +125,7 @@ mod tests {
             pipeline_name: "test_pipeline".to_string(),
             run: None,
             tags: Default::default(),
+            is_dev: true,
         }));
 
         let (tx, mut rx) = tokio::sync::mpsc::channel(100);

@@ -1,7 +1,8 @@
 use crate::sentry::Sentry;
-use crate::utils::{print_status, PrintEmoji};
+use crate::utils::{print_status, TagColor};
+use crate::warning_message;
 use anyhow::{anyhow, Result};
-use console::Emoji;
+use colored::Colorize;
 use std::process::Command;
 use sysinfo::System;
 
@@ -59,8 +60,7 @@ impl PlatformInfo {
                     .output()
                     .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
                     .unwrap_or_else(|_| "macOS".to_string());
-                const WARNING: Emoji<'_, '_> = Emoji("⚠️", "[WARNING]");
-                println!("{} Tracer has limited support on macOS.\n", WARNING);
+                warning_message!("Tracer has limited support on macOS.");
                 Os::Macos
             }
             other => {
@@ -76,22 +76,30 @@ impl PlatformInfo {
     }
 
     pub fn print_summary(&self) {
-        print_status("Operating System", self.full_os.as_str(), PrintEmoji::OS);
         print_status(
+            "INFO",
+            "Operating System",
+            self.full_os.as_str(),
+            TagColor::Cyan,
+        );
+        print_status(
+            "INFO",
             "Architecture",
             &format!("{:?}", self.arch),
-            PrintEmoji::Arch,
+            TagColor::Cyan,
         );
         let sys = System::new_all();
 
         let total_mem_gib = sys.total_memory() as f64 / 1024.0 / 1024.0 / 1024.0;
 
         let cores = sys.cpus().len();
-        print_status("CPU Cores", &format!("{}", cores), PrintEmoji::Cpu);
+        print_status("INFO", "CPU Cores", &format!("{}", cores), TagColor::Cyan);
+
         print_status(
-            "Total RAM",
+            "INFO",
+            "Total Ram",
             &format!("{:.2} GiB", total_mem_gib),
-            PrintEmoji::Ram,
+            TagColor::Cyan,
         );
     }
 }

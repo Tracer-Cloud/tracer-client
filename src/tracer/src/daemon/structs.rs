@@ -23,6 +23,7 @@ pub struct InnerInfoResponse {
     pub start_time: DateTime<Utc>,
     pub tags: PipelineTags,
     pub cost_summary: Option<PipelineCostSummary>,
+    pub stage: String,
 }
 
 impl InfoResponse {
@@ -75,6 +76,7 @@ impl TryFrom<PipelineMetadata> for InnerInfoResponse {
                 .cost_summary
                 .as_ref()
                 .map(|ctx| ctx.refresh(run.start_time));
+            let stage = (if value.is_dev { "dev" } else { "prod" }).into();
             Ok(Self {
                 run_id: run.id,
                 run_name: run.name,
@@ -82,6 +84,7 @@ impl TryFrom<PipelineMetadata> for InnerInfoResponse {
                 start_time: run.start_time,
                 tags: value.tags,
                 cost_summary,
+                stage,
             })
         } else {
             Err(anyhow::anyhow!("No run found"))

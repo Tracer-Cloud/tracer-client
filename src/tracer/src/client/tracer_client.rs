@@ -47,7 +47,7 @@ impl TracerClient {
     pub async fn new(
         config: Config,
         db_client: LogWriterEnum,
-        cli_args: FinalizedInitArgs, // todo: why Config AND TracerCliInitArgs? remove CliInitArgs
+        cli_args: FinalizedInitArgs,
     ) -> Result<TracerClient> {
         info!("Initializing TracerClient");
 
@@ -95,6 +95,7 @@ impl TracerClient {
             pipeline_name: cli_args.pipeline_name.clone(),
             run: None,
             tags: cli_args.tags.clone(),
+            is_dev: cli_args.dev,
         }))
     }
 
