@@ -241,8 +241,11 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
+          export DEBIAN_FRONTEND=noninteractive
+
           apt-get update
           apt-get install -y software-properties-common curl git clang llvm libelf-dev libbpf-dev linux-headers-generic unzip
+
           add-apt-repository -y ppa:ubuntu-toolchain-r/test
           apt-get update
           apt-get install -y gcc-12 g++-12 build-essential
