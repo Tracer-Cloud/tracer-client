@@ -1,5 +1,5 @@
 use crate::daemon::client::DaemonClient;
-use crate::daemon::structs::InfoResponse;
+use crate::daemon::structs::{InfoResponse, InnerInfoResponse};
 use crate::utils::cli::BoxFormatter;
 use crate::utils::Version;
 
@@ -51,7 +51,6 @@ impl InfoDisplay {
             });
             json["pipeline"] = serde_json::json!({
                 "name": &inner.pipeline_name,
-                "type": inner.tags.pipeline_type.as_deref().unwrap_or("Not set"),
                 "environment": inner.tags.environment.as_deref().unwrap_or("Not set"),
                 "user": inner.tags.user_operator.as_deref().unwrap_or("Not set")
             });
@@ -68,6 +67,8 @@ impl InfoDisplay {
                 json["run"]["tasks"] = serde_json::json!(info.tasks_preview(None));
             }
             json["run"]["dashboard_url"] = serde_json::json!(inner.get_run_url());
+            json["run"]["stage"] = serde_json::json!(inner.stage);
+
             if let Some(summary) = &inner.cost_summary {
                 json["run"]["estimated_cost_since_start"] =
                     serde_json::json!(format!("{:.4}", summary.estimated_total));
@@ -84,16 +85,18 @@ impl InfoDisplay {
         println!("{}", serde_json::to_string_pretty(&json).unwrap());
     }
 
-    fn format_status(&self, formatter: &mut BoxFormatter, runtime: &String, url: &str) {
+    fn format_status(&self, formatter: &mut BoxFormatter, inner: &InnerInfoResponse) {
         formatter.add_header("Tracer status");
         formatter.add_empty_line();
         formatter.add_status_field(
             "Status",
-            format!("Running for {}", runtime).as_str(),
+            format!("Running for {}", inner.formatted_runtime()).as_str(),
             "active",
         );
         formatter.add_field("Version", &Version::current().to_string(), "bold");
-        formatter.add_hyperlink("Dashboard", url);
+        formatter.add_hyperlink("Dashboard", &inner.get_run_url());
+        formatter.add_field("Stage", &inner.stage, "bold");
+
         formatter.add_empty_line();
     }
 
@@ -108,12 +111,11 @@ impl InfoDisplay {
         }
         let inner = info.inner.as_ref().unwrap();
 
-        self.format_status(formatter, &inner.formatted_runtime(), &inner.get_run_url());
+        self.format_status(formatter, inner);
 
         formatter.add_section_header("Pipeline details");
         formatter.add_empty_line();
 
-        let pipeline_type = inner.tags.pipeline_type.as_deref().unwrap_or("Not set");
         let pipeline_environment = inner.tags.environment.as_deref().unwrap_or("Not set");
         let pipeline_user = inner.tags.user_operator.as_deref().unwrap_or("Not set");
 
@@ -121,7 +123,6 @@ impl InfoDisplay {
         let monitored_tasks = info.tasks_count();
 
         formatter.add_field("Pipeline name", &inner.pipeline_name, "cyan");
-        formatter.add_field("Pipeline type", pipeline_type, "white");
         formatter.add_field("Environment", pipeline_environment, "yellow");
         formatter.add_field("User", pipeline_user, "magenta");
 

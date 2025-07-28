@@ -204,6 +204,7 @@ mod tests {
             pipeline_name: "test_pipeline".to_string(),
             run: Some(run),
             tags: PipelineTags::default(),
+            is_dev: true,
         };
 
         let pipeline_arc = Arc::new(RwLock::new(pipeline));
@@ -229,6 +230,7 @@ mod tests {
             pipeline_name: "test_pipeline".to_string(),
             run: Some(run),
             tags: PipelineTags::default(),
+            is_dev: true,
         };
 
         Arc::new(RwLock::new(pipeline))

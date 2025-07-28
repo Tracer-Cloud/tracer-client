@@ -39,6 +39,7 @@ fn pipeline() -> PipelineMetadata {
         pipeline_name: "test_pipeline".to_string(),
         run: Some(Run::new("test_run".to_string(), "test-id-123".to_string())),
         tags: PipelineTags::default(),
+        is_dev: true,
     }
 }
 
