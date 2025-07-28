@@ -1,5 +1,6 @@
 use tracer::cli;
 
+//
 pub fn main() -> anyhow::Result<()> {
     rustls::crypto::ring::default_provider()
         .install_default()

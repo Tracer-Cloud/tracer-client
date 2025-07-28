@@ -24,6 +24,8 @@ async fn main() {
 
     let args = InstallTracerCli::parse();
 
+    //
+
     match args.command {
         InstallerCommand::Run { channel, user_id } => {
             // Run checks
