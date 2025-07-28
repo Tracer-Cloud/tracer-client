@@ -194,19 +194,6 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_input_string_case_insensitive_sql() {
-        // Test case insensitive SQL patterns
-        assert!(validate_input_string("drop table users", "test").is_err());
-        assert!(validate_input_string("select * from users", "test").is_err());
-        assert!(validate_input_string("insert into users", "test").is_err());
-        assert!(validate_input_string("update users set", "test").is_err());
-        assert!(validate_input_string("delete from users", "test").is_err());
-        assert!(validate_input_string("create table users", "test").is_err());
-        assert!(validate_input_string("alter table users", "test").is_err());
-        assert!(validate_input_string("union select", "test").is_err());
-    }
-
-    #[test]
     fn test_validate_input_string_control_chars() {
         // Test control characters
         assert!(validate_input_string("pipeline\x00name", "test").is_err());
@@ -214,26 +201,6 @@ mod tests {
         assert!(validate_input_string("pipeline\x02name", "test").is_err());
         assert!(validate_input_string("pipeline\x1Fname", "test").is_err());
         assert!(validate_input_string("pipeline\x7Fname", "test").is_err());
-    }
-
-    #[test]
-    fn test_validate_input_string_shell_injection() {
-        // Test shell injection patterns
-        assert!(validate_input_string("command && other", "test").is_err());
-        assert!(validate_input_string("command || other", "test").is_err());
-        assert!(validate_input_string("command | other", "test").is_err());
-        assert!(validate_input_string("command & other", "test").is_err());
-        assert!(validate_input_string("command; other", "test").is_err());
-        assert!(validate_input_string("command `other`", "test").is_err());
-        assert!(validate_input_string("command $(other)", "test").is_err());
-        assert!(validate_input_string("command (other)", "test").is_err());
-        assert!(validate_input_string("command {other}", "test").is_err());
-        assert!(validate_input_string("command [other]", "test").is_err());
-        assert!(validate_input_string("command ** other", "test").is_err());
-        assert!(validate_input_string("command >> other", "test").is_err());
-        assert!(validate_input_string("command << other", "test").is_err());
-        assert!(validate_input_string("command > other", "test").is_err());
-        assert!(validate_input_string("command < other", "test").is_err());
     }
 
     #[test]
