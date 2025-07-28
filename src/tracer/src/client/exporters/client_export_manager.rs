@@ -59,7 +59,9 @@ impl ExporterManager {
         );
 
         let mut buff: Vec<Event> = Vec::with_capacity(100);
+        debug!("Checking for batched data");
         if rx.recv_many(&mut buff, 100).await > 0 {
+            debug!("Found batched data");
             let attempts = attempts + 1;
             let mut error = None;
             for i in 1..attempts {

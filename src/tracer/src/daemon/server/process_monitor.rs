@@ -74,9 +74,9 @@ pub async fn monitor(
                 ).await;
 
                 match timeout_result {
-                    Ok(_) => {}, // Success
+                    Ok(_) => {},
                     Err(_) => {
-                        panic!("❌ CRITICAL: Batch submission timed out after 10 seconds - likely storage full");
+                        panic!("❌ CRITICAL: Batch submission timed out after 10 seconds");
 
                     }
                 }
@@ -89,7 +89,7 @@ pub async fn monitor(
                 }).await;
 
                 match timeout_result {
-                    Ok(_) => {}, // Success
+                    Ok(_) => {},
                     Err(_) => {
                         panic!("❌ CRITICAL: System metrics polling timed out after 10 seconds");
                     }
@@ -103,7 +103,7 @@ pub async fn monitor(
                 }).await;
 
                 match timeout_result {
-                    Ok(_) => {}, // Success
+                    Ok(_) => {},
                     Err(_) => {
                         panic!("❌ CRITICAL: Process metrics polling timed out after 10 seconds");
                     }
