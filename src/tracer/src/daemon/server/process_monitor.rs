@@ -68,7 +68,7 @@ pub async fn monitor(
             }
 
             _ = submission_interval.tick() => {
-                exporter.submit_batched_data(retry_attempts, retry_delay).await?;
+                let _ = exporter.submit_batched_data(retry_attempts,retry_delay).await;
             }
             _ = system_metrics_interval.tick() => {
                 let guard = client.lock().await;
