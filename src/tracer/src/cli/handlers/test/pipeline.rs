@@ -69,7 +69,7 @@ impl Pipeline {
                 // TODO: validate repo
             }
             Self::LocalTool { path, .. } => {
-                if !path.exists() {
+                if which::which(path.file_name().expect("Invalid file name")).is_err() {
                     bail!("Tool path does not exist: {path:?}");
                 }
             }
