@@ -32,14 +32,20 @@ impl ExporterManager {
         attempts: u64,
         delay: u64,
     ) -> anyhow::Result<()> {
+        debug!("🔍 Starting submit_batched_data");
+        
+        debug!("🔍 Attempting to acquire rx lock...");
         let mut rx = self.rx.lock().await;
+        debug!("✅ Acquired rx lock");
 
         if rx.is_empty() {
-            println!("No data to submit, exiting submit_batched_data");
+            debug!("🔍 Channel is empty, exiting");
             return Ok(());
         }
 
+        debug!("🔍 Acquiring pipeline read lock...");
         let pipeline = self.pipeline.read().await;
+        debug!("✅ Acquired pipeline read lock");
 
         let run_name = pipeline
             .run
@@ -53,38 +59,47 @@ impl ExporterManager {
             .map(|st| st.id.as_str())
             .unwrap_or("anonymous");
 
-        debug!(
-            "Submitting batched data for pipeline {} and run_name {}",
-            pipeline.pipeline_name, run_name
-        );
-
+        debug!("🔍 About to recv_many from channel...");
         let mut buff: Vec<Event> = Vec::with_capacity(100);
-        debug!("Checking for batched data");
-        if rx.recv_many(&mut buff, 100).await > 0 {
-            debug!("Found batched data");
+        let received_count = rx.recv_many(&mut buff, 100).await;
+        debug!("✅ recv_many completed, received {} events", received_count);
+        
+        if received_count > 0 {
+            debug!("🔍 Starting database insert attempts...");
             let attempts = attempts + 1;
             let mut error = None;
+            
             for i in 1..attempts {
-                debug!("inserting (attempt {}): {:?} with attempt P", i, buff);
+                debug!("🔍 Database insert attempt {} of {}", i, attempts - 1);
+                
                 if buff.is_empty() {
-                    debug!("No data received in batch, exiting submit_batched_data");
+                    debug!("🔍 Buffer is empty, exiting");
                     return Ok(());
                 }
+                
+                debug!("🔍 Calling db_client.batch_insert_events...");
+                let insert_start = std::time::Instant::now();
+                
                 match self
                     .db_client
                     .batch_insert_events(run_name, run_id, &pipeline.pipeline_name, buff.as_slice())
                     .await
                 {
                     Ok(_) => {
+                        debug!("✅ Database insert successful in {:?}", insert_start.elapsed());
                         buff.clear();
                         return Ok(());
                     }
                     Err(e) => {
+                        debug!("❌ Database insert failed in {:?}: {:?}", insert_start.elapsed(), e);
                         error = Some(e);
                     }
                 }
+                
+                debug!("🔍 Sleeping for {}ms before retry...", delay);
                 tokio::time::sleep(tokio::time::Duration::from_millis(delay)).await;
             }
+            
             panic!(
                 "Batch insert failed after {} attempts: {:?}",
                 attempts - 1,
@@ -92,6 +107,7 @@ impl ExporterManager {
             );
         }
 
+        debug!("✅ submit_batched_data completed");
         Ok(())
     }
 

@@ -97,6 +97,7 @@ impl LogWriter for AuroraClient {
         pipeline_name: &str,
         data: impl IntoIterator<Item = &Event>,
     ) -> Result<()> {
+        debug!("🔍 Starting batch_insert_events");
         let now = std::time::Instant::now();
 
         const QUERY: &str = "INSERT INTO batch_jobs_logs (
@@ -159,46 +160,60 @@ impl LogWriter for AuroraClient {
 
         let mut builder = QueryBuilder::new(QUERY);
 
+        debug!("🔍 Converting events to EventInsert...");
         let mut data: Vec<_> = data
             .into_iter()
             .cloned()
             .filter_map(|e| e.try_into().ok())
             .collect();
+        debug!("✅ Converted {} events", data.len());
 
         let rows_affected = match data.len() {
             0 => {
-                debug!("No data to insert");
+                debug!("🔍 No data to insert");
                 return Ok(());
             }
             x if x * PARAMS >= BIND_LIMIT => {
-                debug!("Chunked insert with transaction due to bind limit");
+                debug!("🔍 Using chunked insert with transaction");
+                
+                debug!("🔍 Beginning database transaction...");
                 let mut transaction = self.pool.begin().await?;
+                debug!("✅ Transaction started");
+                
                 let mut rows_affected = 0;
 
                 while !data.is_empty() {
                     let chunk: Vec<_> = data.split_off(data.len().min(BIND_LIMIT / PARAMS));
+                    debug!("🔍 Executing chunk of {} rows...", chunk.len());
+                    
                     let query = builder.push_values(chunk, _push_tuple).build();
+                    let chunk_start = std::time::Instant::now();
                     rows_affected += query.execute(&mut *transaction).await?.rows_affected();
+                    debug!("✅ Chunk executed in {:?}", chunk_start.elapsed());
+                    
                     builder.reset();
                 }
 
+                debug!("🔍 Committing transaction...");
+                let commit_start = std::time::Instant::now();
                 transaction.commit().await?;
+                debug!("✅ Transaction committed in {:?}", commit_start.elapsed());
+                
                 rows_affected
             }
             _ => {
-                debug!("Inserting data without transaction");
+                debug!("🔍 Executing single insert without transaction");
                 builder.push_values(data, _push_tuple);
 
                 let query = builder.build();
-                query.execute(&self.pool).await?.rows_affected()
+                let execute_start = std::time::Instant::now();
+                let result = query.execute(&self.pool).await?.rows_affected();
+                debug!("✅ Single insert executed in {:?}", execute_start.elapsed());
+                result
             }
         };
 
-        debug!(
-            "Successfully inserted {rows_affected} rows with run_name: {run_name}, elapsed: {:?}",
-            now.elapsed()
-        );
-
+        debug!("✅ batch_insert_events completed: {} rows in {:?}", rows_affected, now.elapsed());
         Ok(())
     }
 }
