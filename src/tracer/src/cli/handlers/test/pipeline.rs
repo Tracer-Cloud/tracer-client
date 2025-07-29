@@ -29,9 +29,6 @@ impl Pipeline {
     pub fn local_pixi<P: Into<PathBuf>>(path: P, task: &str) -> Result<Self> {
         let path = path.into();
         let manifest = path.join("pixi.toml");
-        if !manifest.exists() {
-            bail!("Pixi manifest file does not exist: {manifest:?}");
-        }
         Ok(Pipeline::LocalPixi {
             path,
             manifest,
@@ -46,5 +43,37 @@ impl Pipeline {
             Pipeline::LocalTool { path, .. } => path.file_name().unwrap().to_str().unwrap(),
             Pipeline::GithubNextflow { repo, .. } => repo,
         }
+    }
+
+    pub fn validate(&self) -> Result<()> {
+        match self {
+            Self::LocalPixi {
+                path,
+                manifest,
+                task: _,
+            } => {
+                if !path.exists() {
+                    bail!("Pipeline path does not exist: {path:?}");
+                }
+                if !manifest.exists() {
+                    bail!("Pixi manifest file does not exist: {manifest:?}");
+                }
+                // TODO: look for task in manifest
+            }
+            Self::LocalNextflow { path, .. } => {
+                if !path.exists() {
+                    bail!("Pipeline path does not exist: {path:?}");
+                }
+            }
+            Self::GithubNextflow { repo: _, .. } => {
+                // TODO: validate repo
+            }
+            Self::LocalTool { path, .. } => {
+                if !path.exists() {
+                    bail!("Tool path does not exist: {path:?}");
+                }
+            }
+        }
+        Ok(())
     }
 }

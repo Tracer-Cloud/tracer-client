@@ -175,6 +175,8 @@ impl TracerCliTestArgs {
             }
         };
 
+        pipeline.validate().expect("Invalid pipeline");
+
         FinalizedTestArgs {
             pipeline,
             log_level: self.log_level,
