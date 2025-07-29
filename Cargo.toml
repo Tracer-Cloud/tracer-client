@@ -100,5 +100,8 @@ tokio-retry = "0.3.0"
 serde_regex = "1.1.0"
 dashmap = "6.1.0"
 termion = "4.0.5"
-git2 = { version = "0.20.2", features = ["https"], default-features = false }
+git2 = { version = "0.20.2", features = [
+    "https",
+    "vendored-openssl",
+], default-features = false }
 which = "8.0.0"
