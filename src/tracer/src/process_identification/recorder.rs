@@ -5,6 +5,7 @@ use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::RwLock;
+use tracing::debug;
 
 #[derive(Clone)]
 pub struct LogRecorder {
@@ -25,6 +26,7 @@ impl LogRecorder {
         timestamp: Option<DateTime<Utc>>,
         pipeline: &PipelineMetadata,
     ) -> anyhow::Result<()> {
+        debug!("Trying to build event");
         let event = Event::builder()
             .body(body)
             .timestamp(timestamp.unwrap_or_else(Utc::now))
@@ -37,7 +39,10 @@ impl LogRecorder {
             .trace_id(pipeline.run.as_ref().and_then(|r| r.trace_id.clone()))
             .build();
 
+        debug!("sending Log event: {:?}", &event);
+        debug!("sending Log event (Tx): {:?}", &self.tx);
         self.tx.send(event).await?;
+        debug!("sent Log event");
         Ok(())
     }
 
