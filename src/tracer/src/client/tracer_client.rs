@@ -1,4 +1,4 @@
-use crate::cli::handlers::arguments::FinalizedInitArgs;
+use crate::cli::handlers::init_arguments::FinalizedInitArgs;
 use crate::client::events::send_start_run_event;
 use crate::client::exporters::client_export_manager::ExporterManager;
 use crate::client::exporters::log_writer::LogWriterEnum;

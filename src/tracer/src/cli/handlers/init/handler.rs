@@ -1,15 +1,14 @@
+use crate::cli::handlers::init::arguments::PromptMode;
 use crate::cli::handlers::init::arguments::TracerCliInitArgs;
 use crate::cli::handlers::{info, terminate};
-use crate::cli::helper::{create_necessary_files, wait};
+use crate::cli::helper::wait;
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::initialization::create_and_run_server;
 use crate::daemon::server::DaemonServer;
-use crate::process_identification::constants::{
-    LOG_FILE, PID_FILE, STDERR_FILE, STDOUT_FILE, WORKING_DIR,
-};
 use crate::utils::analytics::types::AnalyticsEventType;
 use crate::utils::system_info::check_sudo;
+use crate::utils::workdir::TRACER_WORK_DIR;
 use crate::utils::{analytics, Sentry};
 use crate::{error_message, info_message, success_message, warning_message};
 use anyhow::Context;
@@ -27,23 +26,35 @@ pub async fn init(
     config: Config,
     api_client: DaemonClient,
 ) -> anyhow::Result<()> {
+    init_with_default_prompt(args, config, &api_client, PromptMode::WhenMissing).await
+}
+
+pub async fn init_with_default_prompt(
+    args: TracerCliInitArgs,
+    config: Config,
+    api_client: &DaemonClient,
+    prompt_mode: PromptMode,
+) -> anyhow::Result<()> {
     if !args.force_procfs && cfg!(target_os = "linux") {
         // Check if running with sudo
         check_sudo("init");
     }
 
-    // Create necessary files for logging and daemonizing
-    create_necessary_files()?;
+    // Create work dir for logging and daemonizing files
+    TRACER_WORK_DIR
+        .init()
+        .expect("Error while creating necessary files");
+
     // Check for port conflict before starting daemon
     if DaemonServer::is_running() {
         warning_message!("Daemon server is already running, trying to terminate it...");
-        if !terminate(&api_client).await {
+        if !terminate(api_client).await {
             return Ok(());
         }
     }
 
     info_message!("Starting daemon...");
-    let args = args.finalize();
+    let args = args.finalize(prompt_mode);
     {
         // Layer tags on top of args
         let mut json_args = serde_json::to_value(&args)?.as_object().unwrap().clone();
@@ -90,11 +101,11 @@ pub async fn init(
             .arg("--log-level")
             .arg(args.log_level)
             .stdin(Stdio::null())
-            .stdout(Stdio::from(File::create(STDOUT_FILE)?))
-            .stderr(Stdio::from(File::create(STDERR_FILE)?))
+            .stdout(Stdio::from(File::create(&TRACER_WORK_DIR.stdout_file)?))
+            .stderr(Stdio::from(File::create(&TRACER_WORK_DIR.stderr_file)?))
             .spawn()?;
 
-        std::fs::write(PID_FILE, child.id().to_string())?;
+        std::fs::write(&TRACER_WORK_DIR.pid_file, child.id().to_string())?;
         success_message!("Daemon started successfully.");
 
         // Wait a moment for the daemon to start, then show info
@@ -103,11 +114,11 @@ pub async fn init(
             AnalyticsEventType::DaemonStartAttempted,
             None,
         );
-        if !wait(&api_client).await {
+        if !wait(api_client).await {
             error_message!("Daemon is not responding, please check logs");
             return Ok(());
         }
-        info(&api_client, false).await;
+        info(api_client, false).await;
 
         return Ok(());
     }
@@ -122,7 +133,8 @@ fn setup_logging(log_level: &String) -> anyhow::Result<()> {
     let filter = EnvFilter::from(log_level);
 
     // Create a file appender that writes to daemon.log
-    let file_appender = RollingFileAppender::new(Rotation::NEVER, WORKING_DIR, "daemon.log");
+    let file_appender =
+        RollingFileAppender::new(Rotation::NEVER, &TRACER_WORK_DIR.path, "daemon.log");
 
     // Create a custom format for the logs without colors
     let file_layer = fmt::layer()
@@ -144,7 +156,10 @@ fn setup_logging(log_level: &String) -> anyhow::Result<()> {
         .context("Failed to set tracing subscriber")?;
 
     // Log initialization message
-    tracing::info!("Logging system initialized. Writing to {}", LOG_FILE);
+    tracing::info!(
+        "Logging system initialized. Writing to {:?}",
+        TRACER_WORK_DIR.log_file
+    );
 
     Ok(())
 }

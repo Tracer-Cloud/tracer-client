@@ -1,4 +1,5 @@
 //! A collection of macros for printing messages to the console with different styles.
+
 #[macro_export]
 macro_rules! success_message {
     ($($arg:tt)*) => {

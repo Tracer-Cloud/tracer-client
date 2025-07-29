@@ -1,11 +1,12 @@
 use crate::daemon::client::DaemonClient;
-use crate::process_identification::constants::{DEFAULT_DAEMON_PORT, PID_FILE};
+use crate::process_identification::constants::DEFAULT_DAEMON_PORT;
+use crate::utils::workdir::TRACER_WORK_DIR;
 use crate::{error_message, info_message, success_message};
 use colored::Colorize;
 use std::fs;
 
 pub(super) fn get_pid() -> Option<String> {
-    let contents = fs::read_to_string(PID_FILE).ok()?;
+    let contents = fs::read_to_string(&TRACER_WORK_DIR.pid_file).ok()?;
     let trimmed = contents.trim();
     if trimmed.is_empty() {
         None
@@ -13,6 +14,7 @@ pub(super) fn get_pid() -> Option<String> {
         Some(trimmed.to_string())
     }
 }
+
 pub async fn terminate(api_client: &DaemonClient) -> bool {
     if let Err(e) = api_client.send_terminate_request().await {
         error_message!("Failed to send terminate request to the daemon: {e}");
