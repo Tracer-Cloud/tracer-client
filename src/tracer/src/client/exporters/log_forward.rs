@@ -76,7 +76,7 @@ impl LogWriter for LogForward {
         match self.client.post(&self.endpoint).json(&payload).send().await {
             Ok(response) => {
                 if response.status() == 200 {
-                    info!(
+                    println!(
                         "Successfully sent {} events with run_name: {}, elapsed: {:?}",
                         payload.events.len(),
                         run_name,

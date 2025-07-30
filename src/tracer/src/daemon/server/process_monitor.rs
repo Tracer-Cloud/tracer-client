@@ -40,7 +40,7 @@ where
                         continue;
                     }
 
-                    match tokio::time::timeout(Duration::from_secs(5), work_fn()).await {
+                    match tokio::time::timeout(Duration::from_secs(10), work_fn()).await {
                         Ok(_) => {
                             // Work completed within 5 seconds
                         }
@@ -132,33 +132,28 @@ pub async fn monitor(
         )
     };
 
-    loop {
-        tokio::select! {
-            result = &mut submission_handle => {
-                if let Err(join_error) = result {
-                    if join_error.is_panic() {
-                        error!("Submission thread panicked");
-                        cancellation_token.cancel();
-                        break;
-                    }
+    tokio::select! {
+        result = &mut submission_handle => {
+            if let Err(join_error) = result {
+                if join_error.is_panic() {
+                    error!("Submission thread panicked");
+                    cancellation_token.cancel();
                 }
             }
-            result = &mut system_metrics_handle => {
-                if let Err(join_error) = result {
-                    if join_error.is_panic() {
-                        error!("System metrics thread panicked");
-                        cancellation_token.cancel();
-                        break;
-                    }
+        }
+        result = &mut system_metrics_handle => {
+            if let Err(join_error) = result {
+                if join_error.is_panic() {
+                    error!("System metrics thread panicked");
+                    cancellation_token.cancel();
                 }
             }
-            result = &mut process_metrics_handle => {
-                if let Err(join_error) = result {
-                    if join_error.is_panic() {
-                        error!("Process metrics thread panicked");
-                        cancellation_token.cancel();
-                        break;
-                    }
+        }
+        result = &mut process_metrics_handle => {
+            if let Err(join_error) = result {
+                if join_error.is_panic() {
+                    error!("Process metrics thread panicked");
+                    cancellation_token.cancel();
                 }
             }
         }
