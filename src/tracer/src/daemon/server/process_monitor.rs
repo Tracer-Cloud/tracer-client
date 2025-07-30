@@ -40,7 +40,7 @@ where
                         continue;
                     }
 
-                    match tokio::time::timeout(Duration::from_secs(10), work_fn()).await {
+                    match tokio::time::timeout(Duration::from_secs(50), work_fn()).await {
                         Ok(_) => {
                             // Work completed within 5 seconds
                         }
