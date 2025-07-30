@@ -77,7 +77,7 @@ impl DaemonServer {
     }
 
     pub async fn terminate(mut self) -> anyhow::Result<()> {
-        if self.server.is_some() {
+        if self.server.is_none() {
             eprint!("Server not running");
             return Ok(());
         }

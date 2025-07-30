@@ -44,7 +44,7 @@ impl LogWriter for LogForward {
     ) -> Result<()> {
         let now = std::time::Instant::now();
 
-        println!(
+        debug!(
             "run_id: {:?}, run_name: {:?}, pipeline_name: {:?}",
             run_id, run_name, pipeline_name
         );

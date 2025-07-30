@@ -2,13 +2,13 @@ use crate::client::TracerClient;
 use crate::daemon::handlers::info::get_info_response;
 use crate::utils::Sentry;
 use anyhow::Result;
-use log::info;
 use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
-use tracing::debug;
+use tracing::error;
 
 pub(super) async fn monitor_processes(tracer_client: &mut TracerClient) -> Result<()> {
     tracer_client.poll_process_metrics().await?;
@@ -18,71 +18,150 @@ pub(super) async fn monitor_processes(tracer_client: &mut TracerClient) -> Resul
     Ok(())
 }
 
+fn spawn_worker_thread<F, Fut>(
+    interval_ms: u64,
+    paused: Arc<Mutex<bool>>,
+    cancellation_token: CancellationToken,
+    work_fn: F,
+) -> JoinHandle<()>
+where
+    F: Fn() -> Fut + Send + 'static,
+    Fut: std::future::Future<Output = ()> + Send,
+{
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_millis(interval_ms));
+        loop {
+            tokio::select! {
+                _ = cancellation_token.cancelled() => {
+                    break;
+                }
+                _ = interval.tick() => {
+                    if *paused.lock().await {
+                        continue;
+                    }
+
+                    match tokio::time::timeout(Duration::from_secs(5), work_fn()).await {
+                        Ok(_) => {
+                            // Work completed within 5 seconds
+                        }
+                        Err(_) => {
+                            panic!("Work function took longer than 5 seconds to complete!");
+                        }
+                    }
+                }
+            }
+        }
+    })
+}
+
 pub async fn monitor(
     client: Arc<Mutex<TracerClient>>,
     cancellation_token: CancellationToken,
     paused: Arc<Mutex<bool>>,
 ) {
     let (
-        mut system_metrics_interval,
-        mut process_metrics_interval,
-        mut submission_interval,
+        submission_interval_ms,
+        system_metrics_interval_ms,
+        process_metrics_interval_ms,
         exporter,
         retry_attempts,
         retry_delay,
     ) = {
         let client = client.lock().await;
         client.start_new_run(None).await.unwrap();
-
         let config = client.get_config();
-        let system_metrics_interval =
-            tokio::time::interval(Duration::from_millis(config.batch_submission_interval_ms));
-        let process_metrics_interval = tokio::time::interval(Duration::from_millis(
-            config.process_metrics_send_interval_ms,
-        ));
-        let submission_interval =
-            tokio::time::interval(Duration::from_millis(config.batch_submission_interval_ms));
-
         (
-            system_metrics_interval,
-            process_metrics_interval,
-            submission_interval,
+            config.batch_submission_interval_ms,
+            config.batch_submission_interval_ms,
+            config.process_metrics_send_interval_ms,
             Arc::clone(&client.exporter),
             config.batch_submission_retries,
             config.batch_submission_retry_delay_ms,
         )
     };
 
+    // Spawn 3 independent threads
+    let mut submission_handle = {
+        let exporter = Arc::clone(&exporter);
+        spawn_worker_thread(
+            submission_interval_ms,
+            Arc::clone(&paused),
+            cancellation_token.clone(),
+            move || {
+                let exporter = Arc::clone(&exporter);
+                async move {
+                    exporter
+                        .submit_batched_data(retry_attempts, retry_delay)
+                        .await
+                        .unwrap();
+                }
+            },
+        )
+    };
+    let mut system_metrics_handle = {
+        let client = Arc::clone(&client);
+        spawn_worker_thread(
+            system_metrics_interval_ms,
+            Arc::clone(&paused),
+            cancellation_token.clone(),
+            move || {
+                let client = Arc::clone(&client);
+                async move {
+                    let guard = client.lock().await;
+                    guard.poll_metrics_data().await.unwrap();
+                    sentry_alert(&guard).await;
+                }
+            },
+        )
+    };
+
+    let mut process_metrics_handle = {
+        let client = Arc::clone(&client);
+        spawn_worker_thread(
+            process_metrics_interval_ms,
+            Arc::clone(&paused),
+            cancellation_token.clone(),
+            move || {
+                let client = Arc::clone(&client);
+                async move {
+                    let mut guard = client.lock().await;
+                    monitor_processes(&mut guard).await.unwrap();
+                    sentry_alert(&guard).await;
+                }
+            },
+        )
+    };
+
     loop {
-        if *paused.lock().await {
-            info!("DaemonServer paused");
-            continue;
-        }
+        error!("Waiting for worker threads to finish...");
         tokio::select! {
-            // all functions in the "expression" shouldn't be blocking. For example, you shouldn't
-            // call rx.recv().await as it'll freeze the execution loop
-
-            _ = cancellation_token.cancelled() => {
-                debug!("DaemonServer cancelled");
-                break;
+            result = &mut submission_handle => {
+                if let Err(join_error) = result {
+                    if join_error.is_panic() {
+                        error!("Submission thread panicked");
+                        cancellation_token.cancel();
+                        break;
+                    }
+                }
             }
-
-            _ = submission_interval.tick() => {
-                let _ = exporter.submit_batched_data(retry_attempts,retry_delay).await;
+            result = &mut system_metrics_handle => {
+                if let Err(join_error) = result {
+                    if join_error.is_panic() {
+                        error!("System metrics thread panicked");
+                        cancellation_token.cancel();
+                        break;
+                    }
+                }
             }
-            _ = system_metrics_interval.tick() => {
-                let guard = client.lock().await;
-
-                guard.poll_metrics_data().await.unwrap();
-                sentry_alert(&guard).await;
+            result = &mut process_metrics_handle => {
+                if let Err(join_error) = result {
+                    if join_error.is_panic() {
+                        error!("Process metrics thread panicked");
+                        cancellation_token.cancel();
+                        break;
+                    }
+                }
             }
-            _ = process_metrics_interval.tick() => {
-                let mut guard = client.lock().await;
-
-                monitor_processes(&mut guard).await.unwrap();
-                sentry_alert(&guard).await;
-            }
-
         }
     }
 }
