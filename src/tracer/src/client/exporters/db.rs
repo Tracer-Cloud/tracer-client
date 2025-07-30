@@ -1,6 +1,6 @@
 use crate::process_identification::types::{event::Event, extracts::db::EventInsert};
 use anyhow::{bail, Context, Result};
-use log::info;
+use tracing::info;
 use sqlx::pool::PoolOptions;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 
@@ -92,9 +92,6 @@ impl AuroraClient {
 impl LogWriter for AuroraClient {
     async fn batch_insert_events(
         &self,
-        run_name: &str,
-        run_id: &str,
-        pipeline_name: &str,
         data: impl IntoIterator<Item = &Event>,
     ) -> Result<()> {
         let now = std::time::Instant::now();
@@ -152,11 +149,6 @@ impl LogWriter for AuroraClient {
         // however, unnest builds a tmp table from the array - and we're passing job_ids. Unnesting Arrays inside the arrays are tricky.
         // see https://github.com/launchbadge/sqlx/issues/1945
 
-        info!(
-            "Inserting row for run_name: {}, pipeline_name: {}, run_id: {}",
-            run_name, pipeline_name, run_id
-        );
-
         let mut builder = QueryBuilder::new(QUERY);
 
         let mut data: Vec<_> = data
@@ -195,7 +187,7 @@ impl LogWriter for AuroraClient {
         };
 
         debug!(
-            "Successfully inserted {rows_affected} rows with run_name: {run_name}, elapsed: {:?}",
+            "Successfully inserted {rows_affected} rows, elapsed: {:?}",
             now.elapsed()
         );
 

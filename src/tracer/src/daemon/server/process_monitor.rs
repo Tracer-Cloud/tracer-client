@@ -42,7 +42,7 @@ where
 
                     match tokio::time::timeout(Duration::from_secs(50), work_fn()).await {
                         Ok(_) => {
-                            // Work completed within 5 seconds
+                            // Work completed within 50 seconds
                         }
                         Err(_) => {
                             panic!("Thread took too long to complete, shutting down daemon");

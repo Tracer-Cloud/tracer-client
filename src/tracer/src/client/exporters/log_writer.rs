@@ -13,9 +13,6 @@ pub enum LogWriterEnum {
 pub trait LogWriter {
     async fn batch_insert_events(
         &self,
-        run_name: &str,
-        run_id: &str,
-        pipeline_name: &str,
         data: impl IntoIterator<Item = &Event>,
     ) -> Result<()>;
 }
@@ -23,20 +20,17 @@ pub trait LogWriter {
 impl LogWriter for LogWriterEnum {
     async fn batch_insert_events(
         &self,
-        run_name: &str,
-        run_id: &str,
-        pipeline_name: &str,
         data: impl IntoIterator<Item = &Event>,
     ) -> Result<()> {
         match self {
             LogWriterEnum::Aurora(client) => {
                 client
-                    .batch_insert_events(run_name, run_id, pipeline_name, data)
+                    .batch_insert_events(data)
                     .await
             }
             LogWriterEnum::Forward(client) => {
                 client
-                    .batch_insert_events(run_name, run_id, pipeline_name, data)
+                    .batch_insert_events(data)
                     .await
             }
         }
