@@ -1,5 +1,7 @@
+use crate::error_message;
 use crate::process_identification::target_pipeline::pipeline_manager::TargetPipelineManager;
 use crate::process_identification::target_process::target_manager::TargetManager;
+use colored::Colorize;
 use std::collections::{HashMap, HashSet};
 use tokio::task::JoinHandle;
 use tracer_ebpf::ebpf_trigger::{OutOfMemoryTrigger, ProcessStartTrigger};
@@ -95,49 +97,35 @@ impl ProcessState {
             .collect()
     }
 
-    /// Gets a process and all its parent processes from the state
+    /// Returns the PID of the task that contains the given process.
     ///
-    /// Will panic if a cycle is detected in the process hierarchy.
-    pub fn get_process_hierarchy(
-        &self,
-        process: ProcessStartTrigger,
-    ) -> HashSet<ProcessStartTrigger> {
-        let mut current_pid = process.ppid;
-        let mut hierarchy = HashSet::new();
-        // Keep track of visited PIDs to detect cycles
-        let mut visited_pids = HashSet::new();
+    /// Panics if a cycle is detected in the process lineage.
+    pub fn get_task_pid(&self, process: &ProcessStartTrigger) -> Option<usize> {
+        let mut seen = HashSet::new();
+        let mut parent_pid = process.ppid;
+        seen.insert(process.pid);
+        seen.insert(parent_pid);
 
-        // Store the process PID before moving the process
-        let process_pid = process.pid;
-
-        // Insert the process into the hierarchy (this moves the process)
-        hierarchy.insert(process);
-
-        // Add the starting process PID to visited
-        visited_pids.insert(process_pid);
-
-        // Traverse up the process tree to include all parent processes
-        while let Some(parent) = self.get_processes().get(&current_pid) {
-            // Check if we've seen this PID before - that would indicate a cycle
-            if visited_pids.contains(&parent.pid) {
-                // We have a cycle in the process hierarchy - this shouldn't happen
-                // in normal scenarios, but we'll panic to prevent infinite loops
-                panic!(
-                    "Cycle detected in process hierarchy! PID {} appears twice in parent chain",
-                    parent.pid
-                );
+        while let Some(parent) = self.get_processes().get(&parent_pid) {
+            // TODO: this is nextflow-specific
+            if parent.command_string.contains(".command.sh") {
+                return Some(parent_pid);
             }
 
-            // Track that we've visited this PID
-            visited_pids.insert(parent.pid);
+            parent_pid = parent.ppid;
 
-            // Add parent to the hierarchy
-            hierarchy.insert(parent.clone());
+            // Check if we've seen this PID before - that would indicate a cycle
+            if seen.contains(&parent_pid) {
+                error_message!(
+                    "Cycle detected in process lineage! PID {} appears twice in parent chain",
+                    parent_pid
+                );
+                break;
+            }
 
-            // Move to the next parent
-            current_pid = parent.ppid;
+            seen.insert(parent_pid);
         }
 
-        hierarchy
+        None
     }
 }

@@ -109,7 +109,12 @@ impl ProcessStartHandler {
         matched_processes: &HashMap<String, HashSet<&ProcessStartTrigger>>,
     ) -> Result<()> {
         let mut state = state_manager.get_state_mut().await;
-        let pipeline_manager = state.get_pipeline_manager_mut();
+
+        let triggers_with_task = triggers
+            .iter()
+            .map(|trigger| (trigger, state.get_task_pid(trigger)))
+            .collect::<Vec<_>>();
+
         let trigger_to_target =
             matched_processes
                 .iter()
@@ -117,10 +122,13 @@ impl ProcessStartHandler {
                     acc.extend(processes.iter().map(|process| (process, target)));
                     acc
                 });
-        for trigger in triggers {
-            let matched_target = trigger_to_target.get(&trigger);
+
+        let pipeline_manager = state.get_pipeline_manager_mut();
+
+        for (trigger, task_pid) in triggers_with_task {
+            let matched_target = trigger_to_target.get(&trigger).map(|t| &**t);
             if let Some(task_match) =
-                pipeline_manager.register_process(trigger, matched_target.map(|t| &**t))
+                pipeline_manager.register_process(trigger, task_pid, matched_target)
             {
                 // the process triggered a task match
                 logger.log_task_match(task_match).await?;
