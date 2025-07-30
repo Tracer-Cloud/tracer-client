@@ -154,7 +154,7 @@ impl DockerWatcher {
         let state = self.container_state.read().await;
 
         // Log all keys (container IDs) currently stored
-        tracing::error!(
+        tracing::info!(
             "Looking for container ID: {:?} | Currently stored IDs: {:?}",
             container_id,
             state.keys().collect::<Vec<&ContainerId>>()

@@ -6,7 +6,7 @@ use log::error;
 use reqwest::Client;
 use serde::Serialize;
 use std::convert::TryFrom;
-use tracing::{debug, info};
+use tracing::debug;
 
 #[derive(Serialize, Clone, Debug)]
 struct EventPayload {
@@ -44,7 +44,7 @@ impl LogWriter for LogForward {
     ) -> Result<()> {
         let now = std::time::Instant::now();
 
-        println!(
+        debug!(
             "run_id: {:?}, run_name: {:?}, pipeline_name: {:?}",
             run_id, run_name, pipeline_name
         );
@@ -66,7 +66,7 @@ impl LogWriter for LogForward {
         let payload_string = serde_json::to_string_pretty(&payload)
             .unwrap_or_else(|_| "Failed to serialize payload".to_string());
 
-        info!(
+        debug!(
             "Sending payload to endpoint {} with {} events\nPayload: {}",
             self.endpoint,
             payload.events.len(),
