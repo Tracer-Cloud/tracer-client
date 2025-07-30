@@ -1,8 +1,8 @@
 use crate::process_identification::types::{event::Event, extracts::db::EventInsert};
 use anyhow::{bail, Context, Result};
-use tracing::info;
 use sqlx::pool::PoolOptions;
 use sqlx::{PgPool, Postgres, QueryBuilder};
+use tracing::info;
 
 use crate::config::Config;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
@@ -90,10 +90,7 @@ impl AuroraClient {
 }
 
 impl LogWriter for AuroraClient {
-    async fn batch_insert_events(
-        &self,
-        data: impl IntoIterator<Item = &Event>,
-    ) -> Result<()> {
+    async fn batch_insert_events(&self, data: impl IntoIterator<Item = &Event>) -> Result<()> {
         let now = std::time::Instant::now();
 
         const QUERY: &str = "INSERT INTO batch_jobs_logs (

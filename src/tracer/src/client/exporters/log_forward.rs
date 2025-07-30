@@ -5,7 +5,7 @@ use anyhow::Result;
 use reqwest::Client;
 use serde::Serialize;
 use std::convert::TryFrom;
-use tracing::{debug, info, error};
+use tracing::{debug, error, info};
 
 #[derive(Serialize, Clone, Debug)]
 struct EventPayload {
@@ -34,10 +34,7 @@ impl LogForward {
 }
 
 impl LogWriter for LogForward {
-    async fn batch_insert_events(
-        &self,
-        data: impl IntoIterator<Item = &Event>,
-    ) -> Result<()> {
+    async fn batch_insert_events(&self, data: impl IntoIterator<Item = &Event>) -> Result<()> {
         let now = std::time::Instant::now();
 
         let events: Result<Vec<EventInsert>> = data

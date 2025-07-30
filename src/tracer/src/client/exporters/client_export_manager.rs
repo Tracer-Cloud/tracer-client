@@ -13,10 +13,7 @@ pub struct ExporterManager {
 }
 
 impl ExporterManager {
-    pub fn new(
-        db_client: LogWriterEnum,
-        receiver: Receiver<Event>,
-    ) -> Self {
+    pub fn new(db_client: LogWriterEnum, receiver: Receiver<Event>) -> Self {
         ExporterManager {
             db_client,
             receiver: Mutex::new(receiver),
@@ -38,7 +35,6 @@ impl ExporterManager {
         let mut buff: Vec<Event> = Vec::with_capacity(100);
 
         if receiver.recv_many(&mut buff, 100).await > 0 {
-
             let attempts = attempts + 1;
 
             let mut error = None;
@@ -49,11 +45,7 @@ impl ExporterManager {
                     debug!("No data received in batch, exiting submit_batched_data");
                     return Ok(());
                 }
-                match self
-                    .db_client
-                    .batch_insert_events(buff.as_slice())
-                    .await
-                {
+                match self.db_client.batch_insert_events(buff.as_slice()).await {
                     Ok(_) => {
                         buff.clear();
                         return Ok(());

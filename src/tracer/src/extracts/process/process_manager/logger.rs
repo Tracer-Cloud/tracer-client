@@ -9,11 +9,11 @@ use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::ProcessStatus as TracerProcessStatus;
 use anyhow::Result;
 use chrono::Utc;
-use tracing::error;
 use std::sync::Arc;
 use sysinfo::Process;
 use tracer_ebpf::ebpf_trigger::{ProcessEndTrigger, ProcessStartTrigger};
 use tracing::debug;
+use tracing::error;
 
 /// Handles logging of process-related events
 pub struct ProcessLogger {
