@@ -6,7 +6,7 @@ use log::error;
 use reqwest::Client;
 use serde::Serialize;
 use std::convert::TryFrom;
-use tracing::{debug, info};
+use tracing::debug;
 
 #[derive(Serialize, Clone, Debug)]
 struct EventPayload {
