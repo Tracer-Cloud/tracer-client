@@ -45,7 +45,7 @@ where
                             // Work completed within 5 seconds
                         }
                         Err(_) => {
-                            panic!("Work function took longer than 5 seconds to complete!");
+                            panic!("Thread took too long to complete, shutting down daemon");
                         }
                     }
                 }
@@ -133,7 +133,6 @@ pub async fn monitor(
     };
 
     loop {
-        error!("Waiting for worker threads to finish...");
         tokio::select! {
             result = &mut submission_handle => {
                 if let Err(join_error) = result {
