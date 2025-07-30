@@ -105,7 +105,7 @@ impl ProcessStartHandler {
     async fn log_matching_tasks(
         logger: &ProcessLogger,
         state_manager: &StateManager,
-        triggers: &Vec<ProcessStartTrigger>,
+        triggers: &[ProcessStartTrigger],
         matched_processes: &HashMap<String, HashSet<&ProcessStartTrigger>>,
     ) -> Result<()> {
         let mut state = state_manager.get_state_mut().await;

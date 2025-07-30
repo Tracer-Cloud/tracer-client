@@ -351,7 +351,7 @@ impl Tasks {
     }
 
     fn get(&self, id: &str) -> Option<&Task> {
-        return self.tasks.get(id);
+        self.tasks.get(id)
     }
 
     fn get_tasks_with(&self, rule: &str) -> Option<HashSet<(&Task, &Option<MatchType>)>> {
