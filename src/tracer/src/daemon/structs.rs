@@ -44,24 +44,24 @@ impl InfoResponse {
 
     pub fn processes_preview(&self, limit: Option<(usize, usize)>) -> Vec<String> {
         if let Some((width, items)) = limit {
-            self.processes
-                .iter()
-                .take(items)
-                .fold(
-                    (Vec::new(), Vec::new(), 0),
-                    |(mut lines, mut cur_line, mut cur_width), p| {
-                        if !cur_line.is_empty() && p.len() > (width.saturating_sub(cur_width + 2)) {
-                            lines.push(cur_line.drain(..).join(", "));
-                            cur_width = p.len();
-                            cur_line.push(p);
-                        } else {
-                            cur_width += p.len() + 2;
-                            cur_line.push(p);
-                        }
-                        (lines, cur_line, cur_width)
-                    },
-                )
-                .0
+            self.processes.iter().take(items).fold(
+                (Vec::new(), Vec::new(), 0),
+                |(mut lines, mut cur_line, mut cur_width), p| {
+                    if !cur_line.is_empty() && p.len() > (width.saturating_sub(cur_width + 2)) {
+                        lines.push(cur_line.drain(..).join(", "));
+                        cur_width = p.len();
+                        cur_line.push(p);
+                    } else {
+                        cur_width += p.len() + 2;
+                        cur_line.push(p);
+                    }
+                    (lines, cur_line, cur_width)
+                },
+            );
+            if !cur_line.is_empty() {
+                lines.push(cur_line.into_iter().join(", "));
+            }
+            lines
         } else {
             vec![self.processes.iter().join(", ")]
         }
@@ -84,23 +84,24 @@ impl InfoResponse {
             }
         });
         if let Some((width, items)) = limit {
-            task_preview
-                .take(items)
-                .fold(
-                    (Vec::new(), Vec::new(), 0),
-                    |(mut lines, mut cur_line, mut cur_width), p| {
-                        if !cur_line.is_empty() && p.len() > (width.saturating_sub(cur_width + 2)) {
-                            lines.push(cur_line.drain(..).join(", "));
-                            cur_width = p.len();
-                            cur_line.push(p);
-                        } else {
-                            cur_width += p.len() + 2;
-                            cur_line.push(p);
-                        }
-                        (lines, cur_line, cur_width)
-                    },
-                )
-                .0
+            let (mut lines, cur_line, _) = task_preview.take(items).fold(
+                (Vec::new(), Vec::new(), 0),
+                |(mut lines, mut cur_line, mut cur_width), p| {
+                    if !cur_line.is_empty() && p.len() > (width.saturating_sub(cur_width + 2)) {
+                        lines.push(cur_line.drain(..).join(", "));
+                        cur_width = p.len();
+                        cur_line.push(p);
+                    } else {
+                        cur_width += p.len() + 2;
+                        cur_line.push(p);
+                    }
+                    (lines, cur_line, cur_width)
+                },
+            );
+            if !cur_line.is_empty() {
+                lines.push(cur_line.into_iter().join(", "));
+            }
+            lines
         } else {
             vec![task_preview.join(", ")]
         }
