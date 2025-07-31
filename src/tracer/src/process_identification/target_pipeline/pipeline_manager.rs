@@ -224,7 +224,7 @@ impl TargetPipelineManager {
         if let Err(e) = OpenOptions::new()
             .create(true)
             .append(true)
-            .open(&TRACER_WORK_DIR.process_matches_file)
+            .open(&TRACER_WORK_DIR.step_matches_file)
             .and_then(|mut file| {
                 let log_line = format!("{} | {} | {:?}", rule, task_pid, best_match);
                 file.write_all(log_line.as_bytes())?;
