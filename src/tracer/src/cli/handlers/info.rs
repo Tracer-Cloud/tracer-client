@@ -23,7 +23,7 @@ pub struct InfoDisplay {
 }
 
 impl InfoDisplay {
-    pub const PREVIEW_LENGTH: Option<usize> = Some(10);
+    pub const PREVIEW_LIMIT: Option<(usize, usize)> = Some((120, 20));
 
     pub fn new(width: usize, json: bool) -> Self {
         Self { width, json }
@@ -138,9 +138,9 @@ impl InfoDisplay {
             "yellow",
         );
         if monitored_processes > 0 {
-            formatter.add_field(
+            formatter.add_multiline_field(
                 "Processes preview",
-                &info.processes_preview(Self::PREVIEW_LENGTH),
+                &info.processes_preview(Self::PREVIEW_LIMIT),
                 "white",
             );
         }
@@ -150,9 +150,9 @@ impl InfoDisplay {
             "yellow",
         );
         if monitored_tasks > 0 {
-            formatter.add_field(
+            formatter.add_multiline_field(
                 "Tasks preview",
-                &info.tasks_preview(Self::PREVIEW_LENGTH),
+                &info.tasks_preview(Self::PREVIEW_LIMIT),
                 "white",
             );
         }
