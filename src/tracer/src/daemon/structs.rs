@@ -66,7 +66,6 @@ impl InfoResponse {
                 task.to_owned()
             }
         });
-
         if let Some(limit) = limit {
             task_preview.take(limit).join(", ")
         } else {
