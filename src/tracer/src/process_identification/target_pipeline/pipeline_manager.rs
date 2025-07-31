@@ -159,7 +159,9 @@ impl TargetPipelineManager {
             });
 
         // find the best match
-        if !candidate_matches.is_empty() {
+        if candidate_matches.is_empty() {
+            Self::log_task_match(rule, task_pid, None, None);
+        } else {
             // add the PID to the set we're tracking if it matched at least one task
             self.pid_to_process.insert(
                 process.pid,
@@ -185,7 +187,7 @@ impl TargetPipelineManager {
                 .collect::<Vec<_>>();
             // return early if there are no matches above the threshold
             if matched_tasks.is_empty() {
-                Self::log_task_match(rule, task_pid, candidate_matches, None);
+                Self::log_task_match(rule, task_pid, Some(candidate_matches), None);
                 return None;
             }
             // if there are multiple matches, pick the one with the highest score
@@ -211,7 +213,7 @@ impl TargetPipelineManager {
                 score,
                 total_rules,
             };
-            Self::log_task_match(rule, task_pid, candidate_matches, Some(&task_match));
+            Self::log_task_match(rule, task_pid, Some(candidate_matches), Some(&task_match));
             self.best_match.insert(task_pid, task_match.clone());
             return Some(task_match);
         }
@@ -222,14 +224,14 @@ impl TargetPipelineManager {
     fn log_task_match(
         rule: &str,
         task_pid: usize,
-        candidate_matches: &Vec<CandidateMatch>,
+        candidate_matches: Option<&Vec<CandidateMatch>>,
         best_match: Option<&TaskMatch>,
     ) {
         let log_line = format!(
             "{} | {} | {:?} | {:?}",
             rule, task_pid, candidate_matches, best_match
         );
-        
+
         if let Err(e) = OpenOptions::new()
             .create(true)
             .append(true)
