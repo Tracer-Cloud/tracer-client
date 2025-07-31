@@ -44,7 +44,7 @@ impl InfoResponse {
 
     pub fn processes_preview(&self, limit: Option<(usize, usize)>) -> Vec<String> {
         if let Some((width, items)) = limit {
-            self.processes.iter().take(items).fold(
+            let (lines, cur_line, _) = self.processes.iter().take(items).fold(
                 (Vec::new(), Vec::new(), 0),
                 |(mut lines, mut cur_line, mut cur_width), p| {
                     if !cur_line.is_empty() && p.len() > (width.saturating_sub(cur_width + 2)) {
