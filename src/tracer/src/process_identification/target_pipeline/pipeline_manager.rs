@@ -160,6 +160,8 @@ impl TargetPipelineManager {
 
         // find the best match
         let best_match = if candidate_matches.is_empty() {
+            self.candidate_matches.remove(&task_pid);
+            self.best_match.remove(&task_pid);
             None
         } else {
             // add the PID to the set we're tracking if it matched at least one task
