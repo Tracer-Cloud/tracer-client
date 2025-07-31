@@ -110,10 +110,15 @@ impl TargetPipelineManager {
             .candidate_matches
             .entry(task_pid)
             .and_modify(|candidate_matches| {
-                // if we have seen this task before, only keep the candidates that contain the new
-                // rule, and only add the rule to tasks that don't already contain that rule
-                candidate_matches
-                    .retain(|candidate_match| self.tasks.task_has_rule(&candidate_match.id, rule));
+                // if we have seen this task before, and the rule was matched (i.e. it is expected
+                // to be in the set of rules for the task), only keep the candidates that contain
+                // the new rule
+                if matched {
+                    candidate_matches.retain(|candidate_match| {
+                        self.tasks.task_has_rule(&candidate_match.id, rule)
+                    });
+                }
+                // and only add the rule to tasks that don't already contain that rule
                 for candidate_match in candidate_matches {
                     if !candidate_match.child_pids.iter().any(|pid| {
                         self.pid_to_process
