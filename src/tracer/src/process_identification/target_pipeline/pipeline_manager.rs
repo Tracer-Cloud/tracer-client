@@ -159,8 +159,8 @@ impl TargetPipelineManager {
             });
 
         // find the best match
-        if candidate_matches.is_empty() {
-            Self::log_task_match(rule, task_pid, None, None);
+        let best_match = if candidate_matches.is_empty() {
+            None
         } else {
             // add the PID to the set we're tracking if it matched at least one task
             self.pid_to_process.insert(
@@ -185,11 +185,6 @@ impl TargetPipelineManager {
                     }
                 })
                 .collect::<Vec<_>>();
-            // return early if there are no matches above the threshold
-            if matched_tasks.is_empty() {
-                Self::log_task_match(rule, task_pid, Some(candidate_matches), None);
-                return None;
-            }
             // if there are multiple matches, pick the one with the highest score
             if matched_tasks.len() > 1 {
                 matched_tasks.sort_by(|a, b| match a.1.partial_cmp(&b.1) {
@@ -198,52 +193,48 @@ impl TargetPipelineManager {
                     None => panic!("Score comparison failed"),
                 });
             }
-            let (best_candidate, score, total_rules) = matched_tasks.pop().unwrap();
-            // insert the best match into the best matches map, potentially replacing a previous match
-            let task_match = TaskMatch {
-                id: best_candidate.id.clone(),
-                description: self
-                    .tasks
-                    .get(&best_candidate.id)
-                    .unwrap()
-                    .description
-                    .clone(),
-                pid: best_candidate.pid,
-                child_pids: best_candidate.child_pids.clone(),
-                score,
-                total_rules,
-            };
-            Self::log_task_match(rule, task_pid, Some(candidate_matches), Some(&task_match));
-            self.best_match.insert(task_pid, task_match.clone());
-            return Some(task_match);
-        }
+            matched_tasks
+                .pop()
+                .map(|(best_candidate, score, total_rules)| {
+                    // insert the best match into the best matches map, potentially replacing a previous match
+                    let task_match = TaskMatch {
+                        id: best_candidate.id.clone(),
+                        description: self
+                            .tasks
+                            .get(&best_candidate.id)
+                            .unwrap()
+                            .description
+                            .clone(),
+                        pid: best_candidate.pid,
+                        child_pids: best_candidate.child_pids.clone(),
+                        score,
+                        total_rules,
+                    };
+                    self.best_match.insert(task_pid, task_match.clone());
+                    task_match
+                })
+        };
 
-        None
+        self.log_task_match(rule, task_pid, best_match.as_ref());
+
+        best_match
     }
 
-    fn log_task_match(
-        rule: &str,
-        task_pid: usize,
-        candidate_matches: Option<&Vec<CandidateMatch>>,
-        best_match: Option<&TaskMatch>,
-    ) {
-        let log_line = format!(
-            "{} | {} | {:?} | {:?}",
-            rule, task_pid, candidate_matches, best_match
-        );
-
+    fn log_task_match(&self, rule: &str, task_pid: usize, best_match: Option<&TaskMatch>) {
         if let Err(e) = OpenOptions::new()
             .create(true)
             .append(true)
             .open(&TRACER_WORK_DIR.process_matches_file)
-            .and_then(|mut file| file.write_all(log_line.as_bytes()))
+            .and_then(|mut file| {
+                let log_line = format!("{} | {} | {:?}", rule, task_pid, best_match);
+                file.write_all(log_line.as_bytes())?;
+                let log_line = format!("Candidate matches: {:?}", &self.candidate_matches);
+                file.write_all(log_line.as_bytes())?;
+                Ok(())
+            })
         {
             error!("Failed to write task match log: {}", e);
         }
-    }
-
-    pub fn log_state(&self) {
-        tracing::info!("Candidate matches: {:?}", &self.candidate_matches);
     }
 
     pub fn matched_tasks(&self) -> HashMap<&str, usize> {
