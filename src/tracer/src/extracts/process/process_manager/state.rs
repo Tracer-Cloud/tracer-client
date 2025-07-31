@@ -85,13 +85,13 @@ impl StateManager {
     }
 
     /// Returns a set of matched tasks
-    pub async fn get_matched_tasks(&self) -> HashSet<String> {
+    pub async fn get_matched_tasks(&self) -> HashMap<String, usize> {
         let state = self.state.read().await;
         state
             .get_pipeline_manager()
             .matched_tasks()
             .into_iter()
-            .cloned()
+            .map(|(k, v)| (k.to_string(), v))
             .collect()
     }
 }

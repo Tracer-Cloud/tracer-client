@@ -295,7 +295,17 @@ impl ProcessWatcher {
             .await
     }
 
-    pub async fn get_matched_tasks(&self) -> HashSet<String> {
-        self.process_manager.read().await.get_matched_tasks().await
+    pub async fn get_matched_task_summary(&self) -> HashSet<String> {
+        let matched_tasks = self.process_manager.read().await.get_matched_tasks().await;
+        matched_tasks
+            .into_iter()
+            .map(|(task, count)| {
+                if count > 1 {
+                    format!("{} ({})", task, count)
+                } else {
+                    task
+                }
+            })
+            .collect()
     }
 }

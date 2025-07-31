@@ -4,13 +4,16 @@ use crate::process_identification::target_pipeline::parser::pipeline::{
 use crate::process_identification::target_pipeline::parser::yaml_rules_parser::load_pipelines_from_yamls;
 use crate::process_identification::target_process::target::Target;
 use crate::process_identification::target_process::target_match::MatchType;
+use crate::utils::workdir::TRACER_WORK_DIR;
 use crate::utils::yaml::YamlFile;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
+use std::fs::OpenOptions;
+use std::io::Write;
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
-use tracing::trace;
+use tracing::{error, trace};
 
 pub const TASK_SCORE_THRESHOLD: f64 = 0.9;
 
@@ -182,6 +185,7 @@ impl TargetPipelineManager {
                 .collect::<Vec<_>>();
             // return early if there are no matches above the threshold
             if matched_tasks.is_empty() {
+                Self::log_task_match(rule, task_pid, candidate_matches, None);
                 return None;
             }
             // if there are multiple matches, pick the one with the highest score
@@ -207,6 +211,7 @@ impl TargetPipelineManager {
                 score,
                 total_rules,
             };
+            Self::log_task_match(rule, task_pid, candidate_matches, Some(&task_match));
             self.best_match.insert(task_pid, task_match.clone());
             return Some(task_match);
         }
@@ -214,8 +219,37 @@ impl TargetPipelineManager {
         None
     }
 
-    pub fn matched_tasks(&self) -> HashSet<&String> {
-        self.best_match.values().map(|m| &m.id).collect()
+    fn log_task_match(
+        rule: &str,
+        task_pid: usize,
+        candidate_matches: &Vec<CandidateMatch>,
+        best_match: Option<&TaskMatch>,
+    ) {
+        let log_line = format!(
+            "{} | {} | {:?} | {:?}",
+            rule, task_pid, candidate_matches, best_match
+        );
+        
+        if let Err(e) = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&TRACER_WORK_DIR.process_matches_file)
+            .and_then(|mut file| file.write_all(log_line.as_bytes()))
+        {
+            error!("Failed to write task match log: {}", e);
+        }
+    }
+
+    pub fn matched_tasks(&self) -> HashMap<&str, usize> {
+        self.best_match
+            .values()
+            .fold(HashMap::new(), |mut counts, m| {
+                counts
+                    .entry(&m.id)
+                    .and_modify(|count| *count += 1)
+                    .or_insert(1);
+                counts
+            })
     }
 }
 
@@ -650,7 +684,7 @@ mod tests {
 
         let matched_tasks = manager.matched_tasks();
         assert_eq!(matched_tasks.len(), 1);
-        assert!(matched_tasks.contains(&"STAR_GENOMEGENERATE".to_string()));
+        assert!(matched_tasks.contains_key("STAR_GENOMEGENERATE"));
     }
 
     #[rstest]
