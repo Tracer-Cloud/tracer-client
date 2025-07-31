@@ -4,7 +4,7 @@ use crate::extracts::process::process_manager::ProcessManager;
 use crate::extracts::process_watcher::handler::trigger::trigger_processor::TriggerProcessor;
 use crate::process_identification::recorder::LogRecorder;
 use anyhow::{Error, Result};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs::{self};
 use std::path::Path;
 use std::sync::Arc;
@@ -295,17 +295,7 @@ impl ProcessWatcher {
             .await
     }
 
-    pub async fn get_matched_task_summary(&self) -> HashSet<String> {
-        let matched_tasks = self.process_manager.read().await.get_matched_tasks().await;
-        matched_tasks
-            .into_iter()
-            .map(|(task, count)| {
-                if count > 1 {
-                    format!("{} ({})", task, count)
-                } else {
-                    task
-                }
-            })
-            .collect()
+    pub async fn get_matched_task_summary(&self) -> HashMap<String, usize> {
+        self.process_manager.read().await.get_matched_tasks().await
     }
 }

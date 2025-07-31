@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use crate::constants::DASHBOARD_BASE;
 use crate::process_identification::types::current_run::{PipelineCostSummary, PipelineMetadata};
 use crate::process_identification::types::pipeline_tags::PipelineTags;
@@ -7,12 +5,13 @@ use chrono::{DateTime, TimeDelta, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::{HashMap, HashSet};
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct InfoResponse {
     pub inner: Option<InnerInfoResponse>,
     processes: HashSet<String>,
-    tasks: HashSet<String>,
+    tasks: HashMap<String, usize>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -30,7 +29,7 @@ impl InfoResponse {
     pub fn new(
         inner: Option<InnerInfoResponse>,
         processes: HashSet<String>,
-        tasks: HashSet<String>,
+        tasks: HashMap<String, usize>,
     ) -> Self {
         Self {
             inner,
@@ -56,14 +55,22 @@ impl InfoResponse {
     }
 
     pub fn tasks_count(&self) -> usize {
-        self.tasks.len()
+        self.tasks.values().sum()
     }
 
     pub fn tasks_preview(&self, limit: Option<usize>) -> String {
+        let mut task_preview = self.tasks.iter().map(|(task, count)| {
+            if *count > 1 {
+                format!("{} ({})", task, count)
+            } else {
+                task.to_owned()
+            }
+        });
+
         if let Some(limit) = limit {
-            self.tasks.iter().take(limit).join(", ")
+            task_preview.take(limit).join(", ")
         } else {
-            self.tasks.iter().join(", ")
+            task_preview.join(", ")
         }
     }
 }
