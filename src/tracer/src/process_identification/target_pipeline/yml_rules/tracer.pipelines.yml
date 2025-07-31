@@ -143,6 +143,7 @@ pipelines:
         description: Filter consensus reads
         rules:
           - fgbio FilterConsensusReads
+          - samtools sort
       - id: CALLANDFILTERDUPLEXCONSENSUSREADS
         description: Call and filter duplex consensus reads
         rules:
