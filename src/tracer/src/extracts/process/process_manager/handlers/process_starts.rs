@@ -133,6 +133,8 @@ impl ProcessStartHandler {
                 // the process triggered a task match
                 logger.log_task_match(task_match).await?;
             }
+            // TODO: remove
+            pipeline_manager.log_state();
         }
         Ok(())
     }

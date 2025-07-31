@@ -242,6 +242,10 @@ impl TargetPipelineManager {
         }
     }
 
+    pub fn log_state(&self) {
+        tracing::info!("Candidate matches: {:?}", &self.candidate_matches);
+    }
+
     pub fn matched_tasks(&self) -> HashMap<&str, usize> {
         self.best_match
             .values()
