@@ -217,7 +217,7 @@ impl TargetPipelineManager {
                 })
         };
 
-        self.log_task_match(rule, task_pid, best_match.as_ref());
+        self.log_task_match(rule, process.pid, task_pid, best_match.as_ref());
 
         best_match
     }
