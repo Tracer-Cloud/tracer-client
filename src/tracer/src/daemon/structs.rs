@@ -50,7 +50,7 @@ impl InfoResponse {
                 .fold(
                     (Vec::new(), Vec::new(), 0),
                     |(mut lines, mut cur_line, mut cur_width), p| {
-                        if !cur_line.is_empty() && p.len() > (width - cur_width - 2) {
+                        if !cur_line.is_empty() && p.len() > (width.saturating_sub(cur_width + 2)) {
                             lines.push(cur_line.drain(..).join(", "));
                             cur_width = p.len();
                             cur_line.push(p);
@@ -89,7 +89,7 @@ impl InfoResponse {
                 .fold(
                     (Vec::new(), Vec::new(), 0),
                     |(mut lines, mut cur_line, mut cur_width), p| {
-                        if !cur_line.is_empty() && p.len() > (width - cur_width - 2) {
+                        if !cur_line.is_empty() && p.len() > (width.saturating_sub(cur_width + 2)) {
                             lines.push(cur_line.drain(..).join(", "));
                             cur_width = p.len();
                             cur_line.push(p);
