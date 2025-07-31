@@ -1,3 +1,4 @@
+use crate::cli::handlers::init::arguments::TracerCliInitArgs;
 use crate::cli::handlers::test::git::TracerPipelinesRepo;
 use crate::cli::handlers::test::pipeline::Pipeline;
 use crate::cli::handlers::INTERACTIVE_THEME;
@@ -7,15 +8,18 @@ use std::path::PathBuf;
 
 const DEFAULT_PIPELINE_NAME: &str = "fastquorum";
 
+/// Executes a tool or pipeline with automatic tracing. Equivalent to
+/// `tracer init && <run pipeline command> && tracer terminate`. Exactly one of the following
+/// must be specified: --demo-pipeline-id, --nf-pipeline-path, --nf-pipeline-repo, or --tool-path.
 #[derive(Default, Args, Debug, Clone)]
 pub struct TracerCliTestArgs {
-    /// Name of example workflow to test
-    #[clap(long, short = 'n')]
-    pub pipeline_name: Option<String>,
+    /// Name of example pipeline to test
+    #[clap(short = 'd', long)]
+    pub demo_pipeline_id: Option<String>,
 
     /// Path to a local pipeline to test
-    #[clap(long, short = 'p')]
-    pub pipeline_path: Option<PathBuf>,
+    #[clap(short = 'n', long)]
+    pub nf_pipeline_path: Option<PathBuf>,
 
     /// Name of pixi task to run (if pipeline_path is specified and pixi.toml exists)
     #[clap(long)]
@@ -26,42 +30,35 @@ pub struct TracerCliTestArgs {
     pub no_pixi: bool,
 
     /// Name of a GitHub repo with a pipeline to test
-    #[clap(long, short = 'r')]
-    pub pipeline_repo: Option<String>,
+    #[clap(short = 'r', long)]
+    pub nf_pipeline_repo: Option<String>,
 
     /// Path to a local tool to test
-    #[clap(long, short)]
+    #[clap(short = 't', long)]
     pub tool_path: Option<PathBuf>,
 
     #[clap(trailing_var_arg = true, allow_hyphen_values = true)]
     pub args: Vec<String>,
 
-    /// Do not prompt for missing inputs
-    #[clap(short = 'f', long)]
-    pub non_interactive: bool,
-
-    /// Capture logs at the specified level and above (default: info)
-    /// Valid values: trace, debug, info, warn, error
-    /// Output will be written to `daemon.log` in the working directory.
-    #[clap(long, default_value = "info")]
-    pub log_level: String,
+    #[command(flatten)]
+    pub init_args: TracerCliInitArgs,
 }
 
 impl TracerCliTestArgs {
-    pub fn finalize(self) -> FinalizedTestArgs {
+    pub fn finalize(self) -> (TracerCliInitArgs, Pipeline) {
         let theme = &*INTERACTIVE_THEME;
 
-        let pipeline = if self.pipeline_path.is_some() {
+        let pipeline = if self.nf_pipeline_path.is_some() {
             if !self.no_pixi
                 && self
-                    .pipeline_path
+                    .nf_pipeline_path
                     .as_ref()
                     .unwrap()
                     .join("pixi.toml")
                     .exists()
             {
                 let task = self.prompt_for_pixi_task();
-                Pipeline::local_pixi(self.pipeline_path.unwrap(), &task).unwrap()
+                Pipeline::local_pixi(self.nf_pipeline_path.unwrap(), &task).unwrap()
             } else {
                 let args = if !self.args.is_empty() {
                     self.args
@@ -69,18 +66,18 @@ impl TracerCliTestArgs {
                     self.prompt_for_args("pipeline")
                 };
                 Pipeline::LocalNextflow {
-                    path: self.pipeline_path.unwrap(),
+                    path: self.nf_pipeline_path.unwrap(),
                     args,
                 }
             }
-        } else if self.pipeline_repo.is_some() {
+        } else if self.nf_pipeline_repo.is_some() {
             let args = if !self.args.is_empty() {
                 self.args
             } else {
                 self.prompt_for_args("pipeline")
             };
             Pipeline::GithubNextflow {
-                repo: self.pipeline_repo.unwrap(),
+                repo: self.nf_pipeline_repo.unwrap(),
                 args,
             }
         } else if self.tool_path.is_some() {
@@ -93,7 +90,7 @@ impl TracerCliTestArgs {
                 path: self.tool_path.unwrap(),
                 args,
             }
-        } else if self.non_interactive && self.pipeline_name.is_none() {
+        } else if self.init_args.non_interactive && self.demo_pipeline_id.is_none() {
             panic!("No pipeline specified")
         } else {
             println!("Syncing pipelines repo...");
@@ -101,7 +98,7 @@ impl TracerCliTestArgs {
 
             let pipelines = pipelines_repo.list_pipelines();
 
-            if !self.non_interactive {
+            if !self.init_args.non_interactive {
                 let mut pipeline_names: Vec<&str> = pipelines.iter().map(|p| p.name()).collect();
                 pipeline_names.sort();
                 let custom_index = pipeline_names.len();
@@ -111,7 +108,7 @@ impl TracerCliTestArgs {
                 pipeline_names.push("Custom tool (local path, host environment)");
 
                 let pipeline_index = self
-                    .pipeline_name
+                    .demo_pipeline_id
                     .as_ref()
                     .map(|n| {
                         pipeline_names
@@ -182,7 +179,7 @@ impl TracerCliTestArgs {
                     pipelines.into_iter().nth(pipeline_index).unwrap()
                 }
             } else {
-                let pipeline_name = self.pipeline_name.as_ref().unwrap();
+                let pipeline_name = self.demo_pipeline_id.as_ref().unwrap();
                 if let Some(pipeline) = pipelines.into_iter().find(|p| p.name() == *pipeline_name) {
                     pipeline
                 } else {
@@ -193,14 +190,26 @@ impl TracerCliTestArgs {
 
         pipeline.validate().expect("Invalid pipeline");
 
-        FinalizedTestArgs {
-            pipeline,
-            log_level: self.log_level,
+        let mut init_args = self.init_args;
+
+        if init_args.pipeline_name.is_none() {
+            init_args.pipeline_name = Some(pipeline.name().to_owned());
         }
+        if init_args.run_name.is_none() {
+            init_args.run_name = Some(format!("test-{}", pipeline.name()));
+        }
+        if init_args.tags.environment.is_none() {
+            init_args.tags.environment = Some("local".into());
+        }
+        if init_args.tags.pipeline_type.is_none() {
+            init_args.tags.pipeline_type = Some("preprocessing".into());
+        }
+
+        (init_args, pipeline)
     }
 
     fn prompt_for_pixi_task(&self) -> String {
-        if self.non_interactive {
+        if self.init_args.non_interactive {
             return self
                 .pixi_task
                 .clone()
@@ -216,7 +225,7 @@ impl TracerCliTestArgs {
     }
 
     fn prompt_for_args(&self, arg_type: &str) -> Vec<String> {
-        if self.non_interactive {
+        if self.init_args.non_interactive {
             return vec![];
         }
         let args_str: String = Input::with_theme(&*INTERACTIVE_THEME)
@@ -231,11 +240,6 @@ impl TracerCliTestArgs {
     }
 }
 
-pub struct FinalizedTestArgs {
-    pub pipeline: Pipeline,
-    pub log_level: String,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -244,21 +248,24 @@ mod tests {
     #[test]
     fn test_finalize() {
         let args = TracerCliTestArgs {
-            pipeline_name: Some("fastquorum".to_string()),
-            pipeline_path: None,
-            pipeline_repo: None,
+            demo_pipeline_id: Some("fastquorum".to_string()),
+            nf_pipeline_path: None,
+            nf_pipeline_repo: None,
             tool_path: None,
             pixi_task: None,
             no_pixi: false,
             args: vec![],
-            non_interactive: true,
-            log_level: "info".into(),
+            init_args: TracerCliInitArgs {
+                non_interactive: false,
+                log_level: "info".into(),
+                ..Default::default()
+            },
         };
 
-        let finalized_args = args.finalize();
+        let (_, pipeline) = args.finalize();
 
-        if let Pipeline::LocalPixi { path, .. } = &finalized_args.pipeline {
-            assert_eq!(finalized_args.pipeline.name(), "fastquorum");
+        if let Pipeline::LocalPixi { path, .. } = &pipeline {
+            assert_eq!(pipeline.name(), "fastquorum");
             assert_eq!(path, &get_tracer_pipeline_path("fastquorum"));
         } else {
             panic!("Expected local pipeline");

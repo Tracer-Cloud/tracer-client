@@ -16,7 +16,7 @@ use colored::Colorize;
 use serde_json::Value;
 use std::fs::File;
 use std::process::{Command, Stdio};
-use tracing_appender::rolling::{RollingFileAppender, Rotation};
+use tracing_appender::rolling;
 use tracing_subscriber::fmt::time::SystemTime;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::{fmt, EnvFilter};
@@ -25,15 +25,6 @@ pub async fn init(
     args: TracerCliInitArgs,
     config: Config,
     api_client: DaemonClient,
-) -> anyhow::Result<()> {
-    init_with_default_prompt(args, config, &api_client, PromptMode::WhenMissing).await
-}
-
-pub async fn init_with_default_prompt(
-    args: TracerCliInitArgs,
-    config: Config,
-    api_client: &DaemonClient,
-    prompt_mode: PromptMode,
 ) -> anyhow::Result<()> {
     if !args.force_procfs && cfg!(target_os = "linux") {
         // Check if running with sudo
@@ -48,13 +39,24 @@ pub async fn init_with_default_prompt(
     // Check for port conflict before starting daemon
     if DaemonServer::is_running() {
         warning_message!("Daemon server is already running, trying to terminate it...");
-        if !terminate(api_client).await {
+        if !terminate(&api_client).await {
             return Ok(());
         }
     }
 
+    init_with_default_prompt(args, config, &api_client, PromptMode::WhenMissing).await
+}
+
+pub async fn init_with_default_prompt(
+    args: TracerCliInitArgs,
+    config: Config,
+    api_client: &DaemonClient,
+    prompt_mode: PromptMode,
+) -> anyhow::Result<()> {
     info_message!("Starting daemon...");
+
     let args = args.finalize(prompt_mode);
+
     {
         // Layer tags on top of args
         let mut json_args = serde_json::to_value(&args)?.as_object().unwrap().clone();
@@ -122,6 +124,7 @@ pub async fn init_with_default_prompt(
 
         return Ok(());
     }
+
     setup_logging(&args.log_level)?;
 
     create_and_run_server(args, config).await
@@ -133,8 +136,8 @@ fn setup_logging(log_level: &String) -> anyhow::Result<()> {
     let filter = EnvFilter::from(log_level);
 
     // Create a file appender that writes to daemon.log
-    let file_appender =
-        RollingFileAppender::new(Rotation::NEVER, &TRACER_WORK_DIR.path, "daemon.log");
+    let log_file = &TRACER_WORK_DIR.log_file;
+    let file_appender = rolling::never(log_file.parent().unwrap(), log_file.file_name().unwrap());
 
     // Create a custom format for the logs without colors
     let file_layer = fmt::layer()

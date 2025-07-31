@@ -100,7 +100,7 @@ impl ProcessState {
     /// Returns the PID of the task that contains the given process.
     ///
     /// Panics if a cycle is detected in the process lineage.
-    pub fn get_task_pid(&self, process: &ProcessStartTrigger) -> Option<usize> {
+    pub fn get_task_pid(&self, process: &ProcessStartTrigger) -> usize {
         let mut seen = HashSet::new();
         let mut parent_pid = process.ppid;
         seen.insert(process.pid);
@@ -109,7 +109,7 @@ impl ProcessState {
         while let Some(parent) = self.get_processes().get(&parent_pid) {
             // TODO: this is nextflow-specific
             if parent.command_string.contains(".command.sh") {
-                return Some(parent_pid);
+                break;
             }
 
             parent_pid = parent.ppid;
@@ -126,6 +126,6 @@ impl ProcessState {
             seen.insert(parent_pid);
         }
 
-        None
+        parent_pid
     }
 }

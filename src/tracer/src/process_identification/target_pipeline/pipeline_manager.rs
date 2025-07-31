@@ -88,7 +88,7 @@ impl TargetPipelineManager {
     pub fn register_process(
         &mut self,
         process: &ProcessStartTrigger,
-        task_pid: Option<usize>,
+        task_pid: usize,
         matched_target: Option<&String>,
     ) -> Option<TaskMatch> {
         if self.pid_to_process.contains_key(&process.pid) {
@@ -96,10 +96,6 @@ impl TargetPipelineManager {
             trace!("PID {} is already registered", process.pid);
             return None;
         };
-        // the PID associated with the task (e.g., the `/bin/bash .command.sh` process for a
-        // nextflow process); if for some reason the process doesn't have a parent task, we group
-        // it with any other processes that don't have a parent
-        let task_pid = task_pid.unwrap_or(0);
         // the rule name to use for matching to task rules
         let (rule, matched) = if let Some(display_name) = matched_target {
             (display_name, true)
@@ -126,7 +122,9 @@ impl TargetPipelineManager {
                 }
             })
             .or_insert_with(|| {
-                if let Some(tasks) = self.tasks.get_tasks_with(rule) {
+                self.tasks
+                    .get_tasks_with(rule)
+                    .map(|tasks|
                     // otherwise, identify all the candidate matches based on the current rule
                     tasks
                         .iter()
@@ -153,11 +151,10 @@ impl TargetPipelineManager {
                                 total_rules,
                             })
                         })
-                        .collect::<Vec<_>>()
-                } else {
-                    vec![]
-                }
+                        .collect::<Vec<_>>())
+                    .unwrap_or_default()
             });
+
         // find the best match
         if !candidate_matches.is_empty() {
             // add the PID to the set we're tracking if it matched at least one task
@@ -460,7 +457,7 @@ mod tests {
     fn test_register_single_process_no_match(mut pipeline_manager: TargetPipelineManager) {
         // Register a process that doesn't match any pipeline rules
         let process = create_process_trigger("unrelated_process", 1001, 1);
-        let result = pipeline_manager.register_process(&process, Some(1), None);
+        let result = pipeline_manager.register_process(&process, 1, None);
         // Should return None since no pipeline rules match
         assert_eq!(result, None);
     }
@@ -475,7 +472,7 @@ mod tests {
         let target = find_target_by_display_name(&test_targets, "gunzip_gtf").unwrap();
         let result = pipeline_manager.register_process(
             &process,
-            Some(1),
+            1,
             Some(&target.display_name().to_string()),
         );
 
@@ -504,7 +501,7 @@ mod tests {
         let jshell_target = find_target_by_display_name(&test_targets, "jshell").unwrap();
         let result1 = manager.register_process(
             &jshell_process,
-            Some(1),
+            1,
             Some(&jshell_target.display_name().to_string()),
         );
 
@@ -516,7 +513,7 @@ mod tests {
         let bbsplit_target = find_target_by_display_name(&test_targets, "bbsplit").unwrap();
         let result2 = manager.register_process(
             &bbsplit_process,
-            Some(1),
+            1,
             Some(&bbsplit_target.display_name().to_string()),
         );
 
@@ -542,7 +539,7 @@ mod tests {
         let jshell_target = find_target_by_display_name(&test_targets, "jshell").unwrap();
         let result1 = pipeline_manager.register_process(
             &jshell_process,
-            Some(1),
+            1,
             Some(&jshell_target.display_name().to_string()),
         );
 
@@ -554,7 +551,7 @@ mod tests {
         let bbsplit_target = find_target_by_display_name(&test_targets, "bbsplit").unwrap();
         let result2 = pipeline_manager.register_process(
             &bbsplit_process,
-            Some(2),
+            2,
             Some(&bbsplit_target.display_name().to_string()),
         );
 
@@ -566,7 +563,7 @@ mod tests {
         let jshell_target = find_target_by_display_name(&test_targets, "jshell").unwrap();
         let result3 = pipeline_manager.register_process(
             &jshell_process,
-            Some(2),
+            2,
             Some(&jshell_target.display_name().to_string()),
         );
 
@@ -586,7 +583,7 @@ mod tests {
         let bbsplit_target = find_target_by_display_name(&test_targets, "bbsplit").unwrap();
         let result4 = pipeline_manager.register_process(
             &bbsplit_process,
-            Some(1),
+            1,
             Some(&bbsplit_target.display_name().to_string()),
         );
 
@@ -614,7 +611,7 @@ mod tests {
         let samtools_target = find_target_by_display_name(&test_targets, "samtools faidx").unwrap();
         let result1 = manager.register_process(
             &samtools_process,
-            Some(1),
+            1,
             Some(&samtools_target.display_name().to_string()),
         );
 
@@ -635,7 +632,7 @@ mod tests {
         let star_target = find_target_by_display_name(&test_targets, "STAR index").unwrap();
         let result2 = manager.register_process(
             &star_process,
-            Some(1),
+            1,
             Some(&star_target.display_name().to_string()),
         );
 
@@ -666,7 +663,7 @@ mod tests {
         let target = find_target_by_display_name(&test_targets, "gunzip_gtf").unwrap();
         let result1 = pipeline_manager.register_process(
             &process,
-            Some(1),
+            1,
             Some(&target.display_name().to_string()),
         );
 
@@ -683,7 +680,7 @@ mod tests {
         // Register the same process again - should be ignored
         let result2 = pipeline_manager.register_process(
             &process,
-            Some(1),
+            1,
             Some(&target.display_name().to_string()),
         );
         assert_eq!(result2, None);

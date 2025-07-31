@@ -65,11 +65,7 @@ pub fn log_matched_process(trigger: &ProcessStartTrigger, matched_rule: &str, is
 
     let log_line = format!(
         "{} | {} | {} | {} | {}\n\n\n",
-        trigger.pid,
-        trigger.clone().comm,
-        trigger.clone().argv.join(" "),
-        matched_string,
-        matched_rule,
+        trigger.pid, trigger.comm, trigger.command_string, matched_string, matched_rule,
     );
     info!(log_line);
     if let Err(e) = OpenOptions::new()

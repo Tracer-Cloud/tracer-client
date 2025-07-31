@@ -104,3 +104,4 @@ git2 = { version = "0.20.2", features = [
     "vendored-openssl",
 ], default-features = false }
 which = "8.0.0"
+glob = "0.3.2"
