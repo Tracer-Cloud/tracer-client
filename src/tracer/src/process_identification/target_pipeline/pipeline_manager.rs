@@ -226,9 +226,9 @@ impl TargetPipelineManager {
             .append(true)
             .open(&TRACER_WORK_DIR.step_matches_file)
             .and_then(|mut file| {
-                let log_line = format!("{} | {} | {:?}", rule, task_pid, best_match);
+                let log_line = format!("{} | {} | {:?}\n", rule, task_pid, best_match);
                 file.write_all(log_line.as_bytes())?;
-                let log_line = format!("Candidate matches: {:?}", &self.candidate_matches);
+                let log_line = format!("Candidate matches: {:?}\n", &self.candidate_matches);
                 file.write_all(log_line.as_bytes())?;
                 Ok(())
             })
