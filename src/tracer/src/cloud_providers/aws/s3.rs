@@ -225,6 +225,7 @@ pub mod tests {
     use serial_test::serial;
     use std::env;
     use tokio::time::{sleep, Duration};
+    use tracing::error;
     use uuid::Uuid;
 
     pub fn setup_env_vars(region: &str) {
@@ -275,7 +276,7 @@ pub mod tests {
 
                 // Now delete the empty bucket
                 if let Err(e) = client.delete_bucket(bucket).await {
-                    log::error!("Failed to delete bucket {}: {}", bucket, e);
+                    error!("Failed to delete bucket {}: {}", bucket, e);
                     return Err(format!("Failed to delete bucket {}: {}", bucket, e));
                 } else {
                     println!("Successfully deleted bucket: {}", bucket);
