@@ -128,6 +128,7 @@ mod tests {
         let process = make_process(
             "/usr/bin/java",
             &[
+                "/usr/bin/java",
                 "-Xmx10g",
                 "-jar",
                 "/foo/bar/fgbio.jar",

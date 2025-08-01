@@ -139,7 +139,7 @@ impl MatchType {
 fn match_java<'a>(
     process: &'a ProcessStartTrigger,
     jar: Option<&String>,
-    class: Option<&String>,
+    mut class: Option<&String>,
     subcommands: Option<&Subcommands>,
 ) -> Option<&'a str> {
     if process.comm.contains("java") {
@@ -149,25 +149,23 @@ fn match_java<'a>(
         while let Some(arg) = args.next() {
             if arg == "-jar" {
                 match (jar, args.next()) {
-                    (Some(jar1), Some(jar2)) if jar1 != jar2 => return None,
+                    (Some(jar_name), Some(jar_path)) if !jar_path.contains(jar_name) => {
+                        return None
+                    }
                     (_, None) => return None,
                     _ => (),
                 }
-            } else if !arg.starts_with('-') {
-                break;
-            }
-        }
-        // check that the class matches, if any
-        if let Some(class) = class {
-            if !args.next().map(|arg| arg == class).unwrap_or(false) {
-                return None;
-            }
-        }
-        // skip any options after the jar/class then check the subcommand
-        if let Some(subcommands) = subcommands {
-            if let Some(subcommand) = args.find(|arg| !arg.starts_with('-')) {
-                if subcommands.contains(subcommand) {
-                    return Some(subcommand);
+            } else if arg.starts_with('-') {
+                continue;
+            } else if let Some(class) = class.take() {
+                if arg != class {
+                    return None;
+                }
+            } else if let Some(subcommands) = subcommands {
+                if subcommands.contains(arg) {
+                    return Some(arg);
+                } else {
+                    return None;
                 }
             }
         }
