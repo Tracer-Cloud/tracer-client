@@ -150,7 +150,7 @@ impl TargetPipelineManager {
                                     return None;
                                 }
                             }
-                            let total_rules = task.rules.len()
+                            let total_rules = task.rules.as_ref().map(|v| v.len()).unwrap_or(0)
                                 + task.optional_rules.as_ref().map(|v| v.len()).unwrap_or(0);
                             Some(CandidateMatch {
                                 id: task.id.clone(),
@@ -322,12 +322,14 @@ impl Tasks {
             if !self.tasks.contains_key(id) {
                 self.tasks.insert(id.clone(), task.clone());
             }
-            for rule in &task.rules {
-                if let Some(tasks) = self.rule_to_task.get_mut(rule) {
-                    tasks.insert((task.id.clone(), None));
-                } else {
-                    self.rule_to_task
-                        .insert(rule.clone(), HashSet::from([(task.id.clone(), None)]));
+            if let Some(rules) = task.rules.as_ref() {
+                for rule in rules {
+                    if let Some(tasks) = self.rule_to_task.get_mut(rule) {
+                        tasks.insert((task.id.clone(), None));
+                    } else {
+                        self.rule_to_task
+                            .insert(rule.clone(), HashSet::from([(task.id.clone(), None)]));
+                    }
                 }
             }
             if let Some(optional_rules) = task.optional_rules.as_ref() {

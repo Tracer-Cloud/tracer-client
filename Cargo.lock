@@ -4767,7 +4767,6 @@ dependencies = [
  "ec2_instance_metadata",
  "futures-util",
  "git2",
- "glob",
  "itertools 0.14.0",
  "log",
  "mockall",
