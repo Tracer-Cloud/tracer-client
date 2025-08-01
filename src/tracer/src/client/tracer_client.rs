@@ -61,7 +61,7 @@ impl TracerClient {
 
         let process_watcher = Self::init_process_watcher(&log_recorder, docker_watcher.clone());
 
-        let exporter = Arc::new(ExporterManager::new(db_client, rx, pipeline.clone()));
+        let exporter = Arc::new(ExporterManager::new(db_client, rx));
 
         let metrics_collector = Self::init_watchers(&log_recorder, &system);
 

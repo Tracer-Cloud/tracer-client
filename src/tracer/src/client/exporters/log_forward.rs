@@ -2,11 +2,10 @@ use crate::client::exporters::log_writer::LogWriter;
 use crate::process_identification::types::event::Event;
 use crate::process_identification::types::extracts::db::EventInsert;
 use anyhow::Result;
-use log::error;
 use reqwest::Client;
 use serde::Serialize;
 use std::convert::TryFrom;
-use tracing::debug;
+use tracing::{debug, error, info};
 
 #[derive(Serialize, Clone, Debug)]
 struct EventPayload {
@@ -35,19 +34,8 @@ impl LogForward {
 }
 
 impl LogWriter for LogForward {
-    async fn batch_insert_events(
-        &self,
-        run_name: &str,
-        run_id: &str,
-        pipeline_name: &str,
-        data: impl IntoIterator<Item = &Event>,
-    ) -> Result<()> {
+    async fn batch_insert_events(&self, data: impl IntoIterator<Item = &Event>) -> Result<()> {
         let now = std::time::Instant::now();
-
-        debug!(
-            "run_id: {:?}, run_name: {:?}, pipeline_name: {:?}",
-            run_id, run_name, pipeline_name
-        );
 
         let events: Result<Vec<EventInsert>> = data
             .into_iter()
@@ -66,7 +54,7 @@ impl LogWriter for LogForward {
         let payload_string = serde_json::to_string_pretty(&payload)
             .unwrap_or_else(|_| "Failed to serialize payload".to_string());
 
-        debug!(
+        info!(
             "Sending payload to endpoint {} with {} events\nPayload: {}",
             self.endpoint,
             payload.events.len(),
@@ -76,18 +64,17 @@ impl LogWriter for LogForward {
         match self.client.post(&self.endpoint).json(&payload).send().await {
             Ok(response) => {
                 if response.status() == 200 {
-                    println!(
-                        "Successfully sent {} events with run_name: {}, elapsed: {:?}",
+                    info!(
+                        "Successfully sent {} events, elapsed: {:?}",
                         payload.events.len(),
-                        run_name,
                         now.elapsed()
                     );
                     Ok(())
                 } else {
                     let status = response.status();
                     error!(
-                        "Failed to send events: {} [{}], Payload: {}",
-                        run_name, status, payload_string
+                        "Failed to send events: [{}], Payload: {}",
+                        status, payload_string
                     );
                     Err(anyhow::anyhow!(
                         "Failed to send events: {}, Payload: {}",
