@@ -100,7 +100,7 @@ impl BoxFormatter {
         .unwrap();
     }
 
-    pub fn add_multiline_field(&mut self, label: &str, value: &Vec<String>, color: &str) {
+    pub fn add_multiline_field(&mut self, label: &str, value: &[String], color: &str) {
         // Calculate available space for value
         let label_width = 20;
         let padding = 4;
