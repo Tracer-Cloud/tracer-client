@@ -107,14 +107,12 @@ impl MatchType {
                 jar,
                 class,
                 command,
-            } => match_java(process, jar.as_ref(), class.as_ref(), command.as_ref())
-                .map(ProcessMatch::Subcommand),
+            } => match_java(process, jar.as_ref(), class.as_ref(), command.as_ref()),
             MatchType::JavaCommandIsOneOf {
                 jar,
                 class,
                 commands,
-            } => match_java(process, jar.as_ref(), class.as_ref(), Some(commands))
-                .map(ProcessMatch::Subcommand),
+            } => match_java(process, jar.as_ref(), class.as_ref(), Some(commands)),
             MatchType::And(conditions) => {
                 // saving the subcommand in case in the AND condition a subcommand is found
                 conditions
@@ -141,36 +139,48 @@ fn match_java<'a>(
     jar: Option<&String>,
     mut class: Option<&String>,
     subcommands: Option<&Subcommands>,
-) -> Option<&'a str> {
+) -> Option<ProcessMatch<'a>> {
     if process.comm.contains("java") {
         let mut args = process.argv.iter().skip(1);
         // skip any java args except -jar, which we check to make sure it matches the expected
         // jar file name, if any
+        let mut jar_match = jar.is_none();
+        let mut class_match = class.is_none();
         while let Some(arg) = args.next() {
             if arg == "-jar" {
                 match (jar, args.next()) {
                     (Some(jar_name), Some(jar_path)) if !jar_path.contains(jar_name) => {
-                        return None
+                        return None;
                     }
                     (_, None) => return None,
-                    _ => (),
+                    _ => {
+                        jar_match = true;
+                    }
                 }
             } else if arg.starts_with('-') {
                 continue;
             } else if let Some(class) = class.take() {
                 if arg != class {
                     return None;
+                } else {
+                    class_match = true;
                 }
             } else if let Some(subcommands) = subcommands {
                 if subcommands.contains(arg) {
-                    return Some(arg);
+                    return Some(ProcessMatch::with_subcommand(arg));
                 } else {
                     return None;
                 }
             }
         }
+        if jar_match && class_match {
+            Some(ProcessMatch::Simple)
+        } else {
+            None
+        }
+    } else {
+        None
     }
-    None
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

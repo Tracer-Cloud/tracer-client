@@ -1410,6 +1410,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "enquote"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06c36cb11dbde389f4096111698d8b567c0720e3452fd5ac3e6b4e47e1939932"
+dependencies = [
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "env_home"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4832,6 +4841,7 @@ version = "2025.5.15+1"
 dependencies = [
  "anyhow",
  "chrono",
+ "enquote",
  "serde",
  "shlex",
  "tokio",
