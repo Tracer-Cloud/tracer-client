@@ -3,7 +3,7 @@ rules:
     display_name: FastQC
     condition:
       java_command:
-        jar: uk.ac.babraham.FastQC.FastQCApplication
+        class: uk.ac.babraham.FastQC.FastQCApplication
   - rule_name: STAR index process
     display_name: STAR index
     condition:

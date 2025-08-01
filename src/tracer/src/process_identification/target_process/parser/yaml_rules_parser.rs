@@ -109,11 +109,13 @@ impl TryFrom<&Yaml> for Condition {
                         }))
                     }
                     "java_command" => Ok(Condition::Simple(SimpleCondition::JavaCommand {
-                        jar: val.required_string("jar")?,
+                        jar: val.optional_string("jar")?,
+                        class: val.optional_string("class")?,
                         command: val.optional_string("command")?,
                     })),
                     "java_command_is_one_of" => {
-                        let jar = val.required_string("jar")?;
+                        let jar = val.optional_string("jar")?;
+                        let class = val.optional_string("class")?;
                         let commands = val
                             .required_vec("commands")?
                             .iter()
@@ -121,6 +123,7 @@ impl TryFrom<&Yaml> for Condition {
                             .collect::<Result<Vec<_>>>()?;
                         Ok(Condition::Simple(SimpleCondition::JavaCommandIsOneOf {
                             jar,
+                            class,
                             commands,
                         }))
                     }

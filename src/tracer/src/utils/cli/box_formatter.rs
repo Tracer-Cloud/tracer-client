@@ -106,7 +106,7 @@ impl BoxFormatter {
         let padding = 4;
         let max_value_width = self.width - label_width - padding;
         let mut formatted_value = value
-            .into_iter()
+            .iter()
             .map(|value| Self::format_value(value, color, max_value_width));
         writeln!(
             &mut self.output,
