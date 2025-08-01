@@ -295,7 +295,7 @@ impl ProcessWatcher {
             .await
     }
 
-    pub async fn get_matched_task_summary(&self) -> HashMap<String, usize> {
+    pub async fn get_matched_tasks(&self) -> HashMap<String, usize> {
         self.process_manager.read().await.get_matched_tasks().await
     }
 }

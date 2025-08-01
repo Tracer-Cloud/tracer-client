@@ -20,7 +20,7 @@ pub async fn get_info_response(client: &TracerClient) -> InfoResponse {
 
     let processes = client.process_watcher.get_monitored_processes().await;
 
-    let tasks = client.process_watcher.get_matched_task_summary().await;
+    let tasks = client.process_watcher.get_matched_tasks().await;
 
     InfoResponse::new(response_inner, processes, tasks)
 }
