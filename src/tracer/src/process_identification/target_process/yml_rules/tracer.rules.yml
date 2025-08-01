@@ -2,9 +2,8 @@ rules:
   - rule_name: FastQC java process
     display_name: FastQC
     condition:
-      and:
-        - process_name_is: java
-        - command_contains: uk.ac.babraham.FastQC.FastQCApplication
+      java_command:
+        jar: uk.ac.babraham.FastQC.FastQCApplication
   - rule_name: STAR index process
     display_name: STAR index
     condition:

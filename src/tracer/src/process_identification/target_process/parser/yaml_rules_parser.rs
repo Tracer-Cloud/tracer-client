@@ -108,9 +108,10 @@ impl TryFrom<&Yaml> for Condition {
                             subcommands,
                         }))
                     }
-                    "java_command" => Ok(Condition::Simple(SimpleCondition::JavaCommand(
-                        val.to_string()?,
-                    ))),
+                    "java_command" => Ok(Condition::Simple(SimpleCondition::JavaCommand {
+                        jar: val.required_string("jar")?,
+                        command: val.optional_string("command")?,
+                    })),
                     "java_command_is_one_of" => {
                         let jar = val.required_string("jar")?;
                         let commands = val

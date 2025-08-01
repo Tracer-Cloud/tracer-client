@@ -93,8 +93,10 @@ pipelines:
           - samtools dict
       - id: FASTQC
         description: Run QC checks on a FASTQ file
-        rules:
-          - FastQC
+        specialized_rules:
+          - name: FastQC
+            condition:
+              args_not_contain: --version
       - id: FASTQTOBAM
         description: Convert a FASTQ file to a BAM file
         rules:
@@ -156,8 +158,10 @@ pipelines:
           - fgbio FilterConsensusReads
       - id: MULTIQC
         description: QC report
-        rules:
-          - multiqc
+        specialized_rules:
+          - name: multiqc
+            condition:
+              args_not_contain: --version
     steps:
       - subworkflow: PREPARE_GENOME
       - subworkflow: FASTQUORUM

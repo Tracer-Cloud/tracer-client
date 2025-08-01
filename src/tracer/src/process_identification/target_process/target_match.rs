@@ -42,11 +42,14 @@ pub enum MatchType {
     CommandContains(String),
     CommandNotContains(String),
     CommandMatchesRegex(CachedRegex),
-    SubcommandIsOneOf(SubcommandSet),
-    JavaCommand(String),
+    SubcommandIsOneOf(Subcommands),
+    JavaCommand {
+        jar: String,
+        command: Option<Subcommands>,
+    },
     JavaCommandIsOneOf {
         jar: String,
-        commands: SubcommandSet,
+        commands: Subcommands,
     },
     And(Vec<MatchType>),
     Or(Vec<MatchType>),
@@ -98,8 +101,8 @@ impl MatchType {
                     .find(|arg| subcommands.contains(arg))
                     .map(|cmd| ProcessMatch::Subcommand(cmd))
             }
-            MatchType::JavaCommand(jar) => {
-                match_java(process, jar, None).map(ProcessMatch::Subcommand)
+            MatchType::JavaCommand { jar, command } => {
+                match_java(process, jar, command.as_ref()).map(ProcessMatch::Subcommand)
             }
             MatchType::JavaCommandIsOneOf { jar, commands } => {
                 match_java(process, jar, Some(commands)).map(ProcessMatch::Subcommand)
@@ -128,7 +131,7 @@ impl MatchType {
 fn match_java<'a>(
     process: &'a ProcessStartTrigger,
     jar: &str,
-    subcommands: Option<&SubcommandSet>,
+    subcommands: Option<&Subcommands>,
 ) -> Option<&'a str> {
     if process.comm.contains("java") {
         let mut args = process.argv.iter().skip(1);
@@ -156,24 +159,41 @@ fn match_java<'a>(
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct SubcommandSet(HashSet<String>);
+pub enum Subcommands {
+    Exact(String),
+    OneOf(HashSet<String>),
+}
 
-impl SubcommandSet {
+impl Subcommands {
     pub fn contains(&self, item: &str) -> bool {
-        self.0.contains(item)
+        match self {
+            Self::Exact(cmd) => cmd == item,
+            Self::OneOf(set) => set.contains(item),
+        }
     }
 }
 
-impl<I: IntoIterator<Item = String>> From<I> for SubcommandSet {
-    fn from(iter: I) -> Self {
-        Self(iter.into_iter().collect())
+impl From<String> for Subcommands {
+    fn from(value: String) -> Self {
+        Self::Exact(value)
     }
 }
 
-impl Hash for SubcommandSet {
+impl From<Vec<String>> for Subcommands {
+    fn from(v: Vec<String>) -> Self {
+        Self::OneOf(v.into_iter().collect())
+    }
+}
+
+impl Hash for Subcommands {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        for item in self.0.iter() {
-            item.hash(state);
+        match self {
+            Self::Exact(cmd) => cmd.hash(state),
+            Self::OneOf(set) => {
+                for item in set.iter() {
+                    item.hash(state);
+                }
+            }
         }
     }
 }
