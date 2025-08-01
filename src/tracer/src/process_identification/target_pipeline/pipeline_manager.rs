@@ -1,5 +1,5 @@
 use crate::process_identification::target_pipeline::parser::pipeline::{
-    Dependencies, Pipeline, Step, Task,
+    Dependencies, Pipeline, SpecializedRule, Step, Task,
 };
 use crate::process_identification::target_pipeline::parser::yaml_rules_parser::load_pipelines_from_yamls;
 use crate::process_identification::target_process::target::Target;
@@ -322,54 +322,47 @@ impl Tasks {
             if !self.tasks.contains_key(id) {
                 self.tasks.insert(id.clone(), task.clone());
             }
-            if let Some(rules) = task.rules.as_ref() {
-                for rule in rules {
-                    if let Some(tasks) = self.rule_to_task.get_mut(rule) {
-                        tasks.insert((task.id.clone(), None));
-                    } else {
-                        self.rule_to_task
-                            .insert(rule.clone(), HashSet::from([(task.id.clone(), None)]));
-                    }
+            self.add_rules(&task.id, task.rules.as_ref());
+            self.add_rules(&task.id, task.optional_rules.as_ref());
+            self.add_specialized_rules(&task.id, task.specialized_rules.as_ref())?;
+            self.add_specialized_rules(&task.id, task.optional_specialized_rules.as_ref())?;
+        }
+        Ok(())
+    }
+
+    fn add_rules(&mut self, task_id: &str, rules: Option<&Vec<String>>) {
+        if let Some(rules) = rules {
+            for rule in rules {
+                if let Some(tasks) = self.rule_to_task.get_mut(rule) {
+                    tasks.insert((task_id.to_string(), None));
+                } else {
+                    self.rule_to_task
+                        .insert(rule.clone(), HashSet::from([(task_id.to_string(), None)]));
                 }
             }
-            if let Some(optional_rules) = task.optional_rules.as_ref() {
-                for rule in optional_rules {
-                    if let Some(tasks) = self.rule_to_task.get_mut(rule) {
-                        tasks.insert((task.id.clone(), None));
-                    } else {
-                        self.rule_to_task
-                            .insert(rule.clone(), HashSet::from([(task.id.clone(), None)]));
-                    }
-                }
-            }
-            if let Some(specialized_rules) = task.specialized_rules.as_ref() {
-                for rule in specialized_rules {
-                    if let Some(tasks) = self.rule_to_task.get_mut(&rule.name) {
-                        tasks.insert((task.id.clone(), Some(rule.condition.clone().try_into()?)));
-                    } else {
-                        self.rule_to_task.insert(
-                            rule.name.clone(),
-                            HashSet::from([(
-                                task.id.clone(),
-                                Some(rule.condition.clone().try_into()?),
-                            )]),
-                        );
-                    }
-                }
-            }
-            if let Some(optional_specialized_rules) = task.optional_specialized_rules.as_ref() {
-                for rule in optional_specialized_rules {
-                    if let Some(tasks) = self.rule_to_task.get_mut(&rule.name) {
-                        tasks.insert((task.id.clone(), Some(rule.condition.clone().try_into()?)));
-                    } else {
-                        self.rule_to_task.insert(
-                            rule.name.clone(),
-                            HashSet::from([(
-                                task.id.clone(),
-                                Some(rule.condition.clone().try_into()?),
-                            )]),
-                        );
-                    }
+        }
+    }
+
+    fn add_specialized_rules(
+        &mut self,
+        task_id: &str,
+        rules: Option<&Vec<SpecializedRule>>,
+    ) -> Result<()> {
+        if let Some(specialized_rules) = rules {
+            for rule in specialized_rules {
+                if let Some(tasks) = self.rule_to_task.get_mut(&rule.name) {
+                    tasks.insert((
+                        task_id.to_string(),
+                        Some(rule.condition.clone().try_into()?),
+                    ));
+                } else {
+                    self.rule_to_task.insert(
+                        rule.name.clone(),
+                        HashSet::from([(
+                            task_id.to_string(),
+                            Some(rule.condition.clone().try_into()?),
+                        )]),
+                    );
                 }
             }
         }
