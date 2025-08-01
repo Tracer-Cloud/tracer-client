@@ -2,7 +2,7 @@ rules:
   - rule_name: FastQC java process
     display_name: FastQC
     condition:
-      java_command:
+      java:
         class: uk.ac.babraham.FastQC.FastQCApplication
   - rule_name: STAR index process
     display_name: STAR index
@@ -662,9 +662,9 @@ rules:
   - rule_name: fgbio rule
     display_name: fgbio {subcommand}
     condition:
-      java_command_is_one_of:
+      java:
         jar: fgbio.jar
-        commands:
+        command_is_one_of:
           - ZipperBams
           - FilterConsensusReads
           - CallDuplexConsensusReads

@@ -96,7 +96,7 @@ pipelines:
         specialized_rules:
           - name: FastQC
             condition:
-              args_not_contain: --version
+              args_not_contain: -Dfastqc.show_version=true
       - id: FASTQTOBAM
         description: Convert a FASTQ file to a BAM file
         rules:

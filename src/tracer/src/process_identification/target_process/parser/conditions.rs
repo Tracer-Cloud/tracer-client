@@ -36,17 +36,10 @@ pub enum SimpleCondition {
     /// given subcommands.
     SubcommandIsOneOf { subcommands: Vec<String> },
     /// Matches a command of the form `java -jar <jar> [<command>]`.
-    JavaCommand {
+    Java {
         jar: Option<String>,
         class: Option<String>,
-        command: Option<String>,
-    },
-    /// Matches a command of the form `java -jar <jar> <command>`, where `command` is one of the
-    /// given commands.
-    JavaCommandIsOneOf {
-        jar: Option<String>,
-        class: Option<String>,
-        commands: Vec<String>,
+        subcommands: Option<Vec<String>>,
     },
 }
 
@@ -103,23 +96,14 @@ impl TryFrom<Condition> for MatchType {
             Condition::Simple(SimpleCondition::SubcommandIsOneOf { subcommands }) => {
                 MatchType::SubcommandIsOneOf(subcommands.into())
             }
-            Condition::Simple(SimpleCondition::JavaCommand {
+            Condition::Simple(SimpleCondition::Java {
                 jar,
                 class,
-                command,
-            }) => MatchType::JavaCommand {
+                subcommands,
+            }) => MatchType::Java {
                 jar,
                 class,
-                command: command.map(|cmd| cmd.into()),
-            },
-            Condition::Simple(SimpleCondition::JavaCommandIsOneOf {
-                jar,
-                class,
-                commands,
-            }) => MatchType::JavaCommandIsOneOf {
-                jar,
-                class,
-                commands: commands.into(),
+                subcommands: subcommands.map(|cmd| cmd.into()),
             },
             Condition::And(and_condition) => MatchType::And(and_condition.into_match_types()),
             Condition::Or(or_condition) => MatchType::Or(or_condition.into_match_types()),

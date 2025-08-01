@@ -43,15 +43,10 @@ pub enum MatchType {
     CommandNotContains(String),
     CommandMatchesRegex(CachedRegex),
     SubcommandIsOneOf(Subcommands),
-    JavaCommand {
+    Java {
         jar: Option<String>,
         class: Option<String>,
-        command: Option<Subcommands>,
-    },
-    JavaCommandIsOneOf {
-        jar: Option<String>,
-        class: Option<String>,
-        commands: Subcommands,
+        subcommands: Option<Subcommands>,
     },
     And(Vec<MatchType>),
     Or(Vec<MatchType>),
@@ -103,16 +98,11 @@ impl MatchType {
                     .find(|arg| subcommands.contains(arg))
                     .map(|cmd| ProcessMatch::Subcommand(cmd))
             }
-            MatchType::JavaCommand {
+            MatchType::Java {
                 jar,
                 class,
-                command,
-            } => match_java(process, jar.as_ref(), class.as_ref(), command.as_ref()),
-            MatchType::JavaCommandIsOneOf {
-                jar,
-                class,
-                commands,
-            } => match_java(process, jar.as_ref(), class.as_ref(), Some(commands)),
+                subcommands,
+            } => match_java(process, jar.as_ref(), class.as_ref(), subcommands.as_ref()),
             MatchType::And(conditions) => {
                 // saving the subcommand in case in the AND condition a subcommand is found
                 conditions

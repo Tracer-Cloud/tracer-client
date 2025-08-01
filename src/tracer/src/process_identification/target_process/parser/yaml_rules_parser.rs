@@ -60,8 +60,7 @@ impl TryFrom<&Yaml> for Condition {
             "command_not_contains",
             "command_matches_regex",
             "subcommand_is_one_of",
-            "java_command",
-            "java_command_is_one_of",
+            "java",
         ];
 
         for simple_type in SIMPLE_TYPES {
@@ -108,23 +107,25 @@ impl TryFrom<&Yaml> for Condition {
                             subcommands,
                         }))
                     }
-                    "java_command" => Ok(Condition::Simple(SimpleCondition::JavaCommand {
-                        jar: val.optional_string("jar")?,
-                        class: val.optional_string("class")?,
-                        command: val.optional_string("command")?,
-                    })),
-                    "java_command_is_one_of" => {
+                    "java" => {
                         let jar = val.optional_string("jar")?;
                         let class = val.optional_string("class")?;
-                        let commands = val
-                            .required_vec("commands")?
-                            .iter()
-                            .map(|command| command.to_string())
-                            .collect::<Result<Vec<_>>>()?;
-                        Ok(Condition::Simple(SimpleCondition::JavaCommandIsOneOf {
+                        let subcommands = if let Some(command) = val.optional_string("command")? {
+                            Some(vec![command])
+                        } else if let Some(commands) = val.optional_vec("command_is_one_of")? {
+                            Some(
+                                commands
+                                    .iter()
+                                    .map(|command| command.to_string())
+                                    .collect::<Result<Vec<_>>>()?,
+                            )
+                        } else {
+                            None
+                        };
+                        Ok(Condition::Simple(SimpleCondition::Java {
                             jar,
                             class,
-                            commands,
+                            subcommands,
                         }))
                     }
                     _ => bail!("Invalid simple condition type: {}", simple_type),
