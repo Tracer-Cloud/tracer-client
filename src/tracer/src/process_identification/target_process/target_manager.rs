@@ -125,9 +125,11 @@ mod tests {
             "src/process_identification/target_process/yml_rules/tracer.rules.yml",
         )];
         let manager = TargetManager::new(&rule_files, &[]);
+
         let process = make_process(
             "/usr/bin/java",
             &[
+                "/usr/bin/java",
                 "-Xmx10g",
                 "-jar",
                 "/foo/bar/fgbio.jar",
@@ -137,5 +139,19 @@ mod tests {
         );
         let matched = manager.get_target_match(&process);
         assert_eq!(matched.as_deref(), Some("fgbio ZipperBams"));
+
+        let process = make_process(
+            "java",
+            &[
+                "java",
+                "-Xmx512m",
+                "'-Dfastqc.threads=1'",
+                "uk.ac.babraham.FastQC.FastQCApplication",
+                "CONTROL_REP1_1.gz",
+                "CONTROL_REP1_2.gz",
+            ],
+        );
+        let matched = manager.get_target_match(&process);
+        assert_eq!(matched.as_deref(), Some("FastQC"));
     }
 }

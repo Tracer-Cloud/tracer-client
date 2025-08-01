@@ -2,6 +2,7 @@ use colored::Colorize;
 use console::Emoji;
 use std::fmt::Write;
 use termion::terminal_size;
+
 const STATUS_ACTIVE: Emoji<'_, '_> = Emoji("🟢 ", "🟢 ");
 const STATUS_INACTIVE: Emoji<'_, '_> = Emoji("🔴 ", "🔴 ");
 const STATUS_WARNING: Emoji<'_, '_> = Emoji("🟡 ", "🟡 ");
@@ -86,6 +87,40 @@ impl BoxFormatter {
     }
 
     pub fn add_field(&mut self, label: &str, value: &str, color: &str) {
+        // Calculate available space for value
+        let label_width = 20;
+        let padding = 4;
+        let max_value_width = self.width - label_width - padding;
+        let formatted_value = Self::format_value(value, color, max_value_width);
+        writeln!(
+            &mut self.output,
+            "│ {:<label_width$} │ {}  ",
+            label, formatted_value
+        )
+        .unwrap();
+    }
+
+    pub fn add_multiline_field(&mut self, label: &str, value: &[String], color: &str) {
+        // Calculate available space for value
+        let label_width = 20;
+        let padding = 4;
+        let max_value_width = self.width - label_width - padding;
+        let mut formatted_value = value
+            .iter()
+            .map(|value| Self::format_value(value, color, max_value_width));
+        writeln!(
+            &mut self.output,
+            "│ {:<label_width$} │ {}  ",
+            label,
+            formatted_value.next().unwrap()
+        )
+        .unwrap();
+        for value in formatted_value {
+            writeln!(&mut self.output, "│ {:<label_width$} │ {}  ", "", value).unwrap();
+        }
+    }
+
+    fn format_value(value: &str, color: &str, max_value_width: usize) -> String {
         let colored_value = match color {
             "green" => value.green(),
             "yellow" => value.yellow(),
@@ -97,26 +132,13 @@ impl BoxFormatter {
             "white" => value.white(),
             _ => value.normal(),
         };
-
-        // Calculate available space for value
-        let label_width = 20;
-        let padding = 4;
-        let max_value_width = self.width - label_width - padding;
-
-        let formatted_value = if value.starts_with("http") {
+        if value.starts_with("http") {
             colored_value.to_string()
         } else if colored_value.len() > max_value_width {
             format!("{}...", &colored_value[..max_value_width - 3])
         } else {
             colored_value.to_string()
-        };
-
-        writeln!(
-            &mut self.output,
-            "│ {:<label_width$} │ {}  ",
-            label, formatted_value
-        )
-        .unwrap();
+        }
     }
 
     pub fn add_status_field(&mut self, label: &str, value: &str, status: &str) {

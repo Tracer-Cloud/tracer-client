@@ -17,6 +17,7 @@ tokio = { workspace = true }
 chrono.workspace = true
 serde = { workspace = true }
 shlex = { workspace = true }
+enquote = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }

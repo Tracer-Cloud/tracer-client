@@ -127,14 +127,18 @@ impl TryFrom<&Yaml> for Task {
         let id = yaml.required_string("id")?;
         let description = yaml.optional_string("description")?;
         let rules = yaml
-            .required_vec("rules")?
-            .iter()
-            .map(|rule| {
-                rule.as_str()
-                    .ok_or(anyhow!("rule is not a string"))
-                    .map(|s| s.to_string())
+            .optional_vec("rules")?
+            .map(|rules| {
+                rules
+                    .iter()
+                    .map(|rule| {
+                        rule.as_str()
+                            .ok_or(anyhow!("rule is not a string"))
+                            .map(|s| s.to_string())
+                    })
+                    .collect::<Result<Vec<_>>>()
             })
-            .collect::<Result<Vec<_>>>()?;
+            .transpose()?;
         let optional_rules = yaml
             .optional_vec("optional_rules")?
             .map(|rules| {
@@ -166,14 +170,16 @@ impl TryFrom<&Yaml> for Task {
                     .collect::<Result<Vec<SpecializedRule>>>()
             })
             .transpose()?;
-        Ok(Task {
+        let task = Task {
             id,
             description,
             rules,
             optional_rules,
             specialized_rules,
             optional_specialized_rules,
-        })
+        };
+        task.validate()?;
+        Ok(task)
     }
 }
 
@@ -317,18 +323,18 @@ mod tests {
             gunzip_gtf.description,
             Some("Unzip the GTF file.".to_string())
         );
-        assert_eq!(gunzip_gtf.rules, vec!["gunzip_gtf"]);
+        assert_eq!(gunzip_gtf.rules, Some(vec!["gunzip_gtf".into()]));
         let gunzip_gff = pipeline.dependencies.tasks.get("GUNZIP_GFF").unwrap();
         assert_eq!(gunzip_gff.id, "GUNZIP_GFF");
         assert_eq!(
             gunzip_gff.description,
             Some("Unzip the GFF file.".to_string())
         );
-        assert_eq!(gunzip_gff.rules, vec!["gunzip_gff"]);
+        assert_eq!(gunzip_gff.rules, Some(vec!["gunzip_gff".into()]));
         let gffread = pipeline.dependencies.tasks.get("GFFREAD").unwrap();
         assert_eq!(gffread.id, "GFFREAD");
         assert_eq!(gffread.description, Some("Read the GFF file.".to_string()));
-        assert_eq!(gffread.rules, vec!["gffread"]);
+        assert_eq!(gffread.rules, Some(vec!["gffread".into()]));
 
         // Test main pipeline steps
         assert!(pipeline.steps.is_some());
@@ -418,7 +424,7 @@ mod tests {
             gunzip_gtf.description,
             Some("Unzip the GTF file.".to_string())
         );
-        assert_eq!(gunzip_gtf.rules, vec!["gunzip_gtf"]);
+        assert_eq!(gunzip_gtf.rules, Some(vec!["gunzip_gtf".into()]));
 
         // Test GUNZIP_GFF task
         let gunzip_gff = pipeline.dependencies.tasks.get("GUNZIP_GFF").unwrap();
@@ -427,13 +433,13 @@ mod tests {
             gunzip_gff.description,
             Some("Unzip the GFF file.".to_string())
         );
-        assert_eq!(gunzip_gff.rules, vec!["gunzip_gff"]);
+        assert_eq!(gunzip_gff.rules, Some(vec!["gunzip_gff".into()]));
 
         // Test GFFREAD task
         let gffread = pipeline.dependencies.tasks.get("GFFREAD").unwrap();
         assert_eq!(gffread.id, "GFFREAD");
         assert_eq!(gffread.description, Some("Read the GFF file.".to_string()));
-        assert_eq!(gffread.rules, vec!["gffread"]);
+        assert_eq!(gffread.rules, Some(vec!["gffread".into()]));
     }
 
     #[test]
@@ -527,12 +533,12 @@ pipelines:
         let task1 = pipeline.dependencies.tasks.get("TEST_TASK").unwrap();
         assert_eq!(task1.id, "TEST_TASK");
         assert_eq!(task1.description, Some("A test task".to_string()));
-        assert_eq!(task1.rules, vec!["test_rule"]);
+        assert_eq!(task1.rules, Some(vec!["test_rule".into()]));
 
         let task2 = pipeline.dependencies.tasks.get("TEST_TASK_2").unwrap();
         assert_eq!(task2.id, "TEST_TASK_2");
         assert_eq!(task2.description, Some("Another test task".to_string()));
-        assert_eq!(task2.rules, vec!["test_rule_2"]);
+        assert_eq!(task2.rules, Some(vec!["test_rule_2".into()]));
 
         // Test subworkflows
         assert!(pipeline

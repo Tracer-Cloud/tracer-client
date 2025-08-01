@@ -57,7 +57,7 @@ pub enum Command {
     },
 
     /// Execute example pipelines
-    Test(TracerCliTestArgs),
+    Test(Box<TracerCliTestArgs>),
 
     /// Update the daemon to the latest version
     Update,

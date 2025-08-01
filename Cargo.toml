@@ -95,7 +95,6 @@ yaml-rust2 = "0.10.3"
 pretty_assertions_sorted = "1.2.3"
 bollard = "0.19.1"
 built = { version = "0.8.0", features = ["chrono", "git2"] }
-multi_index_map = "0.15.0"
 tokio-retry = "0.3.0"
 serde_regex = "1.1.0"
 dashmap = "6.1.0"
@@ -105,3 +104,4 @@ git2 = { version = "0.20.2", features = [
     "vendored-openssl",
 ], default-features = false }
 which = "8.0.0"
+enquote = "1.1.0"

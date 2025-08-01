@@ -29,6 +29,15 @@ pub struct ProcessStartTrigger {
     pub started_at: DateTime<Utc>,
 }
 
+fn unquote(mut argv: Vec<String>) -> Vec<String> {
+    for arg in argv.iter_mut() {
+        if let Ok(unquoted) = enquote::unquote(arg) {
+            *arg = unquoted;
+        }
+    }
+    argv
+}
+
 /// TODO: create a builder rather than having multiple constructors
 impl ProcessStartTrigger {
     pub fn from_bpf_event(
@@ -45,7 +54,7 @@ impl ProcessStartTrigger {
             comm: comm.to_string(),
             file_name: argv.first().cloned().unwrap_or_default(),
             command_string: join_args(&argv),
-            argv,
+            argv: unquote(argv),
             started_at: DateTime::from_timestamp(
                 (timestamp_ns / NS_PER_SEC) as i64,
                 (timestamp_ns % NS_PER_SEC) as u32,
@@ -66,7 +75,7 @@ impl ProcessStartTrigger {
             ppid,
             comm: name.to_string(),
             command_string: join_args(&argv),
-            argv,
+            argv: unquote(argv),
             file_name: "".to_string(),
             started_at: Utc::now(),
         }
@@ -80,7 +89,7 @@ impl ProcessStartTrigger {
             pid,
             ppid,
             comm,
-            argv,
+            argv: unquote(argv),
             command_string: command_string.to_string(),
             file_name,
             started_at: Utc::now(),

@@ -93,8 +93,10 @@ pipelines:
           - samtools dict
       - id: FASTQC
         description: Run QC checks on a FASTQ file
-        rules:
-          - fastqc
+        specialized_rules:
+          - name: FastQC
+            condition:
+              args_not_contain: -Dfastqc.show_version=true
       - id: FASTQTOBAM
         description: Convert a FASTQ file to a BAM file
         rules:
@@ -104,7 +106,7 @@ pipelines:
         rules:
           - bwa mem
           - samtools fastq
-          - fgbip ZipperBams
+          - fgbio ZipperBams
         optional_specialized_rules:
           - name: samtools sort
             condition:
@@ -136,13 +138,14 @@ pipelines:
         rules:
           - bwa mem
           - samtools fastq
-          - fgbip ZipperBams
+          - fgbio ZipperBams
         optional_rules:
           - samtools sort
       - id: FILTERCONSENSUSREADS
         description: Filter consensus reads
         rules:
           - fgbio FilterConsensusReads
+          - samtools sort
       - id: CALLANDFILTERDUPLEXCONSENSUSREADS
         description: Call and filter duplex consensus reads
         rules:
@@ -153,6 +156,12 @@ pipelines:
         rules:
           - fgbio CallMolecularConsensusReads
           - fgbio FilterConsensusReads
+      - id: MULTIQC
+        description: QC report
+        specialized_rules:
+          - name: multiqc
+            condition:
+              args_not_contain: --version
     steps:
       - subworkflow: PREPARE_GENOME
       - subworkflow: FASTQUORUM

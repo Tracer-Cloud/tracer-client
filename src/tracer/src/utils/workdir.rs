@@ -12,7 +12,8 @@ const STDOUT_FILE: &str = "tracerd.out";
 const STDERR_FILE: &str = "tracerd.err";
 const LOG_FILE: &str = "daemon.log";
 const DEBUG_LOG: &str = "debug.log";
-const MATCHES_FILE: &str = "matches.txt";
+const PROCESS_MATCHES_FILE: &str = "process_matches.txt";
+const STEP_MATCHES_FILE: &str = "step_matches.txt";
 
 pub static TRACER_WORK_DIR: LazyLock<TracerWorkDir> = LazyLock::new(|| {
     let tmpdir = PathBuf::from("/tmp");
@@ -23,7 +24,8 @@ pub static TRACER_WORK_DIR: LazyLock<TracerWorkDir> = LazyLock::new(|| {
         stderr_file: path.join(STDERR_FILE),
         log_file: path.join(LOG_FILE),
         debug_log: path.join(DEBUG_LOG),
-        matches_file: path.join(MATCHES_FILE),
+        process_matches_file: path.join(PROCESS_MATCHES_FILE),
+        step_matches_file: path.join(STEP_MATCHES_FILE),
         path,
         canonical_path: tmpdir.canonicalize().map(|path| path.join("tracer")),
     }
@@ -37,7 +39,8 @@ pub struct TracerWorkDir {
     pub stderr_file: PathBuf,
     pub log_file: PathBuf,
     pub debug_log: PathBuf,
-    pub matches_file: PathBuf,
+    pub process_matches_file: PathBuf,
+    pub step_matches_file: PathBuf,
 }
 
 impl TracerWorkDir {
@@ -64,7 +67,8 @@ impl TracerWorkDir {
             &self.stdout_file,
             &self.stderr_file,
             &self.log_file,
-            &self.matches_file,
+            &self.process_matches_file,
+            &self.step_matches_file,
         ]
         .iter()
         .try_for_each(|path| {

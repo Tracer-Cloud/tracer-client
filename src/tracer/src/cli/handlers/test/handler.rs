@@ -1,5 +1,5 @@
 use crate::cli::handlers::info;
-use crate::cli::handlers::init::arguments::{PromptMode, TracerCliInitArgs};
+use crate::cli::handlers::init::arguments::PromptMode;
 use crate::cli::handlers::terminate;
 use crate::cli::handlers::test::arguments::TracerCliTestArgs;
 use crate::cli::handlers::test::pipeline::Pipeline;
@@ -7,7 +7,6 @@ use crate::cli::handlers::test::pixi;
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::server::DaemonServer;
-use crate::process_identification::types::pipeline_tags::PipelineTags;
 use crate::utils::command::check_status;
 use crate::utils::system_info::check_sudo;
 use crate::utils::workdir::TRACER_WORK_DIR;
@@ -28,15 +27,15 @@ pub async fn test(
     config: Config,
     api_client: DaemonClient,
 ) -> anyhow::Result<()> {
-    // Check if running with sudo
-    check_sudo("init");
+    if !args.init_args.force_procfs && cfg!(target_os = "linux") {
+        // Check if running with sudo
+        check_sudo("init");
+    }
 
     // Create necessary files for logging and daemonizing
     TRACER_WORK_DIR
         .init()
         .expect("Error while creating necessary files");
-
-    let non_interactive = args.non_interactive;
 
     // Check for port conflict before starting daemon
     if DaemonServer::is_running() {
@@ -47,26 +46,12 @@ pub async fn test(
     }
 
     // Finalize test args
-    let test_args = args.finalize();
-
-    // Prompt user for init args
-    let tags = PipelineTags {
-        environment: Some("local".into()),
-        pipeline_type: Some("preprocessing".into()), // TODO: map pipeline name to pipeline type
-        ..Default::default()
-    };
+    let (init_args, pipeline) = args.finalize();
+    let non_interactive = init_args.non_interactive;
     let prompt_mode = if non_interactive {
         PromptMode::Never
     } else {
         PromptMode::Always
-    };
-    let init_args = TracerCliInitArgs {
-        pipeline_name: Some(test_args.pipeline.name().to_owned()),
-        run_name: Some(format!("test-{}", test_args.pipeline.name())),
-        tags,
-        non_interactive,
-        log_level: test_args.log_level,
-        ..Default::default()
     };
 
     // init tracer run
@@ -80,7 +65,7 @@ pub async fn test(
 
     // run the pipeline
     println!("Running pipeline...");
-    let result = match test_args.pipeline {
+    let result = match pipeline {
         Pipeline::LocalPixi { manifest, task, .. } => run_pixi_task(manifest, task),
         Pipeline::LocalNextflow { path, args } => run_nextflow(path, args),
         Pipeline::GithubNextflow { repo, args } => run_nextflow(repo, args),
@@ -89,8 +74,9 @@ pub async fn test(
 
     if result.is_ok() {
         println!("Pipeline run completed successfully.");
-        info::info(&api_client, false).await;
     }
+
+    info::info(&api_client, false).await;
 
     if DaemonServer::is_running() {
         println!("Shutting down daemon...");
