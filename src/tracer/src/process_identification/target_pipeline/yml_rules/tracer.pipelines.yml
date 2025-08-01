@@ -154,6 +154,10 @@ pipelines:
         rules:
           - fgbio CallMolecularConsensusReads
           - fgbio FilterConsensusReads
+      - id: MULTIQC
+        description: QC report
+        rules:
+          - multiqc
     steps:
       - subworkflow: PREPARE_GENOME
       - subworkflow: FASTQUORUM
