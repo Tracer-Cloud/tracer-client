@@ -142,8 +142,6 @@ fn match_java<'a>(
 ) -> Option<ProcessMatch<'a>> {
     if process.comm.contains("java") {
         let mut args = process.argv.iter().skip(1);
-        // skip any java args except -jar, which we check to make sure it matches the expected
-        // jar file name, if any
         let mut jar_match = jar.is_none();
         let mut class_match = class.is_none();
         while let Some(arg) = args.next() {
@@ -166,21 +164,17 @@ fn match_java<'a>(
                     class_match = true;
                 }
             } else if let Some(subcommands) = subcommands {
-                if subcommands.contains(arg) {
-                    return Some(ProcessMatch::with_subcommand(arg));
-                } else {
+                if !(jar_match && class_match && subcommands.contains(arg)) {
                     return None;
                 }
+                return Some(ProcessMatch::with_subcommand(arg));
             }
         }
         if jar_match && class_match {
-            Some(ProcessMatch::Simple)
-        } else {
-            None
+            return Some(ProcessMatch::Simple);
         }
-    } else {
-        None
     }
+    None
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

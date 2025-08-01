@@ -44,7 +44,7 @@ impl ProcessStartTrigger {
         pid: u32,
         ppid: u32,
         comm: &str,
-        mut argv: Vec<String>,
+        argv: Vec<String>,
         timestamp_ns: u64,
     ) -> Self {
         const NS_PER_SEC: u64 = 1_000_000_000;
