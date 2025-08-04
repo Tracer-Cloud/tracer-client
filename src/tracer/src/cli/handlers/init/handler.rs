@@ -78,6 +78,7 @@ pub async fn init_with_default_prompt(
 
     if !args.no_daemonize {
         DaemonServer::cleanup();
+        
         // Serialize the finalized args to pass to the spawned process
         let current_exe = std::env::current_exe()?;
 

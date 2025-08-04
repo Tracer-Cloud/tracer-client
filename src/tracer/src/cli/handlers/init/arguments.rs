@@ -270,7 +270,7 @@ impl TracerCliInitArgs {
                 None
             };
             get_validated_input(
-                &*INTERACTIVE_THEME,
+                &INTERACTIVE_THEME,
                 "Enter custom pipeline type",
                 default,
                 "pipeline type",
