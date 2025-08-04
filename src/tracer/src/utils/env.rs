@@ -4,6 +4,7 @@ use std::path::Path;
 
 // Environment variables that control init parameters
 pub const TRACE_ID_ENV_VAR: &str = "TRACER_TRACE_ID";
+pub const USER_ID_ENV_VAR: &str = "TRACER_USER_ID";
 
 // Environment variables that control environment detection
 pub const GITHUB_ACTIONS_ENV_VAR: &str = "GITHUB_ACTIONS";

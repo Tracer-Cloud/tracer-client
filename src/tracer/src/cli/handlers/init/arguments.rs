@@ -1,5 +1,6 @@
 use crate::cli::handlers::INTERACTIVE_THEME;
 use crate::process_identification::types::pipeline_tags::PipelineTags;
+use crate::utils::env::USER_ID_ENV_VAR;
 use crate::utils::input_validation::{get_validated_input, validate_input_string};
 use clap::Args;
 use dialoguer::Select;
@@ -7,7 +8,6 @@ use serde::Serialize;
 
 pub const PIPELINE_NAME_ENV_VAR: &str = "TRACER_PIPELINE_NAME";
 pub const RUN_NAME_ENV_VAR: &str = "TRACER_RUN_NAME";
-pub const USER_ID_ENV_VAR: &str = "TRACER_USER_ID";
 pub const LOG_LEVEL_ENV_VAR: &str = "TRACER_LOG_LEVEL";
 
 #[derive(Default, Args, Debug, Clone)]

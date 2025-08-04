@@ -1,3 +1,4 @@
+use crate::utils::env;
 use clap::Args;
 
 pub const PIPELINE_TYPE_ENV_VAR: &str = "TRACER_PIPELINE_TYPE";
@@ -43,7 +44,9 @@ impl Default for PipelineTags {
         Self {
             environment: Some("local".into()),
             pipeline_type: Some("generic".into()),
-            user_operator: Some(std::env::var("USER").unwrap_or_else(|_| "unknown".into())),
+            user_operator: Some(
+                env::get_env_var(API_KEY_ENV_VAR).unwrap_or_else(|| "unknown".into()),
+            ),
             department: "dev".into(),
             team: "dev".into(),
             organization_id: None,
