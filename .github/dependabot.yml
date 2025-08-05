@@ -3,7 +3,7 @@ updates:
   - package-ecosystem: cargo
     directory: "/"
     schedule:
-      interval: "every_2_weeks"
+      interval: "weekly"
       day: "monday"
     target-branch: main
     labels: [auto-dependencies]
@@ -18,7 +18,7 @@ updates:
   - package-ecosystem: docker
     directory: "/"
     schedule:
-      interval: "every_2_weeks"
+      interval: "weekly"
       day: "monday"
     labels: [auto-dependencies]
     groups:
@@ -29,7 +29,7 @@ updates:
   - package-ecosystem: gitsubmodule
     directory: "/"
     schedule:
-      interval: "every_2_weeks"
+      interval: "weekly"
       day: "monday"
     labels: [auto-dependencies]
     groups:
