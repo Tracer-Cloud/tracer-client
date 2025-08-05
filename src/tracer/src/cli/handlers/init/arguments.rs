@@ -1,15 +1,19 @@
 use crate::cli::handlers::INTERACTIVE_THEME;
 use crate::process_identification::types::pipeline_tags::PipelineTags;
-use crate::utils::env;
 use crate::utils::input_validation::{get_validated_input, validate_input_string};
 use clap::Args;
-use dialoguer::{Input, Select};
+use dialoguer::Select;
 use serde::Serialize;
+
+pub const PIPELINE_NAME_ENV_VAR: &str = "TRACER_PIPELINE_NAME";
+pub const RUN_NAME_ENV_VAR: &str = "TRACER_RUN_NAME";
+pub const USER_ID_ENV_VAR: &str = "TRACER_USER_ID";
+pub const LOG_LEVEL_ENV_VAR: &str = "TRACER_LOG_LEVEL";
 
 #[derive(Default, Args, Debug, Clone)]
 pub struct TracerCliInitArgs {
     /// pipeline name to init the daemon with
-    #[clap(long, short)]
+    #[clap(long, short, env = PIPELINE_NAME_ENV_VAR)]
     pub pipeline_name: Option<String>,
 
     // deprecated
@@ -17,14 +21,14 @@ pub struct TracerCliInitArgs {
     pub run_id: Option<String>,
 
     // a unique name for this run that will be displayed in the UI
-    #[clap(long)]
+    #[clap(long, env = RUN_NAME_ENV_VAR)]
     pub run_name: Option<String>,
 
     #[clap(flatten)]
     pub tags: PipelineTags,
 
     /// Optional user ID used to associate this installation with your account.
-    #[arg(long)]
+    #[arg(long, env = USER_ID_ENV_VAR)]
     pub user_id: Option<String>,
 
     /// Run agent as a standalone process rather than a daemon
@@ -46,7 +50,7 @@ pub struct TracerCliInitArgs {
     /// Capture logs at the specified level and above (default: info)
     /// Valid values: trace, debug, info, warn, error
     /// Output will be written to `daemon.log` in the working directory.
-    #[clap(long, default_value = "info")]
+    #[clap(long, env = LOG_LEVEL_ENV_VAR, default_value = "info")]
     pub log_level: String,
 }
 
@@ -64,10 +68,7 @@ impl TracerCliInitArgs {
             default_prompt_mode
         };
 
-        let arg_pipeline_name = self
-            .pipeline_name
-            .or_else(|| env::get_env_var(env::PIPELINE_NAME_ENV_VAR));
-        let pipeline_name = match (arg_pipeline_name, &prompt_mode) {
+        let pipeline_name = match (self.pipeline_name, &prompt_mode) {
             (Some(name), PromptMode::Never | PromptMode::WhenMissing) => {
                 if let Err(e) = validate_input_string(&name, "pipeline name") {
                     panic!("Invalid pipeline name: {}", e);
@@ -80,7 +81,8 @@ impl TracerCliInitArgs {
             }
             (None, PromptMode::Never) => None,
         }
-        .expect("Failed to get pipeline name from environment variable or prompt");
+        .or_else(print_help)
+        .expect("Failed to get pipeline name from command line, environment variable, or prompt");
 
         // Validate pipeline name
 
@@ -89,7 +91,6 @@ impl TracerCliInitArgs {
             .run_name
             .map(|name| name.trim().to_string())
             .filter(|name| !name.is_empty())
-            .or_else(|| env::get_env_var(env::RUN_NAME_ENV_VAR))
             .inspect(|name| {
                 if let Err(e) = validate_input_string(name, "run name") {
                     panic!("Invalid run name: {}", e);
@@ -98,10 +99,7 @@ impl TracerCliInitArgs {
 
         let mut tags = self.tags;
 
-        let arg_environment = tags
-            .environment
-            .or_else(|| env::get_env_var(env::ENVIRONMENT_ENV_VAR));
-        let environment = match (arg_environment, &prompt_mode) {
+        let environment = match (tags.environment, &prompt_mode) {
             (Some(name), PromptMode::Never | PromptMode::WhenMissing) => {
                 if let Err(e) = validate_input_string(&name, "environment name") {
                     panic!("Invalid environment name: {}", e);
@@ -114,27 +112,28 @@ impl TracerCliInitArgs {
             }
             (None, PromptMode::Never) => None,
         }
-        .expect("Failed to get environment from environment variable or prompt");
+        .or_else(print_help)
+        .expect("Failed to get environment from command line, environment variable, or prompt");
         tags.environment = Some(environment);
 
-        let arg_pipeline_type = tags
-            .pipeline_type
-            .or_else(|| env::get_env_var(env::PIPELINE_TYPE_ENV_VAR));
-        let pipeline_type = match (arg_pipeline_type, &prompt_mode) {
-            (Some(name), PromptMode::Never | PromptMode::WhenMissing) => Some(name),
-            (Some(name), PromptMode::Always) => Self::prompt_for_pipeline_type(&name),
+        let pipeline_type = match (tags.pipeline_type, &prompt_mode) {
+            (Some(name), PromptMode::Never | PromptMode::WhenMissing) => {
+                if let Err(e) = validate_input_string(&name, "pipeline type") {
+                    panic!("Invalid pipeline type: {}", e);
+                }
+                Some(name)
+            }
+            (Some(name), PromptMode::Always) => Some(Self::prompt_for_pipeline_type(&name)),
             (None, PromptMode::Always | PromptMode::WhenMissing) => {
-                Self::prompt_for_pipeline_type("RNA-seq")
+                Some(Self::prompt_for_pipeline_type("RNA-seq"))
             }
             (None, PromptMode::Never) => None,
         }
-        .expect("Failed to get pipeline type from environment variable or prompt");
+        .or_else(print_help)
+        .expect("Failed to get pipeline type from command line, environment variable, or prompt");
         tags.pipeline_type = Some(pipeline_type);
 
-        let arg_user_operator = tags
-            .user_operator
-            .or_else(|| env::get_env_var(env::USER_OPERATOR_ENV_VAR));
-        let user_operator = match (arg_user_operator, &prompt_mode) {
+        let user_operator = match (tags.user_operator, &prompt_mode) {
             (Some(name), PromptMode::Never | PromptMode::WhenMissing) => {
                 if let Err(e) = validate_input_string(&name, "user operator") {
                     panic!("Invalid API Key: {}", e);
@@ -149,7 +148,8 @@ impl TracerCliInitArgs {
             }
             (None, PromptMode::Never) => None,
         }
-        .expect("Failed to get user operator from environment variable or prompt");
+        .or_else(print_help)
+        .expect("Failed to get API Key from command line, environment variable, or prompt");
         tags.user_operator = Some(user_operator);
 
         // Validate department
@@ -239,7 +239,7 @@ impl TracerCliInitArgs {
         }
     }
 
-    fn prompt_for_pipeline_type(default: &str) -> Option<String> {
+    fn prompt_for_pipeline_type(default: &str) -> String {
         const PIPELINE_TYPES: &[&str] = &[
             "RNA-seq",
             "scRNA-seq",
@@ -264,24 +264,47 @@ impl TracerCliInitArgs {
             .expect("Error while prompting for pipeline type");
         let pipeline_type = PIPELINE_TYPES[selection];
         if pipeline_type == "custom" {
-            let mut prompt =
-                Input::with_theme(&*INTERACTIVE_THEME).with_prompt("Enter custom pipeline type");
-            if default_index == CUSTOM_INDEX {
-                prompt = prompt.default(default.into());
-            }
-            Some(
-                prompt
-                    .interact_text()
-                    .expect("Error while prompting for pipeline type"),
+            let default = if default_index == CUSTOM_INDEX {
+                Some(default.into())
+            } else {
+                None
+            };
+            get_validated_input(
+                &*INTERACTIVE_THEME,
+                "Enter custom pipeline type",
+                default,
+                "pipeline type",
             )
         } else {
-            Some(pipeline_type.to_string())
+            pipeline_type.to_string()
         }
     }
 
     fn prompt_for_api_key(default: Option<String>) -> String {
         get_validated_input(&INTERACTIVE_THEME, "Enter your API key", default, "API key")
     }
+}
+
+fn print_help<T>() -> Option<T> {
+    println!(
+        r#"
+    The following parameters may be set interactively or with command-line options or environment
+    variables. Required parameters are denoted by (*).
+
+    Parameter       | Command Line Option | Environment Variable
+    ----------------|---------------------|-----------------------
+    pipeline_name*  | --pipeline-name     | TRACER_PIPELINE_NAME
+    pipeline_type*  | --pipeline-type     | TRACER_PIPELINE_TYPE
+    environment*    | --environment       | TRACER_ENVIRONMENT
+    api_key*        | --user-operator     | TRACER_API_KEY
+    run_name        | --run-name          | TRACER_RUN_NAME
+    department      | --department        | TRACER_DEPARTMENT
+    team            | --team              | TRACER_TEAM
+    organization_id | --organization-id   | TRACER_ORGANIZATION_ID
+    user_id         | --user-id           | TRACER_USER_ID
+    "#
+    );
+    None::<T>
 }
 
 /// Ensures the pipeline name remains required
