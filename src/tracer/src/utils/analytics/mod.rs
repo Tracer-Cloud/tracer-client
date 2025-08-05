@@ -2,6 +2,7 @@ pub mod types;
 
 use crate::constants::TRACER_ANALYTICS_ENDPOINT;
 use crate::utils::analytics::types::{AnalyticsEventType, AnalyticsPayload};
+use crate::utils::env::{self, USER_ID_ENV_VAR};
 use reqwest::Client;
 use std::collections::HashMap;
 use tokio_retry::strategy::{jitter, ExponentialBackoff};
@@ -14,6 +15,7 @@ pub fn spawn_event(
 ) {
     tokio::spawn(send_event(explicit_user_id, event, metadata));
 }
+
 // COPIED: tracer-installer/src/installer/install.rs
 pub async fn send_event(
     user_id: Option<String>,
@@ -23,8 +25,8 @@ pub async fn send_event(
     let client = Client::new();
     let user_id = match user_id {
         Some(id) => id,
-        None => match std::env::var("TRACER_USER_ID") {
-            Ok(val) if !val.trim().is_empty() => val,
+        None => match env::get_env_var(USER_ID_ENV_VAR) {
+            Some(val) if !val.trim().is_empty() => val,
             _ => return Ok(()), // silently skip if no user ID
         },
     };
