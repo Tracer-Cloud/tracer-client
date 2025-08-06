@@ -1,4 +1,5 @@
 use crate::utils::env::{self, USER_ID_ENV_VAR};
+use crate::utils::input_validation::StringValueParser;
 use clap::Args;
 
 pub const PIPELINE_TYPE_ENV_VAR: &str = "TRACER_PIPELINE_TYPE";

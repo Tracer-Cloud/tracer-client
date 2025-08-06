@@ -1,5 +1,44 @@
+use clap::builder::TypedValueParser;
+use clap::error::{ContextKind, ContextValue, Error, ErrorKind};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Input;
+
+#[derive(Clone)]
+pub struct StringValueParser;
+
+impl TypedValueParser for StringValueParser {
+    type Value = String;
+
+    fn parse_ref(
+        &self,
+        cmd: &clap::Command,
+        arg: Option<&clap::Arg>,
+        value: &std::ffi::OsStr,
+    ) -> Result<Self::Value, clap::Error> {
+        let field = arg.map(|arg| arg.to_string()).unwrap_or("unknown".into());
+        let str_value = match value.to_str() {
+            Some(value) => value,
+            None => {
+                let mut err = Error::new(ErrorKind::InvalidUtf8).with_cmd(cmd);
+                err.insert(ContextKind::InvalidArg, ContextValue::String(field));
+                return Err(err);
+            }
+        };
+        match validate_input_string(&str_value, &field) {
+            Ok(_) => Ok(str_value.to_string()),
+            Err(e) => {
+                let mut err = Error::new(ErrorKind::InvalidValue).with_cmd(cmd);
+                err.insert(ContextKind::InvalidArg, ContextValue::String(field));
+                err.insert(
+                    ContextKind::InvalidValue,
+                    ContextValue::String(str_value.to_string()),
+                );
+                err.insert(ContextKind::Custom, ContextValue::String(e));
+                Err(err)
+            }
+        }
+    }
+}
 
 /// Validates that a string doesn't contain any problematic characters for database safety and security
 ///
@@ -113,14 +152,14 @@ pub fn validate_input_string(input: &str, field_name: &str) -> Result<(), String
 pub fn get_validated_input(
     theme: &ColorfulTheme,
     prompt: &str,
-    default: Option<String>,
+    default: Option<&str>,
     field_name: &str,
 ) -> String {
     loop {
-        let input = if let Some(default_val) = default.clone() {
+        let input = if let Some(default_val) = default {
             Input::with_theme(theme)
                 .with_prompt(prompt)
-                .default(default_val)
+                .default(default_val.to_string())
                 .interact_text()
                 .inspect_err(|e| panic!("Error while prompting for {}: {e}", field_name))
                 .unwrap()
