@@ -52,7 +52,7 @@ impl InfoDisplay {
             json["pipeline"] = serde_json::json!({
                 "name": &inner.pipeline_name,
                 "environment": inner.tags.environment.as_deref().unwrap_or("Not set"),
-                "user": inner.tags.user_operator.as_deref().unwrap_or("Not set")
+                "user": inner.tags.user_id.as_deref().unwrap(),
             });
             json["run"] = serde_json::json!({
                 "name": &inner.run_name,
@@ -117,7 +117,7 @@ impl InfoDisplay {
         formatter.add_empty_line();
 
         let pipeline_environment = inner.tags.environment.as_deref().unwrap_or("Not set");
-        let pipeline_user = inner.tags.user_operator.as_deref().unwrap_or("Not set");
+        let pipeline_user = inner.tags.user_id.as_deref().unwrap();
 
         let monitored_processes = info.process_count();
         let monitored_tasks = info.tasks_count();

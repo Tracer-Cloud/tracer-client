@@ -39,7 +39,7 @@ pub struct TracerClient {
     // deprecated
     run_id: Option<String>,
     run_name: Option<String>,
-    pub user_id: Option<String>,
+    pub user_id: String,
     pipeline_name: String,
 }
 

@@ -1,6 +1,6 @@
 use crate::cli::handlers::INTERACTIVE_THEME;
 use crate::process_identification::types::pipeline_tags::PipelineTags;
-use crate::utils::env::USER_ID_ENV_VAR;
+use crate::utils::env::{get_env_var, USER_ID_ENV_VAR};
 use crate::utils::input_validation::{get_validated_input, validate_input_string};
 use clap::Args;
 use dialoguer::Select;
@@ -26,10 +26,6 @@ pub struct TracerCliInitArgs {
 
     #[clap(flatten)]
     pub tags: PipelineTags,
-
-    /// Optional user ID used to associate this installation with your account.
-    #[arg(long, env = USER_ID_ENV_VAR)]
-    pub user_id: Option<String>,
 
     /// Run agent as a standalone process rather than a daemon
     #[clap(long)]
@@ -133,24 +129,26 @@ impl TracerCliInitArgs {
         .expect("Failed to get pipeline type from command line, environment variable, or prompt");
         tags.pipeline_type = Some(pipeline_type);
 
-        let user_operator = match (tags.user_operator, &prompt_mode) {
-            (Some(name), PromptMode::Never | PromptMode::WhenMissing) => {
-                if let Err(e) = validate_input_string(&name, "user operator") {
-                    panic!("Invalid API Key: {}", e);
+        // First try to get user_id from the tags, then from the environment variable, then prompt
+        let user_id = tags
+            .user_id
+            .clone()
+            .or_else(|| get_env_var(USER_ID_ENV_VAR))
+            .inspect(|user_id| {
+                if let Err(e) = validate_input_string(user_id, "user id") {
+                    panic!("Invalid User ID: {}", e);
                 }
-                Some(name)
-            }
-            (Some(name), PromptMode::Always) => {
-                Some(Self::prompt_for_api_key(Some(name.to_owned())))
-            }
-            (None, PromptMode::Always | PromptMode::WhenMissing) => {
-                Some(Self::prompt_for_api_key(None))
-            }
-            (None, PromptMode::Never) => None,
-        }
-        .or_else(print_help)
-        .expect("Failed to get API Key from command line, environment variable, or prompt");
-        tags.user_operator = Some(user_operator);
+            })
+            .or_else(|| match &prompt_mode {
+                PromptMode::Never => None,
+                PromptMode::Always | PromptMode::WhenMissing => {
+                    Some(Self::prompt_for_user_id(None))
+                }
+            })
+            .or_else(print_help)
+            .expect("Failed to get User ID from environment variable, command line, or prompt");
+
+        tags.user_id = Some(user_id.clone());
 
         // Validate department
         if let Err(e) = validate_input_string(&tags.department, "department") {
@@ -169,19 +167,12 @@ impl TracerCliInitArgs {
             }
         }
 
-        // Validate others tags
+        // Validate other tags
         for (i, other_tag) in tags.others.iter().enumerate() {
             if let Err(e) = validate_input_string(other_tag, &format!("others[{}]", i)) {
                 panic!("Invalid others tag at index {}: {}", i, e);
             }
         }
-
-        // Validate user_id if provided
-        let user_id = self.user_id.inspect(|id| {
-            if let Err(e) = validate_input_string(id, "user_id") {
-                panic!("Invalid user_id: {}", e);
-            }
-        });
 
         // Validate run_id if provided
         let run_id = self.run_id.inspect(|id| {
@@ -280,8 +271,8 @@ impl TracerCliInitArgs {
         }
     }
 
-    fn prompt_for_api_key(default: Option<String>) -> String {
-        get_validated_input(&INTERACTIVE_THEME, "Enter your API key", default, "API key")
+    fn prompt_for_user_id(default: Option<String>) -> String {
+        get_validated_input(&INTERACTIVE_THEME, "Enter your User ID", default, "User ID")
     }
 }
 
@@ -296,12 +287,11 @@ fn print_help<T>() -> Option<T> {
     pipeline_name*  | --pipeline-name     | TRACER_PIPELINE_NAME
     pipeline_type*  | --pipeline-type     | TRACER_PIPELINE_TYPE
     environment*    | --environment       | TRACER_ENVIRONMENT
-    api_key*        | --user-operator     | TRACER_API_KEY
+    user_id*        | --user-id     | TRACER_USER_ID
     run_name        | --run-name          | TRACER_RUN_NAME
     department      | --department        | TRACER_DEPARTMENT
     team            | --team              | TRACER_TEAM
     organization_id | --organization-id   | TRACER_ORGANIZATION_ID
-    user_id         | --user-id           | TRACER_USER_ID
     "#
     );
     None::<T>
@@ -317,6 +307,6 @@ pub struct FinalizedInitArgs {
     pub no_daemonize: bool,
     pub dev: bool,
     pub force_procfs: bool,
-    pub user_id: Option<String>,
+    pub user_id: String,
     pub log_level: String,
 }

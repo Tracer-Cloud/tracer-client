@@ -66,13 +66,7 @@ pub async fn init_with_default_prompt(
             .clone();
         json_args.extend(tags_json);
         Sentry::add_context("Init Arguments", Value::Object(json_args));
-        Sentry::add_tag(
-            "user_operator",
-            args.tags
-                .user_operator
-                .as_ref()
-                .unwrap_or(&"unknown".to_string()),
-        );
+        Sentry::add_tag("user_id", args.tags.user_id.as_ref().unwrap());
         Sentry::add_tag("pipeline_name", &args.pipeline_name.clone());
     }
 
@@ -93,8 +87,8 @@ pub async fn init_with_default_prompt(
             .arg(args.tags.environment.as_deref().unwrap_or(""))
             .arg("--pipeline-type")
             .arg(args.tags.pipeline_type.as_deref().unwrap_or(""))
-            .arg("--user-operator")
-            .arg(args.tags.user_operator.as_deref().unwrap_or(""))
+            .arg("--user-id")
+            .arg(args.tags.user_id.as_deref().unwrap())
             .args(if args.dev { vec!["--dev"] } else { vec![] })
             .args(if args.force_procfs {
                 vec!["--force-procfs"]

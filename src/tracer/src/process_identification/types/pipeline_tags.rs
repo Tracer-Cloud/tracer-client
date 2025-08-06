@@ -3,7 +3,7 @@ use clap::Args;
 
 pub const PIPELINE_TYPE_ENV_VAR: &str = "TRACER_PIPELINE_TYPE";
 pub const ENVIRONMENT_ENV_VAR: &str = "TRACER_ENVIRONMENT";
-pub const API_KEY_ENV_VAR: &str = "TRACER_API_KEY";
+pub const USER_ID_ENV_VAR: &str = "TRACER_USER_ID";
 pub const DEPARTMENT_ENV_VAR: &str = "TRACER_DEPARTMENT";
 pub const TEAM_ENV_VAR: &str = "TRACER_TEAM";
 pub const ORGANIZATION_ID_ENV_VAR: &str = "TRACER_ORGANIZATION_ID";
@@ -18,9 +18,9 @@ pub struct PipelineTags {
     #[clap(long, env = PIPELINE_TYPE_ENV_VAR)]
     pub pipeline_type: Option<String>,
 
-    /// User Operator: Responsible individual executing the pipeline
-    #[clap(long, env = API_KEY_ENV_VAR)]
-    pub user_operator: Option<String>,
+    /// User ID: Responsible individual executing the pipeline, is the Clerk user id in the webapp
+    #[clap(long, env = USER_ID_ENV_VAR)]
+    pub user_id: Option<String>,
 
     /// Department: Organizational unit, e.g., "Research"
     #[clap(long, env = DEPARTMENT_ENV_VAR, default_value = "Research")]
@@ -44,9 +44,7 @@ impl Default for PipelineTags {
         Self {
             environment: Some("local".into()),
             pipeline_type: Some("generic".into()),
-            user_operator: Some(
-                env::get_env_var(API_KEY_ENV_VAR).unwrap_or_else(|| "unknown".into()),
-            ),
+            user_id: env::get_env_var(USER_ID_ENV_VAR),
             department: "dev".into(),
             team: "dev".into(),
             organization_id: None,

@@ -22,7 +22,7 @@ pub struct EventInsert {
     pub instrumentation_type: Option<String>,
     pub environment: Option<String>,
     pub pipeline_type: Option<String>,
-    pub user_operator: Option<String>,
+    pub user_id: String,
     pub organization_id: Option<String>,
     pub department: Option<String>,
 
@@ -114,7 +114,7 @@ impl TryFrom<Event> for EventInsert {
             instrumentation_type: Some("TRACER_DAEMON".to_string()),
             environment: tags.as_ref().and_then(|t| t.environment.clone()),
             pipeline_type: tags.as_ref().and_then(|t| t.pipeline_type.clone()),
-            user_operator: tags.as_ref().and_then(|t| t.user_operator.clone()),
+            user_id: tags.as_ref().unwrap().user_id.clone().unwrap(),
             organization_id: tags.as_ref().and_then(|t| t.organization_id.clone()),
             department: tags.as_ref().map(|t| t.department.clone()),
 
