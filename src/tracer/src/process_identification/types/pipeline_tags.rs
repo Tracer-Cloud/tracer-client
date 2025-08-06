@@ -18,7 +18,7 @@ pub struct PipelineTags {
     #[clap(long, env = PIPELINE_TYPE_ENV_VAR)]
     pub pipeline_type: Option<String>,
 
-    /// User ID: Responsible individual executing the pipeline, is the Clerk user id in the webapp
+    /// user ID to associate this session with your account
     #[clap(long, env = USER_ID_ENV_VAR)]
     pub user_id: Option<String>,
 

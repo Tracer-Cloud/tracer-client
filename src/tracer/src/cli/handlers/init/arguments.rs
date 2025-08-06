@@ -12,42 +12,41 @@ pub const LOG_LEVEL_ENV_VAR: &str = "TRACER_LOG_LEVEL";
 
 #[derive(Default, Args, Debug, Clone)]
 pub struct TracerCliInitArgs {
-    /// pipeline name to init the daemon with
-    #[clap(long, short, env = PIPELINE_NAME_ENV_VAR)]
+    /// the name of the pipeline you will run; all pipelines with the same name are
+    /// grouped together in the Tracer dashboard
+    #[clap(long, short, value_parser = StringValueParser, env = PIPELINE_NAME_ENV_VAR)]
     pub pipeline_name: Option<String>,
 
-    // deprecated
-    #[clap(long, hide = true)]
-    pub run_id: Option<String>,
-
-    // a unique name for this run that will be displayed in the UI
-    #[clap(long, env = RUN_NAME_ENV_VAR)]
+    /// a unique name for this run that will be displayed in the UI; if not specified,
+    /// a run name will be generated for you
+    #[clap(long, value_parser = StringValueParser, env = RUN_NAME_ENV_VAR)]
     pub run_name: Option<String>,
 
     #[clap(flatten)]
     pub tags: PipelineTags,
 
-    /// Run agent as a standalone process rather than a daemon
-    #[clap(long)]
-    pub no_daemonize: bool,
-
-    /// Do not prompt for missing inputs
+    /// do not prompt for missing inputs; the client will exit with an error if any
+    /// required inputs are missing
     #[clap(short = 'f', long)]
     pub non_interactive: bool,
 
-    // For testing purposes only
-    #[clap(long, hide = true)]
-    pub dev: bool,
-
-    /// Force process polling when eBPF is not available
+    /// force process polling even if eBPF is available; this enables you to use
+    /// the client without having root/sudo privileges
     #[clap(long)]
     pub force_procfs: bool,
 
-    /// Capture logs at the specified level and above (default: info)
-    /// Valid values: trace, debug, info, warn, error
-    /// Output will be written to `daemon.log` in the working directory.
+    /// write log messages at the specified level and above to the daemon.log file;
+    /// valid values: trace, debug, info, warn, error (default: info)
     #[clap(long, env = LOG_LEVEL_ENV_VAR, default_value = "info")]
     pub log_level: String,
+
+    // run client as a standalone process rather than a daemon
+    #[clap(long, hide = true)]
+    pub no_daemonize: bool,
+
+    // for testing purposes only
+    #[clap(long, hide = true)]
+    pub dev: bool,
 }
 
 pub enum PromptMode {
