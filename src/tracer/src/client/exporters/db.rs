@@ -11,7 +11,7 @@ use crate::cloud_providers::aws::config::SecretsClient;
 use crate::cloud_providers::aws::types::secrets::DatabaseAuth;
 use sqlx::query_builder::Separated;
 
-use crate::client::exporters::log_writer::LogWriter;
+use crate::client::exporters::event_writer::EventWriter;
 use tracing::debug;
 
 const BIND_LIMIT: usize = 65535;
@@ -89,7 +89,7 @@ impl AuroraClient {
     }
 }
 
-impl LogWriter for AuroraClient {
+impl EventWriter for AuroraClient {
     async fn batch_insert_events(&self, data: impl IntoIterator<Item = &Event>) -> Result<()> {
         let now = std::time::Instant::now();
 

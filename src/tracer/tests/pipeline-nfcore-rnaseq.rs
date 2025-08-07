@@ -10,7 +10,7 @@ use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::RwLock;
 use tracer::extracts::containers::DockerWatcher;
 use tracer::extracts::process_watcher::watcher::ProcessWatcher;
-use tracer::process_identification::recorder::LogRecorder;
+use tracer::process_identification::recorder::EventDispatcher;
 use tracer::process_identification::types::current_run::{PipelineMetadata, Run};
 use tracer::process_identification::types::event::attributes::process::ProcessProperties;
 use tracer::process_identification::types::event::attributes::EventAttributes;
@@ -50,9 +50,13 @@ fn async_runtime() -> Runtime {
 }
 
 fn watcher(pipeline: &PipelineMetadata, event_sender: Sender<Event>) -> Arc<ProcessWatcher> {
-    let log_recorder = LogRecorder::new(Arc::new(RwLock::new(pipeline.clone())), event_sender);
-    let docker_watcher = DockerWatcher::new(log_recorder.clone());
-    Arc::new(ProcessWatcher::new(log_recorder, Arc::new(docker_watcher)))
+    let event_dispatcher =
+        EventDispatcher::new(Arc::new(RwLock::new(pipeline.clone())), event_sender);
+    let docker_watcher = DockerWatcher::new(event_dispatcher.clone());
+    Arc::new(ProcessWatcher::new(
+        event_dispatcher,
+        Arc::new(docker_watcher),
+    ))
 }
 
 #[rstest]
