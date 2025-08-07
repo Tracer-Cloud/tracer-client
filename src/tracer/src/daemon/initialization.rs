@@ -1,6 +1,6 @@
 use crate::cli::handlers::init_arguments::FinalizedInitArgs;
-use crate::client::exporters::log_forward::LogForward;
-use crate::client::exporters::log_writer::LogWriterEnum;
+use crate::client::exporters::event_forward::EventForward;
+use crate::client::exporters::event_writer::LogWriterEnum;
 use crate::client::TracerClient;
 use crate::config::Config;
 use crate::daemon::server::DaemonServer;
@@ -14,21 +14,21 @@ async fn get_db_client(init_args: &FinalizedInitArgs, config: &Config) -> LogWri
     // if we don't pass any value, we use the prod endpoint
     // if we pass --is-dev=true, we use the dev endpoint
     // dev endpoint points to clickhouse, prod endpoint points to postgres
-    let log_forward_endpoint = if init_args.dev {
+    let event_forward_endpoint = if init_args.dev {
         println!(
             "Using dev endpoint: {}",
-            &config.log_forward_endpoint_dev.as_ref().unwrap()
+            &config.event_forward_endpoint_dev.as_ref().unwrap()
         );
-        &config.log_forward_endpoint_dev.as_ref().unwrap()
+        &config.event_forward_endpoint_dev.as_ref().unwrap()
     } else {
         println!(
             "Using prod endpoint: {}",
-            &config.log_forward_endpoint_prod.as_ref().unwrap()
+            &config.event_forward_endpoint_prod.as_ref().unwrap()
         );
-        &config.log_forward_endpoint_prod.as_ref().unwrap()
+        &config.event_forward_endpoint_prod.as_ref().unwrap()
     };
 
-    LogWriterEnum::Forward(LogForward::try_new(log_forward_endpoint).await.unwrap())
+    LogWriterEnum::Forward(EventForward::try_new(event_forward_endpoint).await.unwrap())
 }
 
 async fn create_server(cli_config_args: FinalizedInitArgs, config: Config) -> DaemonServer {

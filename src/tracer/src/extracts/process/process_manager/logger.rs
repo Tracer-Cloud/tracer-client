@@ -2,7 +2,7 @@ use crate::extracts::containers::DockerWatcher;
 use crate::extracts::process::extract_process_data;
 use crate::extracts::process::extract_process_data::construct_tool_id;
 use crate::extracts::process::types::process_result::ProcessResult;
-use crate::process_identification::recorder::LogRecorder;
+use crate::process_identification::recorder::EventDispatcher;
 use crate::process_identification::target_pipeline::pipeline_manager::TaskMatch;
 use crate::process_identification::types::event::attributes::process::ProcessProperties;
 use crate::process_identification::types::event::attributes::EventAttributes;
@@ -17,16 +17,16 @@ use tracing::error;
 
 /// Handles logging of process-related events
 pub struct ProcessLogger {
-    log_recorder: LogRecorder,
+    event_dispatcher: EventDispatcher,
     /// shared reference to the docker watcher - used to get the ContainerEvent associated
     /// with a process
     docker_watcher: Arc<DockerWatcher>,
 }
 
 impl ProcessLogger {
-    pub fn new(log_recorder: LogRecorder, docker_watcher: Arc<DockerWatcher>) -> Self {
+    pub fn new(event_dispatcher: EventDispatcher, docker_watcher: Arc<DockerWatcher>) -> Self {
         Self {
-            log_recorder,
+            event_dispatcher,
             docker_watcher,
         }
     }
@@ -72,7 +72,7 @@ impl ProcessLogger {
             }
         }
 
-        self.log_recorder
+        self.event_dispatcher
             .log(
                 TracerProcessStatus::ToolExecution,
                 format!("[{}] Tool process: {}", Utc::now(), &display_name),
@@ -116,7 +116,7 @@ impl ProcessLogger {
 
         debug!("Process data completed. PID={}", process.pid);
 
-        self.log_recorder
+        self.event_dispatcher
             .log(
                 TracerProcessStatus::ToolMetricEvent,
                 format!("[{}] Tool metric event: {}", Utc::now(), &display_name),
@@ -161,7 +161,7 @@ impl ProcessLogger {
                 ended_at: finish_trigger.finished_at,
             };
 
-        self.log_recorder
+        self.event_dispatcher
             .log(
                 TracerProcessStatus::FinishedToolExecution,
                 format!("[{}] {} exited", Utc::now(), &start_trigger.comm),
@@ -175,7 +175,7 @@ impl ProcessLogger {
 
     /// Logs a match for a set of processes to a job.
     pub async fn log_task_match(&self, task_match: TaskMatch) -> Result<()> {
-        self.log_recorder
+        self.event_dispatcher
             .log(
                 TracerProcessStatus::TaskMatch,
                 format!("[{}] Job match: {}", Utc::now(), &task_match),

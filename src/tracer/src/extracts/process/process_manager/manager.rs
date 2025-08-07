@@ -7,7 +7,7 @@ use crate::extracts::process::process_manager::system_refresher::SystemRefresher
 use crate::extracts::{
     containers::DockerWatcher, process::process_manager::handlers::oom::OomHandler,
 };
-use crate::process_identification::recorder::LogRecorder;
+use crate::process_identification::recorder::EventDispatcher;
 use anyhow::Result;
 use std::{
     collections::{HashMap, HashSet},
@@ -25,9 +25,9 @@ pub struct ProcessManager {
 }
 
 impl ProcessManager {
-    pub fn new(log_recorder: LogRecorder, docker_watcher: Arc<DockerWatcher>) -> Self {
+    pub fn new(event_dispatcher: EventDispatcher, docker_watcher: Arc<DockerWatcher>) -> Self {
         let state_manager = StateManager::default();
-        let logger = ProcessLogger::new(log_recorder, docker_watcher);
+        let logger = ProcessLogger::new(event_dispatcher, docker_watcher);
         let system_refresher = SystemRefresher::new();
 
         ProcessManager {

@@ -1,13 +1,13 @@
 use crate::cli::handlers::init_arguments::FinalizedInitArgs;
 use crate::client::events::send_start_run_event;
 use crate::client::exporters::client_export_manager::ExporterManager;
-use crate::client::exporters::log_writer::LogWriterEnum;
+use crate::client::exporters::event_writer::LogWriterEnum;
 use crate::cloud_providers::aws::pricing::PricingSource;
 use crate::config::Config;
 use crate::extracts::containers::DockerWatcher;
 use crate::extracts::metrics::system_metrics_collector::SystemMetricsCollector;
 use crate::extracts::process_watcher::watcher::ProcessWatcher;
-use crate::process_identification::recorder::LogRecorder;
+use crate::process_identification::recorder::EventDispatcher;
 use crate::process_identification::types::current_run::PipelineMetadata;
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::{Event, ProcessStatus};
@@ -34,7 +34,7 @@ pub struct TracerClient {
     pub pricing_client: PricingSource,
     config: Config,
     force_procfs: bool,
-    log_recorder: LogRecorder,
+    event_dispatcher: EventDispatcher,
     pub exporter: Arc<ExporterManager>,
 
     run_name: Option<String>,
@@ -53,16 +53,16 @@ impl TracerClient {
         let pricing_client = Self::init_pricing_client(&config).await;
         let pipeline = Self::init_pipeline(&cli_args);
 
-        let (log_recorder, rx) = Self::init_log_recorder(&pipeline);
+        let (event_dispatcher, rx) = Self::init_event_dispatcher(&pipeline);
         let system = Arc::new(RwLock::new(System::new_all()));
 
-        let docker_watcher = Arc::new(DockerWatcher::new(log_recorder.clone()));
+        let docker_watcher = Arc::new(DockerWatcher::new(event_dispatcher.clone()));
 
-        let process_watcher = Self::init_process_watcher(&log_recorder, docker_watcher.clone());
+        let process_watcher = Self::init_process_watcher(&event_dispatcher, docker_watcher.clone());
 
         let exporter = Arc::new(ExporterManager::new(db_client, rx));
 
-        let metrics_collector = Self::init_watchers(&log_recorder, &system);
+        let metrics_collector = Self::init_watchers(&event_dispatcher, &system);
 
         Ok(TracerClient {
             // if putting a value to config, also update `TracerClient::reload_config_file`
@@ -75,7 +75,7 @@ impl TracerClient {
             exporter,
             pricing_client,
             config,
-            log_recorder,
+            event_dispatcher,
             force_procfs: cli_args.force_procfs,
             pipeline_name: cli_args.pipeline_name,
             run_name: cli_args.run_name,
@@ -97,26 +97,29 @@ impl TracerClient {
         }))
     }
 
-    fn init_log_recorder(
+    fn init_event_dispatcher(
         pipeline: &Arc<RwLock<PipelineMetadata>>,
-    ) -> (LogRecorder, mpsc::Receiver<Event>) {
+    ) -> (EventDispatcher, mpsc::Receiver<Event>) {
         let (tx, rx) = mpsc::channel::<Event>(100);
-        let log_recorder = LogRecorder::new(pipeline.clone(), tx);
-        (log_recorder, rx)
+        let event_dispatcher = EventDispatcher::new(pipeline.clone(), tx);
+        (event_dispatcher, rx)
     }
 
     fn init_process_watcher(
-        log_recorder: &LogRecorder,
+        event_dispatcher: &EventDispatcher,
         docker_watcher: Arc<DockerWatcher>,
     ) -> Arc<ProcessWatcher> {
-        Arc::new(ProcessWatcher::new(log_recorder.clone(), docker_watcher))
+        Arc::new(ProcessWatcher::new(
+            event_dispatcher.clone(),
+            docker_watcher,
+        ))
     }
 
     fn init_watchers(
-        log_recorder: &LogRecorder,
+        event_dispatcher: &EventDispatcher,
         system: &Arc<RwLock<System>>,
     ) -> SystemMetricsCollector {
-        SystemMetricsCollector::new(log_recorder.clone(), system.clone())
+        SystemMetricsCollector::new(event_dispatcher.clone(), system.clone())
     }
 
     /// Starts process monitoring using eBPF if the system is running on Linux and meets kernel requirements.
@@ -226,7 +229,7 @@ impl TracerClient {
         }
 
         // NOTE: Do we need to output a totally new event if self.initialization_id.is_some() ?
-        self.log_recorder
+        self.event_dispatcher
             .log(
                 ProcessStatus::NewRun,
                 "[CLI] Starting new pipeline run".to_owned(),
@@ -244,7 +247,7 @@ impl TracerClient {
         let mut pipeline = self.pipeline.write().await;
 
         if pipeline.run.is_none() {
-            self.log_recorder
+            self.event_dispatcher
                 .log_with_metadata(
                     ProcessStatus::FinishedRun,
                     "[CLI] Finishing pipeline run".to_owned(),
