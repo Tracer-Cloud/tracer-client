@@ -214,7 +214,21 @@ impl TracerClient {
         )
         .await?;
 
-        self.pipeline.write().await.run = Some(run);
+        // Update pipeline tags with instance_type and environment_type
+        {
+            let mut pipeline = self.pipeline.write().await;
+
+            // Set instance_type from cost_summary if available
+            if let Some(ref cost_summary) = run.cost_summary {
+                pipeline.tags.instance_type = Some(cost_summary.instance_type.clone());
+            }
+
+            // Set environment_type from detected environment
+            let environment_type = crate::utils::env::detect_environment_type().await;
+            pipeline.tags.environment_type = Some(environment_type);
+
+            pipeline.run = Some(run);
+        }
 
         // NOTE: Do we need to output a totally new event if self.initialization_id.is_some() ?
         self.log_recorder
