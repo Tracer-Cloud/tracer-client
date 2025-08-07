@@ -124,7 +124,7 @@ pub fn validate_input_string(input: &str, field: &str) -> Result<(), String> {
     for (i, ch) in input.char_indices() {
         if INVALID_CHARS.contains(&ch) {
             return Err(format!(
-                "Value '{}' for option '{}' contains invalid character '{}' at position {}.
+                "Value '{}' for option '{}' contains invalid character '{}' at position {}. \
                 Control characters, escape characters, and path separators are not allowed.",
                 input,
                 field,
