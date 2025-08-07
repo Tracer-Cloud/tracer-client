@@ -136,7 +136,7 @@ impl InnerInfoResponse {
     pub fn get_run_url(&self) -> String {
         format!(
             "{}/{}/{}",
-            DASHBOARD_BASE, self.pipeline_name, self.run_name
+            DASHBOARD_BASE, self.pipeline_name, self.run_id
         )
     }
     pub fn total_runtime(&self) -> TimeDelta {
