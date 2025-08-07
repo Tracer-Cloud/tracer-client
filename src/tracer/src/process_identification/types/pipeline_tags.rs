@@ -34,6 +34,14 @@ pub struct PipelineTags {
     #[clap(long, env = ORGANIZATION_ID_ENV_VAR)]
     pub organization_id: Option<String>,
 
+    /// Instance Type: EC2 instance type (e.g., t2.micro, m5.large)
+    #[clap(long)]
+    pub instance_type: Option<String>,
+
+    /// Environment Type: Detected environment type (e.g., GitHub Actions, AWS EC2, Local)
+    #[clap(long)]
+    pub environment_type: Option<String>,
+
     /// Others: Any other tag you'd like to specify
     #[clap(long, value_delimiter = ',')]
     pub others: Vec<String>,
@@ -48,6 +56,8 @@ impl Default for PipelineTags {
             department: "dev".into(),
             team: "dev".into(),
             organization_id: None,
+            instance_type: None,
+            environment_type: None,
             others: vec![],
         }
     }
