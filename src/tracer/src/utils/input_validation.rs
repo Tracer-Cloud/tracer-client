@@ -26,7 +26,7 @@ impl TypedValueParser for StringValueParser {
                 return Err(err);
             }
         };
-        match validate_input_string(&str_value, &field) {
+        match validate_input_string(str_value, &field) {
             Ok(_) => Ok(str_value.to_string()),
             Err(e) => Err(Error::raw(ErrorKind::ValueValidation, e)),
         }

@@ -188,7 +188,7 @@ impl TracerCliInitArgs {
         let pipeline_type = PIPELINE_TYPES[selection];
         if pipeline_type == "custom" {
             let default = if default_index == CUSTOM_INDEX {
-                Some(default.into())
+                Some(default)
             } else {
                 None
             };
