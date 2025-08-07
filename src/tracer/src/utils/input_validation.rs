@@ -28,16 +28,7 @@ impl TypedValueParser for StringValueParser {
         };
         match validate_input_string(&str_value, &field) {
             Ok(_) => Ok(str_value.to_string()),
-            Err(e) => {
-                let mut err = Error::new(ErrorKind::InvalidValue).with_cmd(cmd);
-                err.insert(ContextKind::InvalidArg, ContextValue::String(field));
-                err.insert(
-                    ContextKind::InvalidValue,
-                    ContextValue::String(str_value.to_string()),
-                );
-                err.insert(ContextKind::Custom, ContextValue::String(e));
-                Err(err)
-            }
+            Err(e) => Err(Error::raw(ErrorKind::ValueValidation, e)),
         }
     }
 }
@@ -113,30 +104,32 @@ const INVALID_PATH_PATTERNS: [&str; 35] = [
 /// - Shell injection characters (&, |, $, (, ), {, }, [, ], *, ?, ~, !, @, #, %, ^, +, =)
 /// - Empty or whitespace-only strings
 /// - Strings that are too long (max 255 characters)
-pub fn validate_input_string(input: &str, field_name: &str) -> Result<(), String> {
+pub fn validate_input_string(input: &str, field: &str) -> Result<(), String> {
     // Check for empty or whitespace-only strings
     if input.trim().is_empty() {
         return Err(format!(
-            "{} cannot be empty or contain only whitespace.",
-            field_name
+            "Value for option '{}' cannot be empty or contain only whitespace.",
+            field
         ));
     }
 
     // Check for maximum length
     if input.len() > 255 {
         return Err(format!(
-            "{} is too long (maximum 255 characters allowed).",
-            field_name
+            "Value '{}' for option '{}; is too long (maximum 255 characters allowed).",
+            input, field
         ));
     }
 
     for (i, ch) in input.char_indices() {
         if INVALID_CHARS.contains(&ch) {
             return Err(format!(
-                "Invalid character '{}' at position {} in {}. Control characters, escape characters, path separators.",
+                "Value '{}' for option '{}' contains invalid character '{}' at position {}.
+                Control characters, escape characters, and path separators are not allowed.",
+                input,
+                field,
                 ch.escape_default().collect::<String>(),
                 i + 1,
-                field_name
             ));
         }
     }
@@ -146,7 +139,7 @@ pub fn validate_input_string(input: &str, field_name: &str) -> Result<(), String
         if input.to_lowercase().contains(pattern) {
             return Err(format!(
                 "Invalid path pattern '{}' found in {}. Path traversal patterns are not allowed.",
-                pattern, field_name
+                pattern, field
             ));
         }
     }
