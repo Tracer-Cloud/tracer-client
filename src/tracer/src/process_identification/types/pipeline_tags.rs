@@ -1,41 +1,49 @@
-use crate::utils::env;
+use crate::utils::env::{self, USER_ID_ENV_VAR};
+use crate::utils::input_validation::StringValueParser;
 use clap::Args;
 
 pub const PIPELINE_TYPE_ENV_VAR: &str = "TRACER_PIPELINE_TYPE";
 pub const ENVIRONMENT_ENV_VAR: &str = "TRACER_ENVIRONMENT";
-pub const API_KEY_ENV_VAR: &str = "TRACER_API_KEY";
 pub const DEPARTMENT_ENV_VAR: &str = "TRACER_DEPARTMENT";
 pub const TEAM_ENV_VAR: &str = "TRACER_TEAM";
 pub const ORGANIZATION_ID_ENV_VAR: &str = "TRACER_ORGANIZATION_ID";
 
 #[derive(Args, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PipelineTags {
-    /// Environment: Execution Context. E.g: ci-cd, sandbox, local
-    #[clap(long, short, env = ENVIRONMENT_ENV_VAR)]
+    /// pipeline execution context (e.g., ci-cd, sandbox, local)
+    #[clap(long, short, value_parser = StringValueParser, env = ENVIRONMENT_ENV_VAR)]
     pub environment: Option<String>,
 
-    /// pipeline type: Used to identify the type of the pipeline.
-    #[clap(long, env = PIPELINE_TYPE_ENV_VAR)]
+    /// pipeline type (e.g., preprocessing, RNA-seq, single-cell)
+    #[clap(long, value_parser = StringValueParser, env = PIPELINE_TYPE_ENV_VAR)]
     pub pipeline_type: Option<String>,
 
-    /// User Operator: Responsible individual executing the pipeline
-    #[clap(long, env = API_KEY_ENV_VAR)]
-    pub user_operator: Option<String>,
-
-    /// Department: Organizational unit, e.g., "Research"
-    #[clap(long, env = DEPARTMENT_ENV_VAR, default_value = "Research")]
+    /// organizational unit (e.g., "Research")
+    #[clap(long, value_parser = StringValueParser, env = DEPARTMENT_ENV_VAR, default_value = "Research")]
     pub department: String,
 
-    /// Team: Business division, e.g., "Oncology"
-    #[clap(long, env = TEAM_ENV_VAR, default_value = "Oncology")]
+    /// business division (e.g., "Oncology")
+    #[clap(long, value_parser = StringValueParser, env = TEAM_ENV_VAR, default_value = "Oncology")]
     pub team: String,
 
-    /// Organization ID
-    #[clap(long, env = ORGANIZATION_ID_ENV_VAR)]
+    /// organization ID
+    #[clap(long, value_parser = StringValueParser, env = ORGANIZATION_ID_ENV_VAR)]
     pub organization_id: Option<String>,
 
-    /// Others: Any other tag you'd like to specify
-    #[clap(long, value_delimiter = ',')]
+    /// user ID to associate this session with your account
+    #[clap(long, env = USER_ID_ENV_VAR)]
+    pub user_id: Option<String>,
+
+    /// cloud compute instance type (e.g., t2.micro, m5.large)
+    #[clap(long)]
+    pub instance_type: Option<String>,
+
+    /// execution environment type (e.g., GitHub Actions, AWS EC2, Local)
+    #[clap(long)]
+    pub environment_type: Option<String>,
+
+    /// other tags you'd like to attach to this session
+    #[clap(long, value_parser = StringValueParser, value_delimiter = ',')]
     pub others: Vec<String>,
 }
 
@@ -44,12 +52,12 @@ impl Default for PipelineTags {
         Self {
             environment: Some("local".into()),
             pipeline_type: Some("generic".into()),
-            user_operator: Some(
-                env::get_env_var(API_KEY_ENV_VAR).unwrap_or_else(|| "unknown".into()),
-            ),
+            user_id: env::get_env_var(USER_ID_ENV_VAR),
             department: "dev".into(),
             team: "dev".into(),
             organization_id: None,
+            instance_type: None,
+            environment_type: None,
             others: vec![],
         }
     }

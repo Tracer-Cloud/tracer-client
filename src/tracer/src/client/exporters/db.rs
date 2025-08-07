@@ -97,7 +97,7 @@ impl LogWriter for AuroraClient {
             timestamp, body, severity_text, severity_number,
             trace_id, span_id,
             source_type, instrumentation_version, instrumentation_type,
-            environment, pipeline_type, user_operator, organization_id, department,
+            environment, pipeline_type, user_id, organization_id, department,
             run_id, run_name, pipeline_name,
             job_id, parent_job_id, child_job_ids, workflow_engine,
             ec2_cost_per_hour, cpu_usage, mem_used, processed_dataset,
@@ -120,7 +120,7 @@ impl LogWriter for AuroraClient {
                 .push_bind(event.instrumentation_type)
                 .push_bind(event.environment)
                 .push_bind(event.pipeline_type)
-                .push_bind(event.user_operator)
+                .push_bind(event.user_id)
                 .push_bind(event.organization_id)
                 .push_bind(event.department)
                 .push_bind(event.run_id)

@@ -2,38 +2,29 @@ pub mod types;
 
 use crate::constants::TRACER_ANALYTICS_ENDPOINT;
 use crate::utils::analytics::types::{AnalyticsEventType, AnalyticsPayload};
-use crate::utils::env::{self, USER_ID_ENV_VAR};
 use reqwest::Client;
 use std::collections::HashMap;
 use tokio_retry::strategy::{jitter, ExponentialBackoff};
 use tokio_retry::Retry;
 
 pub fn spawn_event(
-    explicit_user_id: Option<String>,
+    user_id: String,
     event: AnalyticsEventType,
     metadata: Option<HashMap<String, String>>,
 ) {
-    tokio::spawn(send_event(explicit_user_id, event, metadata));
+    tokio::spawn(send_event(user_id, event, metadata));
 }
 
 // COPIED: tracer-installer/src/installer/install.rs
 pub async fn send_event(
-    user_id: Option<String>,
+    user_id: String,
     event: AnalyticsEventType,
     metadata: Option<HashMap<String, String>>,
 ) -> anyhow::Result<()> {
     let client = Client::new();
-    let user_id = match user_id {
-        Some(id) => id,
-        None => match env::get_env_var(USER_ID_ENV_VAR) {
-            Some(val) if !val.trim().is_empty() => val,
-            _ => return Ok(()), // silently skip if no user ID
-        },
-    };
-
     let retry_strategy = ExponentialBackoff::from_millis(500).map(jitter).take(3);
 
-    // Ensure environment is set in metadata
+    // Ensure the environment is set in metadata
     let env_type = crate::utils::env::detect_environment_type().await;
     let mut metadata = metadata.unwrap_or_default();
     metadata.entry("environment".into()).or_insert(env_type);

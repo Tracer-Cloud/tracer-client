@@ -1,4 +1,5 @@
 use crate::daemon::server::DaemonServer;
+use crate::utils::env::{self, USER_ID_ENV_VAR};
 use crate::{success_message, warning_message};
 use colored::Colorize;
 use std::process::Command;
@@ -51,8 +52,7 @@ pub fn update() {
 
     let install_cmd = format!(
         "curl -fsSL https://install.tracer.cloud | sh{}",
-        std::env::var("TRACER_USER_ID")
-            .ok()
+        env::get_env_var(USER_ID_ENV_VAR)
             .map(|user_id| {
                 let trimmed = user_id.trim();
                 if trimmed.is_empty() {

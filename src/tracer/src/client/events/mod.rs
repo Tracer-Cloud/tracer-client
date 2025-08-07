@@ -57,7 +57,6 @@ pub async fn send_start_run_event(
     system: &System,
     pipeline_name: &str,
     pricing_client: &PricingSource,
-    run_id: &Option<String>,
     run_name: &Option<String>,
     timestamp: DateTime<Utc>,
 ) -> Result<(Run, SystemProperties)> {
@@ -71,7 +70,7 @@ pub async fn send_start_run_event(
 
     let run = Run::with_timestamp_and_cost_summary(
         run_name.as_ref().cloned().unwrap_or_else(generate_run_name),
-        run_id.as_ref().cloned().unwrap_or_else(generate_run_id),
+        generate_run_id(),
         timestamp,
         cost_summary,
     );

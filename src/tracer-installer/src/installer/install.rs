@@ -26,6 +26,7 @@ use tokio_retry::Retry;
 
 const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics";
 const TRACER_INSTALLATION_PATH: &str = "/usr/local/bin";
+const USER_ID_ENV_VAR: &str = "TRACER_USER_ID";
 
 pub struct Installer {
     pub platform: PlatformInfo,
@@ -156,7 +157,7 @@ impl Installer {
         let home = dirs::home_dir().context("Could not find home directory")?;
         let export_user = user_id
             .as_ref()
-            .map(|id| format!(r#"export TRACER_USER_ID="{}""#, id));
+            .map(|id| format!(r#"export {}="{}""#, USER_ID_ENV_VAR, id));
 
         let rc_files = [".bashrc", ".bash_profile", ".zshrc", ".profile"];
 
@@ -178,9 +179,10 @@ impl Installer {
             let mut has_user_export = false;
             let mut updated = false;
             let mut updated_lines = Vec::new();
+            let export_line = format!("export {}=", USER_ID_ENV_VAR);
 
             for line in lines {
-                if line.contains("export TRACER_USER_ID=") {
+                if line.contains(&export_line) {
                     if let Some(ref user_export) = export_user {
                         updated_lines.push(user_export.clone());
                     }

@@ -1,5 +1,102 @@
+use clap::builder::TypedValueParser;
+use clap::error::{ContextKind, ContextValue, Error, ErrorKind};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Input;
+use std::collections::HashSet;
+use std::sync::LazyLock;
+
+#[derive(Clone)]
+pub struct StringValueParser;
+
+impl TypedValueParser for StringValueParser {
+    type Value = String;
+
+    fn parse_ref(
+        &self,
+        cmd: &clap::Command,
+        arg: Option<&clap::Arg>,
+        value: &std::ffi::OsStr,
+    ) -> Result<Self::Value, clap::Error> {
+        let field = arg.map(|arg| arg.to_string()).unwrap_or("unknown".into());
+        let str_value = match value.to_str() {
+            Some(value) => value,
+            None => {
+                let mut err = Error::new(ErrorKind::InvalidUtf8).with_cmd(cmd);
+                err.insert(ContextKind::InvalidArg, ContextValue::String(field));
+                return Err(err);
+            }
+        };
+        match validate_input_string(str_value, &field) {
+            Ok(_) => Ok(str_value.to_string()),
+            Err(e) => {
+                let mut cmd = cmd.clone();
+                Err(cmd.error(ErrorKind::ValueValidation, e).format(&mut cmd))
+            }
+        }
+    }
+}
+
+const INVALID_CHAR_ARRAY: [char; 91] = [
+    // Control characters
+    '\0', '\x01', '\x02', '\x03', '\x04', '\x05', '\x06', '\x07', // 0x00-0x07
+    '\x08', '\x09', '\x0A', '\x0B', '\x0C', '\x0D', '\x0E', '\x0F', // 0x08-0x0F
+    '\x10', '\x11', '\x12', '\x13', '\x14', '\x15', '\x16', '\x17', // 0x10-0x17
+    '\x18', '\x19', '\x1A', '\x1B', '\x1C', '\x1D', '\x1E', '\x1F', // 0x18-0x1F
+    '\x7F', // DEL character
+    // Path separators
+    '\\', '/', // SQL injection characters
+    '\'', '"', ';', '`', // Shell injection characters
+    '&', '|', '$', '(', ')', '{', '}', '[', ']', '*', '?', '~', '!', '@', '#', '%', '^', '+',
+    '=', // Unicode control characters
+    '\u{0000}', '\u{0001}', '\u{0002}', '\u{0003}', '\u{0004}', '\u{0005}', '\u{0006}', '\u{0007}',
+    '\u{0008}', '\u{0009}', '\u{000A}', '\u{000B}', '\u{000C}', '\u{000D}', '\u{000E}', '\u{000F}',
+    '\u{0010}', '\u{0011}', '\u{0012}', '\u{0013}', '\u{0014}', '\u{0015}', '\u{0016}', '\u{0017}',
+    '\u{0018}', '\u{0019}', '\u{001A}', '\u{001B}', '\u{001C}', '\u{001D}', '\u{001E}', '\u{001F}',
+    '\u{007F}', // DEL
+];
+
+static INVALID_CHARS: LazyLock<HashSet<char>> = LazyLock::new(
+    || // Control characters (0x00-0x1F, 0x7F) and other problematic characters
+    HashSet::from(INVALID_CHAR_ARRAY),
+);
+
+const INVALID_PATH_PATTERNS: [&str; 35] = [
+    "../",
+    "..\\",
+    "./",
+    ".\\",
+    "/etc/",
+    "\\windows\\",
+    "/proc/",
+    "/sys/",
+    "/dev/",
+    "~/.",
+    "~/",
+    "C:\\",
+    "D:\\",
+    "E:\\",
+    "F:\\",
+    "G:\\",
+    "H:\\",
+    "I:\\",
+    "J:\\",
+    "K:\\",
+    "L:\\",
+    "M:\\",
+    "N:\\",
+    "O:\\",
+    "P:\\",
+    "Q:\\",
+    "R:\\",
+    "S:\\",
+    "T:\\",
+    "U:\\",
+    "V:\\",
+    "W:\\",
+    "X:\\",
+    "Y:\\",
+    "Z:\\",
+];
 
 /// Validates that a string doesn't contain any problematic characters for database safety and security
 ///
@@ -10,98 +107,42 @@ use dialoguer::Input;
 /// - Shell injection characters (&, |, $, (, ), {, }, [, ], *, ?, ~, !, @, #, %, ^, +, =)
 /// - Empty or whitespace-only strings
 /// - Strings that are too long (max 255 characters)
-pub fn validate_input_string(input: &str, field_name: &str) -> Result<(), String> {
+pub fn validate_input_string(input: &str, field: &str) -> Result<(), String> {
     // Check for empty or whitespace-only strings
     if input.trim().is_empty() {
         return Err(format!(
-            "{} cannot be empty or contain only whitespace.",
-            field_name
+            "Value for option '{}' cannot be empty or contain only whitespace.",
+            field
         ));
     }
 
     // Check for maximum length
     if input.len() > 255 {
         return Err(format!(
-            "{} is too long (maximum 255 characters allowed).",
-            field_name
+            "Value '{}' for option '{}; is too long (maximum 255 characters allowed).",
+            input, field
         ));
     }
 
-    // Control characters (0x00-0x1F, 0x7F) and other problematic characters
-    let invalid_chars = [
-        // Control characters
-        '\0', '\x01', '\x02', '\x03', '\x04', '\x05', '\x06', '\x07', // 0x00-0x07
-        '\x08', '\x09', '\x0A', '\x0B', '\x0C', '\x0D', '\x0E', '\x0F', // 0x08-0x0F
-        '\x10', '\x11', '\x12', '\x13', '\x14', '\x15', '\x16', '\x17', // 0x10-0x17
-        '\x18', '\x19', '\x1A', '\x1B', '\x1C', '\x1D', '\x1E', '\x1F', // 0x18-0x1F
-        '\x7F', // DEL character
-        // Path separators
-        '\\', '/', // SQL injection characters
-        '\'', '"', ';', '`', // Shell injection characters
-        '&', '|', '$', '(', ')', '{', '}', '[', ']', '*', '?', '~', '!', '@', '#', '%', '^', '+',
-        '=', // Unicode control characters
-        '\u{0000}', '\u{0001}', '\u{0002}', '\u{0003}', '\u{0004}', '\u{0005}', '\u{0006}',
-        '\u{0007}', '\u{0008}', '\u{0009}', '\u{000A}', '\u{000B}', '\u{000C}', '\u{000D}',
-        '\u{000E}', '\u{000F}', '\u{0010}', '\u{0011}', '\u{0012}', '\u{0013}', '\u{0014}',
-        '\u{0015}', '\u{0016}', '\u{0017}', '\u{0018}', '\u{0019}', '\u{001A}', '\u{001B}',
-        '\u{001C}', '\u{001D}', '\u{001E}', '\u{001F}', '\u{007F}', // DEL
-    ];
-
     for (i, ch) in input.char_indices() {
-        if invalid_chars.contains(&ch) {
+        if INVALID_CHARS.contains(&ch) {
             return Err(format!(
-                "Invalid character '{}' at position {} in {}. Control characters, escape characters, path separators.",
+                "Value '{}' for option '{}' contains invalid character '{}' at position {}. \
+                Control characters, escape characters, and path separators are not allowed.",
+                input,
+                field,
                 ch.escape_default().collect::<String>(),
                 i + 1,
-                field_name
             ));
         }
     }
 
     // Check for common file path patterns that could be dangerous
-    let path_patterns = [
-        "../",
-        "..\\",
-        "./",
-        ".\\",
-        "/etc/",
-        "\\windows\\",
-        "/proc/",
-        "/sys/",
-        "/dev/",
-        "~/.",
-        "~/",
-        "C:\\",
-        "D:\\",
-        "E:\\",
-        "F:\\",
-        "G:\\",
-        "H:\\",
-        "I:\\",
-        "J:\\",
-        "K:\\",
-        "L:\\",
-        "M:\\",
-        "N:\\",
-        "O:\\",
-        "P:\\",
-        "Q:\\",
-        "R:\\",
-        "S:\\",
-        "T:\\",
-        "U:\\",
-        "V:\\",
-        "W:\\",
-        "X:\\",
-        "Y:\\",
-        "Z:\\",
-    ];
-
-    for pattern in &path_patterns {
+    for pattern in INVALID_PATH_PATTERNS {
         if input.to_lowercase().contains(pattern) {
             return Err(format!(
                 "Invalid path pattern '{}' found in {}. Path traversal patterns are not allowed.",
-                pattern, field_name
+                pattern, field
             ));
         }
     }
@@ -113,14 +154,14 @@ pub fn validate_input_string(input: &str, field_name: &str) -> Result<(), String
 pub fn get_validated_input(
     theme: &ColorfulTheme,
     prompt: &str,
-    default: Option<String>,
+    default: Option<&str>,
     field_name: &str,
 ) -> String {
     loop {
-        let input = if let Some(default_val) = default.clone() {
+        let input = if let Some(default_val) = default {
             Input::with_theme(theme)
                 .with_prompt(prompt)
-                .default(default_val)
+                .default(default_val.to_string())
                 .interact_text()
                 .inspect_err(|e| panic!("Error while prompting for {}: {e}", field_name))
                 .unwrap()
