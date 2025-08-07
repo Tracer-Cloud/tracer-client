@@ -12,6 +12,7 @@ use crate::process_identification::types::current_run::PipelineMetadata;
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::{Event, ProcessStatus};
 
+use crate::utils::env::detect_environment_type;
 use crate::utils::system_info::get_kernel_version;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
@@ -210,7 +211,19 @@ impl TracerClient {
         )
         .await?;
 
-        self.pipeline.write().await.run = Some(run);
+        // Update pipeline tags with instance_type and environment_type
+        {
+            let mut pipeline = self.pipeline.write().await;
+
+            if let Some(ref cost_summary) = run.cost_summary {
+                pipeline.tags.instance_type = Some(cost_summary.instance_type.clone());
+            }
+
+            let environment_type = detect_environment_type().await;
+            pipeline.tags.environment_type = Some(environment_type);
+
+            pipeline.run = Some(run);
+        }
 
         // NOTE: Do we need to output a totally new event if self.initialization_id.is_some() ?
         self.log_recorder
