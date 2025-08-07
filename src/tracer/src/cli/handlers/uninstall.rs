@@ -1,4 +1,5 @@
 use crate::daemon::server::DaemonServer;
+use crate::utils::env::USER_ID_ENV_VAR;
 use crate::utils::system_info::check_sudo;
 use crate::utils::workdir::TRACER_WORK_DIR;
 use crate::{success_message, warning_message};
@@ -72,7 +73,7 @@ fn remove_env(file_path: &Path) -> Result<()> {
         let trimmed = line.trim();
 
         // Check for Tracer-related content
-        if trimmed.to_lowercase().contains("tracer") || trimmed.contains("TRACER_USER_ID") {
+        if trimmed.to_lowercase().contains("tracer") || trimmed.contains(USER_ID_ENV_VAR) {
             removed_lines.push(line);
             in_tracer_block = true;
             continue;

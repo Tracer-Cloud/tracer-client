@@ -37,8 +37,6 @@ pub struct TracerClient {
     log_recorder: LogRecorder,
     pub exporter: Arc<ExporterManager>,
 
-    // deprecated
-    run_id: Option<String>,
     run_name: Option<String>,
     pub user_id: String,
     pipeline_name: String,
@@ -80,7 +78,6 @@ impl TracerClient {
             log_recorder,
             force_procfs: cli_args.force_procfs,
             pipeline_name: cli_args.pipeline_name,
-            run_id: cli_args.run_id,
             run_name: cli_args.run_name,
             user_id: cli_args.user_id,
             docker_watcher,
@@ -209,7 +206,6 @@ impl TracerClient {
             &*self.system.read().await,
             &self.pipeline_name,
             &self.pricing_client,
-            &self.run_id,
             &self.run_name,
             start_time,
         )
