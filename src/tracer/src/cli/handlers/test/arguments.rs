@@ -180,7 +180,6 @@ impl TracerCliTestArgs {
             } else {
                 let pipeline_name = self
                     .demo_pipeline_id
-                    .map(|id| id.clone())
                     .unwrap_or(DEFAULT_PIPELINE_NAME.to_string());
                 if let Some(pipeline) = pipelines.into_iter().find(|p| p.name() == pipeline_name) {
                     pipeline
