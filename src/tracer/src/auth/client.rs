@@ -16,25 +16,74 @@ use url::Url;
 
 type OAuthClient = BasicClient<ES, NS, NS, NS, ES>;
 
-pub async fn auth(config: &AuthConfig) -> Result<impl TokenResponse> {
+pub async fn auth(config: &AuthConfig) -> Result<()> {
+    // create OAuth2 client
     let oauth_client = create_oauth_client(config)?;
+    // create key exchange components
     let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
+    // get the URL to open in the browser
     let (auth_url, csrf_token) = get_auth_url(&oauth_client, pkce_challenge);
 
-    // open the auth url in browser 
-    println!("Opening browser for sign-in… If it doesn’t open, visit:\n{auth_url}");
-    open::that(auth_url.as_str())?;
+    // start webapp to receive callback
+    // Keep state across the redirect
+    let state = Arc::new(Mutex::new(Some((oauth_client, csrf_token, pkce_verifier))));
+    let state_for_route = state.clone();
 
-    let http_client = create_http_client()?;
-    let token_response = exchange_token(&oauth_client, &http_client, pkce_verifier).await?;
-    Ok(token_response)
+    // Start a tiny local HTTP server to catch the redirect -----
+    let app = Router::new().route(
+        "/callback",
+        routing::get(move |Query(q): Query<HashMap<String, String>>| {
+            let state_for_route = state_for_route.clone();
+            async move {
+                let code = q.get("code").cloned().ok_or("missing code")?;
+                let got_state = q.get("state").cloned().ok_or("missing state")?;
+
+                let (client, expected_csrf, pkce_verifier) = state_for_route
+                    .lock()
+                    .unwrap()
+                    .take()
+                    .ok_or("state already used")?;
+                if got_state != *expected_csrf.secret() {
+                    return Err::<String, String>("CSRF state mismatch".to_string());
+                }
+
+                let http_client =
+                    create_http_client().map_err(|e| format!("Error creating http client: {e}"))?;
+
+                // Exchange code for tokens
+                let token = client
+                    .exchange_code(AuthorizationCode::new(code))
+                    .set_pkce_verifier(PkceCodeVerifier::new(pkce_verifier.secret().to_owned()))
+                    .request_async(&http_client)
+                    .await
+                    .map_err(|e| format!("token exchange failed: {e}"))?;
+
+                let session_jwt = token.access_token().secret().to_string();
+                // In Clerk, this short-lived token is what you send to your API as Bearer auth.
+                Ok::<String, String>(format!(
+                    "OK, you can close this tab.\nToken (truncated): {}…",
+                    &session_jwt[..std::cmp::min(16, session_jwt.len())]
+                ))
+            }
+        }),
+    );
+
+    // Open browser to sign in
+    open::that(auth_url.as_str())?;
+    println!("Opening browser for sign-in… If it doesn’t open, visit:\n{auth_url}");
+
+    // Serve callback, then exit after first request
+    let addr: SocketAddr = config.callback_addr.parse()?;
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    axum::serve(listener, app).await?;
+    Ok(())
 }
 
 fn create_oauth_client(config: &AuthConfig) -> Result<OAuthClient> {
     let client = BasicClient::new(ClientId::new(config.client_id.clone()))
         .set_auth_uri(AuthUrl::new(config.auth_uri.clone())?)
         .set_token_uri(TokenUrl::new(config.token_uri.clone())?)
-        .set_redirect_uri(RedirectUrl::new(config.callback_uri.clone())?);
+        .set_redirect_uri(RedirectUrl::new(config.callback_uri())?);
     Ok(client)
 }
 
@@ -53,72 +102,4 @@ fn create_http_client() -> Result<HttpClient> {
         .redirect(reqwest::redirect::Policy::none())
         .build()?;
     Ok(http_client)
-}
-
-async fn exchange_token(
-    oauth_client: &OAuthClient,
-    http_client: &HttpClient,
-    pkce_verifier: PkceCodeVerifier,
-) -> Result<impl TokenResponse> {
-    let token_response = oauth_client
-        .exchange_code(AuthorizationCode::new(
-            "some authorization code".to_string(),
-        ))
-        // Set the PKCE code verifier.
-        .set_pkce_verifier(pkce_verifier)
-        .request_async(http_client)
-        .await?;
-    Ok(token_response)
-}
-
-fn get_token(token: CsrfToken) {
-    // Keep state across the redirect
-    let state = Arc::new(Mutex::new(Some((client, csrf, pkce_verifier))));
-    let state_for_route = state.clone();
-
-    // ----- Start a tiny local HTTP server to catch the redirect -----
-    let app = Router::new().route(
-        "/callback",
-        routing::get(move |Query(q): Query<HashMap<String, String>>| {
-            let state_for_route = state_for_route.clone();
-            async move {
-                let code = q.get("code").cloned().ok_or("missing code")?;
-                let got_state = q.get("state").cloned().ok_or("missing state")?;
-
-                let (client, expected_csrf, pkce_verifier) = state_for_route
-                    .lock()
-                    .unwrap()
-                    .take()
-                    .ok_or("state already used")?;
-                if got_state != expected_csrf.secret() {
-                    return Err::<String, _>("CSRF state mismatch");
-                }
-
-                // Exchange code for tokens
-                let token = client
-                    .exchange_code(AuthorizationCode::new(code))
-                    .set_pkce_verifier(PkceCodeVerifier::new(pkce_verifier.secret().to_owned()))
-                    .request_async(oauth2::reqwest::async_http_client)
-                    .await
-                    .map_err(|e| format!("token exchange failed: {e}"))?;
-
-                let session_jwt = token.access_token().secret().to_string();
-                // In Clerk, this short-lived token is what you send to your API as Bearer auth.
-                Ok::<_, &str>(format!(
-                    "OK, you can close this tab.\nToken (truncated): {}…",
-                    &session_jwt[..std::cmp::min(16, session_jwt.len())]
-                ))
-            }
-        }),
-    );
-
-    // Open browser to sign in
-    open::that(authorize_url.as_str())?;
-    println!("Opening browser for sign-in… If it doesn’t open, visit:\n{authorize_url}");
-
-    // Serve callback, then exit after first request
-    let addr: SocketAddr = "127.0.0.1:8765".parse()?;
-    let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, app.into_make_service()).await?;
-    Ok(())
 }
