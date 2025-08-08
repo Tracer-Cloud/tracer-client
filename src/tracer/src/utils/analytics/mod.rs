@@ -25,9 +25,13 @@ pub async fn send_event(
     let retry_strategy = ExponentialBackoff::from_millis(500).map(jitter).take(3);
 
     // Ensure the environment is set in metadata
-    let env_type = crate::utils::env::detect_environment_type().await;
     let mut metadata = metadata.unwrap_or_default();
-    metadata.entry("environment".into()).or_insert(env_type);
+    if !metadata.contains_key("environment") {
+        metadata.insert(
+            "environment".to_string(),
+            crate::utils::env::detect_environment_type(5).await,
+        );
+    }
 
     let payload = AnalyticsPayload {
         user_id: user_id.as_str(),
