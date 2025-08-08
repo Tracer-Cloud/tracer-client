@@ -6,6 +6,8 @@ mod test;
 mod theme;
 mod uninstall;
 mod update;
+mod stop;
+mod start;
 
 pub(super) use cleanup_port::cleanup_port;
 pub(super) use info::info;

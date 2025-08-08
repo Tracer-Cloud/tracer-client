@@ -15,10 +15,11 @@ use crate::process_identification::types::event::{Event, ProcessStatus};
 use crate::utils::env::detect_environment_type;
 use crate::utils::system_info::get_kernel_version;
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use std::sync::Arc;
 use sysinfo::System;
 use tokio::sync::{mpsc, RwLock};
+use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
 pub struct TracerClient {
@@ -26,7 +27,7 @@ pub struct TracerClient {
 
     pub process_watcher: Arc<ProcessWatcher>,
     docker_watcher: Arc<DockerWatcher>,
-
+    pub cancellation_token: CancellationToken,
     metrics_collector: SystemMetricsCollector,
 
     pipeline: Arc<RwLock<PipelineMetadata>>,
@@ -63,13 +64,13 @@ impl TracerClient {
         let exporter = Arc::new(ExporterManager::new(db_client, rx));
 
         let metrics_collector = Self::init_watchers(&event_dispatcher, &system);
-
+        let cancellation_token = CancellationToken::new();
         Ok(TracerClient {
             // if putting a value to config, also update `TracerClient::reload_config_file`
             system: system.clone(),
 
             pipeline,
-
+            cancellation_token,
             metrics_collector,
             process_watcher,
             exporter,
@@ -196,14 +197,14 @@ impl TracerClient {
         self.pipeline.clone()
     }
 
-    pub async fn start_new_run(&self, timestamp: Option<DateTime<Utc>>) -> Result<()> {
+    pub async fn start_new_run(&self) -> Result<()> {
         self.start_monitoring().await?;
 
         if self.pipeline.read().await.run.is_some() {
             self.stop_run().await?;
         }
 
-        let start_time = timestamp.unwrap_or_else(Utc::now);
+        let start_time = Utc::now();
 
         let (run, system_properties) = send_start_run_event(
             &*self.system.read().await,
@@ -236,7 +237,7 @@ impl TracerClient {
                 Some(EventAttributes::SystemProperties(Box::new(
                     system_properties,
                 ))),
-                timestamp,
+                None,
             )
             .await?;
 

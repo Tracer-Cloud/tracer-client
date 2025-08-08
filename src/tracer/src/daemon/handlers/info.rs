@@ -9,9 +9,13 @@ pub const INFO_ENDPOINT: &str = "/info";
 
 pub async fn info(State(state): State<DaemonState>) -> axum::response::Result<impl IntoResponse> {
     let guard = state.get_tracer_client().await;
-    let response = get_info_response(&guard).await;
+    if guard.is_none() {
+        return Ok(Json(None));
+    }
+    let guard = guard.as_ref().unwrap();
+    let response = get_info_response(guard).await;
 
-    Ok(Json(response))
+    Ok(Json(Some(response)))
 }
 
 pub async fn get_info_response(client: &TracerClient) -> InfoResponse {

@@ -4,7 +4,6 @@ use crate::cli::handlers::{info, terminate};
 use crate::cli::helper::wait;
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
-use crate::daemon::initialization::create_and_run_server;
 use crate::daemon::server::DaemonServer;
 use crate::utils::analytics::types::AnalyticsEventType;
 use crate::utils::system_info::check_sudo;
@@ -121,8 +120,7 @@ pub async fn init_with_default_prompt(
     }
 
     setup_logging(&args.log_level)?;
-
-    create_and_run_server(args, config).await
+    DaemonServer::new(&args).await.start(args, config).await
 }
 
 fn setup_logging(log_level: &String) -> anyhow::Result<()> {

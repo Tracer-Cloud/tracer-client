@@ -3,10 +3,13 @@ use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::Json;
 
-pub const START_ENDPOINT: &str = "/start";
+pub const STOP_ENDPOINT: &str = "/stop";
 
-pub async fn start(
+pub async fn stop(
     State(mut state): State<DaemonState>,
 ) -> axum::response::Result<impl IntoResponse> {
-    Ok(Json(state.start_tracer_client().await))
+    Ok({
+        state.stop_client().await;
+        Json(())
+    })
 }
