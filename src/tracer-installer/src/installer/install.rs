@@ -148,7 +148,7 @@ impl Installer {
 
     /// Modify the user's shell config files. If user_id is `Some`, add/update the export of
     /// TRACER_USER_ID environment variable; otherwise remove any existing export of TRACER_USER_ID.
-    /// 
+    ///
     /// TODO: it's not very nice to add our environment variable to all of the user's config
     /// files. See ENG-859 for options to improve this.
     pub async fn patch_rc_files_async(user_id: Option<String>) -> Result<()> {
