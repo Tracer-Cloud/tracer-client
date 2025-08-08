@@ -182,7 +182,13 @@ impl Installer {
         };
 
         // TODO: it's not very nice to add our environment variable to all of the user's config
-        // files. We should change to the following:
+        // files. We should change to one of the following:
+        //
+        // Option A: do not modify config files at all. Instead, store user ID to location in
+        // user's home directory (~/.config/tracer/credentials). The application should still
+        // look for user ID in the environment variable first, but fall back to the credentials file.
+        //
+        // Option B:
         // 1. If `export TRACER_USER_ID=` exists in any files already, we should update it there
         //    but not add it to any other files
         // 2. If there is no existing export, then we should add it to just one file:
