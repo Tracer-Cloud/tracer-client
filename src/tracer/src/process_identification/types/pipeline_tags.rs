@@ -11,7 +11,7 @@ pub const ORGANIZATION_ID_ENV_VAR: &str = "TRACER_ORGANIZATION_ID";
 #[derive(Args, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PipelineTags {
     /// pipeline execution context (e.g., ci-cd, sandbox, local)
-    #[clap(long, short, value_parser = StringValueParser, env = ENVIRONMENT_ENV_VAR)]
+    #[clap(short = 'e', long, value_parser = StringValueParser, env = ENVIRONMENT_ENV_VAR)]
     pub environment: Option<String>,
 
     /// pipeline type (e.g., preprocessing, RNA-seq, single-cell)
@@ -31,7 +31,7 @@ pub struct PipelineTags {
     pub organization_id: Option<String>,
 
     /// user ID to associate this session with your account
-    #[clap(long, env = USER_ID_ENV_VAR)]
+    #[clap(short = 'u', long, env = USER_ID_ENV_VAR)]
     pub user_id: Option<String>,
 
     /// cloud compute instance type (e.g., t2.micro, m5.large)
