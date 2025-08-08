@@ -25,8 +25,8 @@ pub struct TracerCliInitArgs {
     #[clap(flatten)]
     pub tags: PipelineTags,
 
-    /// do not prompt for missing inputs; the client will exit with an error if any
-    /// required inputs are missing
+    /// whether to prompt for missing inputs; if set to 'none', the client will exit with an error
+    /// if any required inputs are missing
     #[clap(short = 'i', long, default_value = "minimal")]
     pub interactive_prompts: PromptMode,
 
