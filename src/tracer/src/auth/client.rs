@@ -11,13 +11,14 @@ use oauth2::{
 use reqwest::{Client as HttpClient, ClientBuilder as HttpClientBuilder};
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
+use tokio::sync::oneshot;
 use url::Url;
 
 type OAuthClient = BasicClient<ES, NS, NS, NS, ES>;
 
-/// Executes OAuth flow and returns a JWT.
+/// Executes OAuth flow and returns a JWT, which should be used as the bearer auth on all
+/// API requests.
 pub async fn auth(config: &AuthConfig) -> Result<String> {
     // create OAuth2 client
     let oauth_client = create_oauth_client(config)?;
@@ -28,20 +29,25 @@ pub async fn auth(config: &AuthConfig) -> Result<String> {
 
     // start webapp to receive callback
     // Keep state across the redirect
-    let state = Arc::new(Mutex::new(Some((oauth_client, csrf_token, pkce_verifier))));
+    let (tx, rx) = oneshot::channel();
+    let state = Arc::new(Mutex::new(Some((
+        oauth_client,
+        csrf_token,
+        pkce_verifier,
+        tx,
+    ))));
     let state_for_route = state.clone();
-    let (tx, rx) = mpsc::channel();
 
     // Start a tiny local HTTP server to catch the redirect -----
     let app = Router::new().route(
-        "/callback",
+        &config.callback_route,
         routing::get(move |Query(q): Query<HashMap<String, String>>| {
             let state_for_route = state_for_route.clone();
             async move {
                 let code = q.get("code").cloned().ok_or("missing code")?;
                 let got_state = q.get("state").cloned().ok_or("missing state")?;
 
-                let (client, expected_csrf, pkce_verifier) = state_for_route
+                let (client, expected_csrf, pkce_verifier, tx) = state_for_route
                     .lock()
                     .unwrap()
                     .take()
@@ -80,7 +86,7 @@ pub async fn auth(config: &AuthConfig) -> Result<String> {
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
 
-    let session_jwt = match rx.recv() {
+    let session_jwt = match rx.await {
         Ok(session_jwt) => session_jwt,
         Err(e) => bail!("Did not receive session JWT: {e}"),
     };
