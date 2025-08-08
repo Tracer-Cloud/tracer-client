@@ -229,6 +229,9 @@ impl Installer {
             if updated {
                 print_message("UPDATED", path.to_str().unwrap(), TagColor::Green);
 
+                // TODO: this could fail and leave the user's rc file in a corrupted state.
+                // Instead, we should write to a temporary file and then replace the existing file.
+
                 // Write all lines back to file
                 let mut file = OpenOptions::new()
                     .write(true)
