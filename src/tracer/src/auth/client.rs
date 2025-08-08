@@ -1,5 +1,5 @@
 use crate::auth::AuthConfig;
-use anyhow::{Error, Result};
+use anyhow::{bail, Result};
 use axum::extract::Query;
 use axum::routing;
 use axum::Router;
@@ -11,12 +11,14 @@ use oauth2::{
 use reqwest::{Client as HttpClient, ClientBuilder as HttpClientBuilder};
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use url::Url;
 
 type OAuthClient = BasicClient<ES, NS, NS, NS, ES>;
 
-pub async fn auth(config: &AuthConfig) -> Result<()> {
+/// Executes OAuth flow and returns a JWT.
+pub async fn auth(config: &AuthConfig) -> Result<String> {
     // create OAuth2 client
     let oauth_client = create_oauth_client(config)?;
     // create key exchange components
@@ -28,6 +30,7 @@ pub async fn auth(config: &AuthConfig) -> Result<()> {
     // Keep state across the redirect
     let state = Arc::new(Mutex::new(Some((oauth_client, csrf_token, pkce_verifier))));
     let state_for_route = state.clone();
+    let (tx, rx) = mpsc::channel();
 
     // Start a tiny local HTTP server to catch the redirect -----
     let app = Router::new().route(
@@ -43,8 +46,9 @@ pub async fn auth(config: &AuthConfig) -> Result<()> {
                     .unwrap()
                     .take()
                     .ok_or("state already used")?;
+
                 if got_state != *expected_csrf.secret() {
-                    return Err::<String, String>("CSRF state mismatch".to_string());
+                    return Err::<(), String>("CSRF state mismatch".to_string());
                 }
 
                 let http_client =
@@ -59,11 +63,10 @@ pub async fn auth(config: &AuthConfig) -> Result<()> {
                     .map_err(|e| format!("token exchange failed: {e}"))?;
 
                 let session_jwt = token.access_token().secret().to_string();
-                // In Clerk, this short-lived token is what you send to your API as Bearer auth.
-                Ok::<String, String>(format!(
-                    "OK, you can close this tab.\nToken (truncated): {}…",
-                    &session_jwt[..std::cmp::min(16, session_jwt.len())]
-                ))
+                tx.send(session_jwt)
+                    .map_err(|e| format!("failed to send token: {e}"))?;
+
+                Ok(())
             }
         }),
     );
@@ -76,7 +79,13 @@ pub async fn auth(config: &AuthConfig) -> Result<()> {
     let addr: SocketAddr = config.callback_addr.parse()?;
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
-    Ok(())
+
+    let session_jwt = match rx.recv() {
+        Ok(session_jwt) => session_jwt,
+        Err(e) => bail!("Did not receive session JWT: {e}"),
+    };
+
+    Ok(session_jwt)
 }
 
 fn create_oauth_client(config: &AuthConfig) -> Result<OAuthClient> {
