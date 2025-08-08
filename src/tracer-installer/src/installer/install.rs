@@ -146,6 +146,11 @@ impl Installer {
         Ok(final_path)
     }
 
+    /// Modify the user's shell config files. If user_id is `Some`, add/update the export of
+    /// TRACER_USER_ID environment variable; otherwise remove any existing export of TRACER_USER_ID.
+    /// 
+    /// TODO: it's not very nice to add our environment variable to all of the user's config
+    /// files. See ENG-859 for options to improve this.
     pub async fn patch_rc_files_async(user_id: Option<String>) -> Result<()> {
         print_title("Updating Shell Configs");
 
@@ -175,32 +180,6 @@ impl Installer {
             warning_message!("No user ID provided, skipping user ID persistence");
             None
         };
-
-        // TODO: it's not very nice to add our environment variable to all of the user's config
-        // files. We should change to one of the following:
-        //
-        // Option A: do not modify config files at all. Instead, store user ID to location in
-        // user's home directory (~/.config/tracer/credentials). The application should still
-        // look for user ID in the environment variable first, but fall back to the credentials file.
-        //
-        // Option B:
-        // 1. If `export TRACER_USER_ID=` exists in any files already, we should update it there
-        //    but not add it to any other files
-        // 2. If there is no existing export, then we should add it to just one file:
-        //    - Look at $SHELL to figure out the default shell (for now only support bash and zsh)
-        //      - If $SHELL is unset, assume zsh for MacOS and bash otherwise
-        //    - If bash, see if either .bashrc or .bash_profile source .profile
-        //      - If yes, add the environment variable to .profile
-        //      - Otherwise add it to .bashrc, fall back to .bash_profile if .bashrc doesn't exist
-        //    - If zsh, see if either .zshrc or .zprofile source .profile
-        //      - If yes, add the environment variable to .profile
-        //      - Otherwise add it to .zshrc, fall back to .zprofile if .zshrc doesn't exist
-        // 3. After editing the config files, open a new shell in a subcommand and make sure that
-        //    the environment variable is set; if not, warn the user that they need to manually
-        //    modify their config file
-        // 4. Add an option to enable the user to not have their config file(s) modified - if
-        //    this option is set, just print out the line they need to add and suggest where they
-        //    should add it based on the heuristic in #2
 
         // reuse line buffer
         let mut lines = Vec::new();
