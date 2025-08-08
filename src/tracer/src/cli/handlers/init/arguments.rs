@@ -9,6 +9,7 @@ use serde::Serialize;
 pub const PIPELINE_NAME_ENV_VAR: &str = "TRACER_PIPELINE_NAME";
 pub const RUN_NAME_ENV_VAR: &str = "TRACER_RUN_NAME";
 pub const LOG_LEVEL_ENV_VAR: &str = "TRACER_LOG_LEVEL";
+pub const USERNAME_ENV_VAR: &str = "USER";
 
 #[derive(Default, Args, Debug, Clone)]
 pub struct TracerCliInitArgs {
@@ -86,6 +87,8 @@ impl TracerCliInitArgs {
             }
             (None, PromptMode::None) => None,
         }
+        // TODO: remove this once we can source the user ID from the credentials file
+        .or_else(|| env::get_env_var(USERNAME_ENV_VAR))
         .or_else(print_help)
         .expect("Failed to get user ID from environment variable, command line, or prompt");
         tags.user_id = Some(user_id.clone());
