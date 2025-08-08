@@ -1,7 +1,7 @@
 use crate::cli::handlers::INTERACTIVE_THEME;
 use crate::process_identification::types::pipeline_tags::PipelineTags;
 use crate::utils::input_validation::{get_validated_input, StringValueParser};
-use clap::Args;
+use clap::{Args, ValueEnum};
 use dialoguer::Select;
 use serde::Serialize;
 
@@ -13,7 +13,7 @@ pub const LOG_LEVEL_ENV_VAR: &str = "TRACER_LOG_LEVEL";
 pub struct TracerCliInitArgs {
     /// the name of the pipeline you will run; all pipelines with the same name are
     /// grouped together in the Tracer dashboard
-    #[clap(long, short, value_parser = StringValueParser, env = PIPELINE_NAME_ENV_VAR)]
+    #[clap(short = 'p', long, value_parser = StringValueParser, env = PIPELINE_NAME_ENV_VAR)]
     pub pipeline_name: Option<String>,
 
     /// a unique name for this run that will be displayed in the UI; if not specified,
@@ -26,8 +26,8 @@ pub struct TracerCliInitArgs {
 
     /// do not prompt for missing inputs; the client will exit with an error if any
     /// required inputs are missing
-    #[clap(short = 'f', long)]
-    pub non_interactive: bool,
+    #[clap(short = 'i', long)]
+    pub interactive_prompts: PromptMode,
 
     /// force process polling even if eBPF is available; this enables you to use
     /// the client without having root/sudo privileges
@@ -48,28 +48,54 @@ pub struct TracerCliInitArgs {
     pub dev: bool,
 }
 
+#[derive(Debug, Default, Clone, PartialEq, ValueEnum)]
 pub enum PromptMode {
-    Always,
-    Never,
-    WhenMissing,
+    /// do not prompt (i.e. non-interactive)
+    None,
+    /// only prompt for minimal information - automatically generate missing values when possible
+    #[default]
+    Minimal,
+    /// prompt for all required values
+    Required,
+    // /// prompt for all values
+    // All,
 }
 
 impl TracerCliInitArgs {
-    pub fn finalize(self, default_prompt_mode: PromptMode) -> FinalizedInitArgs {
-        let prompt_mode = if self.non_interactive {
-            PromptMode::Never
-        } else {
-            default_prompt_mode
-        };
+    /// Fill in any missing arguments according to the `PromptMode`.
+    /// If `confirm` is `true`, then the user will be prompted for all options, and any specified
+    /// values will be used as defaults; otherwise, the user is only be for missing values.
+    pub fn finalize(self, confirm: bool) -> FinalizedInitArgs {
+        let prompt_mode = self.interactive_prompts;
+        let mut tags = self.tags;
 
-        // Validate pipeline name
-        let pipeline_name = match (self.pipeline_name, &prompt_mode) {
-            (Some(name), PromptMode::Never | PromptMode::WhenMissing) => Some(name),
-            (Some(name), PromptMode::Always) => Some(Self::prompt_for_pipeline_name(&name)),
-            (None, PromptMode::Always | PromptMode::WhenMissing) => {
-                Some(Self::prompt_for_pipeline_name("demo_pipeline"))
+        // user_id is required - try to get it from the command line, fall back to user prompt
+        // unless mode is set to non-interactive; error if missing
+        let user_id = match (tags.user_id, prompt_mode) {
+            (Some(user_id), PromptMode::Minimal | PromptMode::Required) if confirm => {
+                Some(Self::prompt_for_user_id(Some(&user_id)))
             }
-            (None, PromptMode::Never) => None,
+            (Some(user_id), _) => Some(user_id),
+            (None, PromptMode::Minimal | PromptMode::Required) => {
+                Some(Self::prompt_for_user_id(None))
+            }
+            (None, PromptMode::None) => None,
+        }
+        .or_else(print_help)
+        .expect("Failed to get user ID from environment variable, command line, or prompt");
+        tags.user_id = Some(user_id.clone());
+
+        // pipeline name is required - try to get it from the command line, fall back to user
+        // prompt unless mode is set to non-interactive; generate from user-id if missing
+        let pipeline_name = match (self.pipeline_name, prompt_mode) {
+            (Some(name), PromptMode::Minimal | PromptMode::Required) if confirm => {
+                Some(Self::prompt_for_pipeline_name(&name))
+            }
+            (Some(name), _) => Some(name),
+            (None, PromptMode::Minimal | PromptMode::Required) => Some(
+                Self::prompt_for_pipeline_name(Self::generate_pipeline_name(&user_id)),
+            ),
+            (None, PromptMode::None) => Some(Self::generate_pipeline_name(&user_id)),
         }
         .or_else(print_help)
         .expect("Failed to get pipeline name from command line, environment variable, or prompt");
@@ -80,12 +106,15 @@ impl TracerCliInitArgs {
             .map(|name| name.trim().to_string())
             .filter(|name| !name.is_empty());
 
-        let mut tags = self.tags;
-
-        let environment = match (tags.environment, &prompt_mode) {
-            (Some(name), PromptMode::Never | PromptMode::WhenMissing) => Some(name),
-            (Some(name), PromptMode::Always) => Some(Self::prompt_for_environment_name(&name)),
-            (None, PromptMode::Always | PromptMode::WhenMissing) => {
+        // Environment is required but not included in minimal options - try to get it from the
+        // command line, fall back to user prompt if the mode allows it, otherwise generate a
+        // default value
+        let environment = match (tags.environment, prompt_mode) {
+            (Some(name), PromptMode::Required) if confirm => {
+                Some(Self::prompt_for_environment_name(&name))
+            }
+            (Some(name), _) => Some(name),
+            (None, PromptMode::Required) => {
                 Some(Self::prompt_for_environment_name("local"))
             }
             (None, PromptMode::Never) => None,
@@ -106,19 +135,6 @@ impl TracerCliInitArgs {
         .expect("Failed to get pipeline type from command line, environment variable, or prompt");
         tags.pipeline_type = Some(pipeline_type);
 
-        // First try to get user_id from the tags, then from the environment variable, then prompt
-        let user_id = match (tags.user_id, prompt_mode) {
-            (Some(user_id), PromptMode::Never | PromptMode::WhenMissing) => Some(user_id),
-            (Some(user_id), PromptMode::Always) => Some(Self::prompt_for_user_id(Some(&user_id))),
-            (None, PromptMode::Always | PromptMode::WhenMissing) => {
-                Some(Self::prompt_for_user_id(None))
-            }
-            (None, PromptMode::Never) => None,
-        }
-        .or_else(print_help)
-        .expect("Failed to get user ID from environment variable, command line, or prompt");
-        tags.user_id = Some(user_id.clone());
-
         FinalizedInitArgs {
             pipeline_name,
             run_name,
@@ -131,11 +147,16 @@ impl TracerCliInitArgs {
         }
     }
 
-    fn prompt_for_pipeline_name(default: &str) -> String {
+    fn generate_pipeline_name(user_id: &str) -> String {
+        // TODO: use username instead? Either from UI (via API call) or from env::get_env("USER").
+        format!("test-{}", user_id)
+    }
+
+    fn prompt_for_pipeline_name<S: AsRef<str>>(default: S) -> String {
         get_validated_input(
             &INTERACTIVE_THEME,
             "Enter pipeline name (e.g., RNA-seq_analysis_v1, scRNA-seq_2024)",
-            Some(default),
+            Some(default.as_ref()),
             "pipeline name",
         )
     }
