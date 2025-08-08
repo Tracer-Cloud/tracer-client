@@ -3,6 +3,7 @@ use std::env;
 use std::fs;
 use std::path::Path;
 use std::time::Duration;
+use std::time::Duration;
 
 // Environment variables that control init parameters
 pub const TRACE_ID_ENV_VAR: &str = "TRACER_TRACE_ID";
@@ -39,7 +40,11 @@ fn is_docker() -> bool {
     false
 }
 
-pub(crate) async fn detect_environment_type(timeout: u64) -> String {
+/// Try to detect the environment type as one of Docker, GitHub Codespaces,
+/// GitHub Actions, AWS Batch, AWS EC2, or Local. When checking whether the
+/// environment is EC2, this function may query the metadata server -
+/// `timeout_secs` is used to set the timeout for that query.
+pub(crate) async fn detect_environment_type(timeout_secs: u64) -> String {
     let running_in_docker = is_docker();
 
     if is_codespaces() {
@@ -57,7 +62,7 @@ pub(crate) async fn detect_environment_type(timeout: u64) -> String {
         return "AWS Batch".into();
     }
 
-    if detect_ec2_environment(timeout).await.is_some() {
+    if detect_ec2_environment(timeout_secs).await.is_some() {
         return if running_in_docker {
             "AWS EC2 (Docker)".into()
         } else {
@@ -65,7 +70,7 @@ pub(crate) async fn detect_environment_type(timeout: u64) -> String {
         };
     }
 
-    if is_docker() {
+    if running_in_docker {
         return "Docker".into();
     }
 
