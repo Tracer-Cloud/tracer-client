@@ -61,6 +61,9 @@ dashmap = { workspace = true }
 termion = { workspace = true }
 git2 = { workspace = true }
 which = { workspace = true }
+open = { workspace = true }
+oauth2 = { workspace = true }
+url = { workspace = true }
 
 [dev-dependencies]
 sqlx = { workspace = true }
