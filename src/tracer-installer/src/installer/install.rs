@@ -181,6 +181,26 @@ impl Installer {
             None
         };
 
+        // TODO: it's not very nice to add our environment variable to all of the user's config
+        // files. We should change to the following:
+        // 1. If `export TRACER_USER_ID=` exists in any files already, we should update it there
+        //    but not add it to any other files
+        // 2. If there is no existing export, then we should add it to just one file:
+        //    - Look at $SHELL to figure out the default shell (for now only support bash and zsh)
+        //      - If $SHELL is unset, assume zsh for MacOS and bash otherwise
+        //    - If bash, see if either .bashrc or .bash_profile source .profile
+        //      - If yes, add the environment variable to .profile
+        //      - Otherwise add it to .bashrc, fall back to .bash_profile if .bashrc doesn't exist
+        //    - If zsh, see if either .zshrc or .zprofile source .profile
+        //      - If yes, add the environment variable to .profile
+        //      - Otherwise add it to .zshrc, fall back to .zprofile if .zshrc doesn't exist
+        // 3. After editing the config files, open a new shell in a subcommand and make sure that
+        //    the environment variable is set; if not, warn the user that they need to manually
+        //    modify their config file
+        // 4. Add an option to enable the user to not have their config file(s) modified - if
+        //    this option is set, just print out the line they need to add and suggest where they
+        //    should add it based on the heuristic in #2
+
         // reuse line buffer
         let mut lines = Vec::new();
 
