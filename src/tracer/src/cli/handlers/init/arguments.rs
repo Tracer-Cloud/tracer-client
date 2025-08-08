@@ -114,9 +114,7 @@ impl TracerCliInitArgs {
                 Some(Self::prompt_for_environment_name(&name))
             }
             (Some(name), _) => Some(name),
-            (None, PromptMode::Required) => {
-                Some(Self::prompt_for_environment_name("local"))
-            }
+            (None, PromptMode::Required) => Some(Self::prompt_for_environment_name("local")),
             (None, PromptMode::Never) => None,
         }
         .or_else(print_help)
