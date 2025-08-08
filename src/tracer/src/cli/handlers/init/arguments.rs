@@ -67,7 +67,11 @@ impl TracerCliInitArgs {
     /// If `confirm` is `true`, then the user will be prompted for all options, and any specified
     /// values will be used as defaults; otherwise, the user is only be for missing values.
     pub async fn finalize(self, default_pipeline_prefix: &str, confirm: bool) -> FinalizedInitArgs {
-        let prompt_mode = self.interactive_prompts;
+        let prompt_mode = if self.no_daemonize {
+            PromptMode::None
+        } else {
+            self.interactive_prompts
+        };
         let mut tags = self.tags;
 
         // user_id is required - try to get it from the command line, fall back to user prompt
@@ -112,8 +116,10 @@ impl TracerCliInitArgs {
             .map(|name| name.trim().to_string())
             .filter(|name| !name.is_empty());
 
-        if tags.environment_type.is_none() {
-            tags.environment_type = Some(env::detect_environment_type().await);
+        // this call can take a while - if this is the daemon process being spawned, defer it until
+        // we create the client, otherwise use a short timeout so the init call doesn't take too long
+        if tags.environment_type.is_none() && !self.no_daemonize {
+            tags.environment_type = Some(env::detect_environment_type(1).await);
         }
 
         // Environment is required but not included in minimal options - try to get it from the
