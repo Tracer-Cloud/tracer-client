@@ -7,6 +7,8 @@ pub const ENVIRONMENT_ENV_VAR: &str = "TRACER_ENVIRONMENT";
 pub const DEPARTMENT_ENV_VAR: &str = "TRACER_DEPARTMENT";
 pub const TEAM_ENV_VAR: &str = "TRACER_TEAM";
 pub const ORGANIZATION_ID_ENV_VAR: &str = "TRACER_ORGANIZATION_ID";
+pub const INSTANCE_TYPE_ENV_VAR: &str = "TRACER_INSTANCE_TYPE";
+pub const ENVIRONMENT_TYPE_ENV_VAR: &str = "TRACER_ENVIRONMENT_TYPE";
 
 #[derive(Args, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PipelineTags {
@@ -35,11 +37,11 @@ pub struct PipelineTags {
     pub user_id: Option<String>,
 
     /// cloud compute instance type (e.g., t2.micro, m5.large)
-    #[clap(long)]
+    #[clap(long, env = INSTANCE_TYPE_ENV_VAR)]
     pub instance_type: Option<String>,
 
     /// execution environment type (e.g., GitHub Actions, AWS EC2, Local)
-    #[clap(long)]
+    #[clap(long, env = ENVIRONMENT_TYPE_ENV_VAR)]
     pub environment_type: Option<String>,
 
     /// other tags you'd like to attach to this session

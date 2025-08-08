@@ -1,5 +1,6 @@
 use crate::cli::handlers::INTERACTIVE_THEME;
 use crate::process_identification::types::pipeline_tags::PipelineTags;
+use crate::utils::env;
 use crate::utils::input_validation::{get_validated_input, StringValueParser};
 use clap::{Args, ValueEnum};
 use dialoguer::Select;
@@ -26,7 +27,7 @@ pub struct TracerCliInitArgs {
 
     /// do not prompt for missing inputs; the client will exit with an error if any
     /// required inputs are missing
-    #[clap(short = 'i', long)]
+    #[clap(short = 'i', long, default_value = "minimal")]
     pub interactive_prompts: PromptMode,
 
     /// force process polling even if eBPF is available; this enables you to use
@@ -65,13 +66,13 @@ impl TracerCliInitArgs {
     /// Fill in any missing arguments according to the `PromptMode`.
     /// If `confirm` is `true`, then the user will be prompted for all options, and any specified
     /// values will be used as defaults; otherwise, the user is only be for missing values.
-    pub fn finalize(self, confirm: bool) -> FinalizedInitArgs {
+    pub async fn finalize(self, default_pipeline_prefix: &str, confirm: bool) -> FinalizedInitArgs {
         let prompt_mode = self.interactive_prompts;
         let mut tags = self.tags;
 
         // user_id is required - try to get it from the command line, fall back to user prompt
         // unless mode is set to non-interactive; error if missing
-        let user_id = match (tags.user_id, prompt_mode) {
+        let user_id = match (tags.user_id, &prompt_mode) {
             (Some(user_id), PromptMode::Minimal | PromptMode::Required) if confirm => {
                 Some(Self::prompt_for_user_id(Some(&user_id)))
             }
@@ -87,15 +88,20 @@ impl TracerCliInitArgs {
 
         // pipeline name is required - try to get it from the command line, fall back to user
         // prompt unless mode is set to non-interactive; generate from user-id if missing
-        let pipeline_name = match (self.pipeline_name, prompt_mode) {
+        let pipeline_name = match (self.pipeline_name, &prompt_mode) {
             (Some(name), PromptMode::Minimal | PromptMode::Required) if confirm => {
                 Some(Self::prompt_for_pipeline_name(&name))
             }
             (Some(name), _) => Some(name),
-            (None, PromptMode::Minimal | PromptMode::Required) => Some(
-                Self::prompt_for_pipeline_name(Self::generate_pipeline_name(&user_id)),
-            ),
-            (None, PromptMode::None) => Some(Self::generate_pipeline_name(&user_id)),
+            (None, PromptMode::Minimal | PromptMode::Required) => {
+                Some(Self::prompt_for_pipeline_name(
+                    Self::generate_pipeline_name(default_pipeline_prefix, &user_id),
+                ))
+            }
+            (None, PromptMode::None) => Some(Self::generate_pipeline_name(
+                default_pipeline_prefix,
+                &user_id,
+            )),
         }
         .or_else(print_help)
         .expect("Failed to get pipeline name from command line, environment variable, or prompt");
@@ -106,48 +112,54 @@ impl TracerCliInitArgs {
             .map(|name| name.trim().to_string())
             .filter(|name| !name.is_empty());
 
+        if tags.environment_type.is_none() {
+            println!("here");
+            tags.environment_type = Some(env::detect_environment_type().await);
+            println!("here2");
+        }
+
         // Environment is required but not included in minimal options - try to get it from the
         // command line, fall back to user prompt if the mode allows it, otherwise generate a
         // default value
-        let environment = match (tags.environment, prompt_mode) {
-            (Some(name), PromptMode::Required) if confirm => {
-                Some(Self::prompt_for_environment_name(&name))
+        let environment = match (tags.environment, &prompt_mode) {
+            (Some(env), PromptMode::Required) if confirm => {
+                Some(Self::prompt_for_environment_name(&env))
             }
             (Some(name), _) => Some(name),
+            (None, PromptMode::Required) if tags.environment_type.is_some() => Some(
+                Self::prompt_for_environment_name(tags.environment_type.as_ref().unwrap()),
+            ),
             (None, PromptMode::Required) => Some(Self::prompt_for_environment_name("local")),
-            (None, PromptMode::Never) => None,
+            (None, _) if tags.environment_type.is_some() => tags.environment_type.clone(),
+            (None, _) => Some("local".to_string()),
         }
         .or_else(print_help)
         .expect("Failed to get environment from command line, environment variable, or prompt");
         tags.environment = Some(environment);
 
         let pipeline_type = match (tags.pipeline_type, &prompt_mode) {
-            (Some(name), PromptMode::Never | PromptMode::WhenMissing) => Some(name),
-            (Some(name), PromptMode::Always) => Some(Self::prompt_for_pipeline_type(&name)),
-            (None, PromptMode::Always | PromptMode::WhenMissing) => {
-                Some(Self::prompt_for_pipeline_type("RNA-seq"))
-            }
-            (None, PromptMode::Never) => None,
-        }
-        .or_else(print_help)
-        .expect("Failed to get pipeline type from command line, environment variable, or prompt");
+            (Some(env), PromptMode::Required) if confirm => Self::prompt_for_pipeline_type(&env),
+            (Some(env), _) => env,
+            (None, PromptMode::Required) => Self::prompt_for_pipeline_type("preprocessing"),
+            (None, _) => "preprocessing".to_string(),
+        };
         tags.pipeline_type = Some(pipeline_type);
 
         FinalizedInitArgs {
             pipeline_name,
             run_name,
+            user_id,
             tags,
             no_daemonize: self.no_daemonize,
             dev: self.dev,
             force_procfs: self.force_procfs,
-            user_id,
             log_level: self.log_level,
         }
     }
 
-    fn generate_pipeline_name(user_id: &str) -> String {
+    fn generate_pipeline_name(prefix: &str, user_id: &str) -> String {
         // TODO: use username instead? Either from UI (via API call) or from env::get_env("USER").
-        format!("test-{}", user_id)
+        format!("{}-{}", prefix, user_id)
     }
 
     fn prompt_for_pipeline_name<S: AsRef<str>>(default: S) -> String {
@@ -231,18 +243,22 @@ fn print_help<T>() -> Option<T> {
     println!(
         r#"
     The following parameters may be set interactively or with command-line options or environment
-    variables. Required parameters are denoted by (*).
+    variables. Required parameters that must be specified by the user are denoted by (*). Required
+    parameters that will have auto-generated values by default are denoted by (**). Optional
+    parameters that are auto-detected from the environment if unset are denoted by (***).
 
-    Parameter       | Command Line Option | Environment Variable
-    ----------------|---------------------|-----------------------
-    pipeline_name*  | --pipeline-name     | TRACER_PIPELINE_NAME
-    pipeline_type*  | --pipeline-type     | TRACER_PIPELINE_TYPE
-    environment*    | --environment       | TRACER_ENVIRONMENT
-    user_id*        | --user-id           | TRACER_USER_ID
-    run_name        | --run-name          | TRACER_RUN_NAME
-    department      | --department        | TRACER_DEPARTMENT
-    team            | --team              | TRACER_TEAM
-    organization_id | --organization-id   | TRACER_ORGANIZATION_ID
+    Parameter           | Command Line Option | Environment Variable
+    --------------------|---------------------|-----------------------
+    user_id*            | --user-id           | TRACER_USER_ID
+    pipeline_name**     | --pipeline-name     | TRACER_PIPELINE_NAME
+    pipeline_type**     | --pipeline-type     | TRACER_PIPELINE_TYPE
+    environment**       | --environment       | TRACER_ENVIRONMENT
+    run_name            | --run-name          | TRACER_RUN_NAME
+    department          | --department        | TRACER_DEPARTMENT
+    team                | --team              | TRACER_TEAM
+    organization_id     | --organization-id   | TRACER_ORGANIZATION_ID
+    instance_type***    | --instance-type     | TRACER_INSTANCE_TYPE
+    environment_type*** | --environment-type  | TRACER_ENVIRONMENT_TYPE
     "#
     );
     None::<T>
@@ -253,10 +269,11 @@ fn print_help<T>() -> Option<T> {
 pub struct FinalizedInitArgs {
     pub pipeline_name: String,
     pub run_name: Option<String>,
+    /// This is the same user_id as in tags, but is not optional
+    pub user_id: String,
     pub tags: PipelineTags,
     pub no_daemonize: bool,
     pub dev: bool,
     pub force_procfs: bool,
-    pub user_id: String,
     pub log_level: String,
 }
