@@ -134,10 +134,7 @@ impl TryFrom<PipelineMetadata> for InnerInfoResponse {
 
 impl InnerInfoResponse {
     pub fn get_run_url(&self) -> String {
-        format!(
-            "{}/{}/{}",
-            DASHBOARD_BASE, self.pipeline_name, self.run_name
-        )
+        format!("{}/{}/{}", DASHBOARD_BASE, self.pipeline_name, self.run_id)
     }
     pub fn total_runtime(&self) -> TimeDelta {
         Utc::now() - self.start_time
