@@ -4,6 +4,7 @@ use crate::utils::env;
 use crate::utils::input_validation::{get_validated_input, StringValueParser};
 use crate::warning_message;
 use clap::{Args, ValueEnum};
+use colored::Colorize;
 use dialoguer::Select;
 use serde::Serialize;
 
@@ -94,7 +95,7 @@ impl TracerCliInitArgs {
             if let Some(username) = &username {
                 warning_message!(
                     "Failed to get user ID from environment variable, command line, or prompt. \
-                    defaulting to the system username {}, which may not be your Tracer user ID! \
+                    defaulting to the system username '{}', which may not be your Tracer user ID! \
                     Please set the TRACER_USER_ID environment variable or specify the --user-id \
                     option.",
                     username
