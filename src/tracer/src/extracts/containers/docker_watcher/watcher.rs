@@ -1,7 +1,7 @@
 use crate::extracts::containers::docker_watcher::event::{
     ContainerEvent, ContainerId, ContainerState,
 };
-use crate::process_identification::recorder::LogRecorder;
+use crate::process_identification::recorder::EventDispatcher;
 use anyhow::Result;
 use bollard::models::EventMessage;
 use bollard::query_parameters::{EventsOptionsBuilder, InspectContainerOptions};
@@ -16,12 +16,12 @@ use tracer_ebpf::ebpf_trigger::exit_code_explanation;
 #[derive(Clone)]
 pub struct DockerWatcher {
     docker: Option<Docker>,
-    recorder: LogRecorder,
+    recorder: EventDispatcher,
     container_state: Arc<RwLock<HashMap<ContainerId, ContainerEvent>>>, // Keyed by container ID
 }
 
 impl DockerWatcher {
-    pub fn new(recorder: LogRecorder) -> Self {
+    pub fn new(recorder: EventDispatcher) -> Self {
         let docker = Docker::connect_with_unix_defaults().ok(); // returns Option<Docker>
 
         if docker.is_none() {

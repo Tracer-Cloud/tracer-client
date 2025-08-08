@@ -66,7 +66,7 @@ pub enum Command {
     Start,
 
     /// End the current pipeline run
-    End,
+    Stop,
 
     /// Shows the current version of the daemon
     Version,

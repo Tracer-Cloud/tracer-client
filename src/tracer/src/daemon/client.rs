@@ -1,7 +1,7 @@
-use super::structs::{InfoResponse, RunData};
-use crate::daemon::handlers::end::END_ENDPOINT;
+use super::structs::InfoResponse;
 use crate::daemon::handlers::info::INFO_ENDPOINT;
 use crate::daemon::handlers::start::START_ENDPOINT;
+use crate::daemon::handlers::stop::STOP_ENDPOINT;
 use crate::daemon::handlers::terminate::TERMINATE_ENDPOINT;
 use reqwest::Response;
 pub use reqwest::Result;
@@ -25,7 +25,7 @@ impl DaemonClient {
         format!("{}{}", self.base_uri, path)
     }
 
-    pub async fn send_start_run_request(&self) -> Result<Option<RunData>> {
+    pub async fn send_start_request(&self) -> Result<bool> {
         self.client
             .post(self.get_url(START_ENDPOINT))
             .send()
@@ -44,13 +44,14 @@ impl DaemonClient {
             .map(|_| ())
     }
 
-    pub async fn send_end_request(&self) -> Result<()> {
+    pub async fn send_stop_request(&self) -> Result<bool> {
         self.client
-            .post(self.get_url(END_ENDPOINT))
+            .post(self.get_url(STOP_ENDPOINT))
             .send()
             .await?
-            .error_for_status()
-            .map(|_| ())
+            .error_for_status()?
+            .json()
+            .await
     }
 
     pub async fn send_info_request(&self) -> Result<InfoResponse> {

@@ -1,4 +1,9 @@
+use crate::cli::handlers::init_arguments::FinalizedInitArgs;
 use crate::client::TracerClient;
+use crate::config::Config;
+use crate::daemon::server::process_monitor::monitor;
+use anyhow::Context;
+use log::warn;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::MutexGuard;
@@ -6,26 +11,61 @@ use tokio_util::sync::CancellationToken;
 
 #[derive(Clone)]
 pub(super) struct DaemonState {
-    tracer_client: Arc<Mutex<TracerClient>>,
-    cancellation_token: CancellationToken,
+    args: Arc<Mutex<FinalizedInitArgs>>,
+    config: Arc<Mutex<Config>>,
+    tracer_client: Option<Arc<Mutex<TracerClient>>>,
+    server_token: CancellationToken,
 }
 
 impl DaemonState {
-    pub fn new(
-        tracer_client: Arc<Mutex<TracerClient>>,
-        cancellation_token: CancellationToken,
-    ) -> Self {
+    pub fn new(args: FinalizedInitArgs, config: Config, server_token: CancellationToken) -> Self {
         Self {
-            tracer_client,
-            cancellation_token,
+            args: Arc::new(Mutex::new(args)),
+            config: Arc::new(Mutex::new(config)),
+            tracer_client: None,
+            server_token,
         }
     }
 
-    pub async fn get_tracer_client(&self) -> MutexGuard<TracerClient> {
-        self.tracer_client.lock().await
+    pub async fn get_tracer_client(&self) -> Option<MutexGuard<TracerClient>> {
+        if let Some(ref client) = self.tracer_client {
+            Some(client.lock().await)
+        } else {
+            None
+        }
     }
 
-    pub fn cancel(&self) {
-        self.cancellation_token.cancel();
+    pub fn terminate_server(&self) {
+        self.server_token.cancel();
+    }
+    pub async fn stop_client(&mut self) {
+        if self.tracer_client.is_some() {
+            let option_client = self.tracer_client.clone().unwrap();
+            let client = option_client.lock().await;
+            client.cancellation_token.cancel();
+            self.tracer_client.take();
+        } else {
+            warn!("No run found");
+        }
+    }
+
+    pub async fn start_tracer_client(&mut self) -> bool {
+        if self.tracer_client.is_some() {
+            warn!("Tracer client is already running.");
+            return false;
+        }
+
+        let args = self.args.lock().await.clone();
+        let config = self.config.lock().await.clone();
+        let db_client = crate::daemon::helper::get_db_client(&args, &config).await;
+        let client = TracerClient::new(config, db_client, args)
+            .await
+            .context("Failed to create TracerClient")
+            .unwrap();
+        let client = Arc::new(Mutex::new(client));
+        self.tracer_client.replace(client.clone());
+
+        monitor(client, self.server_token.clone()).await;
+        true
     }
 }

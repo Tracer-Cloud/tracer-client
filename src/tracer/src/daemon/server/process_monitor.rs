@@ -20,8 +20,8 @@ pub(super) async fn monitor_processes(tracer_client: &mut TracerClient) -> Resul
 
 fn spawn_worker_thread<F, Fut>(
     interval_ms: u64,
-    paused: Arc<Mutex<bool>>,
-    cancellation_token: CancellationToken,
+    server_token: CancellationToken,
+    client_token: CancellationToken,
     work_fn: F,
 ) -> JoinHandle<()>
 where
@@ -32,14 +32,13 @@ where
         let mut interval = tokio::time::interval(Duration::from_millis(interval_ms));
         loop {
             tokio::select! {
-                _ = cancellation_token.cancelled() => {
+                _ = server_token.cancelled() => {
+                    break;
+                }
+                _ = client_token.cancelled() => {
                     break;
                 }
                 _ = interval.tick() => {
-                    if *paused.lock().await {
-                        continue;
-                    }
-
                     match tokio::time::timeout(Duration::from_secs(50), work_fn()).await {
                         Ok(_) => {
                             // Work completed within 50 seconds
@@ -54,11 +53,7 @@ where
     })
 }
 
-pub async fn monitor(
-    client: Arc<Mutex<TracerClient>>,
-    cancellation_token: CancellationToken,
-    paused: Arc<Mutex<bool>>,
-) {
+pub async fn monitor(client: Arc<Mutex<TracerClient>>, server_token: CancellationToken) {
     let (
         submission_interval_ms,
         system_metrics_interval_ms,
@@ -66,9 +61,10 @@ pub async fn monitor(
         exporter,
         retry_attempts,
         retry_delay,
+        client_token,
     ) = {
         let client = client.lock().await;
-        client.start_new_run(None).await.unwrap();
+        client.start_new_run().await.unwrap();
         let config = client.get_config();
         (
             config.batch_submission_interval_ms,
@@ -77,6 +73,7 @@ pub async fn monitor(
             Arc::clone(&client.exporter),
             config.batch_submission_retries,
             config.batch_submission_retry_delay_ms,
+            client.cancellation_token.clone(),
         )
     };
 
@@ -85,8 +82,8 @@ pub async fn monitor(
         let exporter = Arc::clone(&exporter);
         spawn_worker_thread(
             submission_interval_ms,
-            Arc::clone(&paused),
-            cancellation_token.clone(),
+            server_token.clone(),
+            client_token.clone(),
             move || {
                 let exporter = Arc::clone(&exporter);
                 async move {
@@ -102,8 +99,8 @@ pub async fn monitor(
         let client = Arc::clone(&client);
         spawn_worker_thread(
             system_metrics_interval_ms,
-            Arc::clone(&paused),
-            cancellation_token.clone(),
+            server_token.clone(),
+            client_token.clone(),
             move || {
                 let client = Arc::clone(&client);
                 async move {
@@ -119,8 +116,8 @@ pub async fn monitor(
         let client = Arc::clone(&client);
         spawn_worker_thread(
             process_metrics_interval_ms,
-            Arc::clone(&paused),
-            cancellation_token.clone(),
+            server_token.clone(),
+            client_token.clone(),
             move || {
                 let client = Arc::clone(&client);
                 async move {
@@ -137,7 +134,7 @@ pub async fn monitor(
             if let Err(join_error) = result {
                 if join_error.is_panic() {
                     error!("Submission thread panicked");
-                    cancellation_token.cancel();
+                    server_token.cancel();
                 }
             }
         }
@@ -145,7 +142,7 @@ pub async fn monitor(
             if let Err(join_error) = result {
                 if join_error.is_panic() {
                     error!("System metrics thread panicked");
-                    cancellation_token.cancel();
+                    server_token.cancel();
                 }
             }
         }
@@ -153,11 +150,24 @@ pub async fn monitor(
             if let Err(join_error) = result {
                 if join_error.is_panic() {
                     error!("Process metrics thread panicked");
-                    cancellation_token.cancel();
+                    server_token.cancel();
                 }
             }
         }
     }
+
+    // submit all data left
+    let guard = client.lock().await;
+    let config = guard.get_config();
+    guard
+        .exporter
+        .submit_batched_data(
+            config.batch_submission_retries,
+            config.batch_submission_retry_delay_ms,
+        )
+        .await
+        .unwrap();
+    let _ = guard.close().await;
 }
 
 async fn sentry_alert(client: &TracerClient) {

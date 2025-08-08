@@ -7,14 +7,14 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::RwLock;
 
 #[derive(Clone)]
-pub struct LogRecorder {
+pub struct EventDispatcher {
     pipeline: Arc<RwLock<PipelineMetadata>>,
     tx: Sender<Event>,
 }
 
-impl LogRecorder {
+impl EventDispatcher {
     pub fn new(pipeline: Arc<RwLock<PipelineMetadata>>, tx: Sender<Event>) -> Self {
-        LogRecorder { pipeline, tx }
+        EventDispatcher { pipeline, tx }
     }
 
     pub async fn log_with_metadata(
@@ -73,11 +73,11 @@ mod tests {
     use uuid::Uuid;
 
     #[tokio::test]
-    async fn test_log_recorder_new() {
+    async fn test_event_dispatcher_new() {
         let pipeline = create_test_pipeline();
         let (tx, _rx) = mpsc::channel(10);
 
-        let recorder = LogRecorder::new(pipeline, tx);
+        let recorder = EventDispatcher::new(pipeline, tx);
         assert_eq!(
             recorder.pipeline.read().await.pipeline_name,
             "test_pipeline"
@@ -85,11 +85,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_log_with_metadata() {
+    async fn test_event_with_metadata() {
         let pipeline_data = create_test_pipeline();
         let (tx, mut rx) = mpsc::channel(10);
 
-        let recorder = LogRecorder::new(pipeline_data.clone(), tx);
+        let recorder = EventDispatcher::new(pipeline_data.clone(), tx);
         let pipeline = pipeline_data.read().await.clone();
 
         let message = "Test log message".to_string();
@@ -121,7 +121,7 @@ mod tests {
         let pipeline_data = create_test_pipeline();
         let (tx, mut rx) = mpsc::channel(10);
 
-        let recorder = LogRecorder::new(pipeline_data, tx);
+        let recorder = EventDispatcher::new(pipeline_data, tx);
         let message = "Test log via standard method".to_string();
 
         // Create test attributes
@@ -166,7 +166,7 @@ mod tests {
         // Create a channel with capacity 1
         let pipeline_data = create_test_pipeline();
         let (tx, _rx) = mpsc::channel::<Event>(1);
-        let recorder = LogRecorder::new(pipeline_data, tx.clone());
+        let recorder = EventDispatcher::new(pipeline_data, tx.clone());
 
         // Close the receiver to force send errors
         drop(_rx);
@@ -209,7 +209,7 @@ mod tests {
 
         let pipeline_arc = Arc::new(RwLock::new(pipeline));
         let (tx, mut rx) = mpsc::channel(10);
-        let recorder = LogRecorder::new(pipeline_arc, tx);
+        let recorder = EventDispatcher::new(pipeline_arc, tx);
 
         let message = "Logging with trace_id".to_string();
 

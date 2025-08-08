@@ -2,7 +2,7 @@ use crate::extracts::containers::DockerWatcher;
 use crate::extracts::process::extract_process_data::get_process_argv;
 use crate::extracts::process::process_manager::ProcessManager;
 use crate::extracts::process_watcher::handler::trigger::trigger_processor::TriggerProcessor;
-use crate::process_identification::recorder::LogRecorder;
+use crate::process_identification::recorder::EventDispatcher;
 use anyhow::{Error, Result};
 use std::collections::{HashMap, HashSet};
 use std::fs::{self};
@@ -25,10 +25,10 @@ pub struct ProcessWatcher {
 }
 
 impl ProcessWatcher {
-    pub fn new(log_recorder: LogRecorder, docker_watcher: Arc<DockerWatcher>) -> Self {
+    pub fn new(event_dispatcher: EventDispatcher, docker_watcher: Arc<DockerWatcher>) -> Self {
         // instantiate the process manager
         let process_manager = Arc::new(RwLock::new(ProcessManager::new(
-            log_recorder.clone(),
+            event_dispatcher.clone(),
             docker_watcher,
         )));
 

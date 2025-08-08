@@ -1,4 +1,4 @@
-use crate::client::exporters::log_writer::LogWriter;
+use crate::client::exporters::event_writer::EventWriter;
 use crate::process_identification::types::event::Event;
 use crate::process_identification::types::extracts::db::EventInsert;
 use anyhow::Result;
@@ -12,15 +12,15 @@ struct EventPayload {
     events: Vec<EventInsert>,
 }
 
-pub struct LogForward {
+pub struct EventForward {
     endpoint: String,
     client: Client,
 }
 
-impl LogForward {
-    pub async fn try_new(log_forward_endpoint: &str) -> Result<Self> {
-        Ok(LogForward {
-            endpoint: log_forward_endpoint.to_string(),
+impl EventForward {
+    pub async fn try_new(event_forward_endpoint: &str) -> Result<Self> {
+        Ok(EventForward {
+            endpoint: event_forward_endpoint.to_string(),
             client: Client::new(),
         })
     }
@@ -33,7 +33,7 @@ impl LogForward {
     }
 }
 
-impl LogWriter for LogForward {
+impl EventWriter for EventForward {
     async fn batch_insert_events(&self, data: impl IntoIterator<Item = &Event>) -> Result<()> {
         let now = std::time::Instant::now();
 
