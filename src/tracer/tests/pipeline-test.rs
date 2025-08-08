@@ -33,7 +33,7 @@ fn create_process_watcher(
 /// Processes a vec of start triggers and returns any process start events
 /// that result from matching those triggers.
 fn process_triggers(
-    nfcore_rnaseq_processes: &Vec<ProcessInfo>,
+    processes: &Vec<ProcessInfo>,
     pipeline: &PipelineMetadata,
     async_runtime: &Runtime,
 ) -> Vec<Event> {
@@ -43,7 +43,7 @@ fn process_triggers(
         let watcher = create_process_watcher(pipeline, tx);
 
         // process triggers for all commands in all processes
-        for process in nfcore_rnaseq_processes {
+        for process in processes {
             for commands in &process.test_commands {
                 let triggers: Vec<Trigger> = commands
                     .iter()
