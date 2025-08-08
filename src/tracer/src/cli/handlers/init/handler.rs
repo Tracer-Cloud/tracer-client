@@ -1,4 +1,3 @@
-use crate::cli::handlers::init::arguments::PromptMode;
 use crate::cli::handlers::init::arguments::TracerCliInitArgs;
 use crate::cli::handlers::{info, terminate};
 use crate::cli::helper::wait;
@@ -44,18 +43,19 @@ pub async fn init(
         }
     }
 
-    init_with_default_prompt(args, config, &api_client, PromptMode::WhenMissing).await
+    init_with(args, config, &api_client, "test", false).await
 }
 
-pub async fn init_with_default_prompt(
+pub async fn init_with(
     args: TracerCliInitArgs,
     config: Config,
     api_client: &DaemonClient,
-    prompt_mode: PromptMode,
+    default_pipeline_prefix: &str,
+    confirm: bool,
 ) -> anyhow::Result<()> {
     info_message!("Starting daemon...");
 
-    let args = args.finalize(prompt_mode);
+    let args = args.finalize(default_pipeline_prefix, confirm).await;
 
     {
         // Layer tags on top of args

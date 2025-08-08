@@ -1,4 +1,4 @@
-use crate::cli::handlers::init::arguments::TracerCliInitArgs;
+use crate::cli::handlers::init::arguments::{PromptMode, TracerCliInitArgs};
 use crate::cli::handlers::test::git::TracerPipelinesRepo;
 use crate::cli::handlers::test::pipeline::Pipeline;
 use crate::cli::handlers::INTERACTIVE_THEME;
@@ -47,6 +47,7 @@ pub struct TracerCliTestArgs {
 impl TracerCliTestArgs {
     pub fn finalize(self) -> (TracerCliInitArgs, Pipeline) {
         let theme = &*INTERACTIVE_THEME;
+        let non_interactive = self.init_args.interactive_prompts == PromptMode::None;
 
         let pipeline = if self.nf_pipeline_path.is_some() {
             if !self.no_pixi
@@ -90,15 +91,13 @@ impl TracerCliTestArgs {
                 path: self.tool_path.unwrap(),
                 args,
             }
-        } else if self.init_args.non_interactive && self.demo_pipeline_id.is_none() {
-            panic!("No pipeline specified")
         } else {
             println!("Syncing pipelines repo...");
             let pipelines_repo = TracerPipelinesRepo::new().expect("Failed to sync pipelines repo");
 
             let pipelines = pipelines_repo.list_pipelines();
 
-            if !self.init_args.non_interactive {
+            if !non_interactive {
                 let mut pipeline_names: Vec<&str> = pipelines.iter().map(|p| p.name()).collect();
                 pipeline_names.sort();
                 let custom_index = pipeline_names.len();
@@ -179,8 +178,11 @@ impl TracerCliTestArgs {
                     pipelines.into_iter().nth(pipeline_index).unwrap()
                 }
             } else {
-                let pipeline_name = self.demo_pipeline_id.as_ref().unwrap();
-                if let Some(pipeline) = pipelines.into_iter().find(|p| p.name() == *pipeline_name) {
+                let pipeline_name = self
+                    .demo_pipeline_id
+                    .map(|id| id.clone())
+                    .unwrap_or(DEFAULT_PIPELINE_NAME.to_string());
+                if let Some(pipeline) = pipelines.into_iter().find(|p| p.name() == pipeline_name) {
                     pipeline
                 } else {
                     panic!("Invalid pipeline name {pipeline_name}")
@@ -190,26 +192,11 @@ impl TracerCliTestArgs {
 
         pipeline.validate().expect("Invalid pipeline");
 
-        let mut init_args = self.init_args;
-
-        if init_args.pipeline_name.is_none() {
-            init_args.pipeline_name = Some(pipeline.name().to_owned());
-        }
-        if init_args.run_name.is_none() {
-            init_args.run_name = Some(format!("test-{}", pipeline.name()));
-        }
-        if init_args.tags.environment.is_none() {
-            init_args.tags.environment = Some("local".into());
-        }
-        if init_args.tags.pipeline_type.is_none() {
-            init_args.tags.pipeline_type = Some("preprocessing".into());
-        }
-
-        (init_args, pipeline)
+        (self.init_args, pipeline)
     }
 
     fn prompt_for_pixi_task(&self) -> String {
-        if self.init_args.non_interactive {
+        if self.init_args.interactive_prompts == PromptMode::None {
             return self
                 .pixi_task
                 .clone()
@@ -225,7 +212,7 @@ impl TracerCliTestArgs {
     }
 
     fn prompt_for_args(&self, arg_type: &str) -> Vec<String> {
-        if self.init_args.non_interactive {
+        if self.init_args.interactive_prompts == PromptMode::None {
             return vec![];
         }
         let args_str: String = Input::with_theme(&*INTERACTIVE_THEME)
@@ -256,7 +243,7 @@ mod tests {
             no_pixi: false,
             args: vec![],
             init_args: TracerCliInitArgs {
-                non_interactive: false,
+                interactive_prompts: PromptMode::Minimal,
                 log_level: "info".into(),
                 ..Default::default()
             },

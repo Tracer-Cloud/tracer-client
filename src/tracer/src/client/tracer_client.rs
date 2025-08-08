@@ -11,8 +11,6 @@ use crate::process_identification::recorder::EventDispatcher;
 use crate::process_identification::types::current_run::PipelineMetadata;
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::{Event, ProcessStatus};
-
-use crate::utils::env::detect_environment_type;
 use crate::utils::system_info::get_kernel_version;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
