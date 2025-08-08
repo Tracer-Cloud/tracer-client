@@ -113,9 +113,7 @@ impl TracerCliInitArgs {
             .filter(|name| !name.is_empty());
 
         if tags.environment_type.is_none() {
-            println!("here");
             tags.environment_type = Some(env::detect_environment_type().await);
-            println!("here2");
         }
 
         // Environment is required but not included in minimal options - try to get it from the
