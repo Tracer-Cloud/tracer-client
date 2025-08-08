@@ -148,72 +148,100 @@ impl Installer {
 
     pub async fn patch_rc_files_async(user_id: Option<String>) -> Result<()> {
         print_title("Updating Shell Configs");
-        if let Some(ref id) = user_id {
-            print_message("USER ID", id, TagColor::Cyan);
-        } else {
-            warning_message!("No user ID provided, skipping user ID persistence");
-        }
+
+        // replace an existing export line in any of these files
+        const CONF_FILES: &[&str] = &[
+            ".zshrc",
+            ".bashrc",
+            ".zprofile",
+            ".bash_profile",
+            ".profile",
+        ];
 
         let home = dirs::home_dir().context("Could not find home directory")?;
-        let export_user = user_id
-            .as_ref()
-            .map(|id| format!(r#"export {}="{}""#, USER_ID_ENV_VAR, id));
+        let config_files = CONF_FILES
+            .iter()
+            .map(|name| home.join(name))
+            .filter(|path| path.exists());
 
-        let rc_files = [".bashrc", ".bash_profile", ".zshrc", ".profile"];
+        // look for this line in each file and either update it or remove it
+        let export_line_match = format!("export {}=", USER_ID_ENV_VAR);
 
-        for rc in rc_files {
-            let path = home.join(rc);
-            if !path.exists() {
-                continue;
-            }
+        // the line to add/replace
+        let updated_export_line = if let Some(id) = &user_id {
+            print_message("USER ID", id, TagColor::Cyan);
+            Some(format!(r#"export {}="{}""#, USER_ID_ENV_VAR, id))
+        } else {
+            warning_message!("No user ID provided, skipping user ID persistence");
+            None
+        };
 
+        // TODO: it's not very nice to add our environment variable to all of the user's config
+        // files. We should change to the following:
+        // 1. If `export TRACER_USER_ID=` exists in any files already, we should update it there
+        //    but not add it to any other files
+        // 2. If there is no existing export, then we should add it to just one file:
+        //    - Look at $SHELL to figure out the default shell (for now only support bash and zsh)
+        //      - If $SHELL is unset, assume zsh for MacOS and bash otherwise
+        //    - If bash, see if either .bashrc or .bash_profile source .profile
+        //      - If yes, add the environment variable to .profile
+        //      - Otherwise add it to .bashrc, fall back to .bash_profile if .bashrc doesn't exist
+        //    - If zsh, see if either .zshrc or .zprofile source .profile
+        //      - If yes, add the environment variable to .profile
+        //      - Otherwise add it to .zshrc, fall back to .zprofile if .zshrc doesn't exist
+        // 3. After editing the config files, open a new shell in a subcommand and make sure that
+        //    the environment variable is set; if not, warn the user that they need to manually
+        //    modify their config file
+        // 4. Add an option to enable the user to not have their config file(s) modified - if
+        //    this option is set, just print out the line they need to add and suggest where they
+        //    should add it based on the heuristic in #2
+
+        // reuse line buffer
+        let mut lines = Vec::new();
+
+        for path in config_files {
             let file = File::open(&path).await?;
             let reader = BufReader::new(file);
-            let mut lines = Vec::new();
             let mut lines_stream = reader.lines();
+            let mut has_user_export = false;
 
             while let Some(line) = lines_stream.next_line().await? {
-                lines.push(line);
-            }
-
-            let mut has_user_export = false;
-            let mut updated = false;
-            let mut updated_lines = Vec::new();
-            let export_line = format!("export {}=", USER_ID_ENV_VAR);
-
-            for line in lines {
-                if line.contains(&export_line) {
-                    if let Some(ref user_export) = export_user {
-                        updated_lines.push(user_export.clone());
+                if line.contains(&export_line_match) {
+                    if let Some(user_export) = &updated_export_line {
+                        lines.push(user_export.clone());
                     }
                     // Even if no user ID, we’re removing the line
                     has_user_export = true;
-                    updated = true;
                 } else {
-                    updated_lines.push(line);
+                    lines.push(line);
                 }
             }
 
-            if !has_user_export {
-                if let Some(user_export) = export_user.as_ref() {
-                    updated_lines.push(user_export.clone());
-                    updated = true;
-                }
-            }
+            let updated = if has_user_export {
+                true
+            } else if let Some(user_export) = updated_export_line.as_ref() {
+                lines.push(user_export.clone());
+                true
+            } else {
+                false
+            };
 
             if updated {
-                print_message("UPDATED", rc, TagColor::Green);
-            }
-            // Write all lines back to file
-            let mut file = OpenOptions::new()
-                .write(true)
-                .truncate(true)
-                .open(&path)
-                .await?;
+                print_message("UPDATED", path.to_str().unwrap(), TagColor::Green);
 
-            for line in updated_lines {
-                file.write_all(line.as_bytes()).await?;
-                file.write_all(b"\n").await?;
+                // Write all lines back to file
+                let mut file = OpenOptions::new()
+                    .write(true)
+                    .truncate(true)
+                    .open(&path)
+                    .await?;
+
+                for line in lines.drain(..) {
+                    file.write_all(line.as_bytes()).await?;
+                    file.write_all(b"\n").await?;
+                }
+            } else {
+                lines.clear();
             }
         }
 
