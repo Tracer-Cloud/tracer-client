@@ -81,7 +81,9 @@ pub fn print_title(title: &str) {
 
 /// Strict path sanitizer: returns a path *beneath* `base_dir`.
 pub fn sanitize_path(base_dir: &Path, subdir: &str) -> io::Result<PathBuf> {
-    let subdir_path = PathBuf::from(subdir);
+    // SAFETY: we sanitize this path to ensure it is relative, non-empty, and does not contain
+    // any disallowed path components
+    let subdir_path = PathBuf::from(subdir); // nosemgrep: rust.actix.path-traversal.tainted-path.tainted-path
 
     // 1) Must be relative
     if subdir_path.is_absolute() {
