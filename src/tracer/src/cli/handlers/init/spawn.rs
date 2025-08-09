@@ -46,7 +46,7 @@ static CANONICAL_EXE: LazyLock<(PathBuf, Option<u64>)> = LazyLock::new(|| {
 pub fn spawn_child(args: &[&str]) -> Result<u32> {
     #[cfg(target_os = "linux")]
     match linux::spawn_child(args) {
-        OK(pid) => return Ok(pid),
+        Ok(pid) => return Ok(pid),
         Err(e) => {
             warning_message!("{}", e);
         }
@@ -178,9 +178,10 @@ mod linux {
     use crate::utils::workdir::TRACER_WORK_DIR;
     use crate::warning_message;
     use anyhow::{bail, Result};
-    use nix::fcntl::{self, OFlag};
+    use colored::Colorize;
+    use nix::fcntl::{self, AtFlags, OFlag};
     use nix::sys::stat::Mode;
-    use nix::unistd::{self, AtFlags, ForkResult};
+    use nix::unistd::{self, ForkResult};
     use std::ffi::CString;
     use std::fs::File;
     use std::iter;
