@@ -59,14 +59,10 @@ impl Installer {
 
         let temp_dir = tempfile::tempdir()?;
 
-        let archive_path = sanitize_path(temp_dir.path(), "tracer.tar.gz")?;
+        let extract_path = self
+            .download_and_extract_tarball(&url, temp_dir.path(), "tracer.tar.gz", "extracted")
+            .await?;
 
-        self.download_with_progress(&url, &archive_path).await?;
-
-        let extract_path = sanitize_path(temp_dir.path(), "extracted")?;
-        std::fs::create_dir_all(&extract_path)?;
-
-        self.extract_tarball(&archive_path, &extract_path)?;
         let _ = self.install_to_final_dir(&extract_path)?;
 
         Self::patch_rc_files_async(self.user_id.clone())
@@ -83,6 +79,30 @@ impl Installer {
         Self::print_next_steps();
         join_all(analytics_handles).await;
         Ok(())
+    }
+
+    /// Download a tarball from `url` to `tarball_name` in `base_dir`, then extract it to
+    /// `extract_subdir`.
+    ///
+    /// SAFETEY: we sanitize all paths and make sure that all paths are within `base_dir`.
+    async fn download_and_extract_tarball(
+        &self,
+        url: &str,
+        base_dir: &Path,
+        tarball_name: &str,
+        dest_subdir: &str,
+    ) -> Result<PathBuf> // nosemgrep: rust.actix.path-traversal.tainted-path.tainted-path
+    {
+        let archive_path = sanitize_path(base_dir, tarball_name)?;
+
+        self.download_with_progress(&url, &archive_path).await?;
+
+        let extract_path = sanitize_path(base_dir, dest_subdir)?;
+        std::fs::create_dir_all(&extract_path)?;
+
+        self.extract_tarball(&archive_path, &extract_path)?;
+
+        Ok(extract_path)
     }
 
     async fn download_with_progress(&self, url: &str, dest: &Path) -> Result<()> {
