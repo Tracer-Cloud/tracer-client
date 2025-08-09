@@ -95,7 +95,7 @@ impl Installer {
     {
         let archive_path = sanitize_path(base_dir, tarball_name)?;
 
-        self.download_with_progress(&url, &archive_path).await?;
+        self.download_with_progress(url, &archive_path).await?;
 
         let extract_path = sanitize_path(base_dir, dest_subdir)?;
         std::fs::create_dir_all(&extract_path)?;
