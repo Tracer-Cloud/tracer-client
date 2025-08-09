@@ -1,7 +1,7 @@
 use super::platform::PlatformInfo;
 use crate::installer::url_builder::TracerUrlFinder;
 use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
-use crate::utils::{print_message, print_status, print_title, TagColor};
+use crate::utils::{print_message, print_status, print_title, sanitize_path, TagColor};
 use crate::{success_message, warning_message};
 use anyhow::{Context, Result};
 use colored::Colorize;
@@ -58,11 +58,12 @@ impl Installer {
         print_message("DOWNLOADING", url.as_str(), TagColor::Blue);
 
         let temp_dir = tempfile::tempdir()?;
-        let archive_path = temp_dir.path().join("tracer.tar.gz");
+
+        let archive_path = sanitize_path(temp_dir.path(), "tracer.tar.gz")?;
 
         self.download_with_progress(&url, &archive_path).await?;
 
-        let extract_path = temp_dir.path().join("extracted");
+        let extract_path = sanitize_path(temp_dir.path(), "extracted")?;
         std::fs::create_dir_all(&extract_path)?;
 
         self.extract_tarball(&archive_path, &extract_path)?;
