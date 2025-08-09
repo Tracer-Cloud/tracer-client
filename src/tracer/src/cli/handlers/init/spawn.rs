@@ -1,16 +1,26 @@
 use anyhow::Result;
 
-#[cfg(not(target_os = "linux"))]
 pub use no_linux::resolve_exe_path;
 
 pub fn spawn_child(args: &[&str]) -> Result<u32> {
-    #[cfg(target_os = "linux")]
-    let pid = linux::spawn_child(exe, args)?;
-
-    #[cfg(not(target_os = "linux"))]
-    let pid = no_linux::spawn_child(args)?;
-
-    Ok(pid)
+    let pid = {
+        {
+            #[cfg(target_os = "linux")]
+            match linux::spawn_child(args) {
+                Ok(pid) => Some(pid),
+                Err(e) => {
+                    println!("error spawning child process linux-specific method: {e}");
+                    None
+                }
+            }
+        }
+        #[cfg(not(target_os = "linux"))]
+        None
+    };
+    match pid {
+        Some(pid) => Ok(pid),
+        None => Ok(no_linux::spawn_child(args)?),
+    }
 }
 
 #[cfg(target_os = "linux")]
@@ -43,7 +53,6 @@ mod linux {
     }
 }
 
-#[cfg(not(target_os = "linux"))]
 mod no_linux {
     use crate::utils::workdir::TRACER_WORK_DIR;
     use anyhow::Result;
