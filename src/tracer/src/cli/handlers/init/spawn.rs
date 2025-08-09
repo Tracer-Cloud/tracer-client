@@ -222,8 +222,8 @@ mod linux {
 
         // SAFETY: fork() is safe when only async-signal-safe functions are used in the child
         // process; we only use exec* and exit, which are both safe.
-        match unsafe {
-            unistd::fork()? // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage
+        match {
+            unsafe { unistd::fork()? } // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage
         } {
             ForkResult::Parent { child, .. } => return Ok(child.as_raw() as u32),
             ForkResult::Child => {
