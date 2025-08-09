@@ -228,9 +228,7 @@ mod linux {
             ForkResult::Parent { child, .. } => return Ok(child.as_raw() as u32),
             ForkResult::Child => {
                 // this won't return if successful, but we still need to handle the result
-                if let Ok(_) =
-                    unistd::execveat(fd, "".into(), &c_args, &c_env, AtFlags::AT_EMPTY_PATH)
-                {
+                if let Ok(_) = unistd::execveat(fd, c"", &c_args, &c_env, AtFlags::AT_EMPTY_PATH) {
                     process::exit(0);
                 }
                 // this won't return if successful, but we still need to handle the result
