@@ -102,11 +102,11 @@ fn spawn_child_default(args: &[&str]) -> Result<u32> {
 
 /// Get canonical path for current executable using `env::current_exe`.
 fn get_canonical_exe_path() -> Result<PathBuf> {
-    // nosemgrep: rust.lang.security.current-exe.current-exe -- Safe: we capture current_exe
-    // at startup and verify it again when spawing the child process; we also verify that
-    // the inode of the current_exe has not changed between startup and spawning (on platforms
-    // where inode is available). We also verify that the path has no world-writable components.
-    let exe_path = env::current_exe()?;
+    // SAFETY: we capture current_exe at startup and verify it again when spawing the child process;
+    // we also verify that the inode of the current_exe has not changed between startup and
+    // spawning (on platforms where inode is available). We also verify that the path has no
+    // world-writable components.
+    let exe_path = env::current_exe()?; // nosemgrep: rust.lang.security.current-exe.current-exe
     let canonical_exe_path = fs::canonicalize(exe_path)?;
     validate_path_secure(&canonical_exe_path)?;
     Ok(canonical_exe_path)
@@ -115,9 +115,8 @@ fn get_canonical_exe_path() -> Result<PathBuf> {
 /// This is an alternate method but does not seem any more secure. For now, we just use
 /// it as a check and print a warning if the path from argv differs from current_exe.
 fn get_canonical_argv_path() -> Result<PathBuf> {
-    // nosemgrep: rust.lang.security.args.args -- Safe: we are only using this path to compare
-    // against the current_exe path.
-    let argv_path_str = env::args().next().expect("argv is empty");
+    // SAFETY: we are only using this path to compare against the current_exe path.
+    let argv_path_str = env::args().next().expect("argv is empty"); // nosemgrep: rust.lang.security.args.args
     let argv_path = if argv_path_str.contains(path::MAIN_SEPARATOR) {
         PathBuf::from(argv_path_str)
     } else {
@@ -223,9 +222,9 @@ mod linux {
 
         // SAFETY: fork() is safe when only async-signal-safe functions are used in the child
         // process; we only use exec* and exit, which are both safe.
-        // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage -- only async-signal-safe
-        // functions are used in the child process
-        match unsafe { unistd::fork()? } {
+        match unsafe {
+            unistd::fork()? // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage
+        } {
             ForkResult::Parent { child, .. } => return Ok(child.as_raw() as u32),
             ForkResult::Child => {
                 // this won't return if successful, but we still need to handle the result
