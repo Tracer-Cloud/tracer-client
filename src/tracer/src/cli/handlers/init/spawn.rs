@@ -75,21 +75,22 @@ mod no_linux {
         Ok(child.id())
     }
 
+    /// This must be called by `main`
     pub fn resolve_exe_path() {
         std::sync::LazyLock::force(&CANONICAL_EXE_PATH);
     }
 
-    /// Resolve a *trusted* absolute path to this binary without current_exe().
-    /// Resolve argv[0] via PATH + canonicalize.
+    /// Resolve absolute path to this binary.
     static CANONICAL_EXE_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
-        let path_str = env::args().next().expect("argv is empty");
-        let path = if path_str.contains(path::MAIN_SEPARATOR) {
-            PathBuf::from(path_str)
-        } else {
-            which::which(path_str).expect("could not get absolute path for executable")
-        };
+        let exe_path = env::current_exe().expect("could not get current executable");
+        // let path_str = env::args().next().expect("argv is empty");
+        // let path = if path_str.contains(path::MAIN_SEPARATOR) {
+        //     PathBuf::from(path_str)
+        // } else {
+        //     which::which(path_str).expect("could not get absolute path for executable")
+        // };
         let canonical_path =
-            fs::canonicalize(&path).expect("could not get canonical path for executable");
+            fs::canonicalize(exe_path).expect("could not get canonical path for executable");
         validate_path_secure(&canonical_path).expect("executable path is not considered secure");
         canonical_path
     });
