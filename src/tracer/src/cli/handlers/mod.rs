@@ -11,6 +11,7 @@ pub(super) use cleanup_port::cleanup_port;
 pub(super) use info::info;
 pub use init::arguments as init_arguments;
 pub(super) use init::init;
+pub use init::resolve_exe_path;
 pub(super) use terminate::terminate;
 pub use test::arguments as test_arguments;
 pub(super) use test::test;
