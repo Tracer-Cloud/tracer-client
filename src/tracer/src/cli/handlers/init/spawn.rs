@@ -221,6 +221,10 @@ mod linux {
             .map(|(k, v)| CString::new(format!("{k}={v}")))
             .collect::<Result<Vec<_>, _>>()?;
 
+        // SAFETY: fork() is safe when only async-signal-safe functions are used in the child
+        // process; we only use exec* and exit, which are both safe.
+        // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage -- only async-signal-safe
+        // functions are used in the child process
         match unsafe { unistd::fork()? } {
             ForkResult::Parent { child, .. } => return Ok(child.as_raw() as u32),
             ForkResult::Child => {
