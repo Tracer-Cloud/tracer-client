@@ -62,28 +62,8 @@ mod no_linux {
     use std::sync::LazyLock;
     use std::{env, io, os};
 
-    /// Resolve a *trusted* absolute path to this binary without current_exe().
-    /// Strategy:
-    /// 1) If you have a build-time constant or config, use that.
-    /// 2) Else, resolve argv[0] via PATH + canonicalize, then validate.
-    static CANONICAL_EXE_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
-        let path_str = env::args().next().expect("argv is empty");
-        let path = if path_str.contains(path::MAIN_SEPARATOR) {
-            PathBuf::from(path_str)
-        } else {
-            which::which(path_str).expect("could not get absolute path for executable")
-        };
-        fs::canonicalize(&path).expect("could not get canonical path for executable")
-    });
-
-    pub fn resolve_exe_path() {
-        std::sync::LazyLock::force(&CANONICAL_EXE_PATH);
-    }
-
     pub fn spawn_child(args: &[&str]) -> Result<u32> {
         let exe = &*CANONICAL_EXE_PATH;
-
-        validate_path_secure(exe)?;
 
         let child = Command::new(exe)
             .args(args)
@@ -94,6 +74,25 @@ mod no_linux {
 
         Ok(child.id())
     }
+
+    pub fn resolve_exe_path() {
+        std::sync::LazyLock::force(&CANONICAL_EXE_PATH);
+    }
+
+    /// Resolve a *trusted* absolute path to this binary without current_exe().
+    /// Resolve argv[0] via PATH + canonicalize.
+    static CANONICAL_EXE_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
+        let path_str = env::args().next().expect("argv is empty");
+        let path = if path_str.contains(path::MAIN_SEPARATOR) {
+            PathBuf::from(path_str)
+        } else {
+            which::which(path_str).expect("could not get absolute path for executable")
+        };
+        let canonical_path =
+            fs::canonicalize(&path).expect("could not get canonical path for executable");
+        validate_path_secure(&canonical_path).expect("executable path is not considered secure");
+        canonical_path
+    });
 
     /// Minimal checks to reduce risk: path exists, is a file, and components aren’t world-writable.
     /// (You can expand this to check ownership, mode bits, codesign, etc.)
