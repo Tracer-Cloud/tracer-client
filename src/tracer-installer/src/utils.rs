@@ -1,5 +1,6 @@
 use crate::types::TracerVersion;
 use colored::Colorize;
+use std::fs::{self, File, Permissions};
 use std::io;
 use std::path::{Component, Display, Path, PathBuf};
 use tempfile::TempDir;
@@ -138,9 +139,29 @@ impl TryFrom<PathBuf> for TrustedDir {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct TrustedFile(PathBuf);
 
 impl TrustedFile {
+    pub fn open(&self) -> io::Result<File> {
+        // SAFETY: opening a pre-sanitized file
+        File::open(&self.0) // nosemgrep: rust.actix.path-traversal.tainted-path.tainted-path
+    }
+
+    pub fn copy_to_with_permissions(
+        &self,
+        dest: &TrustedFile,
+        permissions: Permissions,
+    ) -> io::Result<()> {
+        if let Some(parent_path) = dest.0.parent() {
+            fs::create_dir_all(parent_path)?;
+        }
+        // SAFETY: only copying between trusted paths
+        fs::copy(&self.0, &dest.0)?; // nosemgrep: rust.actix.path-traversal.tainted-path.tainted-path
+        fs::set_permissions(&dest.0, permissions)?;
+        Ok(())
+    }
+
     pub fn display(&self) -> Display<'_> {
         self.0.display()
     }

@@ -14,9 +14,8 @@ use futures_util::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::Client;
 use std::collections::HashMap;
-use std::fs::File as StdFile;
+use std::fs::Permissions;
 use std::os::unix::fs::PermissionsExt;
-use std::path::PathBuf;
 use std::sync::LazyLock;
 use tar::Archive;
 use tokio::fs::OpenOptions;
@@ -138,7 +137,7 @@ impl Installer {
     }
 
     fn extract_tarball(&self, archive: &TrustedFile, dest: &TrustedFile) -> Result<()> {
-        let file = StdFile::open(archive.get_trusted_path()?)?;
+        let file = archive.open()?;
         let decompressed = GzDecoder::new(file);
         let mut archive = Archive::new(decompressed);
         archive.unpack(dest.get_trusted_path()?)?;
@@ -153,23 +152,15 @@ impl Installer {
         Ok(())
     }
 
-    fn install_to_final_dir<T: TrustedPath>(&self, extracted_dir: &T) -> Result<PathBuf> {
+    fn install_to_final_dir<T: TrustedPath>(&self, extracted_dir: &T) -> Result<TrustedFile> {
         let tracer_subdir: SanitizedRelativePath = "tracer".try_into()?;
-        let extracted_binary = extracted_dir
-            .get_trusted_subpath(tracer_subdir.clone())?
-            .get_trusted_path()?;
-        let final_path = TRACER_INSTALLATION_PATH
-            .get_trusted_subpath(tracer_subdir)?
-            .get_trusted_path()?;
+        let extracted_binary = extracted_dir.get_trusted_subpath(tracer_subdir.clone())?;
+        let final_path = TRACER_INSTALLATION_PATH.get_trusted_subpath(tracer_subdir)?;
 
-        if let Some(parent_path) = final_path.parent() {
-            std::fs::create_dir_all(parent_path)?;
-        }
+        extracted_binary
+            .copy_to_with_permissions(&final_path, Permissions::from_mode(0o755))
+            .with_context(|| format!("Failed to copy tracer binary from {:?}", &final_path))?;
 
-        std::fs::copy(&extracted_binary, &final_path)
-            .with_context(|| format!("Failed to copy tracer binary from {:?}", extracted_binary))?;
-
-        std::fs::set_permissions(&final_path, std::fs::Permissions::from_mode(0o755))?;
         success_message!("Tracer installed to: {}", final_path.display());
 
         Ok(final_path)
