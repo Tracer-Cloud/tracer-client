@@ -1,6 +1,6 @@
 use crate::daemon::server::DaemonServer;
 use crate::utils::env::USER_ID_ENV_VAR;
-use crate::utils::file_system::TrustedFile;
+use crate::utils::secure::TrustedFile;
 use crate::utils::system_info::check_sudo;
 use crate::utils::workdir::TRACER_WORK_DIR;
 use crate::{success_message, warning_message};
@@ -10,7 +10,9 @@ use std::fs;
 use std::path::Path;
 use std::sync::LazyLock;
 
-static INSTALL_PATH: LazyLock<TrustedFile> = LazyLock::new(|| TrustedFile::tracer_binary());
+static INSTALL_PATH: LazyLock<TrustedFile> = LazyLock::new(|| {
+    TrustedFile::tracer_binary().expect("could not obtain trusted path to tracer binary")
+});
 
 pub fn uninstall() {
     if DaemonServer::is_running() {
@@ -33,15 +35,16 @@ pub fn uninstall() {
 }
 
 fn remove_binary() -> Result<()> {
-    let tracer_path = INSTALL_PATH.get_trusted_path();
+    let tracer_binary = &INSTALL_PATH;
 
-    if tracer_path.exists() {
-        println!("🔍 Binary path: {}", tracer_path.display());
-        fs::remove_file(tracer_path)
-            .with_context(|| format!("Failed to remove binary at {}", tracer_path.display()))?;
+    if tracer_binary.exists()? {
+        println!("🔍 Binary path: {}", tracer_binary.to_string());
+        tracer_binary
+            .remove()
+            .with_context(|| format!("Failed to remove binary at {}", tracer_binary.to_string()))?;
         success_message!("Binary removed successfully");
     } else {
-        warning_message!("Binary not found at: {}", tracer_path.display());
+        warning_message!("Binary not found at: {}", tracer_binary.to_string());
     }
 
     Ok(())

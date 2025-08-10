@@ -1,5 +1,4 @@
 use crate::cli::handlers::init::arguments::{PromptMode, TracerCliInitArgs};
-use crate::cli::handlers::init::spawn_child;
 use crate::cli::handlers::{info, terminate};
 use crate::cli::helper::wait;
 use crate::config::Config;
@@ -7,6 +6,7 @@ use crate::daemon::client::DaemonClient;
 use crate::daemon::initialization::create_and_run_server;
 use crate::daemon::server::DaemonServer;
 use crate::utils::analytics::types::AnalyticsEventType;
+use crate::utils::secure::spawn_child;
 use crate::utils::system_info::check_sudo;
 use crate::utils::workdir::TRACER_WORK_DIR;
 use crate::utils::{analytics, Sentry};

@@ -23,6 +23,7 @@ tokio-retry = { workspace = true }
 sentry = { workspace = true }
 sysinfo = { workspace = true }
 ec2_instance_metadata = { workspace = true }
+softpath = { workspace = true }
 
 indicatif = { workspace = true }
 async-trait = { workspace = true }

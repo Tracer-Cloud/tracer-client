@@ -62,6 +62,7 @@ termion = { workspace = true }
 git2 = { workspace = true }
 which = { workspace = true }
 nix = { workspace = true }
+softpath = { workspace = true }
 
 [dev-dependencies]
 sqlx = { workspace = true }

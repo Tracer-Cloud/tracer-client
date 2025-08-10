@@ -34,9 +34,9 @@ impl TargetManager {
 impl Default for TargetManager {
     fn default() -> Self {
         const RULE_FILES: &[YamlFile] = &[
-            YamlFile::Embedded(include_str!("yml_rules/tracer.rules.yml")), // Add more RuleFile entries as needed
+            YamlFile::from_embedded_str(include_str!("yml_rules/tracer.rules.yml")), // Add more RuleFile entries as needed
         ];
-        const EXCLUDE_FILES: &[YamlFile] = &[YamlFile::Embedded(include_str!(
+        const EXCLUDE_FILES: &[YamlFile] = &[YamlFile::from_embedded_str(include_str!(
             "yml_rules/tracer.exclude.yml"
         ))];
         Self::new(RULE_FILES, EXCLUDE_FILES)
@@ -55,10 +55,10 @@ mod tests {
     #[test]
     fn test_cat_fastq_target_match() {
         let rule_files = [
-            YamlFile::StaticPath(
+            YamlFile::from_src_path(
                 "src/process_identification/target_process/yml_rules/tracer.rules.yml",
             ),
-            YamlFile::StaticPath(
+            YamlFile::from_src_path(
                 "src/process_identification/target_process/yml_rules/tracer.rules.yml",
             ),
         ];
@@ -80,10 +80,10 @@ mod tests {
 
     #[test]
     fn test_exclude_rule() {
-        let rule_files = [YamlFile::StaticPath(
+        let rule_files = [YamlFile::from_src_path(
             "src/process_identification/target_process/yml_rules/tracer.rules.yml",
         )];
-        let exclude_files = [YamlFile::StaticPath(
+        let exclude_files = [YamlFile::from_src_path(
             "src/process_identification/target_process/yml_rules/tracer.exclude.yml",
         )];
         let manager = TargetManager::new(&rule_files, &exclude_files);
@@ -102,7 +102,7 @@ mod tests {
 
     #[test]
     fn test_dynamic_display_subcommand() {
-        let rule_files = [YamlFile::StaticPath(
+        let rule_files = [YamlFile::from_src_path(
             "src/process_identification/target_process/yml_rules/tracer.rules.yml",
         )];
         let manager = TargetManager::new(&rule_files, &[]);
@@ -121,7 +121,7 @@ mod tests {
 
     #[test]
     fn test_java_command() {
-        let rule_files = [YamlFile::StaticPath(
+        let rule_files = [YamlFile::from_src_path(
             "src/process_identification/target_process/yml_rules/tracer.rules.yml",
         )];
         let manager = TargetManager::new(&rule_files, &[]);

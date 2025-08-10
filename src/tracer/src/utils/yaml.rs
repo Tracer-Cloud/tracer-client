@@ -1,34 +1,26 @@
+use crate::utils::secure::TrustedFile;
 use anyhow::{anyhow, bail, Result};
-use std::fs;
-use std::path::Path;
 use yaml_rust2::YamlLoader;
 
 // re-export Yaml for convenience
 pub use yaml_rust2::Yaml;
 
 #[derive(Clone, Debug)]
-pub enum YamlFile {
-    Embedded(&'static str),
-    StaticPath(&'static str),
-    DynamicPath(String),
-}
+pub struct YamlFile(TrustedFile);
 
 impl YamlFile {
-    pub fn load<T: TryFrom<Yaml, Error = anyhow::Error>>(&self, key: &str) -> Result<Vec<T>> {
-        match self {
-            Self::Embedded(yaml) => load_from_yaml_array_str(yaml, key),
-            Self::StaticPath(path) => load_from_yaml_array_file(path, key),
-            Self::DynamicPath(path) => load_from_yaml_array_file(path, key),
-        }
+    pub const fn from_embedded_str(contents: &'static str) -> Self {
+        Self(TrustedFile::from_embedded_str(contents))
     }
-}
 
-pub fn load_from_yaml_array_file<P: AsRef<Path>, T: TryFrom<Yaml, Error = anyhow::Error>>(
-    path: P,
-    key: &str,
-) -> Result<Vec<T>> {
-    let yaml_str = fs::read_to_string(path.as_ref())?;
-    load_from_yaml_array_str(&yaml_str, key)
+    pub const fn from_src_path(path: &'static str) -> Self {
+        Self(TrustedFile::from_src_path(path))
+    }
+
+    pub fn load<T: TryFrom<Yaml, Error = anyhow::Error>>(&self, key: &str) -> Result<Vec<T>> {
+        let yaml_str = self.0.read_to_string()?;
+        load_from_yaml_array_str(&yaml_str, key)
+    }
 }
 
 pub fn load_from_yaml_array_str<T: TryFrom<Yaml, Error = anyhow::Error>>(

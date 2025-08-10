@@ -239,7 +239,7 @@ mod tests {
     use super::*;
     use pretty_assertions_sorted::assert_eq;
 
-    const PIPELINE_YAML_PATH: &[YamlFile] = &[YamlFile::StaticPath(
+    const PIPELINE_YAML_PATH: &[YamlFile] = &[YamlFile::from_src_path(
         "src/process_identification/target_pipeline/yml_rules/tracer.pipelines.yml",
     )];
 
@@ -506,7 +506,7 @@ pipelines:
       - task: TEST_TASK_2
 "#;
 
-        let pipelines = load_pipelines_from_yamls(&[YamlFile::Embedded(embedded_yaml)]);
+        let pipelines = load_pipelines_from_yamls(&[YamlFile::from_embedded_str(embedded_yaml)]);
 
         // Should load the embedded pipeline
         assert_eq!(pipelines.len(), 1);
@@ -608,7 +608,7 @@ pipelines:
               - task: TASK3
 "#;
 
-        let pipelines = load_pipelines_from_yamls(&[YamlFile::Embedded(embedded_yaml)]);
+        let pipelines = load_pipelines_from_yamls(&[YamlFile::from_embedded_str(embedded_yaml)]);
 
         assert_eq!(pipelines.len(), 1);
         let pipeline = &pipelines[0];

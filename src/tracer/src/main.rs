@@ -1,9 +1,10 @@
 use tracer::cli;
+use tracer::utils::secure;
 
 pub fn main() -> anyhow::Result<()> {
     // immediately resolve the executable path - needed for spawning the
     // daemon on non-linux systems
-    cli::resolve_exe_path();
+    secure::resolve_exe_path();
     // initialize the crypto provider for TLS
     rustls::crypto::ring::default_provider()
         .install_default()

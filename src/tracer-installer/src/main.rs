@@ -10,6 +10,7 @@ mod checks;
 mod constants;
 mod installer;
 mod message;
+mod secure;
 mod sentry;
 mod types;
 mod utils;

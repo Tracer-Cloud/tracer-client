@@ -1,10 +1,8 @@
 use super::platform::PlatformInfo;
 use crate::installer::url_builder::TracerUrlFinder;
+use crate::secure::{SanitizedRelativePath, TrustedDir, TrustedFile, TrustedPath};
 use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
-use crate::utils::{
-    print_message, print_status, print_title, SanitizedRelativePath, TagColor, TrustedDir,
-    TrustedFile, TrustedPath,
-};
+use crate::utils::{print_message, print_status, print_title, TagColor};
 use crate::{success_message, warning_message};
 use anyhow::{Context, Result};
 use colored::Colorize;
@@ -66,7 +64,7 @@ impl Installer {
 
         let extract_path = self
             .download_and_extract_tarball(&url, &temp_dir, "tracer.tar.gz", "extracted")
-            .await?; // nosemgrep: rust.actix.path-traversal.tainted-path.tainted-path
+            .await?;
 
         let _ = self.install_to_final_dir(&extract_path)?;
 
