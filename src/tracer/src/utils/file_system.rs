@@ -1,5 +1,6 @@
 use anyhow::Context;
 use std::path::{Path, PathBuf};
+use std::{fs, io};
 
 pub fn ensure_file_can_be_created<P: AsRef<Path>>(file_path: P) -> anyhow::Result<()> {
     let file_path = file_path.as_ref();
@@ -26,5 +27,10 @@ impl TrustedFile {
 
     pub fn get_trusted_path(&self) -> &Path {
         &self.0
+    }
+
+    pub fn read_to_string(&self) -> io::Result<String> {
+        // SAFETY: only reading from known sanitized paths
+        fs::read_to_string(&self.0) // nosemgrep: rust.actix.path-traversal.tainted-path.
     }
 }
