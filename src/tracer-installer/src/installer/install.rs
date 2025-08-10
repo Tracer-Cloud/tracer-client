@@ -1,6 +1,6 @@
 use super::platform::PlatformInfo;
 use crate::installer::url_builder::TracerUrlFinder;
-use crate::secure::{SanitizedRelativePath, TrustedDir, TrustedFile, TrustedPath};
+use crate::secure::{RelativePath, TrustedDir, TrustedFile};
 use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
 use crate::utils::{print_message, print_status, print_title, TagColor};
 use crate::{success_message, warning_message};
@@ -60,7 +60,7 @@ impl Installer {
 
         print_message("DOWNLOADING", url.as_str(), TagColor::Blue);
 
-        let temp_dir = tempfile::tempdir()?;
+        let temp_dir = TrustedDir::temp()?;
 
         let extract_path = self
             .download_and_extract_tarball(&url, &temp_dir, "tracer.tar.gz", "extracted")
@@ -86,19 +86,19 @@ impl Installer {
 
     /// Download a tarball from `url` to `tarball_name` in `base_dir`, then extract it to
     /// `extract_subdir`.
-    async fn download_and_extract_tarball<D: TrustedPath>(
+    async fn download_and_extract_tarball(
         &self,
         url: &str,
-        base_dir: &D,
+        base_dir: &TrustedDir,
         tarball_name: &str,
         dest_subdir: &str,
-    ) -> Result<TrustedFile> {
-        let archive_path = base_dir.get_trusted_subpath(tarball_name.try_into()?)?;
+    ) -> Result<TrustedDir> {
+        let archive_path = base_dir.get_trusted_file(tarball_name.try_into()?)?;
 
         self.download_with_progress(url, &archive_path).await?;
 
-        let extract_path = base_dir.get_trusted_subpath(dest_subdir.try_into()?)?;
-        std::fs::create_dir_all(&extract_path.get_trusted_path()?)?;
+        let extract_path = base_dir.get_trusted_dir(dest_subdir.try_into()?)?;
+        extract_path.create_dir_all()?;
 
         self.extract_tarball(&archive_path, &extract_path)?;
 
@@ -121,7 +121,7 @@ impl Installer {
             )?
         );
 
-        let mut file = File::create(dest.get_trusted_path()?).await?;
+        let mut file = dest.create_async().await?;
         let mut stream = response.bytes_stream();
 
         while let Some(chunk) = stream.next().await {
@@ -134,32 +134,28 @@ impl Installer {
         Ok(())
     }
 
-    fn extract_tarball(&self, archive: &TrustedFile, dest: &TrustedFile) -> Result<()> {
+    fn extract_tarball(&self, archive: &TrustedFile, dest: &TrustedDir) -> Result<()> {
         let file = archive.open()?;
         let decompressed = GzDecoder::new(file);
         let mut archive = Archive::new(decompressed);
         archive.unpack(dest.get_trusted_path()?)?;
 
         println!();
-        print_message(
-            "EXTRACTING",
-            &format!("Output: {}", dest.display()),
-            TagColor::Blue,
-        );
+        print_message("EXTRACTING", &format!("Output: {}", dest), TagColor::Blue);
 
         Ok(())
     }
 
-    fn install_to_final_dir<T: TrustedPath>(&self, extracted_dir: &T) -> Result<TrustedFile> {
-        let tracer_subdir: SanitizedRelativePath = "tracer".try_into()?;
-        let extracted_binary = extracted_dir.get_trusted_subpath(tracer_subdir.clone())?;
-        let final_path = TRACER_INSTALLATION_PATH.get_trusted_subpath(tracer_subdir)?;
+    fn install_to_final_dir(&self, extracted_dir: &TrustedDir) -> Result<TrustedDir> {
+        let tracer_subdir: RelativePath = "tracer".try_into()?;
+        let extracted_binary = extracted_dir.get_trusted_dir(tracer_subdir.clone())?;
+        let final_path = TRACER_INSTALLATION_PATH.get_trusted_dir(tracer_subdir)?;
 
         extracted_binary
             .copy_to_with_permissions(&final_path, Permissions::from_mode(0o755))
-            .with_context(|| format!("Failed to copy tracer binary from {:?}", &final_path))?;
+            .with_context(|| format!("Failed to copy tracer binary from {}", &final_path))?;
 
-        success_message!("Tracer installed to: {}", final_path.display());
+        success_message!("Tracer installed to: {}", &final_path);
 
         Ok(final_path)
     }

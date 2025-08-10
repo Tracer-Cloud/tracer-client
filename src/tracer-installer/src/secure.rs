@@ -1,63 +1,117 @@
+use anyhow::{bail, Result};
+use softpath::prelude::*;
+use std::fmt::{Display, Formatter};
 use std::fs::{self, File, Permissions};
 use std::io;
-use std::path::{Component, Display, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use tempfile::TempDir;
+use tokio::fs::File as AsyncFile;
 
-pub trait TrustedPath {
-    fn get_trusted_path(&self) -> io::Result<PathBuf>;
+pub enum TrustedDir {
+    Sanitized(PathBuf),
+    Static(&'static str),
+    Temp(TempDir),
+}
 
-    fn get_trusted_subpath(&self, subdir: SanitizedRelativePath) -> io::Result<TrustedFile> {
-        // Build a candidate path and canonicalize both sides
-        // NOTE: canonicalize follows symlinks; that’s OK if we enforce "beneath base" after.
+impl TrustedDir {
+    pub fn usr_local_bin() -> Self {
+        TrustedDir::Static("/usr/local/bin")
+    }
+
+    pub fn temp() -> Result<Self> {
+        Ok(Self::Temp(tempfile::tempdir()?))
+    }
+
+    pub fn get_trusted_file(&self, subpath: RelativePath) -> Result<TrustedFile> {
         let base = self.get_trusted_path()?;
-
-        if !base.is_dir() {
-            return Err(io::Error::new(
-                io::ErrorKind::NotADirectory,
-                "trusted path is not a directory",
-            ));
-        }
-
-        let candidate = base.join(subdir.into_path()).canonicalize()?;
-
-        // 4) Enforce "beneath base"
-        if !candidate.starts_with(&base) {
-            return Err(io::Error::new(
+        let path = base.join(subpath.into_path()).canonicalize()?;
+        if !path.starts_with(&base) {
+            bail!(io::Error::new(
                 io::ErrorKind::PermissionDenied,
                 "path escapes base",
             ));
         }
-
-        Ok(TrustedFile(candidate))
+        if !path.is_file()? {
+            bail!(io::Error::new(
+                io::ErrorKind::IsADirectory,
+                "trusted path is not a file",
+            ));
+        }
+        Ok(TrustedFile(path))
     }
-}
 
-impl TrustedPath for TempDir {
-    fn get_trusted_path(&self) -> io::Result<PathBuf> {
-        self.path().canonicalize()
+    pub fn get_trusted_dir(&self, subdir: RelativePath) -> Result<Self> {
+        let base = self.get_trusted_path()?;
+        let path = base.join(subdir.into_path()).canonicalize()?;
+        if !path.starts_with(&base) {
+            bail!(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "path escapes base",
+            ));
+        }
+        if !path.is_dir()? {
+            bail!(io::Error::new(
+                io::ErrorKind::NotADirectory,
+                "trusted path is not a directory",
+            ));
+        }
+        Ok(Self::Sanitized(path))
     }
-}
 
-pub struct TrustedDir(PathBuf);
-
-impl TrustedDir {
-    pub fn usr_local_bin() -> Self {
-        TrustedDir(PathBuf::from("/usr/local/bin"))
+    pub fn get_trusted_path(&self) -> Result<PathBuf> {
+        let path = match self {
+            Self::Sanitized(path) => path.to_owned(),
+            Self::Static(path) => path.absolute()?,
+            Self::Temp(temp_dir) => sanitize(temp_dir.path())?,
+        };
+        if !path.is_dir()? {
+            bail!(io::Error::new(
+                io::ErrorKind::NotADirectory,
+                "trusted path is not a directory",
+            ));
+        }
+        Ok(path)
     }
-}
 
-impl TrustedPath for TrustedDir {
-    fn get_trusted_path(&self) -> io::Result<PathBuf> {
-        Ok(self.0.clone())
+    pub fn create_dir_all(&self) -> Result<()> {
+        Ok(self.get_trusted_path()?.create_dir_all()?)
+    }
+
+    pub fn create_parent_all(&self) -> Result<()> {
+        if let Some(parent_path) = self.get_trusted_path()?.parent() {
+            parent_path.create_dir_all()?;
+        }
+        Ok(())
+    }
+
+    pub fn copy_to_with_permissions(
+        &self,
+        dest: &TrustedDir,
+        permissions: Permissions,
+    ) -> Result<()> {
+        dest.create_parent_all()?;
+        let dest_path = dest.get_trusted_path()?;
+        self.get_trusted_path()?.copy_to(&dest_path)?;
+        fs::set_permissions(&dest_path, permissions)?;
+        Ok(())
     }
 }
 
 impl TryFrom<PathBuf> for TrustedDir {
-    type Error = io::Error;
+    type Error = anyhow::Error;
 
     fn try_from(path: PathBuf) -> Result<Self, Self::Error> {
-        check_sanitary_absolute_path(&path)?;
-        Ok(Self(path))
+        Ok(TrustedDir::Sanitized(sanitize(&path)?))
+    }
+}
+
+impl Display for TrustedDir {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Sanitized(path) => path.display().fmt(f),
+            Self::Temp(temp) => temp.path().display().fmt(f),
+            Self::Static(path) => f.write_str(path),
+        }
     }
 }
 
@@ -84,104 +138,60 @@ impl TrustedFile {
         File::open(&self.0) // nosemgrep: rust.actix.path-traversal.tainted-path.tainted-path
     }
 
-    pub fn copy_to_with_permissions(
-        &self,
-        dest: &TrustedFile,
-        permissions: Permissions,
-    ) -> io::Result<()> {
-        if let Some(parent_path) = dest.0.parent() {
-            fs::create_dir_all(parent_path)?;
-        }
-        // SAFETY: only copying between trusted paths
-        fs::copy(&self.0, &dest.0)?; // nosemgrep: rust.actix.path-traversal.tainted-path.tainted-path
-        fs::set_permissions(&dest.0, permissions)?;
-        Ok(())
-    }
-
-    pub fn display(&self) -> Display<'_> {
-        self.0.display()
+    pub async fn create_async(&self) -> Result<AsyncFile> {
+        Ok(AsyncFile::create(&self.0).await?)
     }
 }
 
-impl TrustedPath for TrustedFile {
-    fn get_trusted_path(&self) -> io::Result<PathBuf> {
-        Ok(self.0.clone())
+impl Display for TrustedFile {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.0.display().fmt(f)
     }
 }
 
 #[derive(Clone)]
-pub struct SanitizedRelativePath(PathBuf);
+pub struct RelativePath(PathBuf);
 
-impl SanitizedRelativePath {
+impl RelativePath {
     pub fn into_path(self) -> PathBuf {
         self.0
     }
 }
 
-impl TryFrom<&str> for SanitizedRelativePath {
-    type Error = io::Error;
+impl TryFrom<&str> for RelativePath {
+    type Error = anyhow::Error;
 
     fn try_from(path: &str) -> Result<Self, Self::Error> {
-        // SAFETY: we sanitize this path to make sure it is relative and does not contain any
-        // unsafe components (e.g. '..')
-        let path = PathBuf::from(path); // nosemgrep: rust.actix.path-traversal.tainted-path.tainted-path
-        check_sanitary_relative_path(&path)?;
+        let path = path.into_path()?;
+
+        if path.is_absolute() {
+            bail!(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "absolute paths not allowed",
+            ));
+        }
+
         Ok(Self(path))
     }
 }
 
-impl TryFrom<PathBuf> for SanitizedRelativePath {
-    type Error = io::Error;
+impl TryFrom<PathBuf> for RelativePath {
+    type Error = anyhow::Error;
 
     fn try_from(path: PathBuf) -> Result<Self, Self::Error> {
-        check_sanitary_relative_path(&path)?;
+        let path = sanitize(&path)?;
+
+        if path.is_absolute() {
+            bail!(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "absolute paths not allowed",
+            ));
+        }
+
         Ok(Self(path))
     }
 }
 
-pub fn check_sanitary_absolute_path(path: &Path) -> io::Result<()> {
-    if !path.is_absolute() {
-        return Err(io::Error::new(
-            io::ErrorKind::PermissionDenied,
-            "relative paths not allowed",
-        ));
-    }
-
-    check_sanitary_path(path)
-}
-
-pub fn check_sanitary_relative_path(path: &Path) -> io::Result<()> {
-    if path.is_absolute() {
-        return Err(io::Error::new(
-            io::ErrorKind::PermissionDenied,
-            "absolute paths not allowed",
-        ));
-    }
-
-    check_sanitary_path(path)
-}
-
-fn check_sanitary_path(path: &Path) -> io::Result<()> {
-    // Reject empty / NUL / sneaky components
-    if path.as_os_str().is_empty() {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput, "empty path"));
-    }
-
-    for c in path.components() {
-        match c {
-            Component::Normal(_) => {}
-            // reject ., .., prefix (Windows), or root components
-            Component::CurDir
-            | Component::ParentDir
-            | Component::Prefix(_)
-            | Component::RootDir => {
-                return Err(io::Error::new(
-                    io::ErrorKind::PermissionDenied,
-                    "invalid component",
-                ))
-            }
-        }
-    }
-
-    Ok(())
+pub fn sanitize(path: &Path) -> Result<PathBuf> {
+    Ok(path.as_os_str().to_string_lossy().as_ref().absolute()?)
 }

@@ -37,7 +37,7 @@ impl TrustedFile {
     pub fn tracer_binary() -> Result<Self> {
         // the install location of the tracer binary - currently this is non-modifyable
         const TRACER_BINARY_PATH: &str = "/usr/local/bin/tracer";
-        Ok(TrustedFile::Dynamic(TRACER_BINARY_PATH.into_path()?))
+        Ok(TrustedFile::Dynamic(TRACER_BINARY_PATH.absolute()?))
     }
 
     pub fn exists(&self) -> Result<bool> {
