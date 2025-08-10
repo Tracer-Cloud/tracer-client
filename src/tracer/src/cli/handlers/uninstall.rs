@@ -44,6 +44,7 @@ fn remove_binary() -> Result<()> {
 
     Ok(())
 }
+
 fn remove_env_paths() -> Result<()> {
     let home_dir = dirs::home_dir().context("Failed to get home directory")?;
 

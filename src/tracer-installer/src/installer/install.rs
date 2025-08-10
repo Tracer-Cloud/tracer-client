@@ -1,7 +1,7 @@
 use super::platform::PlatformInfo;
 use crate::installer::url_builder::TracerUrlFinder;
 use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
-use crate::utils::{print_message, print_status, print_title, sanitize_path, TagColor};
+use crate::utils::{print_message, print_status, print_title, TagColor, TrustedDir};
 use crate::{success_message, warning_message};
 use anyhow::{Context, Result};
 use colored::Colorize;
@@ -60,8 +60,8 @@ impl Installer {
         let temp_dir = tempfile::tempdir()?;
 
         let extract_path = self
-            .download_and_extract_tarball(&url, temp_dir.path(), "tracer.tar.gz", "extracted")
-            .await?;
+            .download_and_extract_tarball(&url, &temp_dir, "tracer.tar.gz", "extracted")
+            .await?; // nosemgrep: rust.actix.path-traversal.tainted-path.tainted-path
 
         let _ = self.install_to_final_dir(&extract_path)?;
 
@@ -83,21 +83,18 @@ impl Installer {
 
     /// Download a tarball from `url` to `tarball_name` in `base_dir`, then extract it to
     /// `extract_subdir`.
-    ///
-    /// SAFETEY: we sanitize all paths and make sure that all paths are within `base_dir`.
-    async fn download_and_extract_tarball(
+    async fn download_and_extract_tarball<D: TrustedDir>(
         &self,
         url: &str,
-        base_dir: &Path,
+        base_dir: &D,
         tarball_name: &str,
         dest_subdir: &str,
-    ) -> Result<PathBuf> // nosemgrep: rust.actix.path-traversal.tainted-path.tainted-path
-    {
-        let archive_path = sanitize_path(base_dir, tarball_name)?;
+    ) -> Result<PathBuf> {
+        let archive_path = base_dir.get_trusted_subpath(tarball_name.try_into()?)?;
 
         self.download_with_progress(url, &archive_path).await?;
 
-        let extract_path = sanitize_path(base_dir, dest_subdir)?;
+        let extract_path = base_dir.get_trusted_subpath(dest_subdir.try_into()?)?;
         std::fs::create_dir_all(&extract_path)?;
 
         self.extract_tarball(&archive_path, &extract_path)?;

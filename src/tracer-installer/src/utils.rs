@@ -2,6 +2,7 @@ use crate::types::TracerVersion;
 use colored::Colorize;
 use std::io;
 use std::path::{Component, Path, PathBuf};
+use tempfile::TempDir;
 
 pub enum TagColor {
     Green,
@@ -79,14 +80,65 @@ pub fn print_title(title: &str) {
     println!("\n==== {} ====\n", title.bold());
 }
 
-/// Strict path sanitizer: returns a path *beneath* `base_dir`.
-pub fn sanitize_path(base_dir: &Path, subdir: &str) -> io::Result<PathBuf> {
-    // SAFETY: we sanitize this path to ensure it is relative, non-empty, and does not contain
-    // any disallowed path components
-    let subdir_path = PathBuf::from(subdir); // nosemgrep: rust.actix.path-traversal.tainted-path.tainted-path
+pub trait TrustedDir {
+    fn get_trusted_path(&self) -> io::Result<PathBuf>;
 
+    fn get_trusted_subpath(&self, subdir: SanitizedRelativePath) -> io::Result<PathBuf> {
+        // Build a candidate path and canonicalize both sides
+        // NOTE: canonicalize follows symlinks; that’s OK if we enforce "beneath base" after.
+        let base = self.get_trusted_path()?;
+        let candidate = base.join(subdir.into_path()).canonicalize()?;
+
+        // 4) Enforce "beneath base"
+        if !candidate.starts_with(&base) {
+            return Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "path escapes base",
+            ));
+        }
+
+        Ok(candidate)
+    }
+}
+
+impl TrustedDir for TempDir {
+    fn get_trusted_path(&self) -> io::Result<PathBuf> {
+        self.path().canonicalize()
+    }
+}
+
+pub struct SanitizedRelativePath(PathBuf);
+
+impl SanitizedRelativePath {
+    pub fn into_path(self) -> PathBuf {
+        self.0
+    }
+}
+
+impl TryFrom<&str> for SanitizedRelativePath {
+    type Error = io::Error;
+
+    fn try_from(path: &str) -> Result<Self, Self::Error> {
+        // SAFETY: we sanitize this path to make sure it is relative and does not contain any
+        // unsafe components (e.g. '..')
+        let path = PathBuf::from(path); // nosemgrep: rust.actix.path-traversal.tainted-path.tainted-path
+        check_sanitary_relative_path(&path)?;
+        Ok(Self(path))
+    }
+}
+
+impl TryFrom<PathBuf> for SanitizedRelativePath {
+    type Error = io::Error;
+
+    fn try_from(path: PathBuf) -> Result<Self, Self::Error> {
+        check_sanitary_relative_path(&path)?;
+        Ok(Self(path))
+    }
+}
+
+pub fn check_sanitary_relative_path(path: &Path) -> io::Result<()> {
     // 1) Must be relative
-    if subdir_path.is_absolute() {
+    if path.is_absolute() {
         return Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
             "absolute paths not allowed",
@@ -94,10 +146,11 @@ pub fn sanitize_path(base_dir: &Path, subdir: &str) -> io::Result<PathBuf> {
     }
 
     // 2) Reject empty / NUL / sneaky components
-    if subdir_path.as_os_str().is_empty() {
+    if path.as_os_str().is_empty() {
         return Err(io::Error::new(io::ErrorKind::InvalidInput, "empty path"));
     }
-    for c in subdir_path.components() {
+
+    for c in path.components() {
         match c {
             Component::Normal(_) => {}
             // reject ., .., prefix (Windows), or root components
@@ -113,19 +166,5 @@ pub fn sanitize_path(base_dir: &Path, subdir: &str) -> io::Result<PathBuf> {
         }
     }
 
-    // 3) Build a candidate path and canonicalize both sides
-    // NOTE: canonicalize follows symlinks; that’s OK if we enforce "beneath base" after.
-    let base_real = base_dir.canonicalize()?;
-    let candidate = base_real.join(subdir_path);
-    let candidate_real = candidate.canonicalize()?;
-
-    // 4) Enforce "beneath base"
-    if !candidate_real.starts_with(&base_real) {
-        return Err(io::Error::new(
-            io::ErrorKind::PermissionDenied,
-            "path escapes base",
-        ));
-    }
-
-    Ok(candidate_real)
+    Ok(())
 }
