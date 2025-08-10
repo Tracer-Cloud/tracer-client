@@ -1,5 +1,6 @@
 use crate::daemon::server::DaemonServer;
 use crate::utils::env::USER_ID_ENV_VAR;
+use crate::utils::file_system::TrustedFile;
 use crate::utils::system_info::check_sudo;
 use crate::utils::workdir::TRACER_WORK_DIR;
 use crate::{success_message, warning_message};
@@ -7,8 +8,9 @@ use anyhow::{Context, Result};
 use colored::Colorize;
 use std::fs;
 use std::path::Path;
+use std::sync::LazyLock;
 
-const INSTALL_PATH: &str = "/usr/local/bin/tracer";
+static INSTALL_PATH: LazyLock<TrustedFile> = LazyLock::new(|| TrustedFile::tracer_binary());
 
 pub fn uninstall() {
     if DaemonServer::is_running() {
@@ -31,7 +33,7 @@ pub fn uninstall() {
 }
 
 fn remove_binary() -> Result<()> {
-    let tracer_path = Path::new(INSTALL_PATH);
+    let tracer_path = INSTALL_PATH.get_trusted_path();
 
     if tracer_path.exists() {
         println!("🔍 Binary path: {}", tracer_path.display());
