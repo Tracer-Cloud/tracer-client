@@ -1,6 +1,6 @@
 use super::platform::PlatformInfo;
 use crate::installer::url_builder::TracerUrlFinder;
-use crate::secure::{RelativePath, TrustedDir, TrustedFile};
+use crate::secure::{RelativePath, TrustedDir, TrustedFile, TrustedUrl};
 use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
 use crate::utils::{print_message, print_status, print_title, TagColor};
 use crate::{success_message, warning_message};
@@ -28,8 +28,7 @@ use tokio_retry::Retry;
 const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics";
 const USER_ID_ENV_VAR: &str = "TRACER_USER_ID";
 
-static TRACER_INSTALLATION_PATH: LazyLock<TrustedDir> =
-    LazyLock::new(|| TrustedDir::usr_local_bin());
+static TRACER_INSTALLATION_PATH: LazyLock<TrustedDir> = LazyLock::new(TrustedDir::usr_local_bin);
 
 pub struct Installer {
     pub platform: PlatformInfo,
@@ -58,7 +57,7 @@ impl Installer {
             .get_binary_url(self.channel.clone(), &self.platform)
             .await?;
 
-        print_message("DOWNLOADING", url.as_str(), TagColor::Blue);
+        print_message("DOWNLOADING", &url.to_string(), TagColor::Blue);
 
         let temp_dir = TrustedDir::temp()?;
 
@@ -88,7 +87,7 @@ impl Installer {
     /// `extract_subdir`.
     async fn download_and_extract_tarball(
         &self,
-        url: &str,
+        url: &TrustedUrl,
         base_dir: &TrustedDir,
         tarball_name: &str,
         dest_subdir: &str,
@@ -105,8 +104,9 @@ impl Installer {
         Ok(extract_path)
     }
 
-    async fn download_with_progress(&self, url: &str, dest: &TrustedFile) -> Result<()> {
-        let response = reqwest::get(url)
+    async fn download_with_progress(&self, url: &TrustedUrl, dest: &TrustedFile) -> Result<()> {
+        let response = url
+            .get()
             .await
             .context("Failed to initiate download")?
             .error_for_status()

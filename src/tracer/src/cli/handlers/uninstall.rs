@@ -36,13 +36,13 @@ fn remove_binary() -> Result<()> {
     let tracer_binary = &INSTALL_PATH;
 
     if tracer_binary.exists()? {
-        println!("🔍 Binary path: {}", tracer_binary.to_string());
+        println!("🔍 Binary path: {}", **tracer_binary);
         tracer_binary
             .remove()
-            .with_context(|| format!("Failed to remove binary at {}", tracer_binary.to_string()))?;
+            .with_context(|| format!("Failed to remove binary at {}", **tracer_binary))?;
         success_message!("Binary removed successfully");
     } else {
-        warning_message!("Binary not found at: {}", tracer_binary.to_string());
+        warning_message!("Binary not found at: {}", **tracer_binary);
     }
 
     Ok(())

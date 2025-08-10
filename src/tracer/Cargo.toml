@@ -63,6 +63,7 @@ git2 = { workspace = true }
 which = { workspace = true }
 nix = { workspace = true }
 softpath = { workspace = true }
+url = { workspace = true }
 
 [dev-dependencies]
 sqlx = { workspace = true }

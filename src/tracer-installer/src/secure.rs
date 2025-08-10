@@ -1,11 +1,13 @@
 use anyhow::{bail, Result};
+use reqwest::{self, Response};
 use softpath::prelude::*;
-use std::fmt::{Display, Formatter};
+use std::fmt::{self, Display, Formatter};
 use std::fs::{self, File, Permissions};
 use std::io;
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 use tokio::fs::File as AsyncFile;
+use url::Url;
 
 pub enum TrustedDir {
     Sanitized(PathBuf),
@@ -194,4 +196,34 @@ impl TryFrom<PathBuf> for RelativePath {
 
 pub fn sanitize(path: &Path) -> Result<PathBuf> {
     Ok(path.as_os_str().to_string_lossy().as_ref().absolute()?)
+}
+
+pub struct TrustedUrl(Url);
+
+impl TrustedUrl {
+    pub async fn get(&self) -> Result<Response> {
+        Ok(reqwest::get(self.0.clone()).await?)
+    }
+}
+impl TryFrom<String> for TrustedUrl {
+    type Error = anyhow::Error;
+
+    fn try_from(value: String) -> Result<Self> {
+        let url = value.parse()?;
+
+        // TODO: implement SSRF protection:
+        // Resolve & connect rules: After parsing, resolve the host and block private/link-local
+        // ranges (e.g., 10.0.0.0/8, 169.254.0.0/16, 127.0.0.0/8, ::1, fc00::/7). Re-resolve per
+        // request to avoid DNS rebinding.
+        // * Enforce HTTPS and enable certificate validation (the default in reqwest with rustls).
+        // * Timeouts & size limits: Always set request timeouts and max body size.
+
+        Ok(Self(url))
+    }
+}
+
+impl Display for TrustedUrl {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(self.0.as_str())
+    }
 }

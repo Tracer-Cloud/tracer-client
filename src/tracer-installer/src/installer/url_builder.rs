@@ -1,6 +1,6 @@
-use crate::types::TracerVersion;
-
 use super::platform::{Arch, Os, PlatformInfo};
+use crate::secure::TrustedUrl;
+use crate::types::TracerVersion;
 
 pub(super) struct TracerUrlFinder;
 
@@ -20,22 +20,24 @@ impl TracerUrlFinder {
         &self,
         version: TracerVersion,
         platform: &PlatformInfo,
-    ) -> anyhow::Result<String> {
+    ) -> anyhow::Result<TrustedUrl> {
         let filename = Self::binary_filename(&platform.os, &platform.arch)?;
 
-        match version {
-            TracerVersion::Development => Ok(format!(
+        let url = match version {
+            TracerVersion::Development => format!(
                 "https://tracer-releases.s3.us-east-1.amazonaws.com/{}",
                 filename
-            )),
-            TracerVersion::Feature(branch) => Ok(format!(
+            ),
+            TracerVersion::Feature(branch) => format!(
                 "https://tracer-releases.s3.us-east-1.amazonaws.com/{}/{}",
                 branch, filename
-            )),
-            TracerVersion::Production => Ok(format!(
+            ),
+            TracerVersion::Production => format!(
                 "https://tracer-releases.s3.us-east-1.amazonaws.com/main/{}",
                 filename
-            )),
-        }
+            ),
+        };
+
+        url.try_into()
     }
 }

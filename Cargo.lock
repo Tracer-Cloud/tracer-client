@@ -4828,6 +4828,7 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "typed-builder",
+ "url",
  "uuid",
  "which 8.0.0",
  "yaml-rust2",
@@ -4858,6 +4859,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-retry",
+ "url",
 ]
 
 [[package]]
