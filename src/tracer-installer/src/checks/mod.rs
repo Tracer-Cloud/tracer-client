@@ -4,8 +4,8 @@ pub mod kernel;
 mod root;
 
 use crate::error_message;
-use crate::installer::{Os, PlatformInfo};
 use crate::utils::{print_status, TagColor};
+use crate::{Os, PlatformInfo};
 use api::APICheck;
 use colored::Colorize;
 pub(crate) use environment::detect_environment_type;

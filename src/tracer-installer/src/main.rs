@@ -1,19 +1,21 @@
-use crate::sentry::Sentry;
-use crate::utils::print_title;
-use checks::CheckManager;
-use clap::Parser;
-use installer::{Installer, PlatformInfo};
-use types::{InstallTracerCli, InstallerCommand};
-use utils::print_anteater_banner;
-
 mod checks;
 mod constants;
 mod installer;
 mod message;
+mod platform;
 mod secure;
 mod sentry;
 mod types;
 mod utils;
+
+use crate::sentry::Sentry;
+use crate::utils::print_title;
+use checks::CheckManager;
+use clap::Parser;
+use installer::Installer;
+use platform::{Arch, Os, PlatformInfo};
+use types::{InstallTracerCli, InstallerCommand};
+use utils::print_anteater_banner;
 
 #[tokio::main]
 async fn main() {
