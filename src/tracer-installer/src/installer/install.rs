@@ -1,7 +1,10 @@
 use super::platform::PlatformInfo;
 use crate::installer::url_builder::TracerUrlFinder;
 use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
-use crate::utils::{print_message, print_status, print_title, TagColor, TrustedDir};
+use crate::utils::{
+    print_message, print_status, print_title, SanitizedRelativePath, TagColor, TrustedDir,
+    TrustedFile, TrustedPath,
+};
 use crate::{success_message, warning_message};
 use anyhow::{Context, Result};
 use colored::Colorize;
@@ -13,7 +16,8 @@ use reqwest::Client;
 use std::collections::HashMap;
 use std::fs::File as StdFile;
 use std::os::unix::fs::PermissionsExt;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+use std::sync::LazyLock;
 use tar::Archive;
 use tokio::fs::OpenOptions;
 use tokio::task::JoinHandle;
@@ -25,8 +29,10 @@ use tokio_retry::strategy::{jitter, ExponentialBackoff};
 use tokio_retry::Retry;
 
 const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics";
-const TRACER_INSTALLATION_PATH: &str = "/usr/local/bin";
 const USER_ID_ENV_VAR: &str = "TRACER_USER_ID";
+
+static TRACER_INSTALLATION_PATH: LazyLock<TrustedDir> =
+    LazyLock::new(|| TrustedDir::usr_local_bin());
 
 pub struct Installer {
     pub platform: PlatformInfo,
@@ -83,26 +89,26 @@ impl Installer {
 
     /// Download a tarball from `url` to `tarball_name` in `base_dir`, then extract it to
     /// `extract_subdir`.
-    async fn download_and_extract_tarball<D: TrustedDir>(
+    async fn download_and_extract_tarball<D: TrustedPath>(
         &self,
         url: &str,
         base_dir: &D,
         tarball_name: &str,
         dest_subdir: &str,
-    ) -> Result<PathBuf> {
+    ) -> Result<TrustedFile> {
         let archive_path = base_dir.get_trusted_subpath(tarball_name.try_into()?)?;
 
         self.download_with_progress(url, &archive_path).await?;
 
         let extract_path = base_dir.get_trusted_subpath(dest_subdir.try_into()?)?;
-        std::fs::create_dir_all(&extract_path)?;
+        std::fs::create_dir_all(&extract_path.get_trusted_path()?)?;
 
         self.extract_tarball(&archive_path, &extract_path)?;
 
         Ok(extract_path)
     }
 
-    async fn download_with_progress(&self, url: &str, dest: &Path) -> Result<()> {
+    async fn download_with_progress(&self, url: &str, dest: &TrustedFile) -> Result<()> {
         let response = reqwest::get(url)
             .await
             .context("Failed to initiate download")?
@@ -118,7 +124,7 @@ impl Installer {
             )?
         );
 
-        let mut file = File::create(dest).await?;
+        let mut file = File::create(dest.get_trusted_path()?).await?;
         let mut stream = response.bytes_stream();
 
         while let Some(chunk) = stream.next().await {
@@ -131,11 +137,11 @@ impl Installer {
         Ok(())
     }
 
-    fn extract_tarball(&self, archive: &Path, dest: &Path) -> Result<()> {
-        let file = StdFile::open(archive)?;
+    fn extract_tarball(&self, archive: &TrustedFile, dest: &TrustedFile) -> Result<()> {
+        let file = StdFile::open(archive.get_trusted_path()?)?;
         let decompressed = GzDecoder::new(file);
         let mut archive = Archive::new(decompressed);
-        archive.unpack(dest)?;
+        archive.unpack(dest.get_trusted_path()?)?;
 
         println!();
         print_message(
@@ -147,9 +153,14 @@ impl Installer {
         Ok(())
     }
 
-    fn install_to_final_dir(&self, extracted_dir: &Path) -> Result<PathBuf> {
-        let extracted_binary = extracted_dir.join("tracer");
-        let final_path = PathBuf::from(TRACER_INSTALLATION_PATH).join("tracer");
+    fn install_to_final_dir<T: TrustedPath>(&self, extracted_dir: &T) -> Result<PathBuf> {
+        let tracer_subdir: SanitizedRelativePath = "tracer".try_into()?;
+        let extracted_binary = extracted_dir
+            .get_trusted_subpath(tracer_subdir.clone())?
+            .get_trusted_path()?;
+        let final_path = TRACER_INSTALLATION_PATH
+            .get_trusted_subpath(tracer_subdir)?
+            .get_trusted_path()?;
 
         if let Some(parent_path) = final_path.parent() {
             std::fs::create_dir_all(parent_path)?;
