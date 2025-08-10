@@ -1,8 +1,52 @@
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use softpath::prelude::*;
 use std::fmt::{Display, Formatter};
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+pub enum TrustedDir {
+    Sanitized(PathBuf),
+    //Static(&'static str),
+}
+
+impl TrustedDir {
+    pub fn home() -> Result<Self> {
+        let path = dirs::home_dir().context("Failed to get home directory")?;
+        Ok(Self::Sanitized(sanitize(&path)?))
+    }
+
+    pub fn get_trusted_file(&self, subpath: RelativePath) -> Result<TrustedFile> {
+        let base = self.get_trusted_path()?;
+        let path = base.join(subpath.into_path()).canonicalize()?;
+        if !path.starts_with(&base) {
+            bail!(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "path escapes base",
+            ));
+        }
+        if !path.is_file()? {
+            bail!(io::Error::new(
+                io::ErrorKind::IsADirectory,
+                "trusted path is not a file",
+            ));
+        }
+        Ok(TrustedFile::Dynamic(path))
+    }
+
+    pub fn get_trusted_path(&self) -> Result<PathBuf> {
+        let path = match self {
+            Self::Sanitized(path) => path.to_owned(),
+            //Self::Static(path) => path.absolute()?,
+        };
+        if !path.is_dir()? {
+            bail!(io::Error::new(
+                io::ErrorKind::NotADirectory,
+                "trusted path is not a directory",
+            ));
+        }
+        Ok(path)
+    }
+}
 
 /// Represents a trusted file:
 /// * Embedded: contains contents of file read at compile time from location inside the codebase
@@ -69,6 +113,14 @@ impl TrustedFile {
             Self::Dynamic(path) => Ok(path.read_to_string()?),
         }
     }
+
+    pub fn write(&self, contents: &str) -> Result<()> {
+        match self {
+            Self::Embedded(_) => panic!("cannot write to embedded file"),
+            Self::Src(_) => panic!("cannot overwrite src-relative file"),
+            Self::Dynamic(path) => Ok(path.write_string(contents)?),
+        }
+    }
 }
 
 impl Display for TrustedFile {
@@ -81,6 +133,49 @@ impl Display for TrustedFile {
     }
 }
 
+#[derive(Clone)]
+pub struct RelativePath(PathBuf);
+
+impl RelativePath {
+    pub fn into_path(self) -> PathBuf {
+        self.0
+    }
+}
+
+impl TryFrom<&str> for RelativePath {
+    type Error = anyhow::Error;
+
+    fn try_from(path: &str) -> Result<Self, Self::Error> {
+        let path = path.into_path()?;
+
+        if path.is_absolute() {
+            bail!(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "absolute paths not allowed",
+            ));
+        }
+
+        Ok(Self(path))
+    }
+}
+
+impl TryFrom<PathBuf> for RelativePath {
+    type Error = anyhow::Error;
+
+    fn try_from(path: PathBuf) -> Result<Self, Self::Error> {
+        let path = sanitize(&path)?;
+
+        if path.is_absolute() {
+            bail!(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "absolute paths not allowed",
+            ));
+        }
+
+        Ok(Self(path))
+    }
+}
+
 fn src_relative_path(path: &str) -> Result<PathBuf> {
     if !path.starts_with("src") {
         bail!(io::Error::new(
@@ -89,4 +184,8 @@ fn src_relative_path(path: &str) -> Result<PathBuf> {
         ))
     }
     Ok(path.into_path()?)
+}
+
+pub fn sanitize(path: &Path) -> Result<PathBuf> {
+    Ok(path.as_os_str().to_string_lossy().as_ref().absolute()?)
 }

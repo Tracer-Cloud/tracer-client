@@ -1,13 +1,11 @@
 use crate::daemon::server::DaemonServer;
 use crate::utils::env::USER_ID_ENV_VAR;
-use crate::utils::secure::TrustedFile;
+use crate::utils::secure::{TrustedDir, TrustedFile};
 use crate::utils::system_info::check_sudo;
 use crate::utils::workdir::TRACER_WORK_DIR;
 use crate::{success_message, warning_message};
 use anyhow::{Context, Result};
 use colored::Colorize;
-use std::fs;
-use std::path::Path;
 use std::sync::LazyLock;
 
 static INSTALL_PATH: LazyLock<TrustedFile> = LazyLock::new(|| {
@@ -51,13 +49,12 @@ fn remove_binary() -> Result<()> {
 }
 
 fn remove_env_paths() -> Result<()> {
-    let home_dir = dirs::home_dir().context("Failed to get home directory")?;
+    let home_dir = TrustedDir::home()?;
 
     let profile_files = [".bashrc", ".bash_profile", ".zshrc", ".profile"];
     for profile in &profile_files {
-        let profile_path = home_dir.join(profile);
-
-        if profile_path.exists() {
+        let profile_path = home_dir.get_trusted_file((*profile).try_into()?)?;
+        if profile_path.exists()? {
             remove_env(&profile_path)?;
         }
     }
@@ -66,9 +63,8 @@ fn remove_env_paths() -> Result<()> {
     Ok(())
 }
 
-fn remove_env(file_path: &Path) -> Result<()> {
-    let content = fs::read_to_string(file_path)
-        .with_context(|| format!("Failed to read {}", file_path.display()))?;
+fn remove_env(file_path: &TrustedFile) -> Result<()> {
+    let content = file_path.read_to_string()?;
 
     let lines: Vec<&str> = content.lines().collect();
     let mut new_lines = Vec::new();
@@ -95,19 +91,15 @@ fn remove_env(file_path: &Path) -> Result<()> {
     }
 
     if !removed_lines.is_empty() {
-        println!(
-            "Removing Tracer environment variables from: {}",
-            file_path.display()
-        );
+        println!("Removing Tracer environment variables from: {}", file_path);
         for line in &removed_lines {
             println!("  - {}", line.trim());
         }
 
         let new_content = new_lines.join("\n");
-        fs::write(file_path, new_content)
-            .with_context(|| format!("Failed to write updated {}", file_path.display()))?;
+        file_path.write(&new_content)?;
 
-        success_message!("Updated {}", file_path.display());
+        success_message!("Updated {}", file_path);
         println!();
     }
 
