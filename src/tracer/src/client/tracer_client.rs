@@ -232,7 +232,6 @@ impl TracerClient {
         let system = system.read().await;
         let (run, system_properties) = init_run(&system, &pricing_source, run_name).await.unwrap();
         (run, system_properties)
-
     }
 
     #[tracing::instrument(skip(self))]

@@ -11,13 +11,12 @@ use tokio::sync::Mutex;
 pub struct EventDispatcher {
     pipeline: Arc<Mutex<PipelineData>>,
     run: RunData,
-    tx: Sender<Event>
+    tx: Sender<Event>,
 }
 
 impl EventDispatcher {
     pub fn new(pipeline: Arc<Mutex<PipelineData>>, run: RunData, tx: Sender<Event>) -> Self {
         EventDispatcher { pipeline, run, tx }
-
     }
 
     pub async fn log_with_metadata(

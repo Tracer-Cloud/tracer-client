@@ -7,11 +7,12 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{self, Sender};
-use tokio::sync::RwLock;
+use tokio::sync::Mutex;
+use tracer::daemon::structs::PipelineData;
 use tracer::extracts::containers::DockerWatcher;
 use tracer::extracts::process_watcher::watcher::ProcessWatcher;
 use tracer::process_identification::recorder::EventDispatcher;
-use tracer::process_identification::types::current_run::{PipelineMetadata, Run};
+use tracer::process_identification::types::current_run::RunData;
 use tracer::process_identification::types::event::attributes::process::ProcessProperties;
 use tracer::process_identification::types::event::attributes::EventAttributes;
 use tracer::process_identification::types::event::{Event, ProcessStatus};
@@ -22,11 +23,12 @@ use tracer_ebpf::ebpf_trigger::Trigger;
 
 /// Creates a `ProcessWatcher` with dummy data.
 fn create_process_watcher(
-    pipeline: &PipelineMetadata,
+    pipeline: Arc<Mutex<PipelineData>>,
+    run: RunData,
     event_sender: Sender<Event>,
 ) -> Arc<ProcessWatcher> {
     let event_dispatcher =
-        EventDispatcher::new(Arc::new(RwLock::new(pipeline.clone())), event_sender);
+        EventDispatcher::new(pipeline,run, event_sender);
     let docker_watcher = DockerWatcher::new(event_dispatcher.clone());
     Arc::new(ProcessWatcher::new(
         event_dispatcher,
@@ -38,13 +40,14 @@ fn create_process_watcher(
 /// that result from matching those triggers.
 fn process_triggers(
     processes: &Vec<ProcessInfo>,
-    pipeline: &PipelineMetadata,
+    pipeline: Arc<Mutex<PipelineData>>,
+    run: RunData,
     async_runtime: &Runtime,
 ) -> Vec<Event> {
     let (tx, mut rx) = mpsc::channel::<Event>(1000);
 
     async_runtime.block_on(async {
-        let watcher = create_process_watcher(pipeline, tx);
+        let watcher = create_process_watcher(pipeline,run, tx);
 
         // process triggers for all commands in all processes
         for process in processes {
@@ -110,12 +113,24 @@ fn compute_observed_counts(events: &Vec<Event>) -> BTreeMap<String, usize> {
 /// This is a `once` fixture because we can use the same metadata for all tests.
 #[fixture]
 #[once]
-fn pipeline() -> PipelineMetadata {
-    PipelineMetadata {
-        pipeline_name: "test_pipeline".to_string(),
-        run: Some(Run::new("test_run".to_string(), "test-id-123".to_string())),
+fn pipeline() -> PipelineData {
+    PipelineData {
+        name: "test_pipeline".to_string(),
+        run_snapshot:None,
         tags: PipelineTags::default(),
         is_dev: true,
+        start_time: Default::default(),
+    }
+}
+
+#[fixture]
+fn run() -> RunData {
+    RunData {
+        name: "test_run".to_string(),
+        id: "test-id-123".to_string(),
+        start_time: Default::default(),
+        trace_id: None,
+        cost_summary: None,
     }
 }
 
@@ -128,7 +143,7 @@ fn async_runtime() -> Runtime {
 }
 
 #[rstest]
-fn test_nfcore_rnaseq_process_matching(pipeline: &PipelineMetadata, async_runtime: &Runtime) {
+fn test_nfcore_rnaseq_process_matching(pipeline: &PipelineData, run: RunData, async_runtime: &Runtime) {
     const PROCESS_LIST_PATH: &str = "tests/assets/nfcore_rnaseq_process_list.json";
 
     // load processes from JSON file
@@ -136,9 +151,9 @@ fn test_nfcore_rnaseq_process_matching(pipeline: &PipelineMetadata, async_runtim
 
     // compute the number of expected events for each command
     let expected_counts = compute_expected_counts(&processes);
-
+    let pipeline = Arc::new(Mutex::new(pipeline.clone()));
     // compute the actual number of events observed for each command
-    let process_start_events = process_triggers(&processes, pipeline, async_runtime);
+    let process_start_events = process_triggers(&processes, pipeline, run, async_runtime);
     let observed_counts = compute_observed_counts(&process_start_events);
 
     // check that exactly the expected matches are observed
