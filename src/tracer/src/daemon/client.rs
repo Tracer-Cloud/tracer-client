@@ -30,7 +30,7 @@ impl DaemonClient {
         format!("{}{}", self.base_uri, path)
     }
 
-    pub async fn send_start_request(&self) -> Result<bool, &str> {
+    pub async fn send_start_request(&self) -> Result<Option<PipelineData>, &str> {
         self.send_request(START_ENDPOINT, Method::Post).await
     }
 

@@ -208,9 +208,8 @@ impl TracerClient {
         let processes = self.process_watcher.get_monitored_processes().await;
 
         let tasks = self.process_watcher.get_matched_tasks().await;
-        let pipeline = self.pipeline.lock().await;
         RunSnapshot::new(
-            pipeline.name.clone(),
+            run.name.clone(),
             run.id.clone(),
             processes,
             tasks,

@@ -2,13 +2,10 @@ use crate::daemon::client::DaemonClient;
 use crate::daemon::structs::PipelineData;
 use crate::utils::cli::BoxFormatter;
 use crate::utils::Version;
-
 pub async fn info(api_client: &DaemonClient, json: bool) {
     let pipeline_data = match api_client.send_info_request().await {
         Ok(pipeline_data) => pipeline_data,
         Err(_) => {
-            let mut display = InfoDisplay::new(80, json);
-            display.print_daemon_error();
             return;
         }
     };
@@ -168,30 +165,5 @@ impl InfoDisplay {
             formatter.add_field("Instance Type (EC2)", &summary.instance_type, "white");
             formatter.add_empty_line();
         }
-    }
-
-    pub fn print_daemon_error(&mut self) {
-        if self.json {
-            println!("{}", serde_json::json!({"error": "Daemon not started"}));
-            return;
-        }
-        let mut formatter = BoxFormatter::new(self.width);
-        formatter.add_header("Tracer CLI status");
-        formatter.add_empty_line();
-        formatter.add_status_field("Daemon status", "Not started", "inactive");
-        formatter.add_field("Version", &Version::current().to_string(), "bold");
-        formatter.add_empty_line();
-        formatter.add_section_header("Next steps");
-        formatter.add_empty_line();
-        formatter.add_field("Interactive setup", "tracer init", "cyan");
-        formatter.add_hyperlink("Sandbox", "https://sandbox.tracer.cloud");
-        formatter.add_hyperlink(
-            "Documentation",
-            "https://github.com/Tracer-Cloud/tracer-client",
-        );
-        formatter.add_field("Support", "support@tracer.cloud", "blue");
-        formatter.add_empty_line();
-        formatter.add_footer();
-        println!("{}", formatter.get_output());
     }
 }

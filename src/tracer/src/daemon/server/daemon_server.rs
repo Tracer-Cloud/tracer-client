@@ -64,7 +64,6 @@ impl DaemonServer {
         self.server = Some(tokio::spawn(
             axum::serve(listener, get_router(state)).into_future(),
         ));
-
         let _ = termination_token.cancelled().await;
         self.terminate().await?;
         Ok(())

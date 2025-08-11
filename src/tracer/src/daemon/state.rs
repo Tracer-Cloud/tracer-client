@@ -4,17 +4,15 @@ use crate::config::Config;
 use crate::daemon::server::process_monitor::monitor;
 use crate::daemon::structs::PipelineData;
 use anyhow::Context;
-use log::warn;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tokio::sync::MutexGuard;
 use tokio_util::sync::CancellationToken;
 
 #[derive(Clone)]
 pub(super) struct DaemonState {
     args: Arc<Mutex<FinalizedInitArgs>>,
     config: Arc<Mutex<Config>>,
-    tracer_client: Option<Arc<Mutex<TracerClient>>>,
+    tracer_client: Arc<Mutex<Option<Arc<Mutex<TracerClient>>>>>,
     pipeline: Arc<Mutex<PipelineData>>,
     server_token: CancellationToken,
 }
@@ -26,18 +24,15 @@ impl DaemonState {
         Self {
             args: Arc::new(Mutex::new(args)),
             config: Arc::new(Mutex::new(config)),
-            tracer_client: None,
+            tracer_client: Arc::new(Mutex::new(None)),
             server_token,
             pipeline: Arc::new(Mutex::new(pipeline_data)),
         }
     }
 
-    pub async fn get_tracer_client(&self) -> Option<MutexGuard<TracerClient>> {
-        if let Some(ref client) = self.tracer_client {
-            Some(client.lock().await)
-        } else {
-            None
-        }
+    pub async fn get_tracer_client(&self) -> Option<Arc<Mutex<TracerClient>>> {
+        let client = self.tracer_client.lock().await;
+        client.clone()
     }
 
     pub async fn get_pipeline_data(&self) -> PipelineData {
@@ -48,21 +43,25 @@ impl DaemonState {
     pub fn terminate_server(&self) {
         self.server_token.cancel();
     }
-    pub async fn stop_client(&mut self) {
-        if self.tracer_client.is_some() {
-            let option_client = self.tracer_client.clone().unwrap();
-            let client = option_client.lock().await;
+    pub async fn stop_client(&mut self) -> bool {
+        let option_client = self.tracer_client.lock().await;
+
+        if option_client.is_some() {
+            let new_client = option_client.clone().unwrap();
+            drop(option_client);
+            let client = new_client.lock().await;
             client.cancellation_token.cancel();
-            self.tracer_client.take();
+            self.tracer_client.lock().await.take();
+            true
         } else {
-            warn!("No run found");
+            false
         }
     }
 
-    pub async fn start_tracer_client(&mut self) -> bool {
-        if self.tracer_client.is_some() {
-            warn!("Tracer client is already running.");
-            return false;
+    pub async fn start_tracer_client(&mut self) -> Option<Arc<Mutex<TracerClient>>> {
+        let mut option_client = self.tracer_client.lock().await;
+        if option_client.is_some() {
+            return None;
         }
 
         let args = self.args.lock().await.clone();
@@ -73,9 +72,10 @@ impl DaemonState {
             .context("Failed to create TracerClient")
             .unwrap();
         let client = Arc::new(Mutex::new(client));
-        self.tracer_client.replace(client.clone());
-
-        monitor(client, self.server_token.clone()).await;
-        true
+        option_client.replace(client.clone());
+        let server_token = self.server_token.clone();
+        let mover_client = client.clone();
+        tokio::spawn(async move { monitor(mover_client, server_token).await });
+        Some(client)
     }
 }

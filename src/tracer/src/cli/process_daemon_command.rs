@@ -15,8 +15,8 @@ pub async fn process_daemon_command(command: Command, config: Config) {
         Command::Terminate => {
             let _ = handlers::terminate(&api_client).await;
         }
-        Command::Start => {
-            let _ = handlers::start(&api_client).await;
+        Command::Start { json } => {
+            let _ = handlers::start(&api_client, json).await;
         }
         Command::Stop => {
             let _ = handlers::stop(&api_client).await;

@@ -27,8 +27,7 @@ fn create_process_watcher(
     run: RunData,
     event_sender: Sender<Event>,
 ) -> Arc<ProcessWatcher> {
-    let event_dispatcher =
-        EventDispatcher::new(pipeline,run, event_sender);
+    let event_dispatcher = EventDispatcher::new(pipeline, run, event_sender);
     let docker_watcher = DockerWatcher::new(event_dispatcher.clone());
     Arc::new(ProcessWatcher::new(
         event_dispatcher,
@@ -47,7 +46,7 @@ fn process_triggers(
     let (tx, mut rx) = mpsc::channel::<Event>(1000);
 
     async_runtime.block_on(async {
-        let watcher = create_process_watcher(pipeline,run, tx);
+        let watcher = create_process_watcher(pipeline, run, tx);
 
         // process triggers for all commands in all processes
         for process in processes {
@@ -116,7 +115,7 @@ fn compute_observed_counts(events: &Vec<Event>) -> BTreeMap<String, usize> {
 fn pipeline() -> PipelineData {
     PipelineData {
         name: "test_pipeline".to_string(),
-        run_snapshot:None,
+        run_snapshot: None,
         tags: PipelineTags::default(),
         is_dev: true,
         start_time: Default::default(),
@@ -143,7 +142,11 @@ fn async_runtime() -> Runtime {
 }
 
 #[rstest]
-fn test_nfcore_rnaseq_process_matching(pipeline: &PipelineData, run: RunData, async_runtime: &Runtime) {
+fn test_nfcore_rnaseq_process_matching(
+    pipeline: &PipelineData,
+    run: RunData,
+    async_runtime: &Runtime,
+) {
     const PROCESS_LIST_PATH: &str = "tests/assets/nfcore_rnaseq_process_list.json";
 
     // load processes from JSON file
