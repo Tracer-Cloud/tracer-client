@@ -1,14 +1,11 @@
 [package]
 name = "tracer"
-
 version = { workspace = true }
 edition = { workspace = true }
 homepage = { workspace = true }
 repository = { workspace = true }
 authors = { workspace = true }
-
 default-run = "tracer"
-
 build = "build.rs"
 
 [dependencies]

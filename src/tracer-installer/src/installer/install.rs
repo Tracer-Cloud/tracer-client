@@ -1,4 +1,5 @@
 use super::platform::PlatformInfo;
+use crate::constants::USER_ID_ENV_VAR;
 use crate::installer::url_builder::TracerUrlFinder;
 use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
 use crate::utils::{print_message, print_status, print_title, TagColor};
@@ -26,7 +27,6 @@ use tokio_retry::Retry;
 
 const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics";
 const TRACER_INSTALLATION_PATH: &str = "/usr/local/bin";
-const USER_ID_ENV_VAR: &str = "TRACER_USER_ID";
 
 pub struct Installer {
     pub platform: PlatformInfo,
@@ -146,74 +146,90 @@ impl Installer {
         Ok(final_path)
     }
 
+    /// Modify the user's shell config files. If user_id is `Some`, add/update the export of
+    /// TRACER_USER_ID environment variable; otherwise remove any existing export of TRACER_USER_ID.
+    ///
+    /// TODO: it's not very nice to add our environment variable to all of the user's config
+    /// files. See ENG-859 for options to improve this.
     pub async fn patch_rc_files_async(user_id: Option<String>) -> Result<()> {
         print_title("Updating Shell Configs");
-        if let Some(ref id) = user_id {
-            print_message("USER ID", id, TagColor::Cyan);
-        } else {
-            warning_message!("No user ID provided, skipping user ID persistence");
-        }
+
+        // replace an existing export line in any of these files
+        const CONF_FILES: &[&str] = &[
+            ".zshrc",
+            ".bashrc",
+            ".zprofile",
+            ".bash_profile",
+            ".profile",
+        ];
 
         let home = dirs::home_dir().context("Could not find home directory")?;
-        let export_user = user_id
-            .as_ref()
-            .map(|id| format!(r#"export {}="{}""#, USER_ID_ENV_VAR, id));
+        let config_files = CONF_FILES
+            .iter()
+            .map(|name| home.join(name))
+            .filter(|path| path.exists());
 
-        let rc_files = [".bashrc", ".bash_profile", ".zshrc", ".profile"];
+        // look for this line in each file and either update it or remove it
+        let export_line_match = format!("export {}=", USER_ID_ENV_VAR);
 
-        for rc in rc_files {
-            let path = home.join(rc);
-            if !path.exists() {
-                continue;
-            }
+        // the line to add/replace
+        let updated_export_line = if let Some(id) = &user_id {
+            print_message("USER ID", id, TagColor::Cyan);
+            Some(format!(r#"export {}="{}""#, USER_ID_ENV_VAR, id))
+        } else {
+            warning_message!("No user ID provided, skipping user ID persistence");
+            None
+        };
 
+        // reuse line buffer
+        let mut lines = Vec::new();
+
+        for path in config_files {
             let file = File::open(&path).await?;
             let reader = BufReader::new(file);
-            let mut lines = Vec::new();
             let mut lines_stream = reader.lines();
+            let mut has_user_export = false;
 
             while let Some(line) = lines_stream.next_line().await? {
-                lines.push(line);
-            }
-
-            let mut has_user_export = false;
-            let mut updated = false;
-            let mut updated_lines = Vec::new();
-            let export_line = format!("export {}=", USER_ID_ENV_VAR);
-
-            for line in lines {
-                if line.contains(&export_line) {
-                    if let Some(ref user_export) = export_user {
-                        updated_lines.push(user_export.clone());
+                if line.contains(&export_line_match) {
+                    if let Some(user_export) = &updated_export_line {
+                        lines.push(user_export.clone());
                     }
                     // Even if no user ID, we’re removing the line
                     has_user_export = true;
-                    updated = true;
                 } else {
-                    updated_lines.push(line);
+                    lines.push(line);
                 }
             }
 
-            if !has_user_export {
-                if let Some(user_export) = export_user.as_ref() {
-                    updated_lines.push(user_export.clone());
-                    updated = true;
-                }
-            }
+            let updated = if has_user_export {
+                true
+            } else if let Some(user_export) = updated_export_line.as_ref() {
+                lines.push(user_export.clone());
+                true
+            } else {
+                false
+            };
 
             if updated {
-                print_message("UPDATED", rc, TagColor::Green);
-            }
-            // Write all lines back to file
-            let mut file = OpenOptions::new()
-                .write(true)
-                .truncate(true)
-                .open(&path)
-                .await?;
+                print_message("UPDATED", path.to_str().unwrap(), TagColor::Green);
 
-            for line in updated_lines {
-                file.write_all(line.as_bytes()).await?;
-                file.write_all(b"\n").await?;
+                // TODO: this could fail and leave the user's rc file in a corrupted state.
+                // Instead, we should write to a temporary file and then replace the existing file.
+
+                // Write all lines back to file
+                let mut file = OpenOptions::new()
+                    .write(true)
+                    .truncate(true)
+                    .open(&path)
+                    .await?;
+
+                for line in lines.drain(..) {
+                    file.write_all(line.as_bytes()).await?;
+                    file.write_all(b"\n").await?;
+                }
+            } else {
+                lines.clear();
             }
         }
 

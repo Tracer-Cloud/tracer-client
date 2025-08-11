@@ -105,3 +105,6 @@ git2 = { version = "0.20.2", features = [
 ], default-features = false }
 which = "8.0.0"
 enquote = "1.1.0"
+
+[profile.dev]
+incremental = true
