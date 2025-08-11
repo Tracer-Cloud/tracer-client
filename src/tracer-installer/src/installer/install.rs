@@ -163,7 +163,7 @@ impl Installer {
             ".profile",
         ];
 
-        let home = dirs::home_dir().context("Could not find home directory")?;
+        let home = dirs_next::home_dir().context("Could not find home directory")?;
         let config_files = CONF_FILES
             .iter()
             .map(|name| home.join(name))
