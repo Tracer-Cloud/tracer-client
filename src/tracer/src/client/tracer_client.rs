@@ -222,7 +222,7 @@ impl TracerClient {
                 pipeline.tags.instance_type = Some(cost_summary.instance_type.clone());
             }
 
-            let environment_type = detect_environment_type().await;
+            let environment_type = detect_environment_type(1).await;
             pipeline.tags.environment_type = Some(environment_type);
 
             pipeline.run = Some(run);
