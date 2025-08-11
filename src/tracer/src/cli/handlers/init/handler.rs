@@ -39,6 +39,7 @@ pub async fn init(
     if DaemonServer::is_running() {
         warning_message!("Daemon server is already running, trying to terminate it...");
         if !terminate(&api_client).await {
+            error_message!("Failed to terminate the existing daemon. Please check the logs.");
             return Ok(());
         }
     }

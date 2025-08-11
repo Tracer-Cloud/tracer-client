@@ -6,7 +6,7 @@ use tracing::debug;
 
 pub(super) async fn wait(api_client: &DaemonClient) -> bool {
     for n in 0..5 {
-        match api_client.send_info().await {
+        match api_client.ping().await {
             // if timeout, retry
             Err(e) => {
                 if !(e.is_timeout() || e.is_connect()) {
