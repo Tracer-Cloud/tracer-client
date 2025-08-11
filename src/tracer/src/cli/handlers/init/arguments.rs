@@ -79,30 +79,29 @@ impl TracerCliInitArgs {
 
         // user_id is required - try to get it from the command line, fall back to user prompt
         // unless mode is set to non-interactive; error if missing
+        let username = env::get_env_var(USERNAME_ENV_VAR);
         let user_id = match (tags.user_id, &prompt_mode) {
             (Some(user_id), PromptMode::Minimal | PromptMode::Required) if confirm => {
                 Some(Self::prompt_for_user_id(Some(&user_id)))
             }
             (Some(user_id), _) => Some(user_id),
             (None, PromptMode::Minimal | PromptMode::Required) => {
-                Some(Self::prompt_for_user_id(None))
+                Some(Self::prompt_for_user_id(username.as_deref()))
             }
-            (None, PromptMode::None) => None,
+            (None, PromptMode::None)  => {
+                // TODO: remove this once we can source the user ID from the credentials file
+                if let Some(username) = &username {
+                    warning_message!(
+                        "Failed to get user ID from environment variable, command line, or prompt. \
+                        defaulting to the system username '{}', which may not be your Tracer user ID! \
+                        Please set the TRACER_USER_ID environment variable or specify the --user-id \
+                        option.",
+                        username
+                    );
+                }
+                username
+            }
         }
-        // TODO: remove this once we can source the user ID from the credentials file
-        .or_else(|| {
-            let username = env::get_env_var(USERNAME_ENV_VAR);
-            if let Some(username) = &username {
-                warning_message!(
-                    "Failed to get user ID from environment variable, command line, or prompt. \
-                    defaulting to the system username '{}', which may not be your Tracer user ID! \
-                    Please set the TRACER_USER_ID environment variable or specify the --user-id \
-                    option.",
-                    username
-                );
-            }
-            username
-        })
         .or_else(print_help)
         .expect("Failed to get user ID from environment variable, command line, or prompt");
         tags.user_id = Some(user_id.clone());
