@@ -31,11 +31,11 @@ itertools = { workspace = true }
 
 mockall = { workspace = true }
 log = { workspace = true }
-reqwest = { workspace = true }
+reqwest = { workspace = true, features = ["blocking"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 rand = { workspace = true }
-uuid = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
 dirs = { workspace = true }
 percent-encoding = { workspace = true }
 tokio-util = { workspace = true }
@@ -61,6 +61,8 @@ dashmap = { workspace = true }
 termion = { workspace = true }
 git2 = { workspace = true }
 which = { workspace = true }
+flate2 = "1.0"
+tar = "0.4"
 
 [dev-dependencies]
 sqlx = { workspace = true }

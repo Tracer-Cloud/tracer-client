@@ -51,12 +51,16 @@ impl TracerClient {
         info!("Initializing TracerClient");
 
         let pricing_client = Self::init_pricing_client(&config).await;
+
         let pipeline = Self::init_pipeline(&cli_args);
 
         let (log_recorder, rx) = Self::init_log_recorder(&pipeline);
-        let system = Arc::new(RwLock::new(System::new_all()));
-
-        let docker_watcher = Arc::new(DockerWatcher::new(log_recorder.clone()));
+        
+        // Initialize system info lazily to avoid blocking startup
+        let system = Arc::new(RwLock::new(System::new()));
+        
+        // Initialize Docker watcher lazily to avoid blocking startup
+        let docker_watcher = Arc::new(DockerWatcher::new_lazy(log_recorder.clone()));
 
         let process_watcher = Self::init_process_watcher(&log_recorder, docker_watcher.clone());
 
@@ -267,8 +271,19 @@ impl TracerClient {
 
     #[tracing::instrument(skip(self))]
     pub async fn refresh_sysinfo(&self) -> Result<()> {
-        self.system.write().await.refresh_all();
+        let mut system = self.system.write().await;
+        system.refresh_all();
 
+        Ok(())
+    }
+
+    /// Initialize system info if not already initialized
+    pub async fn ensure_system_initialized(&self) -> Result<()> {
+        let mut system = self.system.write().await;
+        if system.cpus().is_empty() {
+            // System not fully initialized, refresh all
+            system.refresh_all();
+        }
         Ok(())
     }
 
@@ -284,6 +299,8 @@ impl TracerClient {
     pub fn get_config(&self) -> &Config {
         &self.config
     }
+
+
 
     async fn start_docker_monitoring(&self) {
         let docker_watcher = self.docker_watcher.clone();

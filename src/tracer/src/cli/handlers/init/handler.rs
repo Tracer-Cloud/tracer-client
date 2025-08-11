@@ -6,6 +6,8 @@ use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::initialization::create_and_run_server;
 use crate::daemon::server::DaemonServer;
+use crate::opentelemetry::collector::OtelCollector;
+use crate::opentelemetry::config::OtelConfig;
 use crate::utils::analytics::types::AnalyticsEventType;
 use crate::utils::system_info::check_sudo;
 use crate::utils::workdir::TRACER_WORK_DIR;
@@ -57,6 +59,59 @@ pub async fn init_with_default_prompt(
 
     let args = args.finalize(prompt_mode);
 
+    // Handle OpenTelemetry logging if API key is provided
+    if let Some(api_key) = &args.opensearch_api_key {
+        // Validate that the API key is not empty
+        if api_key.trim().is_empty() {
+            warning_message!("OpenSearch API key is empty, skipping OpenTelemetry logging...");
+        } else {
+            info_message!("OpenSearch API key provided, enabling OpenTelemetry logging...");
+            
+            // Set environment variable for the current process and export to shell
+            std::env::set_var("OPENSEARCH_API_KEY", api_key);
+            
+            // Export to shell for persistence
+            if let Ok(shell) = std::env::var("SHELL") {
+                let export_cmd = format!("export OPENSEARCH_API_KEY={}", api_key);
+                if let Err(e) = std::process::Command::new(&shell)
+                    .arg("-c")
+                    .arg(&export_cmd)
+                    .output() {
+                    warning_message!("Failed to export OPENSEARCH_API_KEY to shell: {}", e);
+                }
+            }
+            
+            // Create OpenTelemetry configuration
+            let run_id = uuid::Uuid::new_v4().to_string();
+            let otel_config = OtelConfig::with_environment_variables(
+                api_key.clone(),
+                args.user_id.clone(),
+                args.pipeline_name.clone(),
+                args.run_name.clone(),
+                run_id,
+                args.environment_variables.clone(),
+            );
+            
+            // Initialize and start OpenTelemetry collector
+            match OtelCollector::new() {
+                Ok(collector) => {
+                    if let Err(e) = collector.start(&otel_config) {
+                        error_message!("Failed to start OpenTelemetry collector: {}", e);
+                        warning_message!("Continuing without OpenTelemetry logging...");
+                    } else {
+                        success_message!("OpenTelemetry logging enabled successfully");
+                    }
+                }
+                Err(e) => {
+                    error_message!("Failed to initialize OpenTelemetry collector: {}", e);
+                    warning_message!("Continuing without OpenTelemetry logging...");
+                }
+            }
+        }
+    } else {
+        info_message!("No OpenSearch API key provided, OpenTelemetry logging will not be enabled");
+    }
+
     {
         // Layer tags on top of args
         let mut json_args = serde_json::to_value(&args)?.as_object().unwrap().clone();
@@ -78,8 +133,8 @@ pub async fn init_with_default_prompt(
 
         info_message!("Spawning child process...");
 
-        let child = Command::new(current_exe)
-            .arg("init")
+        let mut cmd = Command::new(&current_exe);
+        cmd.arg("init")
             .arg("--no-daemonize")
             .arg("--pipeline-name")
             .arg(&args.pipeline_name)
@@ -96,25 +151,40 @@ pub async fn init_with_default_prompt(
                 vec![]
             })
             .arg("--log-level")
-            .arg(args.log_level)
+            .arg(&args.log_level);
+
+        // Add OpenSearch API key if provided
+        if let Some(api_key) = &args.opensearch_api_key {
+            cmd.arg("--opensearch-api-key").arg(api_key);
+        }
+
+        // Add environment variables if provided
+        for (key, value) in &args.environment_variables {
+            cmd.arg("--env-var").arg(format!("{}={}", key, value));
+        }
+
+        let child = cmd
             .stdin(Stdio::null())
             .stdout(Stdio::from(File::create(&TRACER_WORK_DIR.stdout_file)?))
             .stderr(Stdio::from(File::create(&TRACER_WORK_DIR.stderr_file)?))
             .spawn()?;
 
         std::fs::write(&TRACER_WORK_DIR.pid_file, child.id().to_string())?;
-        success_message!("Daemon started successfully.");
+        info_message!("Daemon process spawned (PID: {})", child.id());
 
-        // Wait a moment for the daemon to start, then show info
+        // Wait for the daemon to be ready, then show info
         analytics::spawn_event(
             args.user_id.clone(),
             AnalyticsEventType::DaemonStartAttempted,
             None,
         );
+        
         if !wait(api_client).await {
             error_message!("Daemon is not responding, please check logs");
             return Ok(());
         }
+        
+        success_message!("Daemon is ready and responding");
         info(api_client, false).await;
 
         return Ok(());

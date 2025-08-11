@@ -5,5 +5,6 @@ pub mod config;
 pub mod constants;
 pub mod daemon;
 pub mod extracts;
+pub mod opentelemetry;
 pub mod process_identification;
 pub mod utils;

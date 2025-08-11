@@ -5,30 +5,52 @@ use tokio::time::sleep;
 use tracing::debug;
 
 pub(super) async fn wait(api_client: &DaemonClient) -> bool {
-    for n in 0..5 {
+    // Try immediately first
+    match api_client.send_info().await {
+        Ok(resp) => {
+            if resp.status().is_success() {
+                debug!("Daemon responded immediately");
+                return true;
+            }
+            debug!("Got response, retrying: {:?}", resp);
+        }
+        Err(e) => {
+            if !(e.is_timeout() || e.is_connect()) {
+                panic!("Error trying to reach daemon server: {:?}", e)
+            }
+            debug!("Initial connection failed (expected): {:?}", e);
+        }
+    }
+
+    // Use very short intervals for faster startup detection
+    let intervals = [500, 500, 1000, 1000, 2000]; // milliseconds: 0.5s, 0.5s, 1s, 1s, 2s = 5s total
+    let mut total_elapsed = 0;
+    
+    for &interval in &intervals {
+        total_elapsed += interval;
+        
+        info_message!(
+            "Waiting for daemon to be ready... ({} second{} elapsed)",
+            total_elapsed / 1000,
+            if total_elapsed > 1000 { "s" } else { "" }
+        );
+        
+        sleep(std::time::Duration::from_millis(interval)).await;
+        
         match api_client.send_info().await {
-            // if timeout, retry
+            Ok(resp) => {
+                if resp.status().is_success() {
+                    debug!("Daemon responded after {} seconds", total_elapsed as f64 / 1000.0);
+                    return true;
+                }
+                debug!("Got response, retrying: {:?}", resp);
+            }
             Err(e) => {
                 if !(e.is_timeout() || e.is_connect()) {
                     panic!("Error trying to reach daemon server: {:?}", e)
                 }
             }
-            Ok(resp) => {
-                if resp.status().is_success() {
-                    return true;
-                }
-                debug!("Got response, retrying: {:?}", resp);
-            }
         }
-
-        let duration = 1 << n;
-
-        info_message!(
-            "Starting daemon... ({} second{} elapsed)",
-            duration,
-            if duration > 1 { "s" } else { "" }
-        );
-        sleep(std::time::Duration::from_secs(duration)).await;
     }
     false
 }

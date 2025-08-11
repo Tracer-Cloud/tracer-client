@@ -36,8 +36,28 @@ impl DockerWatcher {
         }
     }
 
+    pub fn new_lazy(recorder: LogRecorder) -> Self {
+        let container_state = Arc::new(RwLock::new(HashMap::new()));
+
+        Self {
+            docker: None,
+            recorder,
+            container_state,
+        }
+    }
+
     pub async fn start(&self) -> Result<()> {
-        if let Some(ref docker) = self.docker {
+        let docker = if self.docker.is_none() {
+            let docker = Docker::connect_with_unix_defaults().ok();
+            if docker.is_none() {
+                tracing::warn!("Docker not available — container events will not be captured.");
+            }
+            docker
+        } else {
+            self.docker.clone()
+        };
+
+        if let Some(ref docker) = docker {
             let filters = HashMap::from_iter([("type", vec!["container".to_string()])]);
             let events_options = EventsOptionsBuilder::default().filters(&filters).build();
             let mut events_stream = docker.events(Some(events_options));

@@ -1,7 +1,8 @@
 use crate::daemon::client::DaemonClient;
+use crate::opentelemetry::collector::{OtelCollector, check_and_kill_otel_processes};
 use crate::process_identification::constants::DEFAULT_DAEMON_PORT;
 use crate::utils::workdir::TRACER_WORK_DIR;
-use crate::{error_message, info_message, success_message};
+use crate::{error_message, info_message, success_message, warning_message};
 use colored::Colorize;
 use std::fs;
 
@@ -24,6 +25,17 @@ pub async fn terminate(api_client: &DaemonClient) -> bool {
         );
         return false;
     }
+    
+    if let Ok(collector) = OtelCollector::new() {
+        if let Err(e) = collector.stop() {
+            warning_message!("Failed to stop OpenTelemetry collector: {}", e);
+        }
+    }
+    
+    if let Err(e) = check_and_kill_otel_processes() {
+        warning_message!("Failed to check for OpenTelemetry processes: {}", e);
+    }
+    
     if !check_port_conflict().await {
         error_message!(
             "Port conflict detected. Please wait up to a minute for the port to be released."
