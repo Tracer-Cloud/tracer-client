@@ -1,6 +1,8 @@
+use reqwest::Client;
 use std::env;
 use std::fs;
 use std::path::Path;
+use std::time::Duration;
 
 // Environment variables that control init parameters
 pub const TRACE_ID_ENV_VAR: &str = "TRACER_TRACE_ID";
@@ -37,7 +39,7 @@ fn is_docker() -> bool {
     false
 }
 
-pub(crate) async fn detect_environment_type() -> String {
+pub(crate) async fn detect_environment_type(timeout: u64) -> String {
     let running_in_docker = is_docker();
 
     if is_codespaces() {
@@ -55,7 +57,7 @@ pub(crate) async fn detect_environment_type() -> String {
         return "AWS Batch".into();
     }
 
-    if detect_ec2_environment().await.is_some() {
+    if detect_ec2_environment(timeout).await.is_some() {
         return if running_in_docker {
             "AWS EC2 (Docker)".into()
         } else {
@@ -78,7 +80,7 @@ fn is_codespaces() -> bool {
             .unwrap_or(false)
 }
 
-async fn detect_ec2_environment() -> Option<String> {
+async fn detect_ec2_environment(timeout_secs: u64) -> Option<String> {
     // Try DMI UUID
     if let Ok(uuid) = fs::read_to_string("/sys/devices/virtual/dmi/id/product_uuid") {
         if uuid.to_lowercase().starts_with("ec2") {
@@ -87,9 +89,14 @@ async fn detect_ec2_environment() -> Option<String> {
     }
     // Fallback to metadata service
     let url = "http://169.254.169.254/latest/meta-data/instance-id";
-    if let Ok(resp) = reqwest::get(url).await {
-        if resp.status() == 200 {
-            return Some("AWS EC2".into());
+    if let Ok(client) = Client::builder()
+        .timeout(Duration::from_secs(timeout_secs))
+        .build()
+    {
+        if let Ok(resp) = client.get(url).send().await {
+            if resp.status() == 200 {
+                return Some("AWS EC2".into());
+            }
         }
     }
 
