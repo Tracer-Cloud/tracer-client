@@ -214,6 +214,7 @@ impl TracerClient {
             processes,
             tasks,
             run.cost_summary.clone(),
+            run.start_time,
         )
     }
 

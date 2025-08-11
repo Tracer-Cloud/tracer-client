@@ -22,11 +22,12 @@ impl RunSnapshot {
         processes: HashSet<String>,
         tasks: HashMap<String, usize>,
         cost_summary: Option<PipelineCostSummary>,
+        start_time: DateTime<Utc>,
     ) -> Self {
         Self {
             name,
             id,
-            start_time: Utc::now(),
+            start_time,
             processes,
             tasks,
             cost_summary,
