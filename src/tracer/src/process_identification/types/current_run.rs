@@ -14,6 +14,27 @@ pub struct PipelineMetadata {
 }
 
 #[derive(Clone)]
+pub struct RunData {
+    pub name: String,
+    pub id: String,
+    pub start_time: DateTime<Utc>,
+    pub trace_id: Option<String>,
+    pub cost_summary: Option<PipelineCostSummary>,
+}
+
+impl RunData {
+    pub fn new(name: String, id: String, cost_summary: Option<PipelineCostSummary>) -> Self {
+        RunData {
+            name,
+            id,
+            start_time: Utc::now(),
+            trace_id: std::env::var(TRACE_ID_ENV_VAR).ok(),
+            cost_summary,
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct Run {
     pub name: String,
     pub id: String,

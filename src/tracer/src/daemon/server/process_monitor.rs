@@ -1,5 +1,4 @@
 use crate::client::TracerClient;
-use crate::daemon::handlers::info::get_info_response;
 use crate::utils::Sentry;
 use anyhow::Result;
 use serde_json::json;
@@ -64,7 +63,7 @@ pub async fn monitor(client: Arc<Mutex<TracerClient>>, server_token: Cancellatio
         client_token,
     ) = {
         let client = client.lock().await;
-        client.start_new_run().await.unwrap();
+        client.start_monitoring().await.unwrap();
         let config = client.get_config();
         (
             config.batch_submission_interval_ms,
@@ -171,19 +170,17 @@ pub async fn monitor(client: Arc<Mutex<TracerClient>>, server_token: Cancellatio
 }
 
 async fn sentry_alert(client: &TracerClient) {
-    let info_response = get_info_response(client).await;
-    let processes = info_response.processes_json();
-    let process_count = info_response.process_count();
-    if let Some(inner) = info_response.inner {
-        Sentry::add_context(
-            "Run Details",
-            json!({
-                "name": inner.run_name.clone(),
-                "id": inner.run_id.clone(),
-                "runtime": inner.formatted_runtime(),
-                "no. processes": process_count,
-            }),
-        );
-        Sentry::add_extra("Processes", processes);
-    }
+    let run_snapshot = client.get_run_snapshot().await;
+    let processes = run_snapshot.processes_json();
+    let process_count = run_snapshot.process_count();
+    Sentry::add_context(
+        "Run Details",
+        json!({
+            "name": run_snapshot.name.clone(),
+            "id": run_snapshot.id.clone(),
+            "runtime": run_snapshot.formatted_runtime(),
+            "no. processes": process_count,
+        }),
+    );
+    Sentry::add_extra("Processes", processes);
 }

@@ -1,4 +1,4 @@
-use super::structs::InfoResponse;
+use super::structs::PipelineData;
 use crate::daemon::handlers::info::INFO_ENDPOINT;
 use crate::daemon::handlers::start::START_ENDPOINT;
 use crate::daemon::handlers::stop::STOP_ENDPOINT;
@@ -30,19 +30,19 @@ impl DaemonClient {
         format!("{}{}", self.base_uri, path)
     }
 
-    pub async fn send_start_request(&self) -> Result<bool,&str> {
+    pub async fn send_start_request(&self) -> Result<bool, &str> {
         self.send_request(START_ENDPOINT, Method::Post).await
     }
 
-    pub async fn send_terminate_request(&self) -> Result<String,&str> {
+    pub async fn send_terminate_request(&self) -> Result<String, &str> {
         self.send_request(TERMINATE_ENDPOINT, Method::Post).await
     }
 
-    pub async fn send_stop_request(&self) -> Result<bool,&str> {
+    pub async fn send_stop_request(&self) -> Result<bool, &str> {
         self.send_request(STOP_ENDPOINT, Method::Post).await
     }
 
-    pub async fn send_info_request(&self) -> Result<Option<InfoResponse>,&str> {
+    pub async fn send_info_request(&self) -> Result<PipelineData, &str> {
         self.send_request(INFO_ENDPOINT, Method::Get).await
     }
 
@@ -50,8 +50,12 @@ impl DaemonClient {
         self.client.get(self.get_url(INFO_ENDPOINT)).send().await
     }
 
-    async fn send_request<T: serde::de::DeserializeOwned>(&self, endpoint: &str, method: Method) -> Result<T, &str> {
-        if !DaemonServer::is_running(){
+    async fn send_request<T: serde::de::DeserializeOwned>(
+        &self,
+        endpoint: &str,
+        method: Method,
+    ) -> Result<T, &str> {
+        if !DaemonServer::is_running() {
             error_message!("Tracer daemon is not running");
             return Err("Tracer daemon is not running");
         }
@@ -59,15 +63,18 @@ impl DaemonClient {
             Method::Get => self.client.get(self.get_url(endpoint)).send().await,
             Method::Post => self.client.post(self.get_url(endpoint)).send().await,
         };
-        match self.unpack_response(response){
+        match self.unpack_response(response) {
             Some(response) => self.extract_json(response).await,
             None => {
                 error_message!("Failed to send request to {}", endpoint);
-                Err("Failed to send request".into())
+                Err("Failed to send request")
             }
         }
     }
-    async fn extract_json<T: serde::de::DeserializeOwned>(&self, response: Response) -> Result<T,&str> {
+    async fn extract_json<T: serde::de::DeserializeOwned>(
+        &self,
+        response: Response,
+    ) -> Result<T, &str> {
         match response.json::<T>().await {
             Ok(json) => Ok(json),
             Err(e) => {
@@ -76,7 +83,7 @@ impl DaemonClient {
             }
         }
     }
-     fn unpack_response(&self, response: reqwest::Result<Response> ) -> Option<Response> {
+    fn unpack_response(&self, response: reqwest::Result<Response>) -> Option<Response> {
         match response {
             Ok(resp) => Some(resp),
             Err(e) => {

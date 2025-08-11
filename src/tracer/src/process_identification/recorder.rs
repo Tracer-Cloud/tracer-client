@@ -1,20 +1,22 @@
-use crate::process_identification::types::current_run::PipelineMetadata;
+use crate::daemon::structs::PipelineData;
+use crate::process_identification::types::current_run::RunData;
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::{Event, ProcessStatus};
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
-use tokio::sync::RwLock;
+use tokio::sync::Mutex;
 
 #[derive(Clone)]
 pub struct EventDispatcher {
-    pipeline: Arc<RwLock<PipelineMetadata>>,
+    pipeline: Arc<Mutex<PipelineData>>,
+    run: RunData,
     tx: Sender<Event>,
 }
 
 impl EventDispatcher {
-    pub fn new(pipeline: Arc<RwLock<PipelineMetadata>>, tx: Sender<Event>) -> Self {
-        EventDispatcher { pipeline, tx }
+    pub fn new(pipeline: Arc<Mutex<PipelineData>>, run: RunData, tx: Sender<Event>) -> Self {
+        EventDispatcher { pipeline, run, tx }
     }
 
     pub async fn log_with_metadata(
@@ -23,18 +25,19 @@ impl EventDispatcher {
         body: String,
         attributes: Option<EventAttributes>,
         timestamp: Option<DateTime<Utc>>,
-        pipeline: &PipelineMetadata,
     ) -> anyhow::Result<()> {
+        let pipeline = &self.pipeline.lock().await;
+        let run = &self.run;
         let event = Event::builder()
             .body(body)
             .timestamp(timestamp.unwrap_or_else(Utc::now))
             .process_status(process_status)
-            .pipeline_name(Some(pipeline.pipeline_name.clone()))
-            .run_name(pipeline.run.as_ref().map(|m| m.name.clone()))
-            .run_id(pipeline.run.as_ref().map(|m| m.id.clone()))
+            .pipeline_name(Some(pipeline.name.clone()))
+            .run_name(Some(run.name.clone()))
+            .run_id(Some(run.id.clone()))
             .tags(Some(pipeline.tags.clone()))
             .attributes(attributes)
-            .trace_id(pipeline.run.as_ref().and_then(|r| r.trace_id.clone()))
+            .trace_id(run.trace_id.clone())
             .build();
 
         self.tx.send(event).await?;
@@ -48,49 +51,27 @@ impl EventDispatcher {
         attributes: Option<EventAttributes>,
         timestamp: Option<DateTime<Utc>>,
     ) -> anyhow::Result<()> {
-        let run_metadata = self.pipeline.read().await;
-        self.log_with_metadata(
-            process_status,
-            message,
-            attributes,
-            timestamp,
-            &run_metadata,
-        )
-        .await
+        self.log_with_metadata(process_status, message, attributes, timestamp)
+            .await
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::process_identification::types::current_run::{PipelineMetadata, Run};
     use crate::process_identification::types::event::attributes::{
         process::DataSetsProcessed, EventAttributes,
     };
-    use crate::process_identification::types::pipeline_tags::PipelineTags;
     use chrono::TimeZone;
     use tokio::sync::mpsc;
     use uuid::Uuid;
 
     #[tokio::test]
-    async fn test_event_dispatcher_new() {
-        let pipeline = create_test_pipeline();
-        let (tx, _rx) = mpsc::channel(10);
-
-        let recorder = EventDispatcher::new(pipeline, tx);
-        assert_eq!(
-            recorder.pipeline.read().await.pipeline_name,
-            "test_pipeline"
-        );
-    }
-
-    #[tokio::test]
     async fn test_event_with_metadata() {
-        let pipeline_data = create_test_pipeline();
+        let (pipeline, run) = create_test_pipeline();
         let (tx, mut rx) = mpsc::channel(10);
 
-        let recorder = EventDispatcher::new(pipeline_data.clone(), tx);
-        let pipeline = pipeline_data.read().await.clone();
+        let recorder = EventDispatcher::new(pipeline, run, tx);
 
         let message = "Test log message".to_string();
         let fixed_time = Utc.with_ymd_and_hms(2025, 4, 30, 12, 0, 0).unwrap();
@@ -101,7 +82,6 @@ mod tests {
                 message.clone(),
                 None,
                 Some(fixed_time),
-                &pipeline,
             )
             .await
             .unwrap();
@@ -118,10 +98,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_log_method() {
-        let pipeline_data = create_test_pipeline();
+        let (pipeline, run) = create_test_pipeline();
         let (tx, mut rx) = mpsc::channel(10);
 
-        let recorder = EventDispatcher::new(pipeline_data, tx);
+        let recorder = EventDispatcher::new(pipeline, run, tx);
         let message = "Test log via standard method".to_string();
 
         // Create test attributes
@@ -164,9 +144,9 @@ mod tests {
     #[tokio::test]
     async fn test_log_handles_channel_errors() {
         // Create a channel with capacity 1
-        let pipeline_data = create_test_pipeline();
+        let (pipeline, run) = create_test_pipeline();
         let (tx, _rx) = mpsc::channel::<Event>(1);
-        let recorder = EventDispatcher::new(pipeline_data, tx.clone());
+        let recorder = EventDispatcher::new(pipeline, run, tx.clone());
 
         // Close the receiver to force send errors
         drop(_rx);
@@ -189,27 +169,10 @@ mod tests {
     async fn test_log_with_trace_id_from_run() {
         let trace_id = "trace-id-xyz".to_string();
 
-        // Build a custom run with trace_id
-        let run = Run {
-            name: "test_run".to_string(),
-            id: "test-id-123".to_string(),
-            last_interaction: std::time::Instant::now(),
-            start_time: Utc::now(),
-            parent_pid: None,
-            cost_summary: None,
-            trace_id: Some(trace_id.clone()),
-        };
+        let (pipeline, run) = create_test_pipeline();
 
-        let pipeline = PipelineMetadata {
-            pipeline_name: "test_pipeline".to_string(),
-            run: Some(run),
-            tags: PipelineTags::default(),
-            is_dev: true,
-        };
-
-        let pipeline_arc = Arc::new(RwLock::new(pipeline));
         let (tx, mut rx) = mpsc::channel(10);
-        let recorder = EventDispatcher::new(pipeline_arc, tx);
+        let recorder = EventDispatcher::new(pipeline, run, tx);
 
         let message = "Logging with trace_id".to_string();
 
@@ -224,15 +187,24 @@ mod tests {
     }
 
     // Helper function to create a test pipeline
-    fn create_test_pipeline() -> Arc<RwLock<PipelineMetadata>> {
-        let run = Run::new("test_run".to_string(), "test-id-123".to_string());
-        let pipeline = PipelineMetadata {
-            pipeline_name: "test_pipeline".to_string(),
-            run: Some(run),
-            tags: PipelineTags::default(),
-            is_dev: true,
+    fn create_test_pipeline() -> (Arc<Mutex<PipelineData>>, RunData) {
+        let trace_id = "trace-id-xyz".to_string();
+        // Build a custom run with trace_id
+        let run = RunData {
+            name: "test_run".to_string(),
+            id: "test-id-123".to_string(),
+            start_time: Utc::now(),
+            cost_summary: None,
+            trace_id: Some(trace_id.clone()),
         };
 
-        Arc::new(RwLock::new(pipeline))
+        let pipeline = Arc::new(Mutex::new(PipelineData {
+            name: "test_pipeline".to_string(),
+            run_snapshot: None,
+            tags: Default::default(),
+            is_dev: true,
+            start_time: Default::default(),
+        }));
+        (pipeline, run)
     }
 }

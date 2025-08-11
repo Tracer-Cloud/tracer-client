@@ -1,13 +1,13 @@
 mod cleanup_port;
 mod info;
 mod init;
+mod start;
+mod stop;
 mod terminate;
 mod test;
 mod theme;
 mod uninstall;
 mod update;
-mod stop;
-mod start;
 
 pub(super) use cleanup_port::cleanup_port;
 pub(super) use info::info;
