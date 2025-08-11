@@ -160,7 +160,8 @@ fn match_java<'a>(
                 return Some(ProcessMatch::with_subcommand(arg));
             }
         }
-        if jar_match && class_match {
+        // match just the jar if there are no subcommands specified
+        if jar_match && class_match && subcommands.is_none() {
             return Some(ProcessMatch::Simple);
         }
     }

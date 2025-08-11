@@ -1,14 +1,11 @@
 [package]
 name = "tracer"
-
 version = { workspace = true }
 edition = { workspace = true }
 homepage = { workspace = true }
 repository = { workspace = true }
 authors = { workspace = true }
-
 default-run = "tracer"
-
 build = "build.rs"
 
 [dependencies]
@@ -36,7 +33,6 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 rand = { workspace = true }
 uuid = { workspace = true }
-dirs = { workspace = true }
 percent-encoding = { workspace = true }
 tokio-util = { workspace = true }
 aws-config = { workspace = true }
@@ -61,6 +57,7 @@ dashmap = { workspace = true }
 termion = { workspace = true }
 git2 = { workspace = true }
 which = { workspace = true }
+dirs-next = { workspace = true }
 
 [dev-dependencies]
 sqlx = { workspace = true }

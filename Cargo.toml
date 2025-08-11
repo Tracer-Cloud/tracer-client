@@ -16,7 +16,7 @@ tracer = { path = "src/tracer" }
 
 anyhow = "1.0.98"
 chrono = { version = "0.4.41", features = ["serde"] }
-clap = { version = "4.5.42", features = ["derive", "env"] }
+clap = { version = "4.5.43", features = ["derive", "env"] }
 daemonize = "0.5.0"
 log = "0.4.27"
 octocrab = "0.44.1"
@@ -49,12 +49,12 @@ uuid = { version = "1.17.0", features = [
 ] }
 
 
-aws-config = { version = "1.8.3", features = ["behavior-version-latest"] }
-aws-sdk-pricing = "1.81.0"
-aws-sdk-s3 = "1.100.0"
+aws-config = { version = "1.8.4", features = ["behavior-version-latest"] }
+aws-sdk-pricing = "1.82.0"
+aws-sdk-s3 = "1.101.0"
 aws-credential-types = "1.2.4"
-aws-sdk-secretsmanager = "1.82.0"
-aws-sdk-ec2 = "1.154.0"
+aws-sdk-secretsmanager = "1.83.0"
+aws-sdk-ec2 = "1.156.0"
 
 tracing-subscriber = { version = "0.3.19", features = [
     "env-filter",
@@ -62,7 +62,6 @@ tracing-subscriber = { version = "0.3.19", features = [
     "time",
     "local-time",
 ] }
-dirs = "6.0.0"
 serde-query = "0.2.0"
 itertools = "0.14.0"
 percent-encoding = "2.3.1"
@@ -105,3 +104,7 @@ git2 = { version = "0.20.2", features = [
 ], default-features = false }
 which = "8.0.0"
 enquote = "1.1.0"
+dirs-next = "2.0.0"
+
+[profile.dev]
+incremental = true

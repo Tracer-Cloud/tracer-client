@@ -36,6 +36,7 @@ pub struct TracerClient {
     run: RunData,
     config: Config,
     force_procfs: bool,
+
     pub exporter: Arc<ExporterManager>,
 }
 
@@ -49,10 +50,10 @@ impl TracerClient {
         info!("Initializing TracerClient");
 
         let pricing_client = Self::init_pricing_client(&config).await;
+
         let system = Arc::new(RwLock::new(System::new_all()));
         let (run, system_properties) =
             Self::init_run(system.clone(), &cli_args.run_name, pricing_client).await;
-
         {
             // Update pipeline tags with instance_type and environment_type
             let mut pipeline = pipeline.lock().await;
@@ -60,7 +61,7 @@ impl TracerClient {
                 pipeline.tags.instance_type = Some(cost_summary.instance_type.clone());
             }
 
-            let environment_type = detect_environment_type().await;
+            let environment_type = detect_environment_type(1).await;
             pipeline.tags.environment_type = Some(environment_type);
         }
 
@@ -85,6 +86,7 @@ impl TracerClient {
 
         let metrics_collector = Self::init_watchers(&event_dispatcher, &system);
         let cancellation_token = CancellationToken::new();
+
         Ok(TracerClient {
             // if putting a value to config, also update `TracerClient::reload_config_file`
             system: system.clone(),
@@ -230,6 +232,7 @@ impl TracerClient {
         let system = system.read().await;
         let (run, system_properties) = init_run(&system, &pricing_source, run_name).await.unwrap();
         (run, system_properties)
+
     }
 
     #[tracing::instrument(skip(self))]

@@ -6,6 +6,9 @@ use tracer_ebpf::ebpf_trigger::Trigger;
 pub const DUMMY_PID: usize = 0;
 pub const DUMMY_PPID: usize = 1;
 
+/// Creates a new `ProcessStartTrigger`. If the command is
+/// `<file>.py``, changes the command to `python <file>.py`.
+/// Use dummy PID and PPID values.
 pub fn new_process_start_trigger(cmd: &str) -> Trigger {
     // change command for executable scripts
     let cmd = if cmd.contains(".py") {
@@ -18,6 +21,9 @@ pub fn new_process_start_trigger(cmd: &str) -> Trigger {
     ))
 }
 
+/// Structure for process info loaded from a JSON file.
+/// Each process has a vec of test command sto try and match, and a
+/// vec of commands that are expected to be matched.
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ProcessInfo {
     pub process_name: String,

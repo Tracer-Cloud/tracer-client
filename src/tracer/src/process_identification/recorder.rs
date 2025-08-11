@@ -11,12 +11,13 @@ use tokio::sync::Mutex;
 pub struct EventDispatcher {
     pipeline: Arc<Mutex<PipelineData>>,
     run: RunData,
-    tx: Sender<Event>,
+    tx: Sender<Event>
 }
 
 impl EventDispatcher {
     pub fn new(pipeline: Arc<Mutex<PipelineData>>, run: RunData, tx: Sender<Event>) -> Self {
         EventDispatcher { pipeline, run, tx }
+
     }
 
     pub async fn log_with_metadata(
@@ -102,6 +103,7 @@ mod tests {
         let (tx, mut rx) = mpsc::channel(10);
 
         let recorder = EventDispatcher::new(pipeline, run, tx);
+
         let message = "Test log via standard method".to_string();
 
         // Create test attributes
