@@ -1,4 +1,5 @@
 use super::platform::PlatformInfo;
+use crate::constants::USER_ID_ENV_VAR;
 use crate::installer::url_builder::TracerUrlFinder;
 use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
 use crate::utils::{print_message, print_status, print_title, TagColor};
@@ -26,7 +27,6 @@ use tokio_retry::Retry;
 
 const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics";
 const TRACER_INSTALLATION_PATH: &str = "/usr/local/bin";
-const USER_ID_ENV_VAR: &str = "TRACER_USER_ID";
 
 pub struct Installer {
     pub platform: PlatformInfo,

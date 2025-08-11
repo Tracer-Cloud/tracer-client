@@ -1,3 +1,4 @@
+use crate::constants::USER_ID_ENV_VAR;
 use clap::{Parser, Subcommand};
 use serde::Serialize;
 use std::fmt;
@@ -49,7 +50,7 @@ pub enum InstallerCommand {
         channel: TracerVersion,
 
         /// Optional user ID used to associate this installation with your account.
-        #[arg(long)]
+        #[arg(long, env = USER_ID_ENV_VAR)]
         user_id: Option<String>,
     },
 }
