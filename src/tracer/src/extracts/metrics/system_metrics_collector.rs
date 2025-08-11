@@ -1,4 +1,4 @@
-use crate::process_identification::recorder::LogRecorder;
+use crate::process_identification::recorder::EventDispatcher;
 use crate::process_identification::types::event::attributes::system_metrics::{
     DiskStatistic, SystemMetric,
 };
@@ -12,14 +12,14 @@ use sysinfo::{Disks, System};
 use tokio::sync::RwLock;
 
 pub struct SystemMetricsCollector {
-    log_recorder: LogRecorder,
+    event_dispatcher: EventDispatcher,
     system: Arc<RwLock<System>>,
 }
 
 impl SystemMetricsCollector {
-    pub fn new(log_recorder: LogRecorder, system: Arc<RwLock<System>>) -> Self {
+    pub fn new(event_dispatcher: EventDispatcher, system: Arc<RwLock<System>>) -> Self {
         Self {
-            log_recorder,
+            event_dispatcher,
             system,
         }
     }
@@ -83,7 +83,7 @@ impl SystemMetricsCollector {
         let attributes =
             EventAttributes::SystemMetric(self.gather_metrics_object_attributes().await);
 
-        self.log_recorder
+        self.event_dispatcher
             .log(
                 ProcessStatus::MetricEvent,
                 format!("[{}] System's resources metric", Utc::now()),
@@ -130,7 +130,7 @@ mod tests {
 
         let (tx, mut rx) = tokio::sync::mpsc::channel(100);
 
-        let recorder = LogRecorder::new(pipeline, tx);
+        let recorder = EventDispatcher::new(pipeline, tx);
 
         let collector = SystemMetricsCollector::new(recorder, Arc::new(RwLock::new(system)));
 

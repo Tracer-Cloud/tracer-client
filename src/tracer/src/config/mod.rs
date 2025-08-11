@@ -22,8 +22,8 @@ pub struct Config {
 
     pub server: String,
 
-    pub log_forward_endpoint_dev: Option<String>,
-    pub log_forward_endpoint_prod: Option<String>,
+    pub event_forward_endpoint_dev: Option<String>,
+    pub event_forward_endpoint_prod: Option<String>,
 }
 
 impl Config {

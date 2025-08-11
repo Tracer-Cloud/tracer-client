@@ -1,20 +1,20 @@
 use crate::client::exporters::db::AuroraClient;
-use crate::client::exporters::log_forward::LogForward;
+use crate::client::exporters::event_forward::EventForward;
 use crate::process_identification::types::event::Event;
 
 use anyhow::Result;
 
 pub enum LogWriterEnum {
     Aurora(AuroraClient),
-    Forward(LogForward),
+    Forward(EventForward),
 }
 
 #[allow(async_fn_in_trait)]
-pub trait LogWriter {
+pub trait EventWriter {
     async fn batch_insert_events(&self, data: impl IntoIterator<Item = &Event>) -> Result<()>;
 }
 
-impl LogWriter for LogWriterEnum {
+impl EventWriter for LogWriterEnum {
     async fn batch_insert_events(&self, data: impl IntoIterator<Item = &Event>) -> Result<()> {
         match self {
             LogWriterEnum::Aurora(client) => client.batch_insert_events(data).await,
