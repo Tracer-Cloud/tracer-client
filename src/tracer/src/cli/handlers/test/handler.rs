@@ -47,19 +47,16 @@ pub async fn test(
 
     // Finalize test args
     let (init_args, pipeline) = args.finalize();
-    let non_interactive = init_args.non_interactive;
-    let prompt_mode = if non_interactive {
-        PromptMode::Never
-    } else {
-        PromptMode::Always
-    };
+    let default_pipeline_prefix = format!("test-{}", pipeline.name());
+    let confirm = init_args.interactive_prompts != PromptMode::None;
 
     // init tracer run
-    crate::cli::handlers::init::init_with_default_prompt(
+    crate::cli::handlers::init::init_with(
         init_args,
         config,
         &api_client,
-        prompt_mode,
+        &default_pipeline_prefix,
+        confirm,
     )
     .await?;
 

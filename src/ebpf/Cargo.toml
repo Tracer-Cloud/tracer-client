@@ -1,10 +1,10 @@
 [package]
 name = "tracer_ebpf"
-version = { workspace = true }
-edition = { workspace = true }
-homepage = { workspace = true }
-repository = { workspace = true }
-authors = { workspace = true }
+version.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+authors.workspace = true
 build = "build.rs"
 links = "bootstrap"
 
@@ -13,11 +13,11 @@ path = "rs/lib.rs"
 
 [dependencies]
 anyhow = { workspace = true, default-features = true }
-tokio = { workspace = true }
 chrono.workspace = true
-serde = { workspace = true }
-shlex = { workspace = true }
-enquote = { workspace = true }
+enquote.workspace = true
+serde.workspace = true
+shlex.workspace = true
+tokio.workspace = true
 
 [build-dependencies]
-anyhow = { workspace = true }
+anyhow.workspace = true
