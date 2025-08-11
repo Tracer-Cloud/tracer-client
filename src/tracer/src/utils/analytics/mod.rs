@@ -25,7 +25,6 @@ pub async fn send_event(
     let retry_strategy = ExponentialBackoff::from_millis(500).map(jitter).take(3);
 
     // Ensure the environment is set in metadata
-    let env_type = crate::utils::env::detect_environment_type(5).await;
     let mut metadata = metadata.unwrap_or_default();
     if !metadata.contains_key("environment") {
         metadata.insert(

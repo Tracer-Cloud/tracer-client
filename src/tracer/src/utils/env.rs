@@ -3,7 +3,6 @@ use std::env;
 use std::fs;
 use std::path::Path;
 use std::time::Duration;
-use std::time::Duration;
 
 // Environment variables that control init parameters
 pub const TRACE_ID_ENV_VAR: &str = "TRACER_TRACE_ID";
