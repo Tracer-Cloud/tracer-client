@@ -8,7 +8,7 @@ use crate::constants::{
 use crate::process_identification::constants::DEFAULT_DAEMON_PORT;
 
 fn get_aws_default_profile() -> String {
-    match dirs::home_dir() {
+    match dirs_next::home_dir() {
         None => "default",
         Some(path) => {
             if std::fs::read_to_string(path.join(".aws/credentials"))

@@ -45,7 +45,7 @@ fn remove_binary() -> Result<()> {
     Ok(())
 }
 fn remove_env_paths() -> Result<()> {
-    let home_dir = dirs::home_dir().context("Failed to get home directory")?;
+    let home_dir = dirs_next::home_dir().context("Failed to get home directory")?;
 
     let profile_files = [".bashrc", ".bash_profile", ".zshrc", ".profile"];
     for profile in &profile_files {
