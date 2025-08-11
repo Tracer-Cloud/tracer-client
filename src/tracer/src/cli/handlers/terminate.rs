@@ -1,9 +1,8 @@
 use crate::daemon::client::DaemonClient;
 use crate::process_identification::constants::DEFAULT_DAEMON_PORT;
-use crate::utils::workdir::TRACER_WORK_DIR;
-use crate::{error_message, info_message, success_message};
-use colored::Colorize;
 use std::fs;
+use tracer_common::workdir::TRACER_WORK_DIR;
+use tracer_common::{error_message, info_message, success_message, Colorize};
 
 pub(super) fn get_pid() -> Option<String> {
     let contents = fs::read_to_string(&TRACER_WORK_DIR.pid_file).ok()?;

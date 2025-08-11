@@ -1,7 +1,7 @@
 use crate::daemon::client::DaemonClient;
 use crate::daemon::structs::{InfoResponse, InnerInfoResponse};
-use crate::utils::cli::BoxFormatter;
-use crate::utils::Version;
+use crate::utils::box_formatter::BoxFormatter;
+use crate::utils::version::Version;
 
 pub async fn info(api_client: &DaemonClient, json: bool) {
     let info = match api_client.send_info_request().await {

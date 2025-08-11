@@ -1,6 +1,6 @@
+use crate::system::{Arch, Os, PlatformInfo};
 use crate::types::TracerVersion;
-use crate::{Arch, Os, PlatformInfo};
-use anyhow::Result;
+use anyhow::{bail, Result};
 use reqwest::Response;
 use std::fmt::{self, Display, Formatter};
 use url::Url;
@@ -51,5 +51,6 @@ fn binary_filename(platform: &PlatformInfo) -> anyhow::Result<&'static str> {
         (Os::AmazonLinux, Arch::Aarch64) => Ok("tracer-aarch64-unknown-linux-gnu.tar.gz"),
         (Os::Macos, Arch::X86_64) => Ok("tracer-x86_64-apple-darwin.tar.gz"),
         (Os::Macos, Arch::Aarch64) => Ok("tracer-aarch64-apple-darwin.tar.gz"),
+        _ => bail!("unsupported platform: {}", platform.as_os_and_arch_string()),
     }
 }

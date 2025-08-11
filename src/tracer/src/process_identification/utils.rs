@@ -1,10 +1,9 @@
 use crate::process_identification::types::event::attributes::process::ProcessProperties;
 use crate::process_identification::types::event::{attributes::EventAttributes, Event};
-use crate::utils::workdir::TRACER_WORK_DIR;
 use anyhow::{Context, Result};
 use serde_json::{Map, Value};
-use std::fs::OpenOptions;
 use std::io::Write;
+use tracer_common::workdir::TRACER_WORK_DIR;
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 use tracing::{error, info};
 
@@ -68,11 +67,9 @@ pub fn log_matched_process(trigger: &ProcessStartTrigger, matched_rule: &str, is
         trigger.pid, trigger.comm, trigger.command_string, matched_string, matched_rule,
     );
     info!(log_line);
-    if let Err(e) = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&TRACER_WORK_DIR.process_matches_file)
-        .and_then(|mut file| file.write_all(log_line.as_bytes()))
+    if let Err(e) = TRACER_WORK_DIR
+        .process_matches_file
+        .append_with(|mut file| Ok(file.write_all(log_line.as_bytes())?))
     {
         error!("Failed to write match log: {}", e);
     }

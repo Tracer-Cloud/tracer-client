@@ -7,7 +7,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-
+tracer-common = { workspace = true }
 anyhow = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }

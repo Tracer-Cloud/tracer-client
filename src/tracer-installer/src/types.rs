@@ -1,36 +1,7 @@
 use clap::{Parser, Subcommand};
 use serde::Serialize;
-use std::fmt;
-use std::{collections::HashMap, str::FromStr};
-
-#[derive(Clone, Debug)]
-pub(crate) enum TracerVersion {
-    Development,
-    Production,
-    Feature(String),
-}
-
-impl FromStr for TracerVersion {
-    type Err = anyhow::Error;
-
-    fn from_str(input: &str) -> Result<Self, Self::Err> {
-        match input.to_lowercase().as_str() {
-            "development" | "dev" => Ok(Self::Development),
-            "production" | "prod" => Ok(Self::Production),
-            _other => Ok(Self::Feature(input.to_string())),
-        }
-    }
-}
-
-impl fmt::Display for TracerVersion {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            TracerVersion::Development => write!(f, "development"),
-            TracerVersion::Production => write!(f, "production"),
-            TracerVersion::Feature(name) => write!(f, "Custom Branch({name})"),
-        }
-    }
-}
+use std::collections::HashMap;
+use tracer_common::types::TracerVersion;
 
 #[derive(Parser, Debug)]
 #[command(name = "tracer-installer", version, about = "Installs the Tracer CLI")]

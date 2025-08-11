@@ -1,9 +1,8 @@
-use crate::error_message;
 use crate::process_identification::target_pipeline::pipeline_manager::TargetPipelineManager;
 use crate::process_identification::target_process::target_manager::TargetManager;
-use colored::Colorize;
 use std::collections::{HashMap, HashSet};
 use tokio::task::JoinHandle;
+use tracer_common::{error_message, Colorize};
 use tracer_ebpf::ebpf_trigger::{OutOfMemoryTrigger, ProcessStartTrigger};
 
 /// Internal state of the process manager

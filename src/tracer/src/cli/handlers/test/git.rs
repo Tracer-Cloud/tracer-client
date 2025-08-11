@@ -1,8 +1,8 @@
 use crate::cli::handlers::test::pipeline::Pipeline;
-use crate::utils::workdir::TRACER_WORK_DIR;
 use anyhow::Result;
 use git2::{AutotagOption, FetchOptions, Repository};
 use std::path::PathBuf;
+use tracer_common::workdir::TRACER_WORK_DIR;
 
 pub const TRACER_PIPELINES_REPO_URL: &str =
     "https://github.com/Tracer-Cloud/nextflow-test-pipelines.git";
@@ -10,7 +10,7 @@ pub const TRACER_PIPELINES_REPO_REL_PATH: &str = "nextflow-test-pipelines";
 
 pub fn get_tracer_pipelines_repo_path() -> PathBuf {
     TRACER_WORK_DIR
-        .resolve_canonical(TRACER_PIPELINES_REPO_REL_PATH)
+        .resolve_canonical_dir(TRACER_PIPELINES_REPO_REL_PATH)
         .unwrap()
 }
 

@@ -1,7 +1,6 @@
 use crate::daemon::client::DaemonClient;
-use crate::info_message;
-use colored::Colorize;
 use tokio::time::sleep;
+use tracer_common::{info_message, Colorize};
 use tracing::debug;
 
 pub(super) async fn wait(api_client: &DaemonClient) -> bool {

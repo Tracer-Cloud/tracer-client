@@ -1,8 +1,7 @@
 use crate::cli::handlers::terminate::get_pid;
-use crate::utils::system_info::check_sudo;
-use crate::{info_message, success_message, warning_message};
-use colored::Colorize;
 use std::process::Command;
+use tracer_common::system::check_sudo;
+use tracer_common::{info_message, success_message, warning_message, Colorize};
 
 pub fn cleanup_port() {
     check_sudo("cleanup-port");

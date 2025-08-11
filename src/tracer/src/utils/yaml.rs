@@ -1,5 +1,5 @@
-use crate::utils::secure::TrustedFile;
 use anyhow::{anyhow, bail, Result};
+use tracer_common::secure::fs::TrustedFile;
 use yaml_rust2::YamlLoader;
 
 // re-export Yaml for convenience

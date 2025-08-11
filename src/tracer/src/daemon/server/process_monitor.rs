@@ -1,6 +1,5 @@
 use crate::client::TracerClient;
 use crate::daemon::handlers::info::get_info_response;
-use crate::utils::Sentry;
 use anyhow::Result;
 use serde_json::json;
 use std::sync::Arc;
@@ -8,6 +7,7 @@ use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
+use tracer_common::sentry::Sentry;
 use tracing::error;
 
 pub(super) async fn monitor_processes(tracer_client: &mut TracerClient) -> Result<()> {

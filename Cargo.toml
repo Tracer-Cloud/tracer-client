@@ -1,7 +1,17 @@
 [workspace]
 resolver = "2"
-members = ["src/tracer", "src/ebpf", "src/tracer-installer"]
-default-members = ["src/tracer", "src/ebpf", "src/tracer-installer"]
+members = [
+    "src/tracer-common",
+    "src/tracer",
+    "src/ebpf",
+    "src/tracer-installer",
+]
+default-members = [
+    "src/tracer-common",
+    "src/tracer",
+    "src/ebpf",
+    "src/tracer-installer",
+]
 
 [workspace.package]
 version = "2025.5.15+1"
@@ -12,7 +22,7 @@ repository = "https://github.com/Tracer-Cloud/tracer-client/"
 
 [workspace.dependencies]
 tracer = { path = "src/tracer" }
-
+tracer-common = { path = "src/tracer-common" }
 
 anyhow = "1.0.98"
 chrono = { version = "0.4.41", features = ["serde"] }

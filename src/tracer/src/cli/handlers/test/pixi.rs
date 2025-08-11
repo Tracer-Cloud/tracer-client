@@ -1,8 +1,8 @@
 use crate::utils::command::check_status;
-use crate::utils::workdir::TRACER_WORK_DIR;
 use anyhow::Result;
 use std::path::PathBuf;
 use std::process::Command;
+use tracer_common::workdir::TRACER_WORK_DIR;
 
 pub fn install() -> Result<PathBuf> {
     let install_cmd = "curl -fsSL https://pixi.sh/install.sh | bash";

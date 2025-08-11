@@ -1,8 +1,8 @@
 use crate::cli::handlers::init_arguments::TracerCliInitArgs;
 use crate::cli::handlers::test_arguments::TracerCliTestArgs;
-use crate::utils::workdir::TRACER_WORK_DIR;
-use crate::utils::Version;
+use crate::utils::version::Version;
 use clap::{Parser, Subcommand};
+use tracer_common::workdir::TRACER_WORK_DIR;
 
 fn about_message() -> String {
     format!(
@@ -13,7 +13,7 @@ fn about_message() -> String {
 
 fn footer_message() -> String {
     format!(
-        "Working Directory: {:?}\nDaemon stdout: {:?}\nDaemon stderr: {:?}Daemon log: {:?}\nFor more information, visit: https://tracer.cloud\n",
+        "Working Directory: {}\nDaemon stdout: {:?}\nDaemon stderr: {:?}Daemon log: {:?}\nFor more information, visit: https://tracer.cloud\n",
         &TRACER_WORK_DIR.path,
         &TRACER_WORK_DIR.stdout_file,
         &TRACER_WORK_DIR.stderr_file,

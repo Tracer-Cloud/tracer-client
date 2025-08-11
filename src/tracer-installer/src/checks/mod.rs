@@ -3,15 +3,14 @@ mod environment;
 pub mod kernel;
 mod root;
 
-use crate::error_message;
 use crate::utils::{print_status, TagColor};
-use crate::{Os, PlatformInfo};
 use api::APICheck;
-use colored::Colorize;
 pub(crate) use environment::detect_environment_type;
 use environment::EnvironmentCheck;
 use kernel::KernelCheck;
 use root::RootCheck;
+use tracer_common::system::{Os, PlatformInfo};
+use tracer_common::{error_message, Colorize};
 
 /// Trait defining functions a Requirement check must implement before being called
 /// as a preflight step or readiness check for installing the tracer binary
@@ -29,7 +28,7 @@ pub struct CheckManager {
 
 impl CheckManager {
     pub async fn new(platform: &PlatformInfo) -> Self {
-        let checks: Vec<Box<dyn InstallCheck>> = match platform.os {
+        let checks: Vec<Box<dyn InstallCheck>> = match &platform.os {
             Os::Linux | Os::AmazonLinux => vec![
                 Box::new(KernelCheck::new()),
                 Box::new(APICheck::new()),
@@ -37,6 +36,7 @@ impl CheckManager {
                 Box::new(EnvironmentCheck::new().await),
             ],
             Os::Macos => vec![Box::new(RootCheck::new()), Box::new(APICheck::new())],
+            _ => unreachable!(),
         };
         Self { checks }
     }

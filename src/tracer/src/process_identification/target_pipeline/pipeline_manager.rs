@@ -4,14 +4,13 @@ use crate::process_identification::target_pipeline::parser::pipeline::{
 use crate::process_identification::target_pipeline::parser::yaml_rules_parser::load_pipelines_from_yamls;
 use crate::process_identification::target_process::target::Target;
 use crate::process_identification::target_process::target_match::MatchType;
-use crate::utils::workdir::TRACER_WORK_DIR;
 use crate::utils::yaml::YamlFile;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
-use std::fs::OpenOptions;
 use std::io::Write;
+use tracer_common::workdir::TRACER_WORK_DIR;
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 use tracing::{error, trace};
 
@@ -234,18 +233,13 @@ impl TargetPipelineManager {
         task_pid: usize,
         best_match: Option<&TaskMatch>,
     ) {
-        if let Err(e) = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&TRACER_WORK_DIR.step_matches_file)
-            .and_then(|mut file| {
-                let log_line = format!("{} | {} | {} | {:?}\n", rule, pid, task_pid, best_match);
-                file.write_all(log_line.as_bytes())?;
-                let log_line = format!("Candidate matches: {:?}\n", &self.candidate_matches);
-                file.write_all(log_line.as_bytes())?;
-                Ok(())
-            })
-        {
+        if let Err(e) = TRACER_WORK_DIR.step_matches_file.append_with(|mut file| {
+            let log_line = format!("{} | {} | {} | {:?}\n", rule, pid, task_pid, best_match);
+            file.write_all(log_line.as_bytes())?;
+            let log_line = format!("Candidate matches: {:?}\n", &self.candidate_matches);
+            file.write_all(log_line.as_bytes())?;
+            Ok(())
+        }) {
             error!("Failed to write task match log: {}", e);
         }
     }

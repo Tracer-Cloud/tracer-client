@@ -1,13 +1,11 @@
-use crate::utils::workdir::TRACER_WORK_DIR;
-use crate::warning_message;
+use crate::workdir::TRACER_WORK_DIR;
+use crate::{warning_message, Colorize};
 use anyhow::{bail, Result};
-use colored::Colorize;
-use std::fs::{self, File};
 use std::os::unix::fs::MetadataExt;
 use std::path::{self, Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::LazyLock;
-use std::{env, io, os};
+use std::{env, fs, io, os};
 
 // TODO: implement code signature verification
 
@@ -93,8 +91,8 @@ fn spawn_child_default(args: &[&str]) -> Result<u32> {
     let child = Command::new(exe)
         .args(args)
         .stdin(Stdio::null())
-        .stdout(Stdio::from(File::create(&TRACER_WORK_DIR.stdout_file)?))
-        .stderr(Stdio::from(File::create(&TRACER_WORK_DIR.stderr_file)?))
+        .stdout(TRACER_WORK_DIR.stdout_file.create_stdio()?)
+        .stderr(TRACER_WORK_DIR.stderr_file.create_stdio()?)
         .spawn()?;
 
     Ok(child.id())
@@ -175,9 +173,8 @@ fn get_inode(path: &Path) -> Option<u64> {
 #[cfg(target_os = "linux")]
 mod linux {
     use crate::utils::workdir::TRACER_WORK_DIR;
-    use crate::warning_message;
+    use crate::{warning_message, Colorize};
     use anyhow::{bail, Result};
-    use colored::Colorize;
     use nix::fcntl::{self, AtFlags, OFlag};
     use nix::sys::stat::Mode;
     use nix::unistd::{self, ForkResult};

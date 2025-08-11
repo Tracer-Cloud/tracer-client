@@ -8,14 +8,13 @@ use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::server::DaemonServer;
 use crate::utils::command::check_status;
-use crate::utils::system_info::check_sudo;
-use crate::utils::workdir::TRACER_WORK_DIR;
-use crate::warning_message;
 use anyhow::Result;
-use colored::Colorize;
 use std::ffi::OsStr;
 use std::path::PathBuf;
 use std::process::Command;
+use tracer_common::system::{check_sudo, PlatformInfo};
+use tracer_common::workdir::TRACER_WORK_DIR;
+use tracer_common::{warning_message, Colorize};
 
 /// TODO: I am getting a segfault running fastquorum on ARM mac
 /// It works if I run with Rosetta emulation
@@ -24,6 +23,7 @@ use std::process::Command;
 /// pixi and run nextflow under x86 emulation
 pub async fn test(
     args: TracerCliTestArgs,
+    platform: PlatformInfo,
     config: Config,
     api_client: DaemonClient,
 ) -> anyhow::Result<()> {
@@ -57,6 +57,7 @@ pub async fn test(
     // init tracer run
     crate::cli::handlers::init::init_with_default_prompt(
         init_args,
+        platform,
         config,
         &api_client,
         prompt_mode,

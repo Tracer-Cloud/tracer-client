@@ -1,8 +1,7 @@
 use crate::daemon::server::DaemonServer;
 use crate::utils::env::{self, USER_ID_ENV_VAR};
-use crate::{success_message, warning_message};
-use colored::Colorize;
 use std::process::Command;
+use tracer_common::{success_message, warning_message, Colorize};
 
 pub fn update() {
     // TODO commenting out for now, as we get the s3 main release

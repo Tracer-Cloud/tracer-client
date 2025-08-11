@@ -1,17 +1,17 @@
-use crate::constants::SENTRY_DSN;
-use crate::utils::system_info::{get_kernel_version, get_platform_information};
+use crate::system::PlatformInfo;
 use sentry::protocol::Context;
 use sentry::ClientOptions;
 use serde_json::Value;
 use std::collections::BTreeMap;
 
+pub const SENTRY_DSN: &str = "https://35e0843e6748d2c93dfd56716f2eecfe@o4509281671380992.ingest.us.sentry.io/4509281680949248";
+
 pub struct Sentry;
 
-// COPIED: tracer-installer/src/sentry.rs
 impl Sentry {
     /// Initializes Sentry if a DSN is provided in the config.
     /// Returns a guard to keep Sentry active for the program's lifetime.
-    pub fn setup() -> Option<sentry::ClientInitGuard> {
+    pub fn setup(platform_info: &PlatformInfo) -> Option<sentry::ClientInitGuard> {
         if cfg!(test) {
             return None;
         }
@@ -28,11 +28,11 @@ impl Sentry {
         ));
 
         Self::add_tag("type", "client");
-        Self::add_tag("platform", &get_platform_information());
-        let kernel_version = get_kernel_version();
-        if let Some((major, minor)) = kernel_version {
+        Self::add_tag("platform", &platform_info.as_os_and_arch_string());
+        if let Some((major, minor)) = platform_info.kernel_version {
             Self::add_tag("kernel_version", &format!("{}.{}", major, minor));
         }
+
         Some(sentry)
     }
 
@@ -61,7 +61,6 @@ impl Sentry {
                 .collect::<BTreeMap<String, Value>>(),
             _ => BTreeMap::new(),
         };
-
         sentry::configure_scope(|scope| {
             scope.set_context(key, Context::Other(map));
         });

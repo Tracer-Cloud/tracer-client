@@ -5,15 +5,15 @@ use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::initialization::create_and_run_server;
 use crate::daemon::server::DaemonServer;
+use crate::utils::analytics;
 use crate::utils::analytics::types::AnalyticsEventType;
-use crate::utils::secure::spawn_child;
-use crate::utils::system_info::check_sudo;
-use crate::utils::workdir::TRACER_WORK_DIR;
-use crate::utils::{analytics, Sentry};
-use crate::{error_message, info_message, success_message, warning_message};
 use anyhow::Context;
-use colored::Colorize;
 use serde_json::Value;
+use tracer_common::secure::spawn;
+use tracer_common::sentry::Sentry;
+use tracer_common::system::{check_sudo, PlatformInfo};
+use tracer_common::workdir::TRACER_WORK_DIR;
+use tracer_common::{error_message, info_message, success_message, warning_message, Colorize};
 use tracing_appender::rolling;
 use tracing_subscriber::fmt::time::SystemTime;
 use tracing_subscriber::layer::SubscriberExt;
@@ -21,6 +21,7 @@ use tracing_subscriber::{fmt, EnvFilter};
 
 pub async fn init(
     args: TracerCliInitArgs,
+    platform: PlatformInfo,
     config: Config,
     api_client: DaemonClient,
 ) -> anyhow::Result<()> {
@@ -42,11 +43,12 @@ pub async fn init(
         }
     }
 
-    init_with_default_prompt(args, config, &api_client, PromptMode::WhenMissing).await
+    init_with_default_prompt(args, platform, config, &api_client, PromptMode::WhenMissing).await
 }
 
 pub async fn init_with_default_prompt(
     args: TracerCliInitArgs,
+    platform: PlatformInfo,
     config: Config,
     api_client: &DaemonClient,
     prompt_mode: PromptMode,
@@ -94,7 +96,7 @@ pub async fn init_with_default_prompt(
             spawn_args.push("--force-procfs");
         }
 
-        let child_id = spawn_child(spawn_args.as_slice())?;
+        let child_id = spawn::spawn_child(spawn_args.as_slice())?;
 
         std::fs::write(&TRACER_WORK_DIR.pid_file, child_id.to_string())?;
         success_message!("Daemon started successfully.");
@@ -116,7 +118,7 @@ pub async fn init_with_default_prompt(
 
     setup_logging(&args.log_level)?;
 
-    create_and_run_server(args, config).await
+    create_and_run_server(args, platform, config).await
 }
 
 fn setup_logging(log_level: &String) -> anyhow::Result<()> {

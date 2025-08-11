@@ -1,5 +1,5 @@
-use crate::types::TracerVersion;
 use colored::Colorize;
+use tracer_common::types::TracerVersion;
 
 pub enum TagColor {
     Green,

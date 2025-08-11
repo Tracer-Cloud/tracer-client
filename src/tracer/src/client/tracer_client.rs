@@ -11,18 +11,18 @@ use crate::process_identification::recorder::LogRecorder;
 use crate::process_identification::types::current_run::PipelineMetadata;
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::{Event, ProcessStatus};
-
 use crate::utils::env::detect_environment_type;
-use crate::utils::system_info::get_kernel_version;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use sysinfo::System;
 use tokio::sync::{mpsc, RwLock};
+use tracer_common::system::PlatformInfo;
 use tracing::{error, info, warn};
 
 pub struct TracerClient {
     system: Arc<RwLock<System>>, // todo: use arc swap
+    platform: PlatformInfo,
 
     pub process_watcher: Arc<ProcessWatcher>,
     docker_watcher: Arc<DockerWatcher>,
@@ -44,6 +44,7 @@ pub struct TracerClient {
 
 impl TracerClient {
     pub async fn new(
+        platform: PlatformInfo,
         config: Config,
         db_client: LogWriterEnum,
         cli_args: FinalizedInitArgs,
@@ -67,6 +68,7 @@ impl TracerClient {
         Ok(TracerClient {
             // if putting a value to config, also update `TracerClient::reload_config_file`
             system: system.clone(),
+            platform,
 
             pipeline,
 
@@ -127,7 +129,7 @@ impl TracerClient {
     pub async fn start_monitoring(&self) -> Result<()> {
         self.start_docker_monitoring().await;
         if !self.force_procfs && cfg!(target_os = "linux") {
-            let kernel_version = get_kernel_version();
+            let kernel_version = self.platform.kernel_version;
             return match kernel_version {
                 Some((major, minor)) if major > 5 || (major == 5 && minor >= 15) => {
                     info!(

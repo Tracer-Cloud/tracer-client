@@ -1,10 +1,6 @@
-use super::platform::PlatformInfo;
-use crate::secure::{RelativePath, TrustedDir, TrustedFile, TrustedUrl};
-use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
+use crate::types::{AnalyticsEventType, AnalyticsPayload};
 use crate::utils::{print_message, print_status, print_title, TagColor};
-use crate::{success_message, warning_message};
 use anyhow::{Context, Result};
-use colored::Colorize;
 use flate2::read::GzDecoder;
 use futures_util::future::join_all;
 use futures_util::StreamExt;
@@ -13,16 +9,21 @@ use reqwest::Client;
 use std::collections::HashMap;
 use std::fs::Permissions;
 use std::os::unix::fs::PermissionsExt;
+use std::sync::Arc;
 use std::sync::LazyLock;
 use tar::Archive;
-use tokio::fs::OpenOptions;
 use tokio::task::JoinHandle;
 use tokio::{
-    fs::File,
+    fs::File as AsyncFile,
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
 };
 use tokio_retry::strategy::{jitter, ExponentialBackoff};
 use tokio_retry::Retry;
+use tracer_common::secure::fs::{TrustedDir, TrustedFile};
+use tracer_common::secure::url::TrustedUrl;
+use tracer_common::system::PlatformInfo;
+use tracer_common::types::TracerVersion;
+use tracer_common::{success_message, warning_message, Colorize};
 
 const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics";
 const USER_ID_ENV_VAR: &str = "TRACER_USER_ID";
@@ -55,7 +56,7 @@ impl Installer {
 
         print_message("DOWNLOADING", &url.to_string(), TagColor::Blue);
 
-        let temp_dir = TrustedDir::temp()?;
+        let temp_dir = TrustedDir::tempdir()?;
 
         let extract_path = self
             .download_and_extract_tarball(&url, &temp_dir, "tracer.tar.gz", "extracted")
@@ -88,11 +89,11 @@ impl Installer {
         tarball_name: &str,
         dest_subdir: &str,
     ) -> Result<TrustedDir> {
-        let archive_path = base_dir.get_trusted_file(tarball_name.try_into()?)?;
+        let archive_path = base_dir.get_trusted_file(tarball_name)?;
 
         self.download_with_progress(url, &archive_path).await?;
 
-        let extract_path = base_dir.get_trusted_dir(dest_subdir.try_into()?)?;
+        let extract_path = base_dir.get_trusted_dir(dest_subdir)?;
         extract_path.create_dir_all()?;
 
         self.extract_tarball(&archive_path, &extract_path)?;
@@ -101,40 +102,47 @@ impl Installer {
     }
 
     async fn download_with_progress(&self, url: &TrustedUrl, dest: &TrustedFile) -> Result<()> {
-        let response = url
-            .get()
-            .await
-            .context("Failed to initiate download")?
-            .error_for_status()
-            .context("Download request failed, file not found")?;
+        dest.write_with_async(async |mut file: AsyncFile| {
+            let response = url
+                .get()
+                .await
+                .context("Failed to initiate download")?
+                .error_for_status()
+                .context("Download request failed, file not found")?;
 
-        let total = response.content_length().unwrap_or(0);
+            let total = response.content_length().unwrap_or(0);
 
-        let pb = ProgressBar::new(total);
-        pb.set_style(
-            ProgressStyle::with_template(
-                "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})",
-            )?
-        );
+            let pb = ProgressBar::new(total);
+            pb.set_style(
+                ProgressStyle::with_template(
+                    "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})",
+                )?
+            );
 
-        let mut file = dest.create_async().await?;
-        let mut stream = response.bytes_stream();
+            let mut stream = response.bytes_stream();
 
-        while let Some(chunk) = stream.next().await {
-            let chunk = chunk?;
-            file.write_all(&chunk).await?;
-            pb.inc(chunk.len() as u64);
-        }
+            while let Some(chunk) = stream.next().await {
+                let chunk = chunk?;
+                file.write_all(&chunk).await?;
+                pb.inc(chunk.len() as u64);
+            }
 
-        pb.finish_with_message("✅ Download complete");
+            pb.finish_with_message("✅ Download complete");
+
+            Ok(())
+        })
+        .await?;
+
         Ok(())
     }
 
     fn extract_tarball(&self, archive: &TrustedFile, dest: &TrustedDir) -> Result<()> {
-        let file = archive.open()?;
-        let decompressed = GzDecoder::new(file);
-        let mut archive = Archive::new(decompressed);
-        archive.unpack(dest.get_trusted_path()?)?;
+        archive.read_with(|file| {
+            let decompressed = GzDecoder::new(file);
+            let mut archive = Archive::new(decompressed);
+            dest.as_path_with(move |path| Ok(archive.unpack(path)?))?;
+            Ok(())
+        })?;
 
         println!();
         print_message("EXTRACTING", &format!("Output: {}", dest), TagColor::Blue);
@@ -143,9 +151,8 @@ impl Installer {
     }
 
     fn install_to_final_dir(&self, extracted_dir: &TrustedDir) -> Result<TrustedDir> {
-        let tracer_subdir: RelativePath = "tracer".try_into()?;
-        let extracted_binary = extracted_dir.get_trusted_dir(tracer_subdir.clone())?;
-        let final_path = TRACER_INSTALLATION_PATH.get_trusted_dir(tracer_subdir)?;
+        let extracted_binary = extracted_dir.get_trusted_dir("tracer")?;
+        let final_path = TRACER_INSTALLATION_PATH.get_trusted_dir("tracer")?;
 
         extracted_binary
             .copy_to_with_permissions(&final_path, Permissions::from_mode(0o755))
@@ -164,66 +171,84 @@ impl Installer {
             warning_message!("No user ID provided, skipping user ID persistence");
         }
 
-        let home = dirs::home_dir().context("Could not find home directory")?;
+        let home = TrustedDir::home()?;
         let export_user = user_id
             .as_ref()
             .map(|id| format!(r#"export {}="{}""#, USER_ID_ENV_VAR, id));
 
-        let rc_files = [".bashrc", ".bash_profile", ".zshrc", ".profile"];
+        const RC_FILES: [&str; 5] = [
+            ".zshrc",
+            ".bashrc",
+            ".zprofile",
+            ".bash_profile",
+            ".profile",
+        ];
 
-        for rc in rc_files {
-            let path = home.join(rc);
-            if !path.exists() {
-                continue;
-            }
+        let temp_dir = TrustedDir::tempdir()?;
 
-            let file = File::open(&path).await?;
-            let reader = BufReader::new(file);
-            let mut lines = Vec::new();
-            let mut lines_stream = reader.lines();
+        for rc in RC_FILES {
+            let path = match home.get_trusted_file(rc) {
+                Ok(path) => path,
+                Err(_) => continue,
+            };
 
-            while let Some(line) = lines_stream.next_line().await? {
-                lines.push(line);
-            }
+            let temp_file = path
+                .read_with_async(async |file| {
+                    let reader = BufReader::new(file);
+                    let mut lines = Vec::new();
+                    let mut lines_stream = reader.lines();
 
-            let mut has_user_export = false;
-            let mut updated = false;
-            let mut updated_lines = Vec::new();
-            let export_line = format!("export {}=", USER_ID_ENV_VAR);
+                    let mut has_user_export = false;
+                    let mut updated = false;
+                    let export_line = format!("export {}=", USER_ID_ENV_VAR);
 
-            for line in lines {
-                if line.contains(&export_line) {
-                    if let Some(ref user_export) = export_user {
-                        updated_lines.push(user_export.clone());
+                    while let Some(line) = lines_stream.next_line().await? {
+                        if line.contains(&export_line) {
+                            if let Some(ref user_export) = export_user {
+                                lines.push(user_export.clone());
+                            }
+                            // Even if no user ID, we’re removing the line
+                            has_user_export = true;
+                            updated = true;
+                        } else {
+                            lines.push(line);
+                        }
                     }
-                    // Even if no user ID, we’re removing the line
-                    has_user_export = true;
-                    updated = true;
-                } else {
-                    updated_lines.push(line);
-                }
-            }
 
-            if !has_user_export {
-                if let Some(user_export) = export_user.as_ref() {
-                    updated_lines.push(user_export.clone());
-                    updated = true;
-                }
-            }
+                    if !has_user_export {
+                        if let Some(user_export) = export_user.as_ref() {
+                            lines.push(user_export.clone());
+                            updated = true;
+                        }
+                    }
 
-            if updated {
-                print_message("UPDATED", rc, TagColor::Green);
-            }
-            // Write all lines back to file
-            let mut file = OpenOptions::new()
-                .write(true)
-                .truncate(true)
-                .open(&path)
+                    if updated {
+                        print_message("UPDATED", rc, TagColor::Green);
+
+                        // write to temp file
+                        let temp_file = temp_dir.join_file(rc)?;
+                        let lines = Arc::new(lines);
+
+                        temp_file
+                            .write_with_async(async |mut file| {
+                                for line in lines.iter() {
+                                    file.write_all(line.as_bytes()).await?;
+                                    file.write_all(b"\n").await?;
+                                }
+                                Ok(())
+                            })
+                            .await?;
+
+                        Ok(Some(temp_file))
+                    } else {
+                        Ok(None)
+                    }
+                })
                 .await?;
 
-            for line in updated_lines {
-                file.write_all(line.as_bytes()).await?;
-                file.write_all(b"\n").await?;
+            // move to overwrite original file
+            if let Some(temp_file) = temp_file {
+                path.replace_with(temp_file)?;
             }
         }
 

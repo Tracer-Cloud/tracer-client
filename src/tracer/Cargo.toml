@@ -12,6 +12,8 @@ default-run = "tracer"
 build = "build.rs"
 
 [dependencies]
+tracer-common = { workspace = true }
+
 anyhow = { workspace = true }
 clap = { workspace = true }
 octocrab = { workspace = true }

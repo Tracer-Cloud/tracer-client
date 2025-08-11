@@ -7,6 +7,7 @@ use crate::daemon::server::DaemonServer;
 use crate::utils::analytics;
 use crate::utils::analytics::types::AnalyticsEventType;
 use anyhow::Context;
+use tracer_common::system::PlatformInfo;
 use tracing::info;
 
 async fn get_db_client(init_args: &FinalizedInitArgs, config: &Config) -> LogWriterEnum {
@@ -31,13 +32,17 @@ async fn get_db_client(init_args: &FinalizedInitArgs, config: &Config) -> LogWri
     LogWriterEnum::Forward(LogForward::try_new(log_forward_endpoint).await.unwrap())
 }
 
-async fn create_server(cli_config_args: FinalizedInitArgs, config: Config) -> DaemonServer {
+async fn create_server(
+    cli_config_args: FinalizedInitArgs,
+    platform: PlatformInfo,
+    config: Config,
+) -> DaemonServer {
     // create the connection pool to aurora
     let db_client = get_db_client(&cli_config_args, &config).await;
 
     info!("Using {}", db_client.variant_name());
 
-    let client = TracerClient::new(config, db_client, cli_config_args)
+    let client = TracerClient::new(platform, config, db_client, cli_config_args)
         .await
         .context("Failed to create TracerClient")
         .unwrap();
@@ -57,8 +62,9 @@ async fn create_server(cli_config_args: FinalizedInitArgs, config: Config) -> Da
 
 pub async fn create_and_run_server(
     cli_config_args: FinalizedInitArgs,
+    platform: PlatformInfo,
     config: Config,
 ) -> anyhow::Result<()> {
-    let server = create_server(cli_config_args, config).await;
+    let server = create_server(cli_config_args, platform, config).await;
     server.run().await
 }

@@ -1,0 +1,21 @@
+[package]
+name = "tracer-common"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+colored = { workspace = true }
+dirs = { workspace = true }
+reqwest = { workspace = true }
+sentry = { workspace = true }
+serde_json = { workspace = true }
+softpath = { workspace = true }
+tokio = { workspace = true }
+tempfile = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
+which = { workspace = true }

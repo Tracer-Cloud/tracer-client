@@ -4823,6 +4823,7 @@ dependencies = [
  "tokio",
  "tokio-retry",
  "tokio-util",
+ "tracer-common",
  "tracer_ebpf",
  "tracing",
  "tracing-appender",
@@ -4832,6 +4833,24 @@ dependencies = [
  "uuid",
  "which 8.0.0",
  "yaml-rust2",
+]
+
+[[package]]
+name = "tracer-common"
+version = "2025.5.15+1"
+dependencies = [
+ "anyhow",
+ "colored",
+ "dirs",
+ "reqwest",
+ "sentry",
+ "serde_json",
+ "softpath",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "url",
+ "which 8.0.0",
 ]
 
 [[package]]
@@ -4859,6 +4878,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-retry",
+ "tracer-common",
  "url",
 ]
 
