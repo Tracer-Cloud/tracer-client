@@ -15,7 +15,11 @@ pub struct EventDispatcher {
 }
 
 impl EventDispatcher {
-    pub fn new(pipeline: Arc<Mutex<PipelineMetadata>>, run: RunMetadata, tx: Sender<Event>) -> Self {
+    pub fn new(
+        pipeline: Arc<Mutex<PipelineMetadata>>,
+        run: RunMetadata,
+        tx: Sender<Event>,
+    ) -> Self {
         EventDispatcher { pipeline, run, tx }
     }
 
