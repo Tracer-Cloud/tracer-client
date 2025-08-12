@@ -1,7 +1,17 @@
 [workspace]
 resolver = "2"
-members = ["src/tracer", "src/ebpf", "src/tracer-installer"]
-default-members = ["src/tracer", "src/ebpf", "src/tracer-installer"]
+members = [
+    "src/tracer-common",
+    "src/tracer",
+    "src/ebpf",
+    "src/tracer-installer",
+]
+default-members = [
+    "src/tracer-common",
+    "src/tracer",
+    "src/ebpf",
+    "src/tracer-installer",
+]
 
 [workspace.package]
 version = "2025.5.15+1"
@@ -11,6 +21,9 @@ homepage = "https://tracer.cloud/"
 repository = "https://github.com/Tracer-Cloud/tracer-client/"
 
 [workspace.dependencies]
+tracer-common = { path = "src/tracer-common" }
+tracer_ebpf = { path = "src/ebpf" }
+
 anyhow = "1.0.98"
 async-trait = "0.1.88"
 aws-config = { version = "1.8.4", features = ["behavior-version-latest"] }
