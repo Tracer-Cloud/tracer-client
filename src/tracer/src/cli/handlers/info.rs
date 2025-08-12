@@ -81,88 +81,84 @@ impl InfoDisplay {
         println!("{}", serde_json::to_string_pretty(&json).unwrap());
     }
 
-    fn format_status(&self, formatter: &mut BoxFormatter, pipeline: &PipelineData) {
-        let run = pipeline.run_snapshot.as_ref().unwrap();
+    fn format_status_pipeline(&self, formatter: &mut BoxFormatter, pipeline: PipelineData) {
         formatter.add_header("Tracer status");
         formatter.add_empty_line();
-        formatter.add_status_field(
-            "Status",
-            format!("Running for {}", run.formatted_runtime()).as_str(),
-            "active",
-        );
         formatter.add_field("Version", &Version::current().to_string(), "bold");
-        formatter.add_hyperlink("Dashboard", &run.get_run_url(pipeline.name.clone()));
-        formatter.add_field("Stage", pipeline.stage(), "bold");
-
+        formatter.add_field("Stage", pipeline.stage(), "yellow");
         formatter.add_empty_line();
-    }
-
-    fn format_status_pipeline(&self, formatter: &mut BoxFormatter, pipeline: PipelineData) {
-        if pipeline.run_snapshot.is_none() {
-            formatter.add_section_header("Pipeline details");
-            formatter.add_empty_line();
-            formatter.add_status_field("Status", "No run found", "inactive");
-            formatter.add_empty_line();
-            return;
-        }
-        let run_snapshot = pipeline.run_snapshot.as_ref().unwrap();
-
-        self.format_status(formatter, &pipeline);
-
         formatter.add_section_header("Pipeline details");
         formatter.add_empty_line();
+        formatter.add_status_field(
+            "Pipeline status",
+            format!("Running for {}", pipeline.formatted_runtime()).as_str(),
+            "active",
+        );
 
         let pipeline_environment = pipeline.tags.environment.as_deref().unwrap_or("Not set");
         let pipeline_user = pipeline.tags.user_id.as_deref().unwrap();
 
-        let monitored_processes = run_snapshot.process_count();
-        let monitored_tasks = run_snapshot.tasks_count();
-
         formatter.add_field("Pipeline name", &pipeline.name, "cyan");
         formatter.add_field("Environment", pipeline_environment, "yellow");
         formatter.add_field("User", pipeline_user, "magenta");
-
         formatter.add_empty_line();
-        formatter.add_section_header("Run details");
-        formatter.add_empty_line();
-
-        formatter.add_field("Run name", &run_snapshot.name, "cyan");
-        formatter.add_field("Run ID", &run_snapshot.id, "white");
-        formatter.add_field(
-            "Monitored processes",
-            &format!("{} processes", monitored_processes),
-            "yellow",
-        );
-        if monitored_processes > 0 {
-            formatter.add_multiline_field(
-                "Processes preview",
-                &run_snapshot.processes_preview(Self::PREVIEW_LIMIT),
-                "white",
-            );
-        }
-        formatter.add_field(
-            "Monitored tasks",
-            &format!("{} tasks", monitored_tasks),
-            "yellow",
-        );
-        if monitored_tasks > 0 {
-            formatter.add_multiline_field(
-                "Tasks preview",
-                &run_snapshot.tasks_preview(Self::PREVIEW_LIMIT),
-                "white",
-            );
-        }
-        formatter.add_empty_line();
-
-        if let Some(summary) = &run_snapshot.cost_summary {
-            formatter.add_section_header("Cost estimation");
+        if let Some(run_snapshot) = &pipeline.run_snapshot {
+            formatter.add_section_header("Run details");
             formatter.add_empty_line();
+            formatter.add_status_field(
+                "Run status",
+                format!("Running for {}", run_snapshot.formatted_runtime()).as_str(),
+                "active",
+            );
+            formatter.add_hyperlink(
+                "Dashboard URL",
+                &run_snapshot.get_run_url(pipeline.name.clone()),
+            );
+            formatter.add_field("Run name", &run_snapshot.name, "cyan");
+            formatter.add_field("Run ID", &run_snapshot.id, "white");
+            let monitored_processes = run_snapshot.process_count();
+            let monitored_tasks = run_snapshot.tasks_count();
             formatter.add_field(
-                "Total since start",
-                &format!("  $ {:.4}", summary.estimated_total),
+                "Monitored processes",
+                &format!("{} processes", monitored_processes),
                 "yellow",
             );
-            formatter.add_field("Instance Type (EC2)", &summary.instance_type, "white");
+            if monitored_processes > 0 {
+                formatter.add_multiline_field(
+                    "Processes preview",
+                    &run_snapshot.processes_preview(Self::PREVIEW_LIMIT),
+                    "white",
+                );
+            }
+            formatter.add_field(
+                "Monitored tasks",
+                &format!("{} tasks", monitored_tasks),
+                "yellow",
+            );
+            if monitored_tasks > 0 {
+                formatter.add_multiline_field(
+                    "Tasks preview",
+                    &run_snapshot.tasks_preview(Self::PREVIEW_LIMIT),
+                    "white",
+                );
+            }
+            formatter.add_empty_line();
+
+            if let Some(summary) = &run_snapshot.cost_summary {
+                formatter.add_section_header("Cost estimation");
+                formatter.add_empty_line();
+                formatter.add_field(
+                    "Total since start",
+                    &format!("  $ {:.4}", summary.estimated_total),
+                    "yellow",
+                );
+                formatter.add_field("Instance Type (EC2)", &summary.instance_type, "white");
+                formatter.add_empty_line();
+            }
+        } else {
+            formatter.add_section_header("Run details");
+            formatter.add_empty_line();
+            formatter.add_field("Run status", "No run found", "red");
             formatter.add_empty_line();
         }
     }

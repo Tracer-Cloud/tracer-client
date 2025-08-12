@@ -1,7 +1,7 @@
 use crate::cli::handlers::init_arguments::FinalizedInitArgs;
 use crate::daemon::structs::RunSnapshot;
 use crate::process_identification::types::pipeline_tags::PipelineTags;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct PipelineData {
@@ -22,9 +22,25 @@ impl PipelineData {
             run_snapshot: None,
         }
     }
+    fn total_runtime(&self) -> TimeDelta {
+        Utc::now() - self.start_time
+    }
+    pub fn formatted_runtime(&self) -> String {
+        let duration = self.total_runtime();
+        let hours = duration.num_hours();
+        let minutes = duration.num_minutes() % 60;
+        let seconds = duration.num_seconds() % 60;
 
-    pub fn start_time(&self) -> DateTime<Utc> {
-        self.start_time
+        let mut parts = Vec::new();
+        if hours > 0 {
+            parts.push(format!("{}h", hours));
+        }
+        if minutes > 0 || hours > 0 {
+            parts.push(format!("{}m", minutes));
+        }
+        parts.push(format!("{}s", seconds));
+
+        parts.join(" ")
     }
 
     pub fn stage(&self) -> &str {

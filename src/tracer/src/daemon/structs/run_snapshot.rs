@@ -105,7 +105,7 @@ impl RunSnapshot {
     pub fn get_run_url(&self, pipeline_name: String) -> String {
         format!("{}/{}/{}", DASHBOARD_BASE, pipeline_name, self.id)
     }
-    pub fn total_runtime(&self) -> TimeDelta {
+    fn total_runtime(&self) -> TimeDelta {
         Utc::now() - self.start_time
     }
 
