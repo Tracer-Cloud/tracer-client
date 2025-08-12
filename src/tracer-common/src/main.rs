@@ -1,19 +1,25 @@
+use clap::Parser;
 use std::path::PathBuf;
 use std::time::Duration;
-use std::{env, fs, thread};
+use std::{fs, thread};
 use tempfile::TempDir;
 use tracer_common::secure::spawn::*;
+
+#[derive(Parser, Clone)]
+#[clap(name = "tracer-common")]
+pub struct Cli {
+    #[clap(long)]
+    pub outfile: Option<PathBuf>,
+}
 
 fn main() {
     let (exe_path, inode) = resolve_exe_path();
 
-    // SAFETY: we are only using this to test the spawn functionality; there is no security risk
-    let args = env::args().collect::<Vec<_>>(); // rust.lang.security.args.args
+    let cli = Cli::parse();
 
-    if args.len() > 1 {
+    if let Some(outfile) = &cli.outfile {
         // this is the child process
         // write out the exe path and inode
-        let outfile = PathBuf::from(args.get(1).unwrap());
         std::fs::write(
             outfile,
             format!(
@@ -27,7 +33,8 @@ fn main() {
         // this is the parent process
         let workdir = TempDir::new().unwrap();
         let outfile = workdir.path().join("test.txt");
-        let _child_pid = spawn_child(&[&outfile.as_os_str().to_string_lossy()]).unwrap() as usize;
+        let _child_pid =
+            spawn_child(&["--outfile", &outfile.as_os_str().to_string_lossy()]).unwrap() as usize;
 
         // wait for the child to finish
         thread::sleep(Duration::from_secs(3));

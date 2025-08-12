@@ -20,7 +20,9 @@ fn test_spawn() {
     let output = String::from_utf8(output).unwrap();
     let parts = output.split("|").collect::<Vec<_>>();
 
-    assert_eq!(parts.len(), 3);
+    if parts.len() != 3 {
+        panic!("unexpected output: {}", output);
+    }
     assert_eq!(parts[0], "child");
     assert_eq!(parts[1], exe_path);
 
