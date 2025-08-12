@@ -4,7 +4,7 @@ use anyhow::{bail, Result};
 use std::fs::{self, File};
 use std::os::unix::fs::MetadataExt;
 use std::path::{self, Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::sync::LazyLock;
 use std::{env, io, os};
 
@@ -53,7 +53,8 @@ pub fn spawn_child(args: &[&str]) -> Result<u32> {
 
     // use less secure method for non-linux platforms, and as a fallback when more secure
     // spawning is not possible
-    spawn_child_default(args)
+    let child = spawn_child_default(args)?;
+    Ok(child.id())
 }
 
 /// Spawn child process using the current executable and the specified arguments. Returns the
@@ -69,7 +70,7 @@ pub fn spawn_child(args: &[&str]) -> Result<u32> {
 /// 5. We also try to capture the inode of current exe at startup and verify it when spawning,
 ///    although this is not possible on platforms where `std::fs::Metadata::ino` is not
 ///    available (e.g. Windows)
-fn spawn_child_default(args: &[&str]) -> Result<u32> {
+pub fn spawn_child_default(args: &[&str]) -> Result<Child> {
     let (exe, inode) = &*CANONICAL_EXE;
 
     if let Some(expected_inode) = inode {
@@ -96,7 +97,7 @@ fn spawn_child_default(args: &[&str]) -> Result<u32> {
         .stderr(File::create(&TRACER_WORK_DIR.stderr_file)?)
         .spawn()?;
 
-    Ok(child.id())
+    Ok(child)
 }
 
 /// Get canonical path for current executable using `env::current_exe`.
@@ -274,7 +275,4 @@ mod tests {
             env::current_exe().unwrap().canonicalize().unwrap()
         );
     }
-
-    // TODO: write more tests - this is difficult because calling any of the spawn methods from
-    // test code will just spawn new instances of the test runner
 }

@@ -25,6 +25,7 @@ tracer-common = { path = "src/tracer-common" }
 tracer_ebpf = { path = "src/ebpf" }
 
 anyhow = "1.0.98"
+assert_cmd = "2.0.17"
 async-trait = "0.1.88"
 aws-config = { version = "1.8.4", features = ["behavior-version-latest"] }
 aws-credential-types = "1.2.4"
