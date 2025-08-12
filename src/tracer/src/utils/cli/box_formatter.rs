@@ -1,12 +1,6 @@
 use colored::Colorize;
-use console::Emoji;
 use std::fmt::Write;
 use termion::terminal_size;
-
-const STATUS_ACTIVE: Emoji<'_, '_> = Emoji("🟢 ", "🟢 ");
-const STATUS_INACTIVE: Emoji<'_, '_> = Emoji("🔴 ", "🔴 ");
-const STATUS_WARNING: Emoji<'_, '_> = Emoji("🟡 ", "🟡 ");
-const STATUS_INFO: Emoji<'_, '_> = Emoji("ℹ️ ", "ℹ️ ");
 
 pub struct BoxFormatter {
     output: String,
@@ -142,21 +136,15 @@ impl BoxFormatter {
     }
 
     pub fn add_status_field(&mut self, label: &str, value: &str, status: &str) {
-        let (emoji, color) = match status {
-            "active" => (STATUS_ACTIVE, "green"),
-            "inactive" => (STATUS_INACTIVE, "red"),
-            "warning" => (STATUS_WARNING, "yellow"),
-            _ => (STATUS_INFO, "blue"),
+        let colored_value = match status {
+            "active" => value.green(),
+            "inactive" => value.red(),
+            "warning" => value.yellow(),
+            "info" => value.cyan(),
+            _ => value.normal(),
         };
 
-        writeln!(
-            &mut self.output,
-            "│ {:<20} │ {} {}  ",
-            label,
-            emoji,
-            value.color(color)
-        )
-        .unwrap();
+        writeln!(&mut self.output, "│ {:<20} │ {}  ", label, colored_value).unwrap();
     }
 
     pub fn add_empty_line(&mut self) {

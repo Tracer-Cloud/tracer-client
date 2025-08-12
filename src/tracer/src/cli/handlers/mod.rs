@@ -12,7 +12,7 @@ pub(super) use cleanup_port::cleanup_port;
 pub(super) use info::info;
 pub use init::arguments as init_arguments;
 pub(super) use init::init;
-pub(super) use logs::{logs, otel_start, otel_stop, otel_status, otel_watch};
+pub(super) use logs::{logs, otel_start, otel_status, otel_stop, otel_watch};
 pub(super) use terminate::terminate;
 pub use test::arguments as test_arguments;
 pub(super) use test::test;

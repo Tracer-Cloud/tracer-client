@@ -49,7 +49,7 @@ impl InfoDisplay {
                 "status": format!("Running for {}", &inner.formatted_runtime()).as_str(),
                 "version": Version::current().to_string(),
             });
-            
+
             if let Some(otel_status) = &inner.opentelemetry_status {
                 json["opentelemetry"] = serde_json::json!({
                     "enabled": otel_status.enabled,
@@ -110,7 +110,7 @@ impl InfoDisplay {
         formatter.add_field("Version", &Version::current().to_string(), "bold");
         formatter.add_hyperlink("Dashboard", &inner.get_run_url());
         formatter.add_field("Stage", &inner.stage, "bold");
-        
+
         if let Some(otel_status) = &inner.opentelemetry_status {
             if otel_status.enabled {
                 formatter.add_status_field("OpenTelemetry", "Enabled", "active");

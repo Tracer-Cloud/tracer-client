@@ -4,7 +4,7 @@ use crate::cli::handlers::info;
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::server::DaemonServer;
-use crate::warning_message;
+use crate::{error_message, info_message, success_message, warning_message};
 use colored::Colorize;
 
 pub async fn process_daemon_command(command: Command, config: Config) {
@@ -21,42 +21,74 @@ pub async fn process_daemon_command(command: Command, config: Config) {
             let _ = handlers::terminate(&api_client).await;
         }
         Command::Start => {
-            warning_message!("Not implemented yet, please use `tracer init` to start the daemon.");
-        }
-        Command::End => {
-            warning_message!(
-                "Not implemented yet, please use `tracer terminate` to end the daemon."
-            );
-        }
-        Command::Otel { command } => {
-            match command {
-                OtelCommand::Logs { follow, lines } => {
-                    if let Err(e) = handlers::logs(follow, lines).await {
-                        warning_message!("Failed to get logs: {}", e);
-                    }
+            if !DaemonServer::is_running() {
+                error_message!("Daemon server is not running. Please run 'tracer init' first.");
+                return;
+            }
+            
+            info_message!("Starting new pipeline run...");
+            
+            match api_client.send_start_run_request().await {
+                Ok(Some(run_data)) => {
+                    success_message!("Pipeline run started successfully!");
+                    info_message!("Pipeline: {}", run_data.pipeline_name);
+                    info_message!("Run Name: {}", run_data.run_name);
+                    info_message!("Run ID: {}", run_data.run_id);
+                    info_message!("OpenTelemetry configuration created with run_id: {}", run_data.run_id);
                 }
-                OtelCommand::Start => {
-                    if let Err(e) = handlers::otel_start().await {
-                        warning_message!("Failed to start OpenTelemetry collector: {}", e);
-                    }
+                Ok(None) => {
+                    error_message!("Failed to start pipeline run: No run data returned");
                 }
-                OtelCommand::Stop => {
-                    if let Err(e) = handlers::otel_stop().await {
-                        warning_message!("Failed to stop OpenTelemetry collector: {}", e);
-                    }
-                }
-                OtelCommand::Status => {
-                    if let Err(e) = handlers::otel_status().await {
-                        warning_message!("Failed to check OpenTelemetry collector status: {}", e);
-                    }
-                }
-                OtelCommand::Watch => {
-                    if let Err(e) = handlers::otel_watch().await {
-                        warning_message!("Failed to show watched files: {}", e);
-                    }
+                Err(e) => {
+                    error_message!("Failed to start pipeline run: {}", e);
                 }
             }
         }
+        Command::End => {
+            if !DaemonServer::is_running() {
+                error_message!("Daemon server is not running. Please run 'tracer init' first.");
+                return;
+            }
+            
+            info_message!("Ending current pipeline run...");
+            
+            match api_client.send_end_request().await {
+                Ok(_) => {
+                    success_message!("Pipeline run ended successfully!");
+                }
+                Err(e) => {
+                    error_message!("Failed to end pipeline run: {}", e);
+                }
+            }
+        }
+        Command::Otel { command } => match command {
+            OtelCommand::Logs { follow, lines } => {
+                if let Err(e) = handlers::logs(follow, lines).await {
+                    warning_message!("Failed to get logs: {}", e);
+                }
+            }
+            OtelCommand::Start => {
+                if let Err(e) = handlers::otel_start().await {
+                    warning_message!("Failed to start OpenTelemetry collector: {}", e);
+                }
+            }
+            OtelCommand::Stop => {
+                if let Err(e) = handlers::otel_stop().await {
+                    warning_message!("Failed to stop OpenTelemetry collector: {}", e);
+                }
+            }
+            OtelCommand::Status => {
+                if let Err(e) = handlers::otel_status().await {
+                    warning_message!("Failed to check OpenTelemetry collector status: {}", e);
+                }
+            }
+            OtelCommand::Watch => {
+                if let Err(e) = handlers::otel_watch().await {
+                    warning_message!("Failed to show watched files: {}", e);
+                }
+            }
+
+        },
         _ => {
             warning_message!("Command is not implemented yet.");
         } // command => {

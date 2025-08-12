@@ -36,7 +36,7 @@ async fn create_listener(server_url: String) -> TcpListener {
     match TcpListener::bind(addr).await {
         Ok(listener) => listener,
         Err(e) if e.kind() == io::ErrorKind::AddrInUse => {
-            panic!("❌ Failed to start Tracer daemon: Port {} is still in use.\n\nPlease run 'tracer cleanup-port' to resolve the port conflict before starting the daemon.",
+            panic!("Failed to start Tracer daemon: Port {} is still in use.\n\nPlease run 'tracer cleanup-port' to resolve the port conflict before starting the daemon.",
                    addr.port())
         }
         Err(e) => panic!("Failed to bind to address {}: {}", addr, e),

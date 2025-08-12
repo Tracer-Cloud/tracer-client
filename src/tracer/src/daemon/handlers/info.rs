@@ -47,7 +47,7 @@ async fn get_opentelemetry_status() -> Option<OpenTelemetryStatus> {
             } else {
                 None
             };
-            
+
             Some(OpenTelemetryStatus {
                 enabled,
                 version,

@@ -1,10 +1,12 @@
 use crate::client::TracerClient;
 use crate::daemon::state::DaemonState;
 use crate::daemon::structs::RunData;
+use crate::info_message;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
+use colored::Colorize;
 
 pub const START_ENDPOINT: &str = "/start";
 
@@ -26,10 +28,17 @@ async fn start_run(client: &TracerClient) -> Option<RunData> {
 
     let pipeline = metadata.read().await;
 
-    let run_data = pipeline.run.as_ref().map(|run| RunData {
-        pipeline_name: pipeline.pipeline_name.clone(),
-        run_name: run.name.clone(),
-        run_id: run.id.clone(),
+    let run_data = pipeline.run.as_ref().map(|run| {
+        info_message!("New pipeline run started with run_id: {}", run.id);
+        info_message!("Run name: {}", run.name);
+        info_message!("Pipeline: {}", pipeline.pipeline_name);
+        info_message!("OpenTelemetry collector will be started separately with run details");
+        
+        RunData {
+            pipeline_name: pipeline.pipeline_name.clone(),
+            run_name: run.name.clone(),
+            run_id: run.id.clone(),
+        }
     });
 
     run_data

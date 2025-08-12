@@ -34,7 +34,7 @@ fn remove_binary() -> Result<()> {
     let tracer_path = Path::new(INSTALL_PATH);
 
     if tracer_path.exists() {
-        println!("🔍 Binary path: {}", tracer_path.display());
+        println!("Binary path: {}", tracer_path.display());
         fs::remove_file(tracer_path)
             .with_context(|| format!("Failed to remove binary at {}", tracer_path.display()))?;
         success_message!("Binary removed successfully");

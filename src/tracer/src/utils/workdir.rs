@@ -14,6 +14,7 @@ const LOG_FILE: &str = "daemon.log";
 const DEBUG_LOG: &str = "debug.log";
 const PROCESS_MATCHES_FILE: &str = "process_matches.txt";
 const STEP_MATCHES_FILE: &str = "step_matches.txt";
+const OTEL_CONFIG_FILE: &str = "otel-config.yaml";
 
 pub static TRACER_WORK_DIR: LazyLock<TracerWorkDir> = LazyLock::new(|| {
     let tmpdir = PathBuf::from("/tmp");
@@ -26,6 +27,7 @@ pub static TRACER_WORK_DIR: LazyLock<TracerWorkDir> = LazyLock::new(|| {
         debug_log: path.join(DEBUG_LOG),
         process_matches_file: path.join(PROCESS_MATCHES_FILE),
         step_matches_file: path.join(STEP_MATCHES_FILE),
+        otel_config_file: path.join(OTEL_CONFIG_FILE),
         path,
         canonical_path: tmpdir.canonicalize().map(|path| path.join("tracer")),
     }
@@ -41,6 +43,7 @@ pub struct TracerWorkDir {
     pub debug_log: PathBuf,
     pub process_matches_file: PathBuf,
     pub step_matches_file: PathBuf,
+    pub otel_config_file: PathBuf,
 }
 
 impl TracerWorkDir {

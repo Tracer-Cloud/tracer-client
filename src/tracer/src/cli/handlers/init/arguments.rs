@@ -12,7 +12,6 @@ use std::collections::HashMap;
 pub const PIPELINE_NAME_ENV_VAR: &str = "TRACER_PIPELINE_NAME";
 pub const RUN_NAME_ENV_VAR: &str = "TRACER_RUN_NAME";
 pub const LOG_LEVEL_ENV_VAR: &str = "TRACER_LOG_LEVEL";
-pub const OPENSEARCH_API_KEY_ENV_VAR: &str = "OPENSEARCH_API_KEY";
 pub const USERNAME_ENV_VAR: &str = "USER";
 
 #[derive(Default, Args, Debug, Clone)]
@@ -44,10 +43,6 @@ pub struct TracerCliInitArgs {
     /// valid values: trace, debug, info, warn, error (default: info)
     #[clap(long, env = LOG_LEVEL_ENV_VAR, default_value = "info")]
     pub log_level: String,
-
-    /// OpenSearch API key for logging; if provided, enables OpenTelemetry logging
-    #[clap(long, env = OPENSEARCH_API_KEY_ENV_VAR)]
-    pub opensearch_api_key: Option<String>,
 
     /// Additional environment variables for OpenTelemetry collector in KEY=VALUE format
     /// Can be specified multiple times (e.g., --env-var AWS_REGION=us-east-1 --env-var LOG_LEVEL=debug)
@@ -176,9 +171,6 @@ impl TracerCliInitArgs {
         };
         tags.pipeline_type = Some(pipeline_type);
 
-        // Process OpenSearch API key
-        let opensearch_api_key = self.opensearch_api_key.filter(|key| !key.trim().is_empty());
-
         // Process environment variables
         let mut environment_variables = HashMap::new();
         for env_var in &self.env_var {
@@ -200,7 +192,6 @@ impl TracerCliInitArgs {
             dev: self.dev,
             force_procfs: self.force_procfs,
             log_level: self.log_level,
-            opensearch_api_key,
             environment_variables,
         }
     }
@@ -285,76 +276,6 @@ impl TracerCliInitArgs {
     fn prompt_for_user_id(default: Option<&str>) -> String {
         get_validated_input(&INTERACTIVE_THEME, "Enter your User ID", default, "User ID")
     }
-
-    fn prompt_for_opensearch_api_key(default: Option<&str>) -> String {
-        let prompt = if let Some(def) = default {
-            format!("Enter your OpenSearch API key (optional, press Enter to skip) [{}]: ", def)
-        } else {
-            "Enter your OpenSearch API key (optional, press Enter to skip): ".to_string()
-        };
-        
-        match dialoguer::Input::<String>::with_theme(&*INTERACTIVE_THEME)
-            .with_prompt(prompt)
-            .allow_empty(true)
-            .interact() {
-            Ok(input) => input,
-            Err(_) => {
-                // If interactive input fails (e.g., no terminal), just return empty string
-                // This allows the daemon to start without OpenTelemetry
-                println!("{} Skipping OpenSearch API key input (non-interactive mode)", "[INFO]".cyan().bold());
-                String::new()
-            }
-        }
-    }
-
-    fn prompt_for_environment_variables() -> HashMap<String, String> {
-        let mut env_vars = HashMap::new();
-        
-        println!("\n{}", "Environment Variables (optional):".cyan().bold());
-        println!("Add environment variables for the OpenTelemetry collector (press Enter to skip).");
-        
-        let input = match dialoguer::Input::<String>::with_theme(&*INTERACTIVE_THEME)
-            .with_prompt("Enter environment variables (KEY=VALUE format, comma-separated) or press Enter to skip")
-            .allow_empty(true)
-            .interact() {
-            Ok(input) => input,
-            Err(_) => {
-                // If interactive input fails (e.g., no terminal), just return empty string
-                println!("{} Skipping environment variables input (non-interactive mode)", "[INFO]".cyan().bold());
-                return env_vars;
-            }
-        };
-        
-        if !input.trim().is_empty() {
-            for env_var in input.split(',') {
-                let env_var = env_var.trim();
-                if let Some((key, value)) = env_var.split_once('=') {
-                    let key = key.trim();
-                    let value = value.trim();
-                    
-                    if key.is_empty() {
-                        warning_message!("Key cannot be empty, skipping...");
-                    } else if !key.chars().all(|c| c.is_alphanumeric() || c == '_') {
-                        warning_message!("Invalid key '{}'. Keys can only contain alphanumeric characters and underscores, skipping...", key);
-                    } else {
-                        env_vars.insert(key.to_string(), value.to_string());
-                        println!("{} Added: {}={}", "[SUCCESS]".green().bold(), key, if key.to_lowercase().contains("key") || key.to_lowercase().contains("secret") || key.to_lowercase().contains("password") { "***" } else { value });
-                    }
-                } else if !env_var.is_empty() {
-                    warning_message!("Invalid format '{}'. Expected KEY=VALUE, skipping...", env_var);
-                }
-            }
-        }
-        
-        env_vars
-    }
-
-    fn is_non_interactive_environment() -> bool {
-        // Check if we're in a non-interactive environment
-        // This includes CI/CD environments, pipes, redirects, etc.
-        use std::io::{stdin, stdout, stderr, IsTerminal};
-        !stdin().is_terminal() || !stdout().is_terminal() || !stderr().is_terminal()
-    }
 }
 
 fn print_help<T>() -> Option<T> {
@@ -379,7 +300,6 @@ fn print_help<T>() -> Option<T> {
     environment_type*** | --environment-type  | TRACER_ENVIRONMENT_TYPE
     
     OpenTelemetry Configuration:
-    opensearch_api_key | --opensearch-api-key | OPENSEARCH_API_KEY (interactive prompt available)
     env_vars           | --env-var KEY=VALUE  | (multiple supported, interactive prompts available)
 
     "#
@@ -399,6 +319,5 @@ pub struct FinalizedInitArgs {
     pub dev: bool,
     pub force_procfs: bool,
     pub log_level: String,
-    pub opensearch_api_key: Option<String>,
     pub environment_variables: HashMap<String, String>,
 }

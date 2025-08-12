@@ -1,12 +1,11 @@
 use crate::cli::handlers::init::arguments::TracerCliInitArgs;
-use crate::cli::handlers::{info, terminate};
+use crate::cli::handlers::{info, terminate, otel_start};
 use crate::cli::helper::wait;
 use crate::config::Config;
+use crate::constants::DEFAULT_API_KEY;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::initialization::create_and_run_server;
 use crate::daemon::server::DaemonServer;
-use crate::opentelemetry::collector::OtelCollector;
-use crate::opentelemetry::config::OtelConfig;
 use crate::utils::analytics::types::AnalyticsEventType;
 use crate::utils::system_info::check_sudo;
 use crate::utils::workdir::TRACER_WORK_DIR;
@@ -59,69 +58,25 @@ pub async fn init_with(
 
     let args = args.finalize(default_pipeline_prefix, confirm).await;
 
-    // Handle OpenTelemetry logging if API key is provided
-    if let Some(api_key) = &args.opensearch_api_key {
-        info_message!("OpenSearch API key provided, enabling OpenTelemetry logging...");
-        
-        // Set environment variable for the current process and export to shell
-        std::env::set_var("OPENSEARCH_API_KEY", api_key);
-        
-        // Export to shell for persistence
-        if let Ok(shell) = std::env::var("SHELL") {
-            let export_cmd = format!("export OPENSEARCH_API_KEY={}", api_key);
-            if let Err(e) = std::process::Command::new(&shell)
-                .arg("-c")
-                .arg(&export_cmd)
-                .output() {
-                warning_message!("Failed to export OPENSEARCH_API_KEY to shell: {}", e);
-            }
+    // Always enable OpenTelemetry logging with default API key
+    info_message!("Enabling OpenTelemetry logging...");
+
+    // Set environment variable for the current process and export to shell
+    std::env::set_var("OPENSEARCH_API_KEY", DEFAULT_API_KEY);
+
+    // Export to shell for persistence
+    if let Ok(shell) = std::env::var("SHELL") {
+        let export_cmd = format!("export OPENSEARCH_API_KEY={}", DEFAULT_API_KEY);
+        if let Err(e) = std::process::Command::new(&shell)
+            .arg("-c")
+            .arg(&export_cmd)
+            .output()
+        {
+            warning_message!("Failed to export OPENSEARCH_API_KEY to shell: {}", e);
         }
-        
-        // Create OpenTelemetry configuration
-        let run_id = uuid::Uuid::new_v4().to_string();
-        let otel_config = OtelConfig::with_environment_variables(
-            api_key.clone(),
-            args.user_id.clone(),
-            args.pipeline_name.clone(),
-            args.run_name.clone(),
-            run_id,
-            args.environment_variables.clone(),
-        );
-        
-        // Initialize and start OpenTelemetry collector in background
-        let otel_config_clone = otel_config.clone();
-        tokio::spawn(async move {
-            match OtelCollector::new() {
-                Ok(collector) => {
-                    // Stop any existing collector first
-                    if collector.is_running() {
-                        info_message!("Stopping existing OpenTelemetry collector...");
-                        if let Err(e) = collector.stop() {
-                            warning_message!("Failed to stop existing OpenTelemetry collector: {}", e);
-                        } else {
-                            info_message!("Existing OpenTelemetry collector stopped successfully");
-                            // Wait a moment for the process to fully terminate
-                            tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
-                        }
-                    }
-                    
-                    // Start the collector with new configuration
-                    if let Err(e) = collector.start_async(&otel_config_clone).await {
-                        error_message!("Failed to start OpenTelemetry collector: {}", e);
-                        warning_message!("Continuing without OpenTelemetry logging...");
-                    } else {
-                        success_message!("OpenTelemetry logging enabled successfully");
-                    }
-                }
-                Err(e) => {
-                    error_message!("Failed to initialize OpenTelemetry collector: {}", e);
-                    warning_message!("Continuing without OpenTelemetry logging...");
-                }
-            }
-        });
-    } else {
-        info_message!("No OpenSearch API key provided, OpenTelemetry logging will not be enabled");
     }
+
+    // Don't start OpenTelemetry collector here - wait for the run to start first
 
     {
         // Layer tags on top of args
@@ -168,11 +123,6 @@ pub async fn init_with(
             .arg("--log-level")
             .arg(&args.log_level);
 
-        // Add OpenSearch API key if provided
-        if let Some(api_key) = &args.opensearch_api_key {
-            cmd.arg("--opensearch-api-key").arg(api_key);
-        }
-
         // Add environment variables if provided
         for (key, value) in &args.environment_variables {
             cmd.arg("--env-var").arg(format!("{}={}", key, value));
@@ -193,13 +143,22 @@ pub async fn init_with(
             AnalyticsEventType::DaemonStartAttempted,
             None,
         );
-        
+
         if !wait(api_client).await {
             error_message!("Daemon is not responding, please check logs");
             return Ok(());
         }
-        
+
         success_message!("Daemon is ready and responding");
+        
+        // Start the OpenTelemetry collector before showing info
+        info_message!("Starting OpenTelemetry collector...");
+        if let Err(e) = otel_start().await {
+            warning_message!("Failed to start OpenTelemetry collector: {}", e);
+        } else {
+            success_message!("OpenTelemetry collector started successfully");
+        }
+        
         info(api_client, false).await;
 
         return Ok(());

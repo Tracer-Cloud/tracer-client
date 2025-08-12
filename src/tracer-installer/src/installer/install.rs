@@ -109,7 +109,7 @@ impl Installer {
             pb.inc(chunk.len() as u64);
         }
 
-        pb.finish_with_message("✅ Download complete");
+        pb.finish_with_message("Download complete");
         Ok(())
     }
 
