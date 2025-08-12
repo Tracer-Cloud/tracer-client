@@ -1,77 +1,71 @@
 [package]
 name = "tracer"
-
-version = { workspace = true }
-edition = { workspace = true }
-homepage = { workspace = true }
-repository = { workspace = true }
-authors = { workspace = true }
-
+version.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+authors.workspace = true
 default-run = "tracer"
-
 build = "build.rs"
 
 [dependencies]
-anyhow = { workspace = true }
-clap = { workspace = true }
-octocrab = { workspace = true }
-tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
-tokio-retry = { workspace = true }
-tracing = { workspace = true }
-sqlx = { workspace = true }
-colored = { workspace = true }
-tracing-subscriber = { workspace = true }
-tracing-appender = { workspace = true }
-sentry = { workspace = true }
-console = { workspace = true }
-chrono = { workspace = true }
-sysinfo = { workspace = true }
 tracer_ebpf = { path = "../ebpf" }
-itertools = { workspace = true }
-walkdir = "2.4"
 
-mockall = { workspace = true }
-log = { workspace = true }
-reqwest = { workspace = true, features = ["blocking"] }
-serde = { workspace = true }
-serde_json = { workspace = true }
-rand = { workspace = true }
-uuid = { workspace = true, features = ["v4"] }
-dirs = { workspace = true }
-percent-encoding = { workspace = true }
-tokio-util = { workspace = true }
-aws-config = { workspace = true }
-aws-sdk-s3 = { workspace = true }
-aws-sdk-pricing = { workspace = true }
-aws-credential-types = { workspace = true }
-aws-sdk-secretsmanager = { workspace = true }
-aws-sdk-ec2 = { workspace = true }
-serde-query = { workspace = true }
-config = { workspace = true }
-ec2_instance_metadata = { workspace = true }
-axum = { workspace = true }
-typed-builder = { workspace = true }
-dialoguer = { workspace = true }
-regex = { workspace = true }
-rustls = { workspace = true }
-yaml-rust2 = { workspace = true }
-shlex = { workspace = true }
-bollard = { workspace = true }
-futures-util = { workspace = true }
-dashmap = { workspace = true }
-termion = { workspace = true }
-git2 = { workspace = true }
-which = { workspace = true }
-flate2 = "1.0"
-tar = "0.4"
+anyhow.workspace = true
+aws-config.workspace = true
+aws-credential-types.workspace = true
+aws-sdk-ec2.workspace = true
+aws-sdk-pricing.workspace = true
+aws-sdk-s3.workspace = true
+aws-sdk-secretsmanager.workspace = true
+axum.workspace = true
+bollard.workspace = true
+chrono.workspace = true
+clap.workspace = true
+colored.workspace = true
+config.workspace = true
+console.workspace = true
+dashmap.workspace = true
+dialoguer.workspace = true
+dirs-next.workspace = true
+ec2_instance_metadata.workspace = true
+futures-util.workspace = true
+git2.workspace = true
+itertools.workspace = true
+log.workspace = true
+mockall.workspace = true
+octocrab.workspace = true
+percent-encoding.workspace = true
+rand.workspace = true
+regex.workspace = true
+reqwest.workspace = true
+rustls.workspace = true
+sentry.workspace = true
+serde-query.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+shlex.workspace = true
+sqlx.workspace = true
+sysinfo.workspace = true
+termion.workspace = true
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
+tokio-retry.workspace = true
+tokio-util.workspace = true
+tracing-appender.workspace = true
+tracing-subscriber.workspace = true
+tracing.workspace = true
+typed-builder.workspace = true
+uuid.workspace = true
+which.workspace = true
+yaml-rust2.workspace = true
 
 [dev-dependencies]
-sqlx = { workspace = true }
-dotenvy = { workspace = true }
-serial_test = { workspace = true }
-uuid = { workspace = true }
-rstest = { workspace = true }
-pretty_assertions_sorted = { workspace = true }
+dotenvy.workspace = true
+pretty_assertions_sorted.workspace = true
+rstest.workspace = true
+serial_test.workspace = true
+sqlx.workspace = true
+uuid.workspace = true
 
 [build-dependencies]
-built = { workspace = true }
+built.workspace = true

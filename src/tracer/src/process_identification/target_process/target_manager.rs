@@ -141,6 +141,19 @@ mod tests {
         assert_eq!(matched.as_deref(), Some("fgbio ZipperBams"));
 
         let process = make_process(
+            "/usr/bin/java",
+            &[
+                "/usr/bin/java",
+                "-Xmx10g",
+                "-jar",
+                "/foo/bar/fgbio.jar",
+                "--version",
+            ],
+        );
+        let matched = manager.get_target_match(&process);
+        assert_eq!(matched.as_deref(), None);
+
+        let process = make_process(
             "java",
             &[
                 "java",

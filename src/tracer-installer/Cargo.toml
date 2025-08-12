@@ -7,25 +7,23 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-
-anyhow = { workspace = true }
-reqwest = { workspace = true }
-serde = { workspace = true }
-tokio = { workspace = true }
-console = { workspace = true }
-colored = { workspace = true }
-futures-util = {workspace = true }
-tempfile = {workspace = true }
-dirs = {workspace = true }
-clap = {workspace = true }
-rustls = {workspace = true }
-tokio-retry = {workspace = true }
-sentry = {workspace = true }
-sysinfo = {workspace = true }
-ec2_instance_metadata = { workspace = true }
-
-indicatif = "0.18.0"
-async-trait = "0.1.88"
-nix = { version = "0.30.1", features = ["user"]}
-tar = "0.4.44"
-flate2 = "1.1.2"
+anyhow.workspace = true
+async-trait.workspace = true
+clap.workspace = true
+colored.workspace = true
+console.workspace = true
+dirs-next.workspace = true
+ec2_instance_metadata.workspace = true
+flate2.workspace = true
+futures-util.workspace = true
+indicatif.workspace = true
+nix.workspace = true
+reqwest.workspace = true
+rustls.workspace = true
+sentry.workspace = true
+serde.workspace = true
+sysinfo.workspace = true
+tar.workspace = true
+tempfile.workspace = true
+tokio.workspace = true
+tokio-retry.workspace = true

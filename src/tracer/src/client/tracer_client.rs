@@ -11,8 +11,7 @@ use crate::process_identification::recorder::EventDispatcher;
 use crate::process_identification::types::current_run::PipelineMetadata;
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::{Event, ProcessStatus};
-
-use crate::utils::env::detect_environment_type;
+use crate::utils::env;
 use crate::utils::system_info::get_kernel_version;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
@@ -222,12 +221,15 @@ impl TracerClient {
         {
             let mut pipeline = self.pipeline.write().await;
 
-            if let Some(ref cost_summary) = run.cost_summary {
+            if let Some(cost_summary) = &run.cost_summary {
                 pipeline.tags.instance_type = Some(cost_summary.instance_type.clone());
             }
 
-            let environment_type = detect_environment_type().await;
-            pipeline.tags.environment_type = Some(environment_type);
+            if pipeline.tags.environment_type.is_none() {
+                // use a longer timeout here
+                let environment_type = env::detect_environment_type(5).await;
+                pipeline.tags.environment_type = Some(environment_type);
+            }
 
             pipeline.run = Some(run);
         }
