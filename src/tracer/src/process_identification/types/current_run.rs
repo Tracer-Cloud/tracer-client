@@ -52,19 +52,13 @@ impl PipelineCostSummary {
         }
     }
 
-    pub fn refresh(&self, timestamp: DateTime<Utc>) -> Self {
+    pub fn get_estimated_total(&self, timestamp: DateTime<Utc>) -> String {
         let now = Utc::now();
         let duration_secs = (now - timestamp).num_seconds().max(0) as f64;
         let duration_minutes = duration_secs / 60.0;
 
         let total_cost = duration_minutes * self.per_minute;
 
-        Self {
-            hourly: self.hourly,
-            per_minute: self.per_minute,
-            estimated_total: total_cost,
-            source: self.source.clone(),
-            instance_type: self.instance_type.clone(),
-        }
+        total_cost.to_string()
     }
 }

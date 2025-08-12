@@ -9,7 +9,7 @@ use std::collections::{HashMap, HashSet};
 pub struct RunSnapshot {
     pub(crate) name: String,
     pub(crate) id: String,
-    start_time: DateTime<Utc>,
+    pub(crate) start_time: DateTime<Utc>,
     processes: HashSet<String>,
     tasks: HashMap<String, usize>,
     pub(crate) cost_summary: Option<PipelineCostSummary>,

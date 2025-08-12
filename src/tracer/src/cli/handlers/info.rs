@@ -155,7 +155,10 @@ impl InfoDisplay {
                 formatter.add_empty_line();
                 formatter.add_field(
                     "Total since start",
-                    &format!("  $ {:.4}", summary.estimated_total),
+                    &format!(
+                        "  $ {:.4}",
+                        summary.get_estimated_total(run_snapshot.start_time)
+                    ),
                     "yellow",
                 );
                 formatter.add_field("Instance Type (EC2)", &summary.instance_type, "white");
