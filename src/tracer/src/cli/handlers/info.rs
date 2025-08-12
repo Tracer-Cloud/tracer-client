@@ -151,6 +151,7 @@ impl InfoDisplay {
             formatter.add_empty_line();
 
             if let Some(summary) = &run_snapshot.cost_summary {
+                print!("{:?}", summary);
                 formatter.add_section_header("Cost estimation");
                 formatter.add_empty_line();
                 formatter.add_field(

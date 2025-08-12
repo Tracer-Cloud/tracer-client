@@ -24,7 +24,7 @@ impl RunMetadata {
     }
 }
 
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub struct PipelineCostSummary {
     pub instance_type: String,
     pub hourly: f64,
