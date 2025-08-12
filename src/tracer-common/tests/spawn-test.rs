@@ -18,7 +18,6 @@ fn test_spawn() {
         .stdout;
 
     let output = String::from_utf8(output).unwrap();
-    println!("{}", output);
     let parts = output.split("|").collect::<Vec<_>>();
 
     assert_eq!(parts.len(), 3);

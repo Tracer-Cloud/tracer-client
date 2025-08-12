@@ -4851,6 +4851,7 @@ dependencies = [
  "anyhow",
  "assert_cmd",
  "colored",
+ "nix",
  "rstest",
  "tempfile",
  "which 8.0.0",

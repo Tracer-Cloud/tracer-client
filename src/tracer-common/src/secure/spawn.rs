@@ -41,8 +41,8 @@ static CANONICAL_EXE: LazyLock<(PathBuf, Option<u64>)> = LazyLock::new(|| {
     (exe_path, inode)
 });
 
-/// Spawn a child process using the current executable with the specified arguments. Returns
-/// the PID of the child process.
+/// Spawn a child process using the most secure method available. Returns the PID of the child
+/// process, or an error if the child process could not be spawned.
 pub fn spawn_child(args: &[&str]) -> Result<u32> {
     #[cfg(target_os = "linux")]
     match linux::spawn_child(args) {
@@ -71,7 +71,7 @@ pub fn spawn_child(args: &[&str]) -> Result<u32> {
 /// 5. We also try to capture the inode of current exe at startup and verify it when spawning,
 ///    although this is not possible on platforms where `std::fs::Metadata::ino` is not
 ///    available (e.g. Windows)
-pub fn spawn_child_default(args: &[&str]) -> Result<Child> {
+fn spawn_child_default(args: &[&str]) -> Result<Child> {
     let (exe, inode) = &*CANONICAL_EXE;
 
     if let Some(expected_inode) = inode {
@@ -175,7 +175,7 @@ pub fn get_inode(path: &Path) -> Option<u64> {
 
 #[cfg(target_os = "linux")]
 mod linux {
-    use crate::utils::workdir::TRACER_WORK_DIR;
+    use crate::workdir::TRACER_WORK_DIR;
     use crate::{warning_message, Colorize};
     use anyhow::{bail, Result};
     use nix::fcntl::{self, AtFlags, OFlag};
@@ -186,7 +186,7 @@ mod linux {
     use std::iter;
     use std::os::fd::{AsRawFd, OwnedFd};
     use std::path::PathBuf;
-    use std::process::{self, Command, Stdio};
+    use std::process::{self, Child, Command, Stdio};
 
     pub fn spawn_child(args: &[&str]) -> Result<u32> {
         // open a stable handle to our own binary
@@ -203,7 +203,7 @@ mod linux {
 
         // fall back to /proc/self/fd/<fd>
         match spawn_child_proc(&fd, args) {
-            Ok(pid) => return Ok(pid),
+            Ok(child) => return Ok(child.id()),
             Err(e) => {
                 warning_message!("unable to spawn child process using /proc/self/fd: {}", e);
             }
@@ -240,7 +240,7 @@ mod linux {
         }
     }
 
-    fn spawn_child_proc(fd: &OwnedFd, args: &[&str]) -> Result<u32> {
+    fn spawn_child_proc(fd: &OwnedFd, args: &[&str]) -> Result<Child> {
         // Convert FD into a path we can execute
         let proc_path = PathBuf::from(format!("/proc/self/fd/{}", fd.as_raw_fd()));
 
@@ -252,10 +252,11 @@ mod linux {
             .stderr(Stdio::from(File::create(&TRACER_WORK_DIR.stderr_file)?))
             .spawn()?;
 
-        Ok(child.id())
+        Ok(child)
     }
 }
 
+// Note - all the tests for this module are in tests/spawn-test.rs
 #[cfg(test)]
 mod tests {
     use super::*;
