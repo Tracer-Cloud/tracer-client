@@ -1,19 +1,18 @@
 use crate::cli::handlers::init_arguments::FinalizedInitArgs;
+use crate::client::events::init_run;
 use crate::client::exporters::client_export_manager::ExporterManager;
 use crate::client::exporters::event_writer::LogWriterEnum;
 use crate::cloud_providers::aws::pricing::PricingSource;
 use crate::config::Config;
+use crate::daemon::structs::{PipelineData, RunSnapshot};
 use crate::extracts::containers::DockerWatcher;
 use crate::extracts::metrics::system_metrics_collector::SystemMetricsCollector;
 use crate::extracts::process_watcher::watcher::ProcessWatcher;
 use crate::process_identification::recorder::EventDispatcher;
 use crate::process_identification::types::current_run::RunData;
+use crate::process_identification::types::event::attributes::system_metrics::SystemProperties;
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::{Event, ProcessStatus};
-
-use crate::client::events::init_run;
-use crate::daemon::structs::{PipelineData, RunSnapshot};
-use crate::process_identification::types::event::attributes::system_metrics::SystemProperties;
 use crate::utils::env::detect_environment_type;
 use crate::utils::system_info::get_kernel_version;
 use anyhow::{Context, Result};
