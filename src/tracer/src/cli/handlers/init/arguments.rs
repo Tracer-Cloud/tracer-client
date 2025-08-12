@@ -13,6 +13,9 @@ pub const RUN_NAME_ENV_VAR: &str = "TRACER_RUN_NAME";
 pub const LOG_LEVEL_ENV_VAR: &str = "TRACER_LOG_LEVEL";
 pub const USERNAME_ENV_VAR: &str = "USER";
 
+const DEFAULT_PIPELINE_TYPE: &str = "Preprocessing";
+const DEFAULT_ENVIRONMENT: &str = "local";
+
 #[derive(Default, Args, Debug, Clone)]
 pub struct TracerCliInitArgs {
     /// the name of the pipeline you will run; all pipelines with the same name are
@@ -149,9 +152,11 @@ impl TracerCliInitArgs {
             (None, PromptMode::Required) if tags.environment_type.is_some() => Some(
                 Self::prompt_for_environment_name(tags.environment_type.as_ref().unwrap()),
             ),
-            (None, PromptMode::Required) => Some(Self::prompt_for_environment_name("local")),
+            (None, PromptMode::Required) => {
+                Some(Self::prompt_for_environment_name(DEFAULT_ENVIRONMENT))
+            }
             (None, _) if tags.environment_type.is_some() => tags.environment_type.clone(),
-            (None, _) => Some("local".to_string()),
+            (None, _) => Some(DEFAULT_ENVIRONMENT.to_string()),
         }
         .or_else(print_help)
         .expect("Failed to get environment from command line, environment variable, or prompt");
@@ -160,8 +165,8 @@ impl TracerCliInitArgs {
         let pipeline_type = match (tags.pipeline_type, &prompt_mode) {
             (Some(env), PromptMode::Required) if confirm => Self::prompt_for_pipeline_type(&env),
             (Some(env), _) => env,
-            (None, PromptMode::Required) => Self::prompt_for_pipeline_type("preprocessing"),
-            (None, _) => "preprocessing".to_string(),
+            (None, PromptMode::Required) => Self::prompt_for_pipeline_type(DEFAULT_PIPELINE_TYPE),
+            (None, _) => DEFAULT_PIPELINE_TYPE.to_string(),
         };
         tags.pipeline_type = Some(pipeline_type);
 
@@ -215,6 +220,7 @@ impl TracerCliInitArgs {
 
     fn prompt_for_pipeline_type(default: &str) -> String {
         const PIPELINE_TYPES: &[&str] = &[
+            "Preprocessing",
             "RNA-seq",
             "scRNA-seq",
             "ChIP-seq",
@@ -223,21 +229,21 @@ impl TracerCliInitArgs {
             "WES",
             "Metabolomics",
             "Proteomics",
-            "custom",
+            "Custom",
         ];
-        const CUSTOM_INDEX: usize = 8;
+        const CUSTOM_INDEX: usize = 9;
         let default_index = PIPELINE_TYPES
             .iter()
             .position(|e| e == &default)
             .unwrap_or(CUSTOM_INDEX);
         let selection = Select::with_theme(&*INTERACTIVE_THEME)
-            .with_prompt("Select pipeline type (or choose 'custom' to enter your own)")
+            .with_prompt("Select pipeline type (or choose 'Custom' to enter your own)")
             .items(PIPELINE_TYPES)
             .default(default_index)
             .interact()
             .expect("Error while prompting for pipeline type");
         let pipeline_type = PIPELINE_TYPES[selection];
-        if pipeline_type == "custom" {
+        if pipeline_type.to_lowercase() == "custom" {
             let default = if default_index == CUSTOM_INDEX {
                 Some(default)
             } else {
