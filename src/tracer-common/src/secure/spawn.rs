@@ -222,17 +222,16 @@ mod linux {
 
         // SAFETY: fork() is safe when only async-signal-safe functions are used in the child
         // process; we only use exec* and exit, which are both safe.
-        match {
-            unsafe { unistd::fork()? } // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage
-        } {
-            ForkResult::Parent { child, .. } => return Ok(child.as_raw() as u32),
+        let fork_result = unsafe { unistd::fork()? }; // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage
+        match fork_result {
+            ForkResult::Parent { child, .. } => Ok(child.as_raw() as u32),
             ForkResult::Child => {
                 // this won't return if successful, but we still need to handle the result
-                if let Ok(_) = unistd::execveat(fd, c"", &c_args, &c_env, AtFlags::AT_EMPTY_PATH) {
+                if unistd::execveat(fd, c"", &c_args, &c_env, AtFlags::AT_EMPTY_PATH).is_ok() {
                     process::exit(0);
                 }
                 // this won't return if successful, but we still need to handle the result
-                if let Ok(_) = unistd::fexecve(fd, &c_args, &c_env) {
+                if unistd::fexecve(fd, &c_args, &c_env).is_ok() {
                     process::exit(0);
                 }
                 panic!("could not execute child process using execveat or fexecve");
