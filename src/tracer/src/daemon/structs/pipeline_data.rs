@@ -4,7 +4,7 @@ use crate::process_identification::types::pipeline_tags::PipelineTags;
 use chrono::{DateTime, TimeDelta, Utc};
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
-pub struct PipelineData {
+pub struct PipelineMetadata {
     pub name: String,
     pub start_time: DateTime<Utc>,
     pub is_dev: bool,
@@ -12,7 +12,7 @@ pub struct PipelineData {
     pub run_snapshot: Option<RunSnapshot>,
 }
 
-impl PipelineData {
+impl PipelineMetadata {
     pub fn new(args: &FinalizedInitArgs) -> Self {
         Self {
             name: args.pipeline_name.clone(),

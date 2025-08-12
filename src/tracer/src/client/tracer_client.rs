@@ -4,12 +4,12 @@ use crate::client::exporters::client_export_manager::ExporterManager;
 use crate::client::exporters::event_writer::LogWriterEnum;
 use crate::cloud_providers::aws::pricing::PricingSource;
 use crate::config::Config;
-use crate::daemon::structs::{PipelineData, RunSnapshot};
+use crate::daemon::structs::{PipelineMetadata, RunSnapshot};
 use crate::extracts::containers::DockerWatcher;
 use crate::extracts::metrics::system_metrics_collector::SystemMetricsCollector;
 use crate::extracts::process_watcher::watcher::ProcessWatcher;
 use crate::process_identification::recorder::EventDispatcher;
-use crate::process_identification::types::current_run::RunData;
+use crate::process_identification::types::current_run::RunMetadata;
 use crate::process_identification::types::event::attributes::system_metrics::SystemProperties;
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::{Event, ProcessStatus};
@@ -31,8 +31,8 @@ pub struct TracerClient {
     pub cancellation_token: CancellationToken,
     metrics_collector: SystemMetricsCollector,
 
-    pipeline: Arc<Mutex<PipelineData>>,
-    run: RunData,
+    pipeline: Arc<Mutex<PipelineMetadata>>,
+    run: RunMetadata,
     config: Config,
     force_procfs: bool,
 
@@ -41,7 +41,7 @@ pub struct TracerClient {
 
 impl TracerClient {
     pub async fn new(
-        pipeline: Arc<Mutex<PipelineData>>,
+        pipeline: Arc<Mutex<PipelineMetadata>>,
         config: Config,
         db_client: LogWriterEnum,
         cli_args: FinalizedInitArgs,
@@ -106,8 +106,8 @@ impl TracerClient {
     }
 
     fn init_event_dispatcher(
-        pipeline: Arc<Mutex<PipelineData>>,
-        run_data: RunData,
+        pipeline: Arc<Mutex<PipelineMetadata>>,
+        run_data: RunMetadata,
     ) -> (EventDispatcher, mpsc::Receiver<Event>) {
         let (tx, rx) = mpsc::channel::<Event>(100);
         let event_dispatcher = EventDispatcher::new(pipeline, run_data, tx);
@@ -217,7 +217,7 @@ impl TracerClient {
         )
     }
 
-    pub async fn get_pipeline_data(&self) -> PipelineData {
+    pub async fn get_pipeline_data(&self) -> PipelineMetadata {
         let mut pipeline = self.pipeline.lock().await.clone();
         pipeline.run_snapshot.replace(self.get_run_snapshot().await);
         pipeline
@@ -227,7 +227,7 @@ impl TracerClient {
         system: Arc<RwLock<System>>,
         run_name: &Option<String>,
         pricing_source: PricingSource,
-    ) -> (RunData, SystemProperties) {
+    ) -> (RunMetadata, SystemProperties) {
         let system = system.read().await;
         let (run, system_properties) = init_run(&system, &pricing_source, run_name).await.unwrap();
         (run, system_properties)

@@ -1,5 +1,5 @@
 use crate::daemon::client::DaemonClient;
-use crate::daemon::structs::PipelineData;
+use crate::daemon::structs::PipelineMetadata;
 use crate::utils::cli::BoxFormatter;
 use crate::utils::Version;
 pub async fn info(api_client: &DaemonClient, json: bool) {
@@ -25,7 +25,7 @@ impl InfoDisplay {
         Self { width, json }
     }
 
-    pub fn print(&self, pipeline: PipelineData) {
+    pub fn print(&self, pipeline: PipelineMetadata) {
         if self.json {
             self.print_json(pipeline);
             return;
@@ -38,7 +38,7 @@ impl InfoDisplay {
         println!("{}", formatter.get_output());
     }
 
-    fn print_json(&self, pipeline: PipelineData) {
+    fn print_json(&self, pipeline: PipelineMetadata) {
         let mut json = serde_json::json!({});
         if let Some(run_snapshot) = &pipeline.run_snapshot {
             json["tracer_status"] = serde_json::json!({
@@ -81,7 +81,7 @@ impl InfoDisplay {
         println!("{}", serde_json::to_string_pretty(&json).unwrap());
     }
 
-    fn format_status_pipeline(&self, formatter: &mut BoxFormatter, pipeline: PipelineData) {
+    fn format_status_pipeline(&self, formatter: &mut BoxFormatter, pipeline: PipelineMetadata) {
         formatter.add_header("Tracer status");
         formatter.add_empty_line();
         formatter.add_field("Version", &Version::current().to_string(), "bold");

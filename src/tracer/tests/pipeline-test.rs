@@ -8,11 +8,11 @@ use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::Mutex;
-use tracer::daemon::structs::PipelineData;
+use tracer::daemon::structs::PipelineMetadata;
 use tracer::extracts::containers::DockerWatcher;
 use tracer::extracts::process_watcher::watcher::ProcessWatcher;
 use tracer::process_identification::recorder::EventDispatcher;
-use tracer::process_identification::types::current_run::RunData;
+use tracer::process_identification::types::current_run::RunMetadata;
 use tracer::process_identification::types::event::attributes::process::ProcessProperties;
 use tracer::process_identification::types::event::attributes::EventAttributes;
 use tracer::process_identification::types::event::{Event, ProcessStatus};
@@ -23,8 +23,8 @@ use tracer_ebpf::ebpf_trigger::Trigger;
 
 /// Creates a `ProcessWatcher` with dummy data.
 fn create_process_watcher(
-    pipeline: Arc<Mutex<PipelineData>>,
-    run: RunData,
+    pipeline: Arc<Mutex<PipelineMetadata>>,
+    run: RunMetadata,
     event_sender: Sender<Event>,
 ) -> Arc<ProcessWatcher> {
     let event_dispatcher = EventDispatcher::new(pipeline, run, event_sender);
@@ -39,8 +39,8 @@ fn create_process_watcher(
 /// that result from matching those triggers.
 fn process_triggers(
     processes: &Vec<ProcessInfo>,
-    pipeline: Arc<Mutex<PipelineData>>,
-    run: RunData,
+    pipeline: Arc<Mutex<PipelineMetadata>>,
+    run: RunMetadata,
     async_runtime: &Runtime,
 ) -> Vec<Event> {
     let (tx, mut rx) = mpsc::channel::<Event>(1000);
@@ -112,8 +112,8 @@ fn compute_observed_counts(events: &Vec<Event>) -> BTreeMap<String, usize> {
 /// This is a `once` fixture because we can use the same metadata for all tests.
 #[fixture]
 #[once]
-fn pipeline() -> PipelineData {
-    PipelineData {
+fn pipeline() -> PipelineMetadata {
+    PipelineMetadata {
         name: "test_pipeline".to_string(),
         run_snapshot: None,
         tags: PipelineTags::default(),
@@ -123,8 +123,8 @@ fn pipeline() -> PipelineData {
 }
 
 #[fixture]
-fn run() -> RunData {
-    RunData {
+fn run() -> RunMetadata {
+    RunMetadata {
         name: "test_run".to_string(),
         id: "test-id-123".to_string(),
         start_time: Default::default(),
@@ -143,8 +143,8 @@ fn async_runtime() -> Runtime {
 
 #[rstest]
 fn test_nfcore_rnaseq_process_matching(
-    pipeline: &PipelineData,
-    run: RunData,
+    pipeline: &PipelineMetadata,
+    run: RunMetadata,
     async_runtime: &Runtime,
 ) {
     const PROCESS_LIST_PATH: &str = "tests/assets/nfcore_rnaseq_process_list.json";

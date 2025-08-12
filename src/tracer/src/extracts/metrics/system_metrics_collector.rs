@@ -115,15 +115,15 @@ impl SystemMetricsCollector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::daemon::structs::PipelineData;
-    use crate::process_identification::types::current_run::RunData;
+    use crate::daemon::structs::PipelineMetadata;
+    use crate::process_identification::types::current_run::RunMetadata;
     use tokio::sync::Mutex;
 
     #[tokio::test]
     async fn test_collect_metrics() {
         let system = System::new_all();
 
-        let pipeline = Arc::new(Mutex::new(PipelineData {
+        let pipeline = Arc::new(Mutex::new(PipelineMetadata {
             name: "test_pipeline".to_string(),
             run_snapshot: None,
             tags: Default::default(),
@@ -131,7 +131,7 @@ mod tests {
             start_time: Default::default(),
         }));
 
-        let run = RunData {
+        let run = RunMetadata {
             id: "test_run_id".to_string(),
             name: "test_run_name".to_string(),
             trace_id: Option::from("test_trace_id".to_string()),

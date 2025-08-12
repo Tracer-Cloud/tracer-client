@@ -2,7 +2,7 @@ mod run_details;
 use crate::cloud_providers::aws::aws_metadata::get_aws_instance_metadata;
 use crate::cloud_providers::aws::pricing::PricingSource;
 use crate::extracts::metrics::system_metrics_collector::SystemMetricsCollector;
-use crate::process_identification::types::current_run::{PipelineCostSummary, RunData};
+use crate::process_identification::types::current_run::{PipelineCostSummary, RunMetadata};
 use crate::process_identification::types::event::attributes::system_metrics::SystemProperties;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
@@ -57,7 +57,7 @@ pub async fn init_run(
     system: &System,
     pricing_client: &PricingSource,
     run_name: &Option<String>,
-) -> Result<(RunData, SystemProperties)> {
+) -> Result<(RunMetadata, SystemProperties)> {
     debug!("Starting new run...");
     let system_properties = gather_system_properties(system, pricing_client).await;
     let timestamp: DateTime<Utc> = Utc::now();
@@ -66,7 +66,7 @@ pub async fn init_run(
         .as_ref()
         .map(|pricing_context| PipelineCostSummary::new(timestamp, pricing_context));
 
-    let run_data = RunData::new(
+    let run_data = RunMetadata::new(
         run_name.as_ref().cloned().unwrap_or_else(generate_run_name),
         generate_run_id(),
         cost_summary,

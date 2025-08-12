@@ -4,7 +4,7 @@ use crate::{
 use chrono::{DateTime, Utc};
 
 #[derive(Clone)]
-pub struct RunData {
+pub struct RunMetadata {
     pub name: String,
     pub id: String,
     pub start_time: DateTime<Utc>,
@@ -12,9 +12,9 @@ pub struct RunData {
     pub cost_summary: Option<PipelineCostSummary>,
 }
 
-impl RunData {
+impl RunMetadata {
     pub fn new(name: String, id: String, cost_summary: Option<PipelineCostSummary>) -> Self {
-        RunData {
+        RunMetadata {
             name,
             id,
             start_time: Utc::now(),

@@ -1,5 +1,5 @@
-use crate::daemon::structs::PipelineData;
-use crate::process_identification::types::current_run::RunData;
+use crate::daemon::structs::PipelineMetadata;
+use crate::process_identification::types::current_run::RunMetadata;
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::{Event, ProcessStatus};
 use chrono::{DateTime, Utc};
@@ -9,13 +9,13 @@ use tokio::sync::Mutex;
 
 #[derive(Clone)]
 pub struct EventDispatcher {
-    pipeline: Arc<Mutex<PipelineData>>,
-    run: RunData,
+    pipeline: Arc<Mutex<PipelineMetadata>>,
+    run: RunMetadata,
     tx: Sender<Event>,
 }
 
 impl EventDispatcher {
-    pub fn new(pipeline: Arc<Mutex<PipelineData>>, run: RunData, tx: Sender<Event>) -> Self {
+    pub fn new(pipeline: Arc<Mutex<PipelineMetadata>>, run: RunMetadata, tx: Sender<Event>) -> Self {
         EventDispatcher { pipeline, run, tx }
     }
 
@@ -188,10 +188,10 @@ mod tests {
     }
 
     // Helper function to create a test pipeline
-    fn create_test_pipeline() -> (Arc<Mutex<PipelineData>>, RunData) {
+    fn create_test_pipeline() -> (Arc<Mutex<PipelineMetadata>>, RunMetadata) {
         let trace_id = "trace-id-xyz".to_string();
         // Build a custom run with trace_id
-        let run = RunData {
+        let run = RunMetadata {
             name: "test_run".to_string(),
             id: "test-id-123".to_string(),
             start_time: Utc::now(),
@@ -199,7 +199,7 @@ mod tests {
             trace_id: Some(trace_id.clone()),
         };
 
-        let pipeline = Arc::new(Mutex::new(PipelineData {
+        let pipeline = Arc::new(Mutex::new(PipelineMetadata {
             name: "test_pipeline".to_string(),
             run_snapshot: None,
             tags: Default::default(),

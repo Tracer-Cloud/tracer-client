@@ -1,4 +1,4 @@
-use super::structs::PipelineData;
+use super::structs::PipelineMetadata;
 use crate::daemon::handlers::info::INFO_ENDPOINT;
 use crate::daemon::handlers::start::START_ENDPOINT;
 use crate::daemon::handlers::stop::STOP_ENDPOINT;
@@ -30,7 +30,7 @@ impl DaemonClient {
         format!("{}{}", self.base_uri, path)
     }
 
-    pub async fn send_start_request(&self) -> Result<Option<PipelineData>, &str> {
+    pub async fn send_start_request(&self) -> Result<Option<PipelineMetadata>, &str> {
         self.send_request(START_ENDPOINT, Method::Post).await
     }
 
@@ -42,7 +42,7 @@ impl DaemonClient {
         self.send_request(STOP_ENDPOINT, Method::Post).await
     }
 
-    pub async fn send_info_request(&self) -> Result<PipelineData, &str> {
+    pub async fn send_info_request(&self) -> Result<PipelineMetadata, &str> {
         self.send_request(INFO_ENDPOINT, Method::Get).await
     }
 

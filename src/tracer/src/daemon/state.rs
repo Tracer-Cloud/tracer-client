@@ -2,7 +2,7 @@ use crate::cli::handlers::init_arguments::FinalizedInitArgs;
 use crate::client::TracerClient;
 use crate::config::Config;
 use crate::daemon::server::process_monitor::monitor;
-use crate::daemon::structs::PipelineData;
+use crate::daemon::structs::PipelineMetadata;
 use anyhow::Context;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -13,13 +13,13 @@ pub(super) struct DaemonState {
     args: Arc<Mutex<FinalizedInitArgs>>,
     config: Arc<Mutex<Config>>,
     tracer_client: Arc<Mutex<Option<Arc<Mutex<TracerClient>>>>>,
-    pipeline: Arc<Mutex<PipelineData>>,
+    pipeline: Arc<Mutex<PipelineMetadata>>,
     server_token: CancellationToken,
 }
 
 impl DaemonState {
     pub fn new(args: FinalizedInitArgs, config: Config, server_token: CancellationToken) -> Self {
-        let pipeline_data = PipelineData::new(&args);
+        let pipeline_data = PipelineMetadata::new(&args);
 
         Self {
             args: Arc::new(Mutex::new(args)),
@@ -35,7 +35,7 @@ impl DaemonState {
         client.clone()
     }
 
-    pub async fn get_pipeline_data(&self) -> PipelineData {
+    pub async fn get_pipeline_data(&self) -> PipelineMetadata {
         let data = self.pipeline.lock().await;
         data.clone()
     }
