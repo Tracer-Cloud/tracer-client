@@ -7,7 +7,8 @@ use tracer_common::secure::spawn::*;
 fn main() {
     let (exe_path, inode) = resolve_exe_path();
 
-    let args = env::args().collect::<Vec<_>>();
+    // SAFETY: we are only using this to test the spawn functionality; there is no security risk
+    let args = env::args().collect::<Vec<_>>(); // rust.lang.security.args.args
 
     if args.len() > 1 {
         // this is the child process
