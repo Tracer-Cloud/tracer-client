@@ -43,17 +43,17 @@ async fn create_listener(server_url: String) -> TcpListener {
 }
 
 impl DaemonServer {
-    pub async fn new(args: &FinalizedInitArgs) -> Self {
-        // Push analytics event
+    pub async fn new() -> Self {
+        info!("Daemon server created!");
+        Self { server: None }
+    }
+    pub async fn start(mut self, args: FinalizedInitArgs, config: Config) -> anyhow::Result<()> {
         analytics::spawn_event(
             args.user_id.clone(),
             AnalyticsEventType::DaemonStartedSuccessfully,
             None,
         );
-        info!("Daemon server created!");
-        Self { server: None }
-    }
-    pub async fn start(mut self, args: FinalizedInitArgs, config: Config) -> anyhow::Result<()> {
+        info!("Starting Tracer daemon server...");
         let termination_token = CancellationToken::new();
         let server_url = config.server.clone();
 

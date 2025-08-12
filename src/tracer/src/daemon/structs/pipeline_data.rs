@@ -3,7 +3,7 @@ use crate::daemon::structs::RunSnapshot;
 use crate::process_identification::types::pipeline_tags::PipelineTags;
 use chrono::{DateTime, TimeDelta, Utc};
 
-#[derive(serde::Serialize, serde::Deserialize, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct PipelineMetadata {
     pub name: String,
     pub start_time: DateTime<Utc>,

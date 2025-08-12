@@ -5,7 +5,7 @@ use itertools::Itertools;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 
-#[derive(serde::Serialize, serde::Deserialize, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct RunSnapshot {
     pub(crate) name: String,
     pub(crate) id: String,

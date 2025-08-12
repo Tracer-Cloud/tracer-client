@@ -166,6 +166,47 @@ pub async fn monitor(client: Arc<Mutex<TracerClient>>, server_token: Cancellatio
         )
         .await
         .unwrap();
+
+    // Write stopping run info to log file
+    let pipeline_data = guard.get_pipeline_data().await;
+
+    let run_snapshot = guard.get_run_snapshot().await;
+    let run_id = &run_snapshot.id;
+    // Create log file name (same as in start_tracer_client)
+    let log_filename = format!("tracer-run-{}.log", run_id);
+    let log_path = std::env::current_dir().unwrap().join(&log_filename);
+
+    let stopping_content = format!("\n\nStopping run:\n{:#?}", pipeline_data);
+
+    match std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)
+    {
+        Ok(mut file) => {
+            use std::io::Write;
+            if let Err(e) = file.write_all(stopping_content.as_bytes()) {
+                error!(
+                    "Failed to append stopping info to log file {}: {}",
+                    log_path.display(),
+                    e
+                );
+            } else {
+                tracing::info!(
+                    "Appended stopping info to run log file: {}",
+                    log_path.display()
+                );
+            }
+        }
+        Err(e) => {
+            error!(
+                "Failed to open log file {} for appending: {}",
+                log_path.display(),
+                e
+            );
+        }
+    }
+
     let _ = guard.close().await;
 }
 

@@ -54,7 +54,6 @@ pub async fn init_with(
     confirm: bool,
 ) -> anyhow::Result<()> {
     info_message!("Starting daemon...");
-
     let args = args.finalize(default_pipeline_prefix, confirm).await;
 
     {
@@ -123,9 +122,8 @@ pub async fn init_with(
 
         return Ok(());
     }
-
     setup_logging(&args.log_level)?;
-    DaemonServer::new(&args).await.start(args, config).await
+    DaemonServer::new().await.start(args, config).await
 }
 
 fn setup_logging(log_level: &String) -> anyhow::Result<()> {
