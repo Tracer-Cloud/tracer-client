@@ -46,44 +46,52 @@ impl InfoDisplay {
 
     fn print_json(&self, pipeline: PipelineMetadata) {
         let mut json = serde_json::json!({});
+
+        // Tracer CLI info
+        json["tracer_cli"] = serde_json::json!({
+            "version": Version::current().to_string(),
+        });
+
+        // Pipeline info
+        json["pipeline"] = serde_json::json!({
+            "status": format!("Running for {}", pipeline.formatted_runtime()),
+            "name": &pipeline.name,
+            "environment": pipeline.tags.environment.as_deref().unwrap_or("Not set"),
+            "environment_type": pipeline.tags.environment_type.as_deref().unwrap_or("Not detected"),
+            "instance_type": pipeline.tags.instance_type.as_deref().unwrap_or("Not detected"),
+            "user": pipeline.tags.user_id.as_deref().unwrap_or("Not set"),
+            "stage": pipeline.stage(),
+        });
+
         if let Some(run_snapshot) = &pipeline.run_snapshot {
-            json["tracer_status"] = serde_json::json!({
-                "status": format!("Running for {}", &run_snapshot.formatted_runtime()).as_str(),
-                "version": Version::current().to_string(),
-            });
-            json["pipeline"] = serde_json::json!({
-                "name": &pipeline.name,
-                "environment": pipeline.tags.environment.as_deref().unwrap_or("Not set"),
-                "user": pipeline.tags.user_id.as_deref().unwrap(),
-            });
             json["run"] = serde_json::json!({
+                "status": format!("Running for {}", run_snapshot.formatted_runtime()),
                 "name": &run_snapshot.name,
                 "id": &run_snapshot.id,
-                "monitored_processes": &run_snapshot.process_count(),
-                "monitored_tasks": &run_snapshot.tasks_count(),
+                "monitored_processes": run_snapshot.process_count(),
+                "monitored_tasks": run_snapshot.tasks_count(),
+                "dashboard_url": run_snapshot.get_run_url(pipeline.name.clone()),
             });
+
             if run_snapshot.process_count() > 0 {
                 json["run"]["processes"] = serde_json::json!(run_snapshot.processes_preview(None));
             }
             if run_snapshot.tasks_count() > 0 {
                 json["run"]["tasks"] = serde_json::json!(run_snapshot.tasks_preview(None));
             }
-            json["run"]["dashboard_url"] =
-                serde_json::json!(run_snapshot.get_run_url(pipeline.name));
-            json["run"]["stage"] = serde_json::json!(if pipeline.is_dev { "dev" } else { "prod" });
+
             if let Some(summary) = &run_snapshot.cost_summary {
-                json["run"]["estimated_cost_since_start"] =
-                    serde_json::json!(format!("{:.4}", summary.estimated_total));
-                json["run"]["detected_ec2_instance_type"] =
-                    serde_json::json!(summary.instance_type);
+                json["cost_estimation"] = serde_json::json!({
+                    "estimated_cost_since_start": format!("{:.4}", summary.get_estimated_total(run_snapshot.start_time)),
+                    "detected_ec2_instance_type": summary.instance_type,
+                });
             }
         } else {
-            //todo Can we even print info active if no pipeline is running? Should inner even be an option?
-            json["pipeline_info"] = serde_json::json!({
+            json["run"] = serde_json::json!({
                 "status": "No run found",
             });
-            return;
         }
+
         println!("{}", serde_json::to_string_pretty(&json).unwrap());
     }
 
@@ -149,9 +157,7 @@ impl InfoDisplay {
                 );
             }
             formatter.add_empty_line();
-
             if let Some(summary) = &run_snapshot.cost_summary {
-                print!("{:?}", summary);
                 formatter.add_section_header("Cost estimation");
                 formatter.add_empty_line();
                 formatter.add_field(

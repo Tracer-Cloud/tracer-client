@@ -52,13 +52,10 @@ impl PipelineCostSummary {
         }
     }
 
-    pub fn get_estimated_total(&self, timestamp: DateTime<Utc>) -> String {
+    pub fn get_estimated_total(&self, timestamp: DateTime<Utc>) -> f64 {
         let now = Utc::now();
         let duration_secs = (now - timestamp).num_seconds().max(0) as f64;
         let duration_minutes = duration_secs / 60.0;
-
-        let total_cost = duration_minutes * self.per_minute;
-
-        total_cost.to_string()
+        duration_minutes * self.per_minute
     }
 }
