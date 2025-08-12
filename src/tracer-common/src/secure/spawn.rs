@@ -13,7 +13,7 @@ use std::{env, io, os};
 /// This must be called by `main` in order to resolve the executable path and its inode at startup.
 pub fn resolve_exe_path() -> (PathBuf, Option<u64>) {
     let (exe_path, inode) = &*CANONICAL_EXE;
-    (exe_path.clone(), inode)
+    (exe_path.clone(), *inode)
 }
 
 /// Absolute path to this binary
