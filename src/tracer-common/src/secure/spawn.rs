@@ -11,8 +11,9 @@ use std::{env, io, os};
 // TODO: implement code signature verification
 
 /// This must be called by `main` in order to resolve the executable path and its inode at startup.
-pub fn resolve_exe_path() {
-    std::sync::LazyLock::force(&CANONICAL_EXE);
+pub fn resolve_exe_path() -> (PathBuf, Option<u64>) {
+    let (exe_path, inode) = &*CANONICAL_EXE;
+    (exe_path.clone(), inode.clone())
 }
 
 /// Absolute path to this binary
@@ -157,7 +158,7 @@ fn validate_path_secure(path: &Path) -> io::Result<()> {
     Ok(())
 }
 
-fn get_inode(path: &Path) -> Option<u64> {
+pub fn get_inode(path: &Path) -> Option<u64> {
     #[cfg(unix)]
     match fs::metadata(path) {
         Ok(meta) => Some(meta.ino()),
