@@ -1,8 +1,14 @@
 use crate::daemon::client::DaemonClient;
+use crate::daemon::server::DaemonServer;
 use crate::daemon::structs::PipelineMetadata;
 use crate::utils::cli::BoxFormatter;
 use crate::utils::Version;
 pub async fn info(api_client: &DaemonClient, json: bool) {
+    if !DaemonServer::is_running() {
+        let display = InfoDisplay::new(80, json);
+        display.print_error();
+        return;
+    }
     let pipeline_data = match api_client.send_info_request().await {
         Ok(pipeline_data) => pipeline_data,
         Err(_) => {
@@ -32,7 +38,7 @@ impl InfoDisplay {
         }
         let mut formatter = BoxFormatter::new(self.width);
 
-        self.format_status_pipeline(&mut formatter, pipeline);
+        self.format_output(&mut formatter, pipeline);
 
         formatter.add_footer();
         println!("{}", formatter.get_output());
@@ -81,11 +87,10 @@ impl InfoDisplay {
         println!("{}", serde_json::to_string_pretty(&json).unwrap());
     }
 
-    fn format_status_pipeline(&self, formatter: &mut BoxFormatter, pipeline: PipelineMetadata) {
-        formatter.add_header("Tracer status");
+    fn format_output(&self, formatter: &mut BoxFormatter, pipeline: PipelineMetadata) {
+        formatter.add_header("Tracer CLI");
         formatter.add_empty_line();
         formatter.add_field("Version", &Version::current().to_string(), "bold");
-        formatter.add_field("Stage", pipeline.stage(), "yellow");
         formatter.add_empty_line();
         formatter.add_section_header("Pipeline details");
         formatter.add_empty_line();
@@ -101,6 +106,7 @@ impl InfoDisplay {
         formatter.add_field("Pipeline name", &pipeline.name, "cyan");
         formatter.add_field("Environment", pipeline_environment, "yellow");
         formatter.add_field("User", pipeline_user, "magenta");
+        formatter.add_field("Stage", pipeline.stage(), "yellow");
         formatter.add_empty_line();
         if let Some(run_snapshot) = &pipeline.run_snapshot {
             formatter.add_section_header("Run details");
@@ -161,5 +167,33 @@ impl InfoDisplay {
             formatter.add_field("Run status", "No run found", "red");
             formatter.add_empty_line();
         }
+    }
+
+    pub fn print_error(&self) {
+        if self.json {
+            println!("{}", serde_json::json!({"error": "Daemon not started"}));
+            return;
+        }
+        let mut formatter = BoxFormatter::new(self.width);
+        formatter.add_header("Tracer CLI");
+        formatter.add_empty_line();
+        formatter.add_field("Version", &Version::current().to_string(), "bold");
+        formatter.add_empty_line();
+        formatter.add_section_header("Pipeline details");
+        formatter.add_empty_line();
+        formatter.add_status_field("Pipeline status", "Not started", "inactive");
+        formatter.add_empty_line();
+        formatter.add_section_header("Next steps");
+        formatter.add_empty_line();
+        formatter.add_field("Interactive setup", "tracer init", "cyan");
+        formatter.add_hyperlink("Sandbox", "https://sandbox.tracer.cloud");
+        formatter.add_hyperlink(
+            "Documentation",
+            "https://github.com/Tracer-Cloud/tracer-client",
+        );
+        formatter.add_field("Support", "support@tracer.cloud", "blue");
+        formatter.add_empty_line();
+        formatter.add_footer();
+        println!("{}", formatter.get_output());
     }
 }
