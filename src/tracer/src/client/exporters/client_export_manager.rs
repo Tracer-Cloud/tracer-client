@@ -1,6 +1,6 @@
-use crate::client::exporters::log_writer::LogWriterEnum;
+use crate::client::exporters::event_writer::LogWriterEnum;
 
-use crate::client::exporters::log_writer::LogWriter;
+use crate::client::exporters::event_writer::EventWriter;
 use crate::process_identification::types::event::Event;
 use std::sync::Arc;
 use tokio::sync::mpsc::Receiver;

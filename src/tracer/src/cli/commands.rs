@@ -73,4 +73,36 @@ pub enum Command {
 
     /// Uninstall tracer
     Uninstall,
+
+    /// OpenTelemetry collector management
+    Otel {
+        #[clap(subcommand)]
+        command: OtelCommand,
+    },
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum OtelCommand {
+    /// Get real-time logs from the OpenTelemetry collector
+    Logs {
+        /// Follow the logs in real-time (like tail -f)
+        #[clap(short, long)]
+        follow: bool,
+        
+        /// Number of lines to show (default: 100)
+        #[clap(short, long, default_value = "100")]
+        lines: usize,
+    },
+
+    /// Start the OpenTelemetry collector
+    Start,
+
+    /// Stop the OpenTelemetry collector
+    Stop,
+
+    /// Check the status of the OpenTelemetry collector
+    Status,
+
+    /// Show what files are being watched by the OpenTelemetry collector
+    Watch,
 }

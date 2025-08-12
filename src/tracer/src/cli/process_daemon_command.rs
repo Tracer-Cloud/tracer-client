@@ -1,4 +1,4 @@
-use crate::cli::commands::Command;
+use crate::cli::commands::{Command, OtelCommand};
 use crate::cli::handlers;
 use crate::cli::handlers::info;
 use crate::config::Config;
@@ -27,6 +27,35 @@ pub async fn process_daemon_command(command: Command, config: Config) {
             warning_message!(
                 "Not implemented yet, please use `tracer terminate` to end the daemon."
             );
+        }
+        Command::Otel { command } => {
+            match command {
+                OtelCommand::Logs { follow, lines } => {
+                    if let Err(e) = handlers::logs(follow, lines).await {
+                        warning_message!("Failed to get logs: {}", e);
+                    }
+                }
+                OtelCommand::Start => {
+                    if let Err(e) = handlers::otel_start().await {
+                        warning_message!("Failed to start OpenTelemetry collector: {}", e);
+                    }
+                }
+                OtelCommand::Stop => {
+                    if let Err(e) = handlers::otel_stop().await {
+                        warning_message!("Failed to stop OpenTelemetry collector: {}", e);
+                    }
+                }
+                OtelCommand::Status => {
+                    if let Err(e) = handlers::otel_status().await {
+                        warning_message!("Failed to check OpenTelemetry collector status: {}", e);
+                    }
+                }
+                OtelCommand::Watch => {
+                    if let Err(e) = handlers::otel_watch().await {
+                        warning_message!("Failed to show watched files: {}", e);
+                    }
+                }
+            }
         }
         _ => {
             warning_message!("Command is not implemented yet.");

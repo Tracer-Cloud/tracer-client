@@ -22,8 +22,8 @@ pub(super) async fn wait(api_client: &DaemonClient) -> bool {
         }
     }
 
-    // Use very short intervals for faster startup detection
-    let intervals = [500, 500, 1000, 1000, 2000]; // milliseconds: 0.5s, 0.5s, 1s, 1s, 2s = 5s total
+    // Use longer intervals to give daemon more time to start (especially with OpenTelemetry)
+    let intervals = [1000, 1000, 2000, 2000, 3000, 5000]; // milliseconds: 1s, 1s, 2s, 2s, 3s, 5s = 14s total
     let mut total_elapsed = 0;
     
     for &interval in &intervals {

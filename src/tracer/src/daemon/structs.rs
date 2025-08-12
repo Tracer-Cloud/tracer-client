@@ -7,6 +7,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct OpenTelemetryStatus {
+    pub enabled: bool,
+    pub version: Option<String>,
+    pub pid: Option<u32>,
+    pub endpoint: Option<String>,
+}
+
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct InfoResponse {
     pub inner: Option<InnerInfoResponse>,
@@ -23,6 +31,7 @@ pub struct InnerInfoResponse {
     pub tags: PipelineTags,
     pub cost_summary: Option<PipelineCostSummary>,
     pub stage: String,
+    pub opentelemetry_status: Option<OpenTelemetryStatus>,
 }
 
 impl InfoResponse {
@@ -125,6 +134,7 @@ impl TryFrom<PipelineMetadata> for InnerInfoResponse {
                 tags: value.tags,
                 cost_summary,
                 stage,
+                opentelemetry_status: None,
             })
         } else {
             Err(anyhow::anyhow!("No run found"))

@@ -61,41 +61,52 @@ pub async fn init_with_default_prompt(
 
     // Handle OpenTelemetry logging if API key is provided
     if let Some(api_key) = &args.opensearch_api_key {
-        // Validate that the API key is not empty
-        if api_key.trim().is_empty() {
-            warning_message!("OpenSearch API key is empty, skipping OpenTelemetry logging...");
-        } else {
-            info_message!("OpenSearch API key provided, enabling OpenTelemetry logging...");
-            
-            // Set environment variable for the current process and export to shell
-            std::env::set_var("OPENSEARCH_API_KEY", api_key);
-            
-            // Export to shell for persistence
-            if let Ok(shell) = std::env::var("SHELL") {
-                let export_cmd = format!("export OPENSEARCH_API_KEY={}", api_key);
-                if let Err(e) = std::process::Command::new(&shell)
-                    .arg("-c")
-                    .arg(&export_cmd)
-                    .output() {
-                    warning_message!("Failed to export OPENSEARCH_API_KEY to shell: {}", e);
-                }
+        info_message!("OpenSearch API key provided, enabling OpenTelemetry logging...");
+        
+        // Set environment variable for the current process and export to shell
+        std::env::set_var("OPENSEARCH_API_KEY", api_key);
+        
+        // Export to shell for persistence
+        if let Ok(shell) = std::env::var("SHELL") {
+            let export_cmd = format!("export OPENSEARCH_API_KEY={}", api_key);
+            if let Err(e) = std::process::Command::new(&shell)
+                .arg("-c")
+                .arg(&export_cmd)
+                .output() {
+                warning_message!("Failed to export OPENSEARCH_API_KEY to shell: {}", e);
             }
-            
-            // Create OpenTelemetry configuration
-            let run_id = uuid::Uuid::new_v4().to_string();
-            let otel_config = OtelConfig::with_environment_variables(
-                api_key.clone(),
-                args.user_id.clone(),
-                args.pipeline_name.clone(),
-                args.run_name.clone(),
-                run_id,
-                args.environment_variables.clone(),
-            );
-            
-            // Initialize and start OpenTelemetry collector
+        }
+        
+        // Create OpenTelemetry configuration
+        let run_id = uuid::Uuid::new_v4().to_string();
+        let otel_config = OtelConfig::with_environment_variables(
+            api_key.clone(),
+            args.user_id.clone(),
+            args.pipeline_name.clone(),
+            args.run_name.clone(),
+            run_id,
+            args.environment_variables.clone(),
+        );
+        
+        // Initialize and start OpenTelemetry collector in background
+        let otel_config_clone = otel_config.clone();
+        tokio::spawn(async move {
             match OtelCollector::new() {
                 Ok(collector) => {
-                    if let Err(e) = collector.start(&otel_config) {
+                    // Stop any existing collector first
+                    if collector.is_running() {
+                        info_message!("Stopping existing OpenTelemetry collector...");
+                        if let Err(e) = collector.stop() {
+                            warning_message!("Failed to stop existing OpenTelemetry collector: {}", e);
+                        } else {
+                            info_message!("Existing OpenTelemetry collector stopped successfully");
+                            // Wait a moment for the process to fully terminate
+                            tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+                        }
+                    }
+                    
+                    // Start the collector with new configuration
+                    if let Err(e) = collector.start_async(&otel_config_clone).await {
                         error_message!("Failed to start OpenTelemetry collector: {}", e);
                         warning_message!("Continuing without OpenTelemetry logging...");
                     } else {
@@ -107,7 +118,7 @@ pub async fn init_with_default_prompt(
                     warning_message!("Continuing without OpenTelemetry logging...");
                 }
             }
-        }
+        });
     } else {
         info_message!("No OpenSearch API key provided, OpenTelemetry logging will not be enabled");
     }

@@ -28,6 +28,7 @@ chrono = { workspace = true }
 sysinfo = { workspace = true }
 tracer_ebpf = { path = "../ebpf" }
 itertools = { workspace = true }
+walkdir = "2.4"
 
 mockall = { workspace = true }
 log = { workspace = true }

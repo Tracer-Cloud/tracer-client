@@ -1,6 +1,7 @@
 mod cleanup_port;
 mod info;
 mod init;
+mod logs;
 mod terminate;
 mod test;
 mod theme;
@@ -11,6 +12,7 @@ pub(super) use cleanup_port::cleanup_port;
 pub(super) use info::info;
 pub use init::arguments as init_arguments;
 pub(super) use init::init;
+pub(super) use logs::{logs, otel_start, otel_stop, otel_status, otel_watch};
 pub(super) use terminate::terminate;
 pub use test::arguments as test_arguments;
 pub(super) use test::test;

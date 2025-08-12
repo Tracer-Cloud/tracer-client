@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
+#[derive(Clone)]
 pub struct OtelConfig {
     pub opensearch_api_key: String,
     pub user_id: String,
@@ -74,7 +75,11 @@ impl OtelConfig {
             r#"receivers:
   filelog:
     include:
-      - /tmp/test-logs/*.log
+      - '**/*.log*'
+      - '**/*.out*'
+      - '**/*.err*'
+      - '**/*.txt*'
+      
       - '**/.nextflow.log*'
       - '**/nextflow.log*'
       - '**/.nextflow*.log*'
@@ -83,8 +88,20 @@ impl OtelConfig {
       - '**/work/**/.command.log'
       - '**/work/**/.command.err'
       - '**/work/**/.command.out'
-      - '/home/**/.nextflow.log*'
-      - '/home/**/nextflow*.log*'
+      
+      - '**/target/**/*.log*'
+      - '**/build/**/*.log*'
+      - '**/logs/**/*'
+      - '**/log/**/*'
+      
+      - './*.log*'
+      - './*.out*'
+      - './*.err*'
+      - './*.txt*'
+      - './*/*.log*'
+      - './*/*.out*'
+      - './*/*.err*'
+      - './*/*.txt*'
 
     exclude:
       - /proc/*
@@ -99,9 +116,25 @@ impl OtelConfig {
       - /snap/*
       - /snap/*/*
       - /snap/*/*/*
+      - /System/*
+      - /Library/*
+      - /Applications/*
+      - '**/node_modules/**'
+      - '**/.git/**'
+      - '**/target/debug/build/**'
+      - '**/target/release/build/**'
+      - '**/build/**'
+      - '**/vendor/**'
+      - '**/.cargo/**'
+      - '**/.rustup/**'
+      - '**/.local/**'
+      - '**/.cache/**'
+      - '**/tmp/**'
+      - '**/var/tmp/**'
+      - '**/.terraform/**'
 
-    start_at: beginning
-    poll_interval: 100ms
+    start_at: end
+    poll_interval: 50ms
     max_log_size: 50MiB
     max_concurrent_files: 4096
     include_file_name: true
@@ -114,7 +147,6 @@ impl OtelConfig {
   hostmetrics:
     collection_interval: 300s
     scrapers:
-      cpu:
       memory:
 
 processors:

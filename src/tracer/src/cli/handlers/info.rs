@@ -49,6 +49,20 @@ impl InfoDisplay {
                 "status": format!("Running for {}", &inner.formatted_runtime()).as_str(),
                 "version": Version::current().to_string(),
             });
+            
+            if let Some(otel_status) = &inner.opentelemetry_status {
+                json["opentelemetry"] = serde_json::json!({
+                    "enabled": otel_status.enabled,
+                    "version": otel_status.version,
+                    "pid": otel_status.pid,
+                    "endpoint": otel_status.endpoint,
+                });
+            } else {
+                json["opentelemetry"] = serde_json::json!({
+                    "enabled": false,
+                    "status": "unknown"
+                });
+            }
             json["pipeline"] = serde_json::json!({
                 "name": &inner.pipeline_name,
                 "environment": inner.tags.environment.as_deref().unwrap_or("Not set"),
@@ -96,6 +110,22 @@ impl InfoDisplay {
         formatter.add_field("Version", &Version::current().to_string(), "bold");
         formatter.add_hyperlink("Dashboard", &inner.get_run_url());
         formatter.add_field("Stage", &inner.stage, "bold");
+        
+        if let Some(otel_status) = &inner.opentelemetry_status {
+            if otel_status.enabled {
+                formatter.add_status_field("OpenTelemetry", "Enabled", "active");
+                if let Some(version) = &otel_status.version {
+                    formatter.add_field("OTel Version", version, "cyan");
+                }
+                if let Some(pid) = &otel_status.pid {
+                    formatter.add_field("OTel PID", &pid.to_string(), "white");
+                }
+            } else {
+                formatter.add_status_field("OpenTelemetry", "Disabled", "inactive");
+            }
+        } else {
+            formatter.add_status_field("OpenTelemetry", "Unknown", "inactive");
+        }
 
         formatter.add_empty_line();
     }
