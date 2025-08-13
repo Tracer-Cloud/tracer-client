@@ -158,7 +158,7 @@ impl OtelProcessController {
         info_message!("Updating OpenTelemetry collector configuration...");
         config.save_config()?;
 
-        if let Some(pid) = self.read_pid().ok() {
+        if let Ok(pid) = self.read_pid() {
             if let Err(e) = OtelUtils::kill_process(pid, "-HUP") {
                 warning_message!("Failed to send HUP signal to process {}: {}", pid, e);
                 return Err(anyhow::anyhow!(

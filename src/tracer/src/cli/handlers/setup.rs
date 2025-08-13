@@ -7,7 +7,7 @@ use std::process::Command;
 
 pub async fn setup() -> Result<()> {
     // Run the setup in a blocking task to avoid runtime conflicts
-    tokio::task::spawn_blocking(|| setup_sync()).await?
+    tokio::task::spawn_blocking(setup_sync).await?
 }
 
 pub fn setup_sync() -> Result<()> {

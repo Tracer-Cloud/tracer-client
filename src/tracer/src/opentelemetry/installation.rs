@@ -4,7 +4,7 @@ use crate::{info_message, success_message, warning_message};
 use anyhow::{Context, Result};
 use colored::Colorize;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 const OTEL_VERSION: &str = "0.102.1";
 const OTEL_BINARY_NAME: &str = "otelcol";
@@ -13,7 +13,7 @@ const OTEL_BINARY_NAME: &str = "otelcol";
 pub struct OtelBinaryManager;
 
 impl OtelBinaryManager {
-    pub fn check_availability(binary_path: &PathBuf) -> bool {
+    pub fn check_availability(binary_path: &Path) -> bool {
         if binary_path.exists() {
             return true;
         }

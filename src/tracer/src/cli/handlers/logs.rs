@@ -114,14 +114,10 @@ async fn show_log_file(file_path: &Path, lines: usize, follow: bool) -> Result<(
         return Ok(());
     }
 
-    let start_index = if total_lines > lines {
-        total_lines - lines
-    } else {
-        0
-    };
+    let start_index = total_lines.saturating_sub(lines);
 
-    for i in start_index..total_lines {
-        println!("{}", all_lines[i]);
+    for line in all_lines.iter().take(total_lines).skip(start_index) {
+        println!("{}", line);
     }
 
     if follow {
@@ -138,10 +134,8 @@ async fn show_log_file(file_path: &Path, lines: usize, follow: bool) -> Result<(
             if current_size > last_size {
                 new_reader.seek(SeekFrom::Start(last_size))?;
 
-                for line in new_reader.lines() {
-                    if let Ok(line) = line {
-                        println!("{}", line);
-                    }
+                for line in new_reader.lines().map_while(Result::ok) {
+                    println!("{}", line);
                 }
 
                 last_size = current_size;
