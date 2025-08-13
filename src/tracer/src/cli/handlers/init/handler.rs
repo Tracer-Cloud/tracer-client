@@ -102,7 +102,7 @@ pub async fn init_with(
             .arg("--log-level")
             .arg(&args.log_level);
 
-        // Add environment variables if provided
+        // Add environment variables for OTEL if provided
         for (key, value) in &args.environment_variables {
             cmd.arg("--env-var").arg(format!("{}={}", key, value));
         }
@@ -130,7 +130,7 @@ pub async fn init_with(
 
         success_message!("Daemon is ready and responding");
 
-        // Start the OpenTelemetry collector before showing info (auto-install if needed)
+        // Start the OTEL collector before showing info: auto install collector if needed
         if let Err(e) = otel_start_with_auto_install(args.watch_dir.clone(), true).await {
             warning_message!("Failed to start OpenTelemetry collector: {}", e);
         }

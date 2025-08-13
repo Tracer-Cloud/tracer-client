@@ -88,7 +88,7 @@ pub enum OtelCommand {
 
     /// Get real-time logs from the OpenTelemetry collector
     Logs {
-        /// Follow the logs in real-time (like tail -f)
+        /// Follow the logs in real-time (similar to tail -f)
         #[clap(short, long)]
         follow: bool,
 

@@ -18,7 +18,7 @@ impl OtelCheck {
             }
         }
 
-        // Else check for otelcol-contrib (fallback)
+        // Check for otelcol-contrib already installed
         if let Ok(output) = Command::new("otelcol-contrib").arg("--version").output() {
             if output.status.success() {
                 return Ok(PathBuf::from("otelcol-contrib"));
@@ -35,7 +35,6 @@ impl OtelCheck {
             }
         }
 
-        // Not found
         Err(anyhow::anyhow!("OpenTelemetry collector not found"))
     }
 
@@ -47,8 +46,8 @@ impl OtelCheck {
 #[async_trait::async_trait]
 impl InstallCheck for OtelCheck {
     async fn check(&self) -> bool {
-        // Only check if OpenTelemetry collector is already available
-        // Installation should be done separately via 'tracer otel setup'
+        // Only checks if OpenTelemetry collector is already available
+        // Installation should be done separately using - `tracer otel setup`
         self.is_installed()
     }
 
@@ -57,7 +56,7 @@ impl InstallCheck for OtelCheck {
     }
 
     fn error_message(&self) -> String {
-        "OpenTelemetry collector is not available. \
+        "OpenTelemetry collector is not available.
          After installation, run 'tracer otel setup' to install the collector."
             .to_string()
     }

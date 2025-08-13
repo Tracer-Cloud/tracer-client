@@ -72,6 +72,7 @@ impl TracerWorkDir {
             &self.log_file,
             &self.process_matches_file,
             &self.step_matches_file,
+            &self.otel_config_file,
         ]
         .iter()
         .try_for_each(|path| {

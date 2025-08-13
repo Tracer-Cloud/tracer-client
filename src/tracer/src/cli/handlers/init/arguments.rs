@@ -48,7 +48,7 @@ pub struct TracerCliInitArgs {
     pub log_level: String,
 
     /// Additional environment variables for OpenTelemetry collector in KEY=VALUE format
-    /// Can be specified multiple times (e.g., --env-var AWS_REGION=us-east-1 --env-var LOG_LEVEL=debug)
+    /// Can be specified multiple times (e.g: --env-var AWS_REGION=us-east-1 --env-var LOG_LEVEL=debug)
     #[clap(long, value_name = "KEY=VALUE")]
     pub env_var: Vec<String>,
 
