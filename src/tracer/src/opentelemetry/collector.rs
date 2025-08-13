@@ -330,7 +330,7 @@ impl OtelCollector {
         // Create log files with proper permissions
         let stdout_file = TRACER_WORK_DIR.resolve("otelcol.out");
         let stderr_file = TRACER_WORK_DIR.resolve("otelcol.err");
-        
+
         // Ensure log files exist and are writable
         fs::write(&stdout_file, "").with_context(|| "Failed to create stdout log file")?;
         fs::write(&stderr_file, "").with_context(|| "Failed to create stderr log file")?;
@@ -338,12 +338,17 @@ impl OtelCollector {
         let mut child = Command::new(&self.binary_path)
             .arg("--config")
             .arg(&self.config_path)
-            .current_dir(&watch_dir) 
+            .current_dir(&watch_dir)
             .stdin(Stdio::null())
             .stdout(Stdio::from(fs::File::create(&stdout_file)?))
             .stderr(Stdio::from(fs::File::create(&stderr_file)?))
             .spawn()
-            .with_context(|| format!("Failed to start OpenTelemetry collector with binary: {:?}", self.binary_path))?;
+            .with_context(|| {
+                format!(
+                    "Failed to start OpenTelemetry collector with binary: {:?}",
+                    self.binary_path
+                )
+            })?;
 
         // Wait a moment to check if the process started successfully
         std::thread::sleep(std::time::Duration::from_millis(1000));
@@ -418,18 +423,20 @@ impl OtelCollector {
             "OpenTelemetry collector started successfully (PID: {})",
             child.id()
         );
-        
+
         info_message!("Collector logs will be written to:");
         info_message!("  STDOUT: {:?}", stdout_file);
         info_message!("  STDERR: {:?}", stderr_file);
-        
+
         Ok(())
     }
 
     pub async fn start_async(&self, config: &OtelConfig) -> Result<()> {
         // Check if already running
         if self.is_running() {
-            warning_message!("OpenTelemetry collector is already running, stopping existing instance");
+            warning_message!(
+                "OpenTelemetry collector is already running, stopping existing instance"
+            );
             self.stop()?;
         }
 
@@ -464,7 +471,7 @@ impl OtelCollector {
         // Create log files with proper permissions
         let stdout_file = TRACER_WORK_DIR.resolve("otelcol.out");
         let stderr_file = TRACER_WORK_DIR.resolve("otelcol.err");
-        
+
         // Ensure log files exist and are writable
         fs::write(&stdout_file, "").with_context(|| "Failed to create stdout log file")?;
         fs::write(&stderr_file, "").with_context(|| "Failed to create stderr log file")?;
@@ -477,7 +484,12 @@ impl OtelCollector {
             .stdout(Stdio::from(fs::File::create(&stdout_file)?))
             .stderr(Stdio::from(fs::File::create(&stderr_file)?))
             .spawn()
-            .with_context(|| format!("Failed to start OpenTelemetry collector with binary: {:?}", self.binary_path))?;
+            .with_context(|| {
+                format!(
+                    "Failed to start OpenTelemetry collector with binary: {:?}",
+                    self.binary_path
+                )
+            })?;
 
         // Wait a moment to check if the process started successfully
         tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
@@ -551,11 +563,11 @@ impl OtelCollector {
             "OpenTelemetry collector started successfully (PID: {})",
             child.id()
         );
-        
+
         info_message!("Collector logs will be written to:");
         info_message!("  STDOUT: {:?}", stdout_file);
         info_message!("  STDERR: {:?}", stderr_file);
-        
+
         Ok(())
     }
 
@@ -733,10 +745,10 @@ impl OtelCollector {
         }
 
         info_message!("Updating OpenTelemetry collector configuration...");
-        
+
         // Save the new configuration
         config.save_config()?;
-        
+
         // Send SIGHUP to reload configuration
         let pid = if let Ok(content) = fs::read_to_string(&self.pid_file) {
             content.trim().parse::<u32>().ok()
@@ -751,7 +763,9 @@ impl OtelCollector {
                 .output()
             {
                 warning_message!("Failed to send HUP signal to process {}: {}", pid, e);
-                return Err(anyhow::anyhow!("Failed to reload OpenTelemetry configuration"));
+                return Err(anyhow::anyhow!(
+                    "Failed to reload OpenTelemetry configuration"
+                ));
             }
         }
 

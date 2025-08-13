@@ -33,7 +33,7 @@ async fn start_run(client: &TracerClient) -> Option<RunData> {
         info_message!("Run name: {}", run.name);
         info_message!("Pipeline: {}", pipeline.pipeline_name);
         info_message!("OpenTelemetry collector will be started separately with run details");
-        
+
         RunData {
             pipeline_name: pipeline.pipeline_name.clone(),
             run_name: run.name.clone(),

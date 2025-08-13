@@ -1,4 +1,3 @@
-use crate::constants::DEFAULT_API_KEY;
 use crate::opentelemetry::collector::OtelCollector;
 use crate::opentelemetry::config::OtelConfig;
 use crate::utils::workdir::TRACER_WORK_DIR;
@@ -16,10 +15,10 @@ pub async fn logs(follow: bool, lines: usize) -> Result<()> {
     if !collector.is_running() {
         error_message!("OpenTelemetry collector is not running");
         info_message!("Start the collector with: tracer otel start");
-        
+
         let stderr_file = TRACER_WORK_DIR.resolve("otelcol.err");
         let stdout_file = TRACER_WORK_DIR.resolve("otelcol.out");
-        
+
         if stderr_file.exists() {
             let stderr_content = std::fs::read_to_string(&stderr_file).unwrap_or_default();
             if !stderr_content.trim().is_empty() {
@@ -27,7 +26,7 @@ pub async fn logs(follow: bool, lines: usize) -> Result<()> {
                 println!("{}", stderr_content);
             }
         }
-        
+
         if stdout_file.exists() {
             let stdout_content = std::fs::read_to_string(&stdout_file).unwrap_or_default();
             if !stdout_content.trim().is_empty() {
@@ -35,7 +34,7 @@ pub async fn logs(follow: bool, lines: usize) -> Result<()> {
                 println!("{}", stdout_content);
             }
         }
-        
+
         return Ok(());
     }
 
@@ -157,9 +156,9 @@ pub async fn otel_start() -> Result<()> {
 
     let config = crate::config::Config::default();
     let api_client = crate::daemon::client::DaemonClient::new(format!("http://{}", config.server));
-    
+
     info_message!("Checking daemon status and getting run details...");
-    
+
     let otel_config = match api_client.send_info_request().await {
         Ok(info_response) => {
             if let Some(inner) = info_response.inner {
@@ -167,39 +166,47 @@ pub async fn otel_start() -> Result<()> {
                 info_message!("  Run ID: {}", inner.run_id);
                 info_message!("  Run Name: {}", inner.run_name);
                 info_message!("  Pipeline: {}", inner.pipeline_name);
-                info_message!("  User ID: {}", inner.tags.user_id.as_deref().unwrap_or("unknown"));
-                
+                info_message!(
+                    "  User ID: {}",
+                    inner.tags.user_id.as_deref().unwrap_or("unknown")
+                );
+
                 let run_id = inner.run_id.clone();
                 let run_name = inner.run_name.clone();
                 let pipeline_name = inner.pipeline_name.clone();
                 let user_id = inner.tags.user_id.unwrap_or_else(|| "unknown".to_string());
-                
+
                 info_message!("Creating OpenTelemetry configuration with daemon run details...");
-                
+
                 let config = OtelConfig::with_environment_variables(
-                    DEFAULT_API_KEY.to_string(),
                     user_id,
                     pipeline_name,
                     Some(run_name),
                     run_id.clone(),
                     std::collections::HashMap::new(),
                 );
-                
+
                 match config.force_recreate_config() {
                     Ok(config_path) => {
-                        success_message!("OpenTelemetry configuration created with daemon run details at: {:?}", config_path);
-                        
+                        success_message!(
+                            "OpenTelemetry configuration created with daemon run details at: {:?}",
+                            config_path
+                        );
+
                         if let Err(e) = config.verify_config_file() {
                             error_message!("Configuration verification failed: {}", e);
                             return Err(e);
                         } else {
-                            info_message!("Configuration verification successful - contains run_id: {}", run_id);
+                            info_message!(
+                                "Configuration verification successful - contains run_id: {}",
+                                run_id
+                            );
                         }
-                        
+
                         if let Err(e) = config.show_config_contents() {
                             warning_message!("Failed to show configuration contents: {}", e);
                         }
-                        
+
                         config
                     }
                     Err(e) => {
@@ -207,44 +214,44 @@ pub async fn otel_start() -> Result<()> {
                         return Err(e);
                     }
                 }
-                            } else {
-                    warning_message!("No active run found in daemon, using standalone configuration");
-                    info_message!("Start a pipeline run first with 'tracer start' to get proper run details");
-                    
-                    let standalone_config = OtelConfig::with_environment_variables(
-                        DEFAULT_API_KEY.to_string(),
-                        "standalone".to_string(),
-                        "standalone".to_string(),
-                        Some("standalone".to_string()),
-                        uuid::Uuid::new_v4().to_string(),
-                        std::collections::HashMap::new(),
-                    );
-                    
-                    match standalone_config.force_recreate_config() {
-                        Ok(config_path) => {
-                            info_message!("Standalone configuration created at: {:?}", config_path);
-                            standalone_config
-                        }
-                        Err(e) => {
-                            error_message!("Failed to create standalone configuration: {}", e);
-                            return Err(e);
-                        }
+            } else {
+                warning_message!("No active run found in daemon, using standalone configuration");
+                info_message!(
+                    "Start a pipeline run first with 'tracer start' to get proper run details"
+                );
+
+                let standalone_config = OtelConfig::with_environment_variables(
+                    "standalone".to_string(),
+                    "standalone".to_string(),
+                    Some("standalone".to_string()),
+                    uuid::Uuid::new_v4().to_string(),
+                    std::collections::HashMap::new(),
+                );
+
+                match standalone_config.force_recreate_config() {
+                    Ok(config_path) => {
+                        info_message!("Standalone configuration created at: {:?}", config_path);
+                        standalone_config
+                    }
+                    Err(e) => {
+                        error_message!("Failed to create standalone configuration: {}", e);
+                        return Err(e);
                     }
                 }
+            }
         }
         Err(e) => {
             warning_message!("Daemon not running or not accessible: {}", e);
             info_message!("Start the daemon first with 'tracer init' to get proper run details");
-            
+
             let standalone_config = OtelConfig::with_environment_variables(
-                DEFAULT_API_KEY.to_string(),
                 "standalone".to_string(),
                 "standalone".to_string(),
                 Some("standalone".to_string()),
                 uuid::Uuid::new_v4().to_string(),
                 std::collections::HashMap::new(),
             );
-            
+
             match standalone_config.force_recreate_config() {
                 Ok(config_path) => {
                     info_message!("Standalone configuration created at: {:?}", config_path);
@@ -270,8 +277,14 @@ pub async fn otel_start() -> Result<()> {
     match collector.start_async(&otel_config).await {
         Ok(_) => {
             success_message!("OpenTelemetry collector started successfully!");
-            info_message!("Configuration file: {:?}", TRACER_WORK_DIR.resolve("otel-config.yaml"));
-            info_message!("Collector logs: {:?}", TRACER_WORK_DIR.resolve("otelcol.out"));
+            info_message!(
+                "Configuration file: {:?}",
+                TRACER_WORK_DIR.resolve("otel-config.yaml")
+            );
+            info_message!(
+                "Collector logs: {:?}",
+                TRACER_WORK_DIR.resolve("otelcol.out")
+            );
             info_message!("Error logs: {:?}", TRACER_WORK_DIR.resolve("otelcol.err"));
         }
         Err(e) => {
@@ -282,8 +295,6 @@ pub async fn otel_start() -> Result<()> {
 
     Ok(())
 }
-
-
 
 pub async fn otel_stop() -> Result<()> {
     let collector = OtelCollector::new()?;
@@ -348,9 +359,6 @@ pub async fn otel_status() -> Result<()> {
             }
         }
     }
-
-    // Check environment variables
-    info_message!("  OPENSEARCH_API_KEY: Using default key");
 
     // Check port 8888 usage
     let port_check = std::process::Command::new("lsof")

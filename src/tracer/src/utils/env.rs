@@ -14,7 +14,6 @@ pub const AWS_BATCH_JOB_ID_ENV_VAR: &str = "AWS_BATCH_JOB_ID";
 pub const CODESPACES_ENV_VAR: &str = "CODESPACES";
 pub const CODESPACE_NAME_ENV_VAR: &str = "CODESPACE_NAME";
 pub const HOSTNAME_ENV_VAR: &str = "HOSTNAME";
-pub const OPENSEARCH_API_KEY_ENV_VAR: &str = "OPENSEARCH_API_KEY";
 
 pub fn get_env_var(var: &str) -> Option<String> {
     env::var(var).ok()

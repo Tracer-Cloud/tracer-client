@@ -1,8 +1,7 @@
 use crate::cli::handlers::init::arguments::TracerCliInitArgs;
-use crate::cli::handlers::{info, terminate, otel_start};
+use crate::cli::handlers::{info, otel_start, terminate};
 use crate::cli::helper::wait;
 use crate::config::Config;
-use crate::constants::DEFAULT_API_KEY;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::initialization::create_and_run_server;
 use crate::daemon::server::DaemonServer;
@@ -57,26 +56,6 @@ pub async fn init_with(
     info_message!("Starting daemon...");
 
     let args = args.finalize(default_pipeline_prefix, confirm).await;
-
-    // Always enable OpenTelemetry logging with default API key
-    info_message!("Enabling OpenTelemetry logging...");
-
-    // Set environment variable for the current process and export to shell
-    std::env::set_var("OPENSEARCH_API_KEY", DEFAULT_API_KEY);
-
-    // Export to shell for persistence
-    if let Ok(shell) = std::env::var("SHELL") {
-        let export_cmd = format!("export OPENSEARCH_API_KEY={}", DEFAULT_API_KEY);
-        if let Err(e) = std::process::Command::new(&shell)
-            .arg("-c")
-            .arg(&export_cmd)
-            .output()
-        {
-            warning_message!("Failed to export OPENSEARCH_API_KEY to shell: {}", e);
-        }
-    }
-
-    // Don't start OpenTelemetry collector here - wait for the run to start first
 
     {
         // Layer tags on top of args
@@ -150,7 +129,7 @@ pub async fn init_with(
         }
 
         success_message!("Daemon is ready and responding");
-        
+
         // Start the OpenTelemetry collector before showing info
         info_message!("Starting OpenTelemetry collector...");
         if let Err(e) = otel_start().await {
@@ -158,7 +137,7 @@ pub async fn init_with(
         } else {
             success_message!("OpenTelemetry collector started successfully");
         }
-        
+
         info(api_client, false).await;
 
         return Ok(());

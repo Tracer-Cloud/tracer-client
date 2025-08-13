@@ -88,7 +88,7 @@ pub enum OtelCommand {
         /// Follow the logs in real-time (like tail -f)
         #[clap(short, long)]
         follow: bool,
-        
+
         /// Number of lines to show (default: 100)
         #[clap(short, long, default_value = "100")]
         lines: usize,

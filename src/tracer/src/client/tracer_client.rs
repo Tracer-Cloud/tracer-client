@@ -54,10 +54,10 @@ impl TracerClient {
         let pipeline = Self::init_pipeline(&cli_args);
 
         let (event_dispatcher, rx) = Self::init_event_dispatcher(&pipeline);
-        
+
         // Initialize system info lazily to avoid blocking startup
         let system = Arc::new(RwLock::new(System::new()));
-        
+
         // Initialize Docker watcher lazily to avoid blocking startup
         let docker_watcher = Arc::new(DockerWatcher::new_lazy(event_dispatcher.clone()));
 
@@ -304,8 +304,6 @@ impl TracerClient {
     pub fn get_config(&self) -> &Config {
         &self.config
     }
-
-
 
     async fn start_docker_monitoring(&self) {
         let docker_watcher = self.docker_watcher.clone();

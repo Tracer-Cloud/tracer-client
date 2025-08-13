@@ -25,16 +25,19 @@ pub async fn process_daemon_command(command: Command, config: Config) {
                 error_message!("Daemon server is not running. Please run 'tracer init' first.");
                 return;
             }
-            
+
             info_message!("Starting new pipeline run...");
-            
+
             match api_client.send_start_run_request().await {
                 Ok(Some(run_data)) => {
                     success_message!("Pipeline run started successfully!");
                     info_message!("Pipeline: {}", run_data.pipeline_name);
                     info_message!("Run Name: {}", run_data.run_name);
                     info_message!("Run ID: {}", run_data.run_id);
-                    info_message!("OpenTelemetry configuration created with run_id: {}", run_data.run_id);
+                    info_message!(
+                        "OpenTelemetry configuration created with run_id: {}",
+                        run_data.run_id
+                    );
                 }
                 Ok(None) => {
                     error_message!("Failed to start pipeline run: No run data returned");
@@ -49,9 +52,9 @@ pub async fn process_daemon_command(command: Command, config: Config) {
                 error_message!("Daemon server is not running. Please run 'tracer init' first.");
                 return;
             }
-            
+
             info_message!("Ending current pipeline run...");
-            
+
             match api_client.send_end_request().await {
                 Ok(_) => {
                     success_message!("Pipeline run ended successfully!");
@@ -87,7 +90,6 @@ pub async fn process_daemon_command(command: Command, config: Config) {
                     warning_message!("Failed to show watched files: {}", e);
                 }
             }
-
         },
         _ => {
             warning_message!("Command is not implemented yet.");
