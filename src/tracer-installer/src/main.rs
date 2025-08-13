@@ -8,6 +8,7 @@ use utils::print_anteater_banner;
 
 mod checks;
 mod constants;
+mod fs;
 mod installer;
 mod message;
 mod sentry;

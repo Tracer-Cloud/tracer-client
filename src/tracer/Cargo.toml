@@ -47,6 +47,7 @@ serde-query.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 shlex.workspace = true
+softpath.workspace = true
 sqlx.workspace = true
 sysinfo.workspace = true
 termion.workspace = true

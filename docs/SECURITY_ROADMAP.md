@@ -39,6 +39,11 @@ We take all security vulnerabilities seriously and will work to address them as 
    * The URL is constructed from a static base URL and a filename based on the platform and architecture. No user input is involved.
    * The URL is then parsed and validated before downloading.
 
+3. After downloading the tracer binary tarball, the installer extracts it to a temporary directory, then moves the extracted binary to the final installation directory, which is hardcoded to `/usr/local/bin`. This triggers the `rust.actix.path-traversal.tainted-path.tainted-path ` semgrep rule.
+   * The temporary directory is created using `tempfile::TempDir`.
+   * The final installation directory is hardcoded and not user-provided.
+   * None of the paths are constructed from user input.
+
 ## Security Roadmap
 
 1. Implement code signing and verification for all binaries on all platforms (Q4 2025)

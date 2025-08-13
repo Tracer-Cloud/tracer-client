@@ -22,6 +22,7 @@ reqwest.workspace = true
 rustls.workspace = true
 sentry.workspace = true
 serde.workspace = true
+softpath.workspace = true
 sysinfo.workspace = true
 tar.workspace = true
 tempfile.workspace = true
