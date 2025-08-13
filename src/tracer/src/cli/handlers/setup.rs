@@ -1,4 +1,5 @@
 use crate::opentelemetry::collector::OtelCollector;
+use crate::opentelemetry::utils::OtelUtils;
 use crate::{error_message, info_message, success_message, warning_message};
 use anyhow::Result;
 use colored::Colorize;
@@ -6,11 +7,10 @@ use std::env;
 use std::process::Command;
 
 pub async fn setup() -> Result<()> {
-    // Run the setup in a blocking task to avoid runtime conflicts
-    tokio::task::spawn_blocking(setup_sync).await?
+    setup_sync().await
 }
 
-pub fn setup_sync() -> Result<()> {
+pub async fn setup_sync() -> Result<()> {
     info_message!("Setting up OpenTelemetry collector...");
 
     let os = env::consts::OS;
@@ -19,12 +19,9 @@ pub fn setup_sync() -> Result<()> {
     info_message!("Detected platform: {} on {}", os, arch);
 
     // Check if we're on a supported platform
-    let (platform, arch_name) = match (os, arch) {
-        ("linux", "x86_64") => ("linux", "amd64"),
-        ("linux", "aarch64") => ("linux", "arm64"),
-        ("macos", "x86_64") => ("darwin", "amd64"),
-        ("macos", "aarch64") => ("darwin", "arm64"),
-        _ => {
+    let (platform, arch_name) = match OtelUtils::get_platform_info() {
+        Ok((p, a)) => (p, a),
+        Err(_) => {
             error_message!("Unsupported platform: {} on {}", os, arch);
             error_message!("Supported platforms: Linux (x86_64, aarch64), macOS (x86_64, aarch64)");
             return Err(anyhow::anyhow!("Unsupported platform: {} on {}", os, arch));
@@ -67,7 +64,7 @@ pub fn setup_sync() -> Result<()> {
 
     // Install the collector
     info_message!("Installing OpenTelemetry collector...");
-    collector.install()?;
+    collector.install().await?;
 
     // Verify the installation
     info_message!("Verifying installation...");

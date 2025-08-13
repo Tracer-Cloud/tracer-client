@@ -1,5 +1,5 @@
 use crate::cli::handlers::init::arguments::TracerCliInitArgs;
-use crate::cli::handlers::{info, otel_start, terminate};
+use crate::cli::handlers::{info, otel_start_with_auto_install, terminate};
 use crate::cli::helper::wait;
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
@@ -130,8 +130,8 @@ pub async fn init_with(
 
         success_message!("Daemon is ready and responding");
 
-        // Start the OpenTelemetry collector before showing info
-        if let Err(e) = otel_start(args.watch_dir.clone()).await {
+        // Start the OpenTelemetry collector before showing info (auto-install if needed)
+        if let Err(e) = otel_start_with_auto_install(args.watch_dir.clone(), true).await {
             warning_message!("Failed to start OpenTelemetry collector: {}", e);
         }
 

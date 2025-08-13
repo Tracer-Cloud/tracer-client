@@ -57,7 +57,7 @@ pub async fn logs(follow: bool, lines: usize) -> Result<()> {
     let should_follow = follow || lines == 0;
 
     if stderr_file.exists() {
-        info_message!("=== Collector Error/Info Logs (STDERR) ===");
+        info_message!("Collector Error/Info Logs (STDERR) ===");
         show_log_file(&stderr_file, lines_to_show, should_follow).await?;
     }
 
@@ -147,6 +147,13 @@ async fn show_log_file(file_path: &Path, lines: usize, follow: bool) -> Result<(
 }
 
 pub async fn otel_start(watch_dir: Option<String>) -> Result<()> {
+    otel_start_with_auto_install(watch_dir, false).await
+}
+
+pub async fn otel_start_with_auto_install(
+    watch_dir: Option<String>,
+    auto_install: bool,
+) -> Result<()> {
     info_message!("Starting OpenTelemetry collector...");
 
     let config = crate::config::Config::default();
@@ -230,6 +237,23 @@ pub async fn otel_start(watch_dir: Option<String>) -> Result<()> {
     };
 
     let collector = OtelCollector::new()?;
+
+    if !collector.is_installed() {
+        if auto_install {
+            info_message!("OpenTelemetry collector not found, installing automatically...");
+            if let Err(e) = collector.install().await {
+                error_message!("Failed to install OpenTelemetry collector: {}", e);
+                return Err(e);
+            }
+            success_message!("OpenTelemetry collector installed successfully");
+        } else {
+            error_message!("OpenTelemetry collector is not installed");
+            error_message!("Please run 'tracer otel setup' to install the collector first");
+            return Err(anyhow::anyhow!(
+                "OpenTelemetry collector not installed. Run 'tracer otel setup' first."
+            ));
+        }
+    }
 
     if collector.is_running() {
         warning_message!("OpenTelemetry collector is already running, stopping existing instance");

@@ -38,7 +38,7 @@ impl OtelBinaryManager {
         }
     }
 
-    pub fn install(binary_path: &PathBuf) -> Result<()> {
+    pub async fn install(binary_path: &PathBuf) -> Result<()> {
         if Self::check_availability(binary_path) {
             info_message!("OpenTelemetry collector is already available");
             return Ok(());
@@ -66,7 +66,7 @@ impl OtelBinaryManager {
         let extract_dir = temp_dir.join("extract");
 
         info_message!("Downloading OpenTelemetry collector...");
-        Self::download_file(&download_url, &archive_path)?;
+        Self::download_file_async(&download_url, &archive_path).await?;
 
         info_message!("Extracting OpenTelemetry collector...");
         Self::extract_archive(&archive_path, &extract_dir)?;
@@ -77,7 +77,6 @@ impl OtelBinaryManager {
             "otelcol-contrib"
         };
         let extracted_binary = extract_dir.join(binary_name);
-
         let final_binary_path = if extracted_binary.exists() {
             extracted_binary
         } else {
@@ -86,11 +85,8 @@ impl OtelBinaryManager {
 
         fs::copy(&final_binary_path, binary_path)?;
         OtelUtils::make_executable(binary_path)?;
-
         Self::install_to_system_path(binary_path)?;
-
         fs::remove_dir_all(&temp_dir)?;
-        success_message!("OpenTelemetry collector installed successfully");
 
         Ok(())
     }
@@ -131,8 +127,9 @@ impl OtelBinaryManager {
         )
     }
 
-    fn download_file(url: &str, path: &PathBuf) -> Result<()> {
-        let response = reqwest::blocking::get(url)
+    async fn download_file_async(url: &str, path: &PathBuf) -> Result<()> {
+        let response = reqwest::get(url)
+            .await
             .with_context(|| format!("Failed to download from {}", url))?;
 
         if !response.status().is_success() {
@@ -144,11 +141,10 @@ impl OtelBinaryManager {
 
         let mut file =
             fs::File::create(path).with_context(|| format!("Failed to create file {:?}", path))?;
-
         let bytes = response
             .bytes()
+            .await
             .with_context(|| "Failed to read response bytes")?;
-
         std::io::copy(&mut bytes.as_ref(), &mut file)
             .with_context(|| "Failed to write downloaded content")?;
 

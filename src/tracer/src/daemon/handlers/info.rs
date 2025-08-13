@@ -52,7 +52,7 @@ async fn get_opentelemetry_status() -> Option<OpenTelemetryStatus> {
                 enabled,
                 version,
                 pid,
-                endpoint: Some("opensearch".to_string()), // Default endpoint
+                endpoint: Some("otelhttp".to_string()),
             })
         }
         Err(_) => None,

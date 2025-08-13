@@ -34,8 +34,8 @@ impl OtelCollector {
         &self.binary_path
     }
 
-    pub fn install(&self) -> Result<()> {
-        OtelBinaryManager::install(&self.binary_path)
+    pub async fn install(&self) -> Result<()> {
+        OtelBinaryManager::install(&self.binary_path).await
     }
 
     pub fn start(&self, config: &OtelConfig, watch_dir: Option<PathBuf>) -> Result<()> {
