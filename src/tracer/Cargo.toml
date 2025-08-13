@@ -36,6 +36,7 @@ git2.workspace = true
 itertools.workspace = true
 log.workspace = true
 mockall.workspace = true
+nix.workspace = true
 octocrab.workspace = true
 percent-encoding.workspace = true
 rand.workspace = true

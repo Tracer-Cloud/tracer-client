@@ -4834,6 +4834,7 @@ dependencies = [
  "itertools 0.14.0",
  "log",
  "mockall",
+ "nix",
  "octocrab",
  "percent-encoding",
  "pretty_assertions_sorted",
