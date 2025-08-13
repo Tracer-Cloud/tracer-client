@@ -1,7 +1,5 @@
 use crate::utils::file_system::TrustedFile;
 use anyhow::{anyhow, bail, Result};
-use std::fs;
-use std::path::Path;
 use yaml_rust2::YamlLoader;
 
 // re-export Yaml for convenience
@@ -23,14 +21,6 @@ impl YamlFile {
         let yaml_str = self.0.read_to_string()?;
         load_from_yaml_array_str(&yaml_str, key)
     }
-}
-
-pub fn load_from_yaml_array_file<P: AsRef<Path>, T: TryFrom<Yaml, Error = anyhow::Error>>(
-    path: P,
-    key: &str,
-) -> Result<Vec<T>> {
-    let yaml_str = fs::read_to_string(path.as_ref())?;
-    load_from_yaml_array_str(&yaml_str, key)
 }
 
 pub fn load_from_yaml_array_str<T: TryFrom<Yaml, Error = anyhow::Error>>(
