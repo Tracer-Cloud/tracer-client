@@ -161,7 +161,7 @@ pub fn create_short_lived_process_object(
         working_directory: None,
         trace_id: None,
         container_event: None,
-        tool_id: construct_tool_id(&process.pid.to_string(), Utc::now()),
+        tool_id: construct_tool_id(&process.pid.to_string(), process.started_at),
     }))
 }
 
