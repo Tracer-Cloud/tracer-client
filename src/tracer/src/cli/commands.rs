@@ -70,7 +70,11 @@ pub enum Command {
     },
 
     /// End the current pipeline run
-    Stop,
+    Stop {
+        /// Also terminate the daemon
+        #[clap(long)]
+        terminate: bool,
+    },
 
     /// Shows the current version of the daemon
     Version,

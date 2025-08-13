@@ -1,6 +1,5 @@
 use crate::cli::commands::Command;
 use crate::cli::handlers;
-use crate::cli::handlers::info;
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::warning_message;
@@ -11,15 +10,18 @@ pub async fn process_daemon_command(command: Command, config: Config) {
     match command {
         Command::Init(args) => handlers::init(*args, config, api_client).await.unwrap(),
         Command::Test(args) => handlers::test(*args, config, api_client).await.unwrap(),
-        Command::Info { json } => info(&api_client, json).await,
-        Command::Terminate => {
-            let _ = handlers::terminate(&api_client).await;
-        }
+        Command::Info { json } => handlers::info(&api_client, json).await,
         Command::Start { json } => {
             let _ = handlers::start(&api_client, json).await;
         }
-        Command::Stop => {
+        Command::Stop { terminate } => {
             let _ = handlers::stop(&api_client).await;
+            if terminate {
+                let _ = handlers::terminate(&api_client).await;
+            }
+        }
+        Command::Terminate => {
+            let _ = handlers::terminate(&api_client).await;
         }
         _ => {
             warning_message!("Command is not implemented yet.");

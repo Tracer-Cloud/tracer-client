@@ -2,6 +2,7 @@ use crate::cli::handlers::info::InfoDisplay;
 use crate::daemon::client::DaemonClient;
 use crate::{error_message, success_message};
 use colored::Colorize;
+
 pub async fn start(api_client: &DaemonClient, json: bool) {
     let started = match api_client.send_start_request().await {
         Ok(started) => started,
