@@ -17,9 +17,9 @@ We will respond promptly and work with you to investigate and, if confirmed, add
 Security updates are currently provided in new releases.
 As Tracer is currently in early development, we reserve the right to introduce breaking changes while progressing toward a stable release.
 
-| Version | Supported          |
-|---------|--------------------|
-| < 1.0   | ✅ Latest release only |
+| Version | Supported               |
+| ------- | ----------------------- |
+| < 1.0   | ✅ Latest release only   |
 | 1.0+    | ✅ Latest minor versions |
 
 ## Security Process
@@ -36,3 +36,7 @@ We follow responsible disclosure practices to ensure vulnerabilities are address
 ## Contact
 
 If you have any further questions about security practices at Tracer, you may contact us at the email above.
+
+## Security Mitigations and Roadmap
+
+See [docs/SECURITY_ROADMAP.md] for information on any security issues that have been mitigated, and a general roadmap for future security improvements.

@@ -25,7 +25,7 @@ use tokio::{
 use tokio_retry::strategy::{jitter, ExponentialBackoff};
 use tokio_retry::Retry;
 
-const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics";
+const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics-supabase";
 const TRACER_INSTALLATION_PATH: &str = "/usr/local/bin";
 
 pub struct Installer {

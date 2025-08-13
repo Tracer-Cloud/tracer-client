@@ -50,9 +50,8 @@ jobs:
           rustup component add clippy
           rustup component add rustfmt
 
-      - name: Set up cargo cache
+      - name: Cache Rust dependencies
         uses: actions/cache@v3
-        continue-on-error: false
         with:
           path: |
             ~/.cargo/bin/
@@ -60,14 +59,12 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-${{ runner.os }}-${{ runner.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-${{ runner.os }}-${{ runner.arch }}-cargo-
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-
 
       - name: Install build dependencies
         run: |
-          rustup toolchain install nightly-2025-04-15 --component rust-src
-
-          # Install necessary eBPF dependencies
           sudo apt-get update
           sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm
 
@@ -82,34 +79,3 @@ jobs:
 
       - name: Run tests
         run: cargo test
-
-  # run-integrations:
-  #     name: Build and Test Integrations
-  #     runs-on: ubuntu-latest
-
-  #     steps:
-  #     - uses: actions/checkout@v4.1.4
-
-  #     - name: Setup Rust toolchain
-  #       run: |
-  #         rustup toolchain install stable --profile minimal
-  #         rustup toolchain install nightly-2025-04-15 --component rust-src
-
-  #     - name: Create .env file from GitHub Secrets
-  #       run: |
-  #         echo "AWS_REGION=us-east-2" >> .env
-  #         echo "AWS_ENDPOINT=https://s3.us-east-2.amazonaws.com" >> .env
-  #         echo "RUST_LOG=debug" >> .env
-  #         echo "DATABASE_URL=postgres://postgres:postgres@db:5432/tracer_db" >> .env
-  #         echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
-  #         echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
-
-  #     - name: Build Test Images
-  #       run: |
-  #         docker compose build integrations_tests parallel_tests
-
-  #     - name: Run Simple Queries tests
-  #       run: cargo test --test simple_queries -p integration_tests -- --nocapture
-
-  #     - name: Run Parallel tests
-  #       run: cargo test --test parallel -p integration_tests -- --nocapture

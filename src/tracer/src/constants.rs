@@ -16,6 +16,6 @@ pub const DASHBOARD_BASE: &str = "https://sandbox.tracer.cloud/run-overview";
 
 pub const AWS_REGION: AwsRegion = UsEast2;
 
-pub const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics";
+pub const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics-supabase";
 pub const TRACER_SANDBOX_URL: &str = "https://sandbox.tracer.cloud";
 pub const OTEL_FORWARD_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/otel-forward";
