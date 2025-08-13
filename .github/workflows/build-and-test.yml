@@ -63,21 +63,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-cargo-
 
-      - name: Cache system dependencies
-        uses: actions/cache@v3
-        with:
-          path: /var/cache/apt/archives/
-          key: ${{ runner.os }}-${{ runner.arch }}-apt-deps-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-apt-deps-
-
       - name: Install build dependencies
         run: |
-          # Only install if not cached
-          if ! dpkg -l | grep -q "linux-headers-$(uname -r)"; then
-            sudo apt-get update
-            sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm
-          fi
+          sudo apt-get update
+          sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm
 
       - name: Check Formatting
         run: cargo fmt -- --check
