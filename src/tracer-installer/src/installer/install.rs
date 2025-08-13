@@ -1,6 +1,6 @@
 use super::platform::PlatformInfo;
 use crate::constants::USER_ID_ENV_VAR;
-use crate::installer::url_builder::TrustedUrl;
+use crate::installer::url::TrustedUrl;
 use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
 use crate::utils::{print_message, print_status, print_title, TagColor};
 use crate::{success_message, warning_message};

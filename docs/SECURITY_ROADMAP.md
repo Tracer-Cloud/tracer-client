@@ -23,7 +23,7 @@ We take all security vulnerabilities seriously and will work to address them as 
 
 ## Existing Security Issues and Mitigations
 
-1. The `tracer` client spawns a child daemon process using the same binary. There are no completely secure ways to determine the path of the current executable. We currently use best practices to spawn the client in the most secure way possible on the platform where the binary is running:
+1. The `tracer` client spawns a child daemon process using the same binary. This triggers the `rust.lang.security.current-exe.current-exe` semgrep rule. There are no completely secure ways to determine the path of the current executable. We currently use best practices to spawn the client in the most secure way possible on the platform where the binary is running:
    1. On Linux
       1. We use `/proc/self/exe` to get a file descriptor for the current executable.
       2. We use `fork` to create the child process, and then `execveat` or `fexecve` to execute the command.
@@ -35,6 +35,11 @@ We take all security vulnerabilities seriously and will work to address them as 
       3. We verify that the current exe matches `argv[0]`.
       4. We verify that the current exe path has no world-writable components.
 
+2. The tracer insaller constructs a URL to download the tracer binary from. This triggers the `rust.actix.ssrf.reqwest-taint.reqwest-taint` semgrep rule.
+   * The URL is constructed from a static base URL and a filename based on the platform and architecture. No user input is involved.
+   * The URL is then parsed and validated before downloading.
+
 ## Security Roadmap
 
 1. Implement code signing and verification for all binaries on all platforms (Q4 2025)
+2. Implement SSRF protection for all HTTP requests (Q4 2025)
