@@ -82,7 +82,7 @@ impl TryFrom<&str> for TrustedDir {
 fn ensure_dir_with_permissions(path: &PathBuf) -> Result<()> {
     if path.exists()? {
         // Directory exists, check if permissions are 777
-        match std::fs::metadata(&path) {
+        match std::fs::metadata(path) {
             Ok(metadata) => {
                 let perms = metadata.permissions();
                 let mode = perms.mode() & 0o777; // Get only permission bits
@@ -90,7 +90,7 @@ fn ensure_dir_with_permissions(path: &PathBuf) -> Result<()> {
                     // Permissions are not 777, try to fix them
                     let mut new_perms = perms;
                     new_perms.set_mode(0o777);
-                    std::fs::set_permissions(&path, new_perms).with_context(|| {
+                    std::fs::set_permissions(path, new_perms).with_context(|| {
                         format!(
                             "Failed to set 777 permissions on existing directory: {:?}",
                             path
@@ -112,7 +112,7 @@ fn ensure_dir_with_permissions(path: &PathBuf) -> Result<()> {
         let mut builder = DirBuilder::new();
         builder.mode(0o777);
         builder.recursive(true);
-        builder.create(&path)
+        builder.create(path)
             .with_context(|| format!(
                 "Failed to create working directory: {:?}. Please run: sudo mkdir -p {:?} && sudo chmod 777 {:?}",
                 path, path, path
@@ -142,7 +142,7 @@ impl TrustedFile {
 
     /// SAFETY: we only open sanitized paths
     pub fn open(&self) -> Result<File> {
-        Ok(File::open(&self.as_path())?) // nosemgrep: rust.actix.path-traversal.tainted-path.tainted-path
+        Ok(File::open(self.as_path())?) // nosemgrep: rust.actix.path-traversal.tainted-path.tainted-path
     }
 
     pub async fn create_async(&self) -> Result<AsyncFile> {
@@ -155,8 +155,8 @@ impl TrustedFile {
         permissions: Permissions,
     ) -> Result<()> {
         let dest_path = dest.as_path();
-        self.as_path().copy_to(&dest_path)?;
-        fs::set_permissions(&dest_path, permissions)?;
+        self.as_path().copy_to(dest_path)?;
+        fs::set_permissions(dest_path, permissions)?;
         Ok(())
     }
 }
