@@ -1,10 +1,11 @@
-use std::env;
-use std::path::PathBuf;
-use std::process::{Command, Stdio};
-use tracer::utils::spawn::get_inode;
-
+#[cfg(feature = "test-bins")]
 #[test]
 fn test_spawn() {
+    use std::env;
+    use std::path::PathBuf;
+    use std::process::{Command, Stdio};
+    use tracer::utils::spawn::get_inode;
+
     // get the path of the main executable
     let exe_path = env!("CARGO_BIN_EXE_tracer-test-spawn");
 
@@ -38,4 +39,10 @@ fn test_spawn() {
             expected_inode, actual_inode
         ),
     }
+}
+
+#[cfg(not(feature = "test-bins"))]
+#[test]
+fn test_spawn() {
+    println!("test not run - requires test-bins feature");
 }
