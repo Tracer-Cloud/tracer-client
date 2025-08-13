@@ -18,6 +18,7 @@ fn test_spawn() {
         .stdout;
 
     let output = String::from_utf8(output).unwrap();
+    let output = output.lines().last().unwrap();
     let parts = output.split("|").collect::<Vec<_>>();
 
     if parts.len() != 3 {
