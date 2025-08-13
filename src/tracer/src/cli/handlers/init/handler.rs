@@ -131,11 +131,8 @@ pub async fn init_with(
         success_message!("Daemon is ready and responding");
 
         // Start the OpenTelemetry collector before showing info
-        info_message!("Starting OpenTelemetry collector...");
-        if let Err(e) = otel_start().await {
+        if let Err(e) = otel_start(args.watch_dir.clone()).await {
             warning_message!("Failed to start OpenTelemetry collector: {}", e);
-        } else {
-            success_message!("OpenTelemetry collector started successfully");
         }
 
         info(api_client, false).await;

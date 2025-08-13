@@ -52,6 +52,10 @@ pub struct TracerCliInitArgs {
     #[clap(long, value_name = "KEY=VALUE")]
     pub env_var: Vec<String>,
 
+    /// Directory to watch for log files (default: current working directory)
+    #[clap(long, value_name = "DIR")]
+    pub watch_dir: Option<String>,
+
     // run client as a standalone process rather than a daemon
     #[clap(long, hide = true)]
     pub no_daemonize: bool,
@@ -198,6 +202,7 @@ impl TracerCliInitArgs {
             force_procfs: self.force_procfs,
             log_level: self.log_level,
             environment_variables,
+            watch_dir: self.watch_dir,
         }
     }
 
@@ -307,6 +312,7 @@ fn print_help<T>() -> Option<T> {
     
     OpenTelemetry Configuration:
     env_vars           | --env-var KEY=VALUE  | (multiple supported, interactive prompts available)
+    watch_dir          | --watch-dir DIR      | (default: current working directory)
 
     "#
     );
@@ -326,4 +332,5 @@ pub struct FinalizedInitArgs {
     pub force_procfs: bool,
     pub log_level: String,
     pub environment_variables: HashMap<String, String>,
+    pub watch_dir: Option<String>,
 }

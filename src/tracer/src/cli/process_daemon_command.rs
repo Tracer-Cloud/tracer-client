@@ -65,13 +65,18 @@ pub async fn process_daemon_command(command: Command, config: Config) {
             }
         }
         Command::Otel { command } => match command {
+            OtelCommand::Setup => {
+                if let Err(e) = handlers::setup().await {
+                    warning_message!("Failed to setup OpenTelemetry collector: {}", e);
+                }
+            }
             OtelCommand::Logs { follow, lines } => {
                 if let Err(e) = handlers::logs(follow, lines).await {
                     warning_message!("Failed to get logs: {}", e);
                 }
             }
-            OtelCommand::Start => {
-                if let Err(e) = handlers::otel_start().await {
+            OtelCommand::Start { watch_dir } => {
+                if let Err(e) = handlers::otel_start(watch_dir).await {
                     warning_message!("Failed to start OpenTelemetry collector: {}", e);
                 }
             }
@@ -85,8 +90,8 @@ pub async fn process_daemon_command(command: Command, config: Config) {
                     warning_message!("Failed to check OpenTelemetry collector status: {}", e);
                 }
             }
-            OtelCommand::Watch => {
-                if let Err(e) = handlers::otel_watch().await {
+            OtelCommand::Watch { watch_dir } => {
+                if let Err(e) = handlers::otel_watch(watch_dir).await {
                     warning_message!("Failed to show watched files: {}", e);
                 }
             }

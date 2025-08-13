@@ -7,6 +7,7 @@ use colored::Colorize;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
+use std::path::PathBuf;
 use tokio::time::{sleep, Duration};
 
 pub async fn logs(follow: bool, lines: usize) -> Result<()> {
@@ -151,32 +152,25 @@ async fn show_log_file(file_path: &Path, lines: usize, follow: bool) -> Result<(
     Ok(())
 }
 
-pub async fn otel_start() -> Result<()> {
-    info_message!("Initializing OpenTelemetry collector...");
+pub async fn otel_start(watch_dir: Option<String>) -> Result<()> {
+    info_message!("Starting OpenTelemetry collector...");
 
     let config = crate::config::Config::default();
     let api_client = crate::daemon::client::DaemonClient::new(format!("http://{}", config.server));
 
-    info_message!("Checking daemon status and getting run details...");
-
     let otel_config = match api_client.send_info_request().await {
         Ok(info_response) => {
             if let Some(inner) = info_response.inner {
-                info_message!("Found active run from daemon:");
-                info_message!("  Run ID: {}", inner.run_id);
-                info_message!("  Run Name: {}", inner.run_name);
-                info_message!("  Pipeline: {}", inner.pipeline_name);
                 info_message!(
-                    "  User ID: {}",
-                    inner.tags.user_id.as_deref().unwrap_or("unknown")
+                    "Found active run: {} (ID: {})",
+                    inner.run_name,
+                    inner.run_id
                 );
 
                 let run_id = inner.run_id.clone();
                 let run_name = inner.run_name.clone();
                 let pipeline_name = inner.pipeline_name.clone();
                 let user_id = inner.tags.user_id.unwrap_or_else(|| "unknown".to_string());
-
-                info_message!("Creating OpenTelemetry configuration with daemon run details...");
 
                 let config = OtelConfig::with_environment_variables(
                     user_id,
@@ -187,24 +181,10 @@ pub async fn otel_start() -> Result<()> {
                 );
 
                 match config.force_recreate_config() {
-                    Ok(config_path) => {
-                        success_message!(
-                            "OpenTelemetry configuration created with daemon run details at: {:?}",
-                            config_path
-                        );
-
+                    Ok(_) => {
                         if let Err(e) = config.verify_config_file() {
                             error_message!("Configuration verification failed: {}", e);
                             return Err(e);
-                        } else {
-                            info_message!(
-                                "Configuration verification successful - contains run_id: {}",
-                                run_id
-                            );
-                        }
-
-                        if let Err(e) = config.show_config_contents() {
-                            warning_message!("Failed to show configuration contents: {}", e);
                         }
 
                         config
@@ -215,10 +195,7 @@ pub async fn otel_start() -> Result<()> {
                     }
                 }
             } else {
-                warning_message!("No active run found in daemon, using standalone configuration");
-                info_message!(
-                    "Start a pipeline run first with 'tracer start' to get proper run details"
-                );
+                warning_message!("No active run found, using standalone configuration");
 
                 let standalone_config = OtelConfig::with_environment_variables(
                     "standalone".to_string(),
@@ -229,10 +206,7 @@ pub async fn otel_start() -> Result<()> {
                 );
 
                 match standalone_config.force_recreate_config() {
-                    Ok(config_path) => {
-                        info_message!("Standalone configuration created at: {:?}", config_path);
-                        standalone_config
-                    }
+                    Ok(_) => standalone_config,
                     Err(e) => {
                         error_message!("Failed to create standalone configuration: {}", e);
                         return Err(e);
@@ -241,8 +215,7 @@ pub async fn otel_start() -> Result<()> {
             }
         }
         Err(e) => {
-            warning_message!("Daemon not running or not accessible: {}", e);
-            info_message!("Start the daemon first with 'tracer init' to get proper run details");
+            warning_message!("Daemon not accessible: {}", e);
 
             let standalone_config = OtelConfig::with_environment_variables(
                 "standalone".to_string(),
@@ -253,10 +226,7 @@ pub async fn otel_start() -> Result<()> {
             );
 
             match standalone_config.force_recreate_config() {
-                Ok(config_path) => {
-                    info_message!("Standalone configuration created at: {:?}", config_path);
-                    standalone_config
-                }
+                Ok(_) => standalone_config,
                 Err(e) => {
                     error_message!("Failed to create standalone configuration: {}", e);
                     return Err(e);
@@ -272,20 +242,12 @@ pub async fn otel_start() -> Result<()> {
         collector.stop()?;
     }
 
-    info_message!("Starting OpenTelemetry collector with configuration...");
+    // Convert watch_dir string to PathBuf if provided
+    let watch_dir_path = watch_dir.map(PathBuf::from);
 
-    match collector.start_async(&otel_config).await {
+    match collector.start_async(&otel_config, watch_dir_path).await {
         Ok(_) => {
             success_message!("OpenTelemetry collector started successfully!");
-            info_message!(
-                "Configuration file: {:?}",
-                TRACER_WORK_DIR.resolve("otel-config.yaml")
-            );
-            info_message!(
-                "Collector logs: {:?}",
-                TRACER_WORK_DIR.resolve("otelcol.out")
-            );
-            info_message!("Error logs: {:?}", TRACER_WORK_DIR.resolve("otelcol.err"));
         }
         Err(e) => {
             error_message!("Failed to start OpenTelemetry collector: {}", e);
@@ -389,26 +351,16 @@ pub async fn otel_status() -> Result<()> {
         }
     }
 
-    info_message!("  Monitoring patterns:");
-    info_message!("    - **/.nextflow.log*");
-    info_message!("    - **/nextflow.log*");
-    info_message!("    - **/.nextflow*.log*");
-    info_message!("    - **/nextflow*.log*");
-    info_message!("    - **/.nextflow/log");
-    info_message!("    - **/work/**/.command.log");
-    info_message!("    - **/work/**/.command.err");
-    info_message!("    - **/work/**/.command.out");
-
     Ok(())
 }
 
-pub async fn otel_watch() -> Result<()> {
+pub async fn otel_watch(watch_dir: Option<String>) -> Result<()> {
     let collector = OtelCollector::new()?;
 
     info_message!("OpenTelemetry Collector File Watching Status:");
+    let watch_dir_path = watch_dir.map(PathBuf::from);
 
-    // Show what files are being watched
-    match collector.show_watched_files() {
+    match collector.show_watched_files(watch_dir_path) {
         Ok(_) => {
             info_message!("File watching configuration loaded successfully");
         }
@@ -418,7 +370,6 @@ pub async fn otel_watch() -> Result<()> {
         }
     }
 
-    // Show current status
     info_message!("Collector Status:");
     info_message!(
         "  Installed: {}",
@@ -434,10 +385,12 @@ pub async fn otel_watch() -> Result<()> {
     );
 
     if collector.is_running() {
-        info_message!("  The collector is actively watching for new files and changes");
-        info_message!("  Any new log files created will be automatically detected and monitored");
+        info_message!("The collector is actively watching for new files and changes");
+        info_message!("Any new log files created will be automatically detected and monitored");
     } else {
-        info_message!("  The collector is not running - start it with 'tracer otel start' to begin monitoring");
+        info_message!(
+            "The collector is not running - start it with 'tracer otel start' to begin monitoring"
+        );
     }
 
     Ok(())

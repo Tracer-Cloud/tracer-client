@@ -83,6 +83,9 @@ pub enum Command {
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum OtelCommand {
+    /// Setup and install OpenTelemetry collector
+    Setup,
+
     /// Get real-time logs from the OpenTelemetry collector
     Logs {
         /// Follow the logs in real-time (like tail -f)
@@ -95,7 +98,11 @@ pub enum OtelCommand {
     },
 
     /// Start the OpenTelemetry collector
-    Start,
+    Start {
+        /// Directory to watch for log files (default: current working directory)
+        #[clap(long, value_name = "DIR")]
+        watch_dir: Option<String>,
+    },
 
     /// Stop the OpenTelemetry collector
     Stop,
@@ -104,5 +111,9 @@ pub enum OtelCommand {
     Status,
 
     /// Show what files are being watched by the OpenTelemetry collector
-    Watch,
+    Watch {
+        /// Directory to check for watched files (default: current working directory)
+        #[clap(long, value_name = "DIR")]
+        watch_dir: Option<String>,
+    },
 }
