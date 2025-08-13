@@ -1,6 +1,6 @@
 use super::platform::PlatformInfo;
 use crate::constants::USER_ID_ENV_VAR;
-use crate::installer::url_builder::TracerUrlFinder;
+use crate::installer::url_builder::TrustedUrl;
 use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
 use crate::utils::{print_message, print_status, print_title, TagColor};
 use crate::{success_message, warning_message};
@@ -50,22 +50,16 @@ impl Installer {
             analytics_handles.push(handle);
         }
 
-        let finder = TracerUrlFinder;
-        let url = finder
-            .get_binary_url(self.channel.clone(), &self.platform)
-            .await?;
+        let url = TrustedUrl::tracer_aws_url(&self.channel, &self.platform)?;
 
-        print_message("DOWNLOADING", url.as_str(), TagColor::Blue);
+        print_message("DOWNLOADING", &url.to_string(), TagColor::Blue);
 
         let temp_dir = tempfile::tempdir()?;
-        let archive_path = temp_dir.path().join("tracer.tar.gz");
 
-        self.download_with_progress(&url, &archive_path).await?;
+        let extract_path = self
+            .download_and_extract_tarball(&url, temp_dir.path(), "tracer.tar.gz", "extracted")
+            .await?;
 
-        let extract_path = temp_dir.path().join("extracted");
-        std::fs::create_dir_all(&extract_path)?;
-
-        self.extract_tarball(&archive_path, &extract_path)?;
         let _ = self.install_to_final_dir(&extract_path)?;
 
         Self::patch_rc_files_async(self.user_id.clone())
@@ -84,8 +78,30 @@ impl Installer {
         Ok(())
     }
 
-    async fn download_with_progress(&self, url: &str, dest: &Path) -> Result<()> {
-        let response = reqwest::get(url)
+    /// Download a tarball from `url` to `tarball_name` in `base_dir`, then extract it to
+    /// `extract_subdir`.
+    async fn download_and_extract_tarball(
+        &self,
+        url: &TrustedUrl,
+        base_dir: &Path,
+        tarball_name: &str,
+        dest_subdir: &str,
+    ) -> Result<PathBuf> {
+        let archive_path = base_dir.join(tarball_name);
+
+        self.download_with_progress(url, &archive_path).await?;
+
+        let extract_path = base_dir.join(dest_subdir);
+        std::fs::create_dir_all(&extract_path)?;
+
+        self.extract_tarball(&archive_path, &extract_path)?;
+
+        Ok(extract_path)
+    }
+
+    async fn download_with_progress(&self, url: &TrustedUrl, dest: &Path) -> Result<()> {
+        let response = url
+            .get()
             .await
             .context("Failed to initiate download")?
             .error_for_status()

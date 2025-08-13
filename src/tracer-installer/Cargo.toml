@@ -7,8 +7,6 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-tracer-common.workspace = true
-
 anyhow.workspace = true
 async-trait.workspace = true
 clap.workspace = true
@@ -29,3 +27,4 @@ tar.workspace = true
 tempfile.workspace = true
 tokio.workspace = true
 tokio-retry.workspace = true
+url.workspace = true

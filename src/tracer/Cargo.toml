@@ -9,7 +9,6 @@ default-run = "tracer"
 build = "build.rs"
 
 [dependencies]
-tracer-common.workspace = true
 tracer_ebpf.workspace = true
 
 anyhow.workspace = true
@@ -62,6 +61,8 @@ uuid.workspace = true
 which.workspace = true
 yaml-rust2.workspace = true
 
+tempfile = { workspace = true, optional = true }
+
 [dev-dependencies]
 dotenvy.workspace = true
 pretty_assertions_sorted.workspace = true
@@ -72,3 +73,15 @@ uuid.workspace = true
 
 [build-dependencies]
 built.workspace = true
+
+[features]
+test-bins = ["dep:tempfile"]
+
+[[bin]]
+name = "tracer"
+path = "src/main.rs"
+
+[[bin]]
+name = "tracer-test-spawn"
+path = "tests/bin/test-spawn.rs"
+required-features = ["test-bins"]

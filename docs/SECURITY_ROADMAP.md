@@ -21,8 +21,6 @@ We take all security vulnerabilities seriously and will work to address them as 
     * If necessary and appropriate, add a semgrep exception and document the reasoning below
 5. Upon fixing any security issues, a new release is issued with a public disclosure of the issues and mitigations.
 
-As much as possible, we centralize mitigations in the [`tracer_common::secure`](../src/tracer-common/src/secure.rs) module.
-
 ## Existing Security Issues and Mitigations
 
 1. The `tracer` client spawns a child daemon process using the same binary. There are no completely secure ways to determine the path of the current executable. We currently use best practices to spawn the client in the most secure way possible on the platform where the binary is running:

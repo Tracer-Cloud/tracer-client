@@ -1,12 +1,12 @@
 use std::env;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use tracer_common::secure::spawn::get_inode;
+use tracer::utils::spawn::get_inode;
 
 #[test]
 fn test_spawn() {
     // get the path of the main executable
-    let exe_path = env!("CARGO_BIN_EXE_tracer-common");
+    let exe_path = env!("CARGO_BIN_EXE_tracer-test-spawn");
 
     // execute the parent process - this will fork a child process, get its output, then
     // echo the same output, which we can check here
