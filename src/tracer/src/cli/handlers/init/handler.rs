@@ -3,7 +3,6 @@ use crate::cli::handlers::{info, terminate};
 use crate::cli::helper::wait;
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
-use crate::daemon::initialization::create_and_run_server;
 use crate::daemon::server::DaemonServer;
 use crate::utils::analytics::types::AnalyticsEventType;
 use crate::utils::system_info::check_sudo;
@@ -39,6 +38,7 @@ pub async fn init(
     if DaemonServer::is_running() {
         warning_message!("Daemon server is already running, trying to terminate it...");
         if !terminate(&api_client).await {
+            error_message!("Failed to terminate the existing daemon. Please check the logs.");
             return Ok(());
         }
     }
@@ -54,7 +54,6 @@ pub async fn init_with(
     confirm: bool,
 ) -> anyhow::Result<()> {
     info_message!("Starting daemon...");
-
     let args = args.finalize(default_pipeline_prefix, confirm).await;
 
     {
@@ -123,10 +122,8 @@ pub async fn init_with(
 
         return Ok(());
     }
-
     setup_logging(&args.log_level)?;
-
-    create_and_run_server(args, config).await
+    DaemonServer::new().await.start(args, config).await
 }
 
 fn setup_logging(log_level: &String) -> anyhow::Result<()> {

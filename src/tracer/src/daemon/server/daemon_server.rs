@@ -1,24 +1,23 @@
 use std::future::IntoFuture;
 use std::io;
-use std::sync::Arc;
 use tokio::net::TcpListener;
-use tokio::sync::Mutex;
 
-use crate::client::TracerClient;
+use crate::cli::handlers::init_arguments::FinalizedInitArgs;
+use crate::config::Config;
 use crate::daemon::routes::ROUTES;
-use crate::daemon::server::process_monitor::monitor;
 use crate::daemon::state::DaemonState;
 use crate::process_identification::constants::DEFAULT_DAEMON_PORT;
+use crate::utils::analytics;
+use crate::utils::analytics::types::AnalyticsEventType;
 use crate::utils::workdir::TRACER_WORK_DIR;
 use axum::Router;
 use std::net::SocketAddr;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
+use tracing::info;
 
 pub struct DaemonServer {
-    client: Arc<Mutex<TracerClient>>,
     server: Option<JoinHandle<io::Result<()>>>,
-    paused: Arc<Mutex<bool>>,
 }
 
 fn get_router(state: DaemonState) -> Router {
@@ -44,34 +43,28 @@ async fn create_listener(server_url: String) -> TcpListener {
 }
 
 impl DaemonServer {
-    pub async fn new(client: TracerClient) -> Self {
-        Self {
-            client: Arc::new(Mutex::new(client)),
-            server: None,
-            paused: Arc::new(Mutex::new(false)),
-        }
+    pub async fn new() -> Self {
+        info!("Daemon server created!");
+        Self { server: None }
     }
+    pub async fn start(mut self, args: FinalizedInitArgs, config: Config) -> anyhow::Result<()> {
+        analytics::spawn_event(
+            args.user_id.clone(),
+            AnalyticsEventType::DaemonStartedSuccessfully,
+            None,
+        );
+        info!("Starting Tracer daemon server...");
+        let termination_token = CancellationToken::new();
+        let server_url = config.server.clone();
 
-    pub async fn run(mut self) -> anyhow::Result<()> {
-        if self.server.is_some() {
-            panic!("Server already running"); //todo use custom error;
-        }
-
-        let client = self.client.clone();
-        let cancellation_token = CancellationToken::new();
-        self.paused = Arc::new(Mutex::new(false));
-        let state = DaemonState::new(client.clone(), cancellation_token.clone());
-
+        let mut state = DaemonState::new(args, config, termination_token.clone());
+        state.start_tracer_client().await;
         // spawn DaemonServer Router for DaemonClient
-        let server_url = client.lock().await.get_config().server.clone();
-
         let listener = create_listener(server_url).await;
         self.server = Some(tokio::spawn(
             axum::serve(listener, get_router(state)).into_future(),
         ));
-
-        monitor(client, cancellation_token, self.paused.clone()).await;
-
+        let _ = termination_token.cancelled().await;
         self.terminate().await?;
         Ok(())
     }
@@ -83,36 +76,9 @@ impl DaemonServer {
         }
         self.server.unwrap().abort();
         self.server = None;
-        let guard = self.client.lock().await;
-        // all data left
-        let config = guard.get_config();
-        guard
-            .exporter
-            .submit_batched_data(
-                config.batch_submission_retries,
-                config.batch_submission_retry_delay_ms,
-            )
-            .await?;
-        // close the connection pool to aurora
-        let _ = guard.close().await;
         Ok(())
     }
 
-    pub async fn pause(&mut self) -> anyhow::Result<()> {
-        if *self.paused.lock().await {
-            panic!("Server already paused");
-        }
-        *self.paused.lock().await = true;
-        Ok(())
-    }
-
-    pub async fn resume(&mut self) -> anyhow::Result<()> {
-        if !*self.paused.lock().await {
-            panic!("Server is not paused");
-        }
-        *self.paused.lock().await = false;
-        Ok(())
-    }
     pub fn is_running() -> bool {
         let port = DEFAULT_DAEMON_PORT;
         if let Err(e) = std::net::TcpListener::bind(format!("127.0.0.1:{}", port)) {

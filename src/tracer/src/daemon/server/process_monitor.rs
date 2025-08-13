@@ -1,5 +1,4 @@
 use crate::client::TracerClient;
-use crate::daemon::handlers::info::get_info_response;
 use crate::utils::Sentry;
 use anyhow::Result;
 use serde_json::json;
@@ -20,8 +19,8 @@ pub(super) async fn monitor_processes(tracer_client: &mut TracerClient) -> Resul
 
 fn spawn_worker_thread<F, Fut>(
     interval_ms: u64,
-    paused: Arc<Mutex<bool>>,
-    cancellation_token: CancellationToken,
+    server_token: CancellationToken,
+    client_token: CancellationToken,
     work_fn: F,
 ) -> JoinHandle<()>
 where
@@ -32,14 +31,13 @@ where
         let mut interval = tokio::time::interval(Duration::from_millis(interval_ms));
         loop {
             tokio::select! {
-                _ = cancellation_token.cancelled() => {
+                _ = server_token.cancelled() => {
+                    break;
+                }
+                _ = client_token.cancelled() => {
                     break;
                 }
                 _ = interval.tick() => {
-                    if *paused.lock().await {
-                        continue;
-                    }
-
                     match tokio::time::timeout(Duration::from_secs(50), work_fn()).await {
                         Ok(_) => {
                             // Work completed within 50 seconds
@@ -54,11 +52,7 @@ where
     })
 }
 
-pub async fn monitor(
-    client: Arc<Mutex<TracerClient>>,
-    cancellation_token: CancellationToken,
-    paused: Arc<Mutex<bool>>,
-) {
+pub async fn monitor(client: Arc<Mutex<TracerClient>>, server_token: CancellationToken) {
     let (
         submission_interval_ms,
         system_metrics_interval_ms,
@@ -66,9 +60,10 @@ pub async fn monitor(
         exporter,
         retry_attempts,
         retry_delay,
+        client_token,
     ) = {
         let client = client.lock().await;
-        client.start_new_run(None).await.unwrap();
+        client.start_monitoring().await.unwrap();
         let config = client.get_config();
         (
             config.batch_submission_interval_ms,
@@ -77,6 +72,7 @@ pub async fn monitor(
             Arc::clone(&client.exporter),
             config.batch_submission_retries,
             config.batch_submission_retry_delay_ms,
+            client.cancellation_token.clone(),
         )
     };
 
@@ -85,8 +81,8 @@ pub async fn monitor(
         let exporter = Arc::clone(&exporter);
         spawn_worker_thread(
             submission_interval_ms,
-            Arc::clone(&paused),
-            cancellation_token.clone(),
+            server_token.clone(),
+            client_token.clone(),
             move || {
                 let exporter = Arc::clone(&exporter);
                 async move {
@@ -102,8 +98,8 @@ pub async fn monitor(
         let client = Arc::clone(&client);
         spawn_worker_thread(
             system_metrics_interval_ms,
-            Arc::clone(&paused),
-            cancellation_token.clone(),
+            server_token.clone(),
+            client_token.clone(),
             move || {
                 let client = Arc::clone(&client);
                 async move {
@@ -119,8 +115,8 @@ pub async fn monitor(
         let client = Arc::clone(&client);
         spawn_worker_thread(
             process_metrics_interval_ms,
-            Arc::clone(&paused),
-            cancellation_token.clone(),
+            server_token.clone(),
+            client_token.clone(),
             move || {
                 let client = Arc::clone(&client);
                 async move {
@@ -137,7 +133,7 @@ pub async fn monitor(
             if let Err(join_error) = result {
                 if join_error.is_panic() {
                     error!("Submission thread panicked");
-                    cancellation_token.cancel();
+                    server_token.cancel();
                 }
             }
         }
@@ -145,7 +141,7 @@ pub async fn monitor(
             if let Err(join_error) = result {
                 if join_error.is_panic() {
                     error!("System metrics thread panicked");
-                    cancellation_token.cancel();
+                    server_token.cancel();
                 }
             }
         }
@@ -153,27 +149,79 @@ pub async fn monitor(
             if let Err(join_error) = result {
                 if join_error.is_panic() {
                     error!("Process metrics thread panicked");
-                    cancellation_token.cancel();
+                    server_token.cancel();
                 }
             }
         }
     }
+
+    // submit all data left
+    let guard = client.lock().await;
+    let config = guard.get_config();
+    guard
+        .exporter
+        .submit_batched_data(
+            config.batch_submission_retries,
+            config.batch_submission_retry_delay_ms,
+        )
+        .await
+        .unwrap();
+
+    // Write stopping run info to log file
+    let pipeline_data = guard.get_pipeline_data().await;
+
+    let run_snapshot = guard.get_run_snapshot().await;
+    let run_id = &run_snapshot.id;
+    // Create log file name (same as in start_tracer_client)
+    let log_filename = format!("tracer-run-{}.log", run_id);
+    let log_path = std::env::current_dir().unwrap().join(&log_filename);
+
+    let stopping_content = format!("\n\nStopping run:\n{:#?}", pipeline_data);
+
+    match std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)
+    {
+        Ok(mut file) => {
+            use std::io::Write;
+            if let Err(e) = file.write_all(stopping_content.as_bytes()) {
+                error!(
+                    "Failed to append stopping info to log file {}: {}",
+                    log_path.display(),
+                    e
+                );
+            } else {
+                tracing::info!(
+                    "Appended stopping info to run log file: {}",
+                    log_path.display()
+                );
+            }
+        }
+        Err(e) => {
+            error!(
+                "Failed to open log file {} for appending: {}",
+                log_path.display(),
+                e
+            );
+        }
+    }
+
+    let _ = guard.close().await;
 }
 
 async fn sentry_alert(client: &TracerClient) {
-    let info_response = get_info_response(client).await;
-    let processes = info_response.processes_json();
-    let process_count = info_response.process_count();
-    if let Some(inner) = info_response.inner {
-        Sentry::add_context(
-            "Run Details",
-            json!({
-                "name": inner.run_name.clone(),
-                "id": inner.run_id.clone(),
-                "runtime": inner.formatted_runtime(),
-                "no. processes": process_count,
-            }),
-        );
-        Sentry::add_extra("Processes", processes);
-    }
+    let run_snapshot = client.get_run_snapshot().await;
+    let processes = run_snapshot.processes_json();
+    let process_count = run_snapshot.process_count();
+    Sentry::add_context(
+        "Run Details",
+        json!({
+            "name": run_snapshot.name.clone(),
+            "id": run_snapshot.id.clone(),
+            "runtime": run_snapshot.formatted_runtime(),
+            "no. processes": process_count,
+        }),
+    );
+    Sentry::add_extra("Processes", processes);
 }
