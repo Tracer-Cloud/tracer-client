@@ -39,10 +39,16 @@ We take all security vulnerabilities seriously and will work to address them as 
    * The URL is constructed from a static base URL and a filename based on the platform and architecture. No user input is involved.
    * The URL is then parsed and validated before downloading.
 
-3. After downloading the tracer binary tarball, the installer extracts it to a temporary directory, then moves the extracted binary to the final installation directory, which is hardcoded to `/usr/local/bin`. This triggers the `rust.actix.path-traversal.tainted-path.tainted-path ` semgrep rule.
+3. After downloading the tracer binary tarball, the installer extracts it to a temporary directory, then moves the extracted binary to the final installation directory, which is hardcoded to `/usr/local/bin`. This triggers the `rust.actix.path-traversal.tainted-path.tainted-path` semgrep rule.
    * The temporary directory is created using `tempfile::TempDir`.
    * The final installation directory is hardcoded and not user-provided.
    * None of the paths are constructed from user input.
+
+4. The tracer client also uses the static path of the installed binary and well-known paths of user config files to uninstall the application and remove environment variables. This triggers the `rust.actix.path-traversal.tainted-path.tainted-path` semgrep rule.
+   * The final installation directory is hardcoded and not user-provided.
+   * None of the paths are constructed from user input.
+
+5. The tracer client reads YAML files from locations relative to the source path, and only during testing. In the installed binary, these files are embedded in the binary. None of the paths are constructed from user input.
 
 ## Security Roadmap
 
