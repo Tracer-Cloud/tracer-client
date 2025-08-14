@@ -1,5 +1,5 @@
 use crate::cli::handlers::init_arguments::FinalizedInitArgs;
-use crate::daemon::structs::RunSnapshot;
+use crate::daemon::structs::{OpenTelemetryStatus, RunSnapshot};
 use crate::process_identification::types::pipeline_tags::PipelineTags;
 use chrono::{DateTime, TimeDelta, Utc};
 
@@ -10,6 +10,7 @@ pub struct PipelineMetadata {
     pub is_dev: bool,
     pub tags: PipelineTags,
     pub run_snapshot: Option<RunSnapshot>,
+    pub opentelemetry_status: Option<OpenTelemetryStatus>,
 }
 
 impl PipelineMetadata {
@@ -20,6 +21,7 @@ impl PipelineMetadata {
             is_dev: args.dev,
             tags: args.tags.clone(),
             run_snapshot: None,
+            opentelemetry_status: None,
         }
     }
     fn total_runtime(&self) -> TimeDelta {

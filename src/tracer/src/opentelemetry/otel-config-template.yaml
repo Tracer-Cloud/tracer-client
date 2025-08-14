@@ -1,0 +1,139 @@
+receivers:
+  filelog:
+    include:
+      - "**/*.log"
+      - "**/*nextflow.log"
+      - "**/*nextflow*.log"
+      - "**/*.nextflow.log"
+      - "**/*.nextflow.log.*"
+      - "**/*.nextflow.log*"
+      - "**/*.nextflow.log*"
+      - "**/*.nextflow.log*"
+      - "**/*.command.log"
+      - "**/*.command.err"
+      - "**/*.command.out"
+
+    exclude:
+      - /proc/*
+      - /proc/*/*
+      - /proc/*/*/*
+      - /sys/*
+      - /sys/*/*
+      - /sys/*/*/*
+      - /dev/*
+      - /dev/*/*
+      - /dev/*/*/*
+      - /snap/*
+      - /snap/*/*
+      - /snap/*/*/*
+      - /System/*
+      - /Library/*
+      - /Applications/*
+      - "**/node_modules/**"
+      - "**/.git/**"
+      - "**/target/debug/build/**"
+      - "**/target/release/build/**"
+      - "**/build/**"
+      - "**/vendor/**"
+      - "**/.cargo/**"
+      - "**/.rustup/**"
+      - "**/.local/**"
+      - "**/.cache/**"
+      - "**/tmp/**"
+      - "**/var/tmp/**"
+      - "**/.terraform/**"
+      - "**/.cursor/**"
+      - "**/.vscode/**"
+      - "**/.android/**"
+      - "**/.cocoapods/**"
+      - "**/Library/**"
+
+    start_at: beginning
+    poll_interval: 5s
+    max_log_size: 100MiB
+    max_concurrent_files: 4096
+    include_file_name: true
+    include_file_path: true
+    include_file_name_resolved: true
+    include_file_path_resolved: true
+    fingerprint_size: 2kb
+    force_flush_period: 30s
+
+processors:
+  batch:
+    timeout: 6s
+    send_batch_size: 1000
+    send_batch_max_size: 2000
+
+  resource:
+    attributes:
+      - key: service.name
+        value: "nextflow-pipeline"
+        action: insert
+      - key: service.version
+        value: "1.0.0"
+        action: insert
+      - key: deployment.environment
+        value: "production"
+        action: insert
+      - key: host.name
+        from_attribute: host.name
+        action: insert
+
+  transform:
+    log_statements:
+      - context: log
+        statements:
+          - set(attributes["user_id"], "{{user_id}}")
+          - set(attributes["status"], "error") where IsMatch(body, "(?i).*(error|failed|exception|fatal|critical).*")
+          - set(attributes["status"], "warning") where IsMatch(body, "(?i).*(warn|warning|caution|deprecated).*")
+          - set(attributes["status"], "info") where attributes["status"] == nil
+          - set(attributes["log_level"], "INFO")
+          - set(attributes["pipeline_name"], "{{pipeline_name}}")
+          - set(attributes["run_name"], "{{run_name}}")
+          - set(attributes["run_id"], "{{run_id}}")
+          - set(attributes["log_file_path"], attributes["log.file.path"]) where attributes["log.file.path"] != nil
+          - set(attributes["file_name"], attributes["log.file.name"]) where attributes["log.file.name"] != nil
+          - set(attributes["log.file.name_resolved"], attributes["log.file.name_resolved"]) where attributes["log.file.name_resolved"] != nil
+          - set(attributes["log.file.path_resolved"], attributes["log.file.path_resolved"]) where attributes["log.file.path_resolved"] != nil
+          - set(attributes["log_message"], body)
+          - set(attributes["data_stream.dataset"], "default")
+          - set(attributes["data_stream.namespace"], "namespace")
+          - set(attributes["data_stream.type"], "record")
+
+exporters:
+  otlphttp:
+    endpoint: "{{otel_endpoint}}"
+    headers:
+      Content-Type: "application/json"
+    timeout: 60s
+    retry_on_failure:
+      enabled: true
+      initial_interval: 10s
+      max_interval: 60s
+      max_elapsed_time: 600s
+    sending_queue:
+      enabled: true
+      num_consumers: 2
+      queue_size: 2000
+    tls:
+      insecure: true
+    encoding: json
+
+  debug:
+    verbosity: basic
+    sampling_initial: 1
+    sampling_thereafter: 1000
+
+service:
+  pipelines:
+    logs:
+      receivers: [filelog]
+      processors: [resource, transform, batch]
+      exporters: [otlphttp, debug]
+
+  extensions: []
+
+  telemetry:
+    logs:
+      level: info

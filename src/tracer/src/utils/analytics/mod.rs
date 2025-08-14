@@ -49,7 +49,7 @@ pub async fn send_event(
             Ok(())
         } else {
             eprintln!(
-                "⚠️  Failed to send analytics event: {} [{}]",
+                "Failed to send analytics event: {} [{}]",
                 event.as_str(),
                 res.status()
             );

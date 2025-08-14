@@ -1,6 +1,7 @@
 mod api;
 mod environment;
 pub mod kernel;
+
 mod root;
 
 use crate::error_message;
@@ -11,6 +12,7 @@ use colored::Colorize;
 pub(crate) use environment::detect_environment_type;
 use environment::EnvironmentCheck;
 use kernel::KernelCheck;
+
 use root::RootCheck;
 
 /// Trait defining functions a Requirement check must implement before being called

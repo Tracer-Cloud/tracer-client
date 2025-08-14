@@ -1,34 +1,47 @@
 use crate::daemon::client::DaemonClient;
-use crate::info_message;
-use colored::Colorize;
-use tokio::time::sleep;
-use tracing::debug;
+use tokio::time::{sleep, Duration};
+use tracing::info;
 
 pub(super) async fn wait(api_client: &DaemonClient) -> bool {
-    for n in 0..5 {
+    // Try up to 20 times with increasing delays
+    for attempt in 0..20 {
+        info!(
+            "Attempting to connect to daemon (attempt {}/20)...",
+            attempt + 1
+        );
+
         match api_client.ping().await {
-            // if timeout, retry
-            Err(e) => {
-                if !(e.is_timeout() || e.is_connect()) {
-                    panic!("Error trying to reach daemon server: {:?}", e)
-                }
+            Ok(_) => {
+                info!(
+                    "Successfully connected to daemon on attempt {}",
+                    attempt + 1
+                );
+                return true;
             }
-            Ok(resp) => {
-                if resp.status().is_success() {
-                    return true;
+            Err(e) => {
+                info!("Connection attempt {} failed: {:?}", attempt + 1, e);
+
+                // If it's not a timeout or connection error, it might be a real error
+                if !(e.is_timeout() || e.is_connect()) {
+                    // On macOS, connection errors are common during startup, so we'll be more lenient
+                    #[cfg(target_os = "macos")]
+                    {
+                        // Continue retrying even for non-timeout errors on macOS
+                    }
+                    #[cfg(not(target_os = "macos"))]
+                    {
+                        panic!("Error trying to reach daemon server: {:?}", e);
+                    }
                 }
-                debug!("Got response, retrying: {:?}", resp);
             }
         }
 
-        let duration = 1 << n;
-
-        info_message!(
-            "Starting daemon... ({} second{} elapsed)",
-            duration,
-            if duration > 1 { "s" } else { "" }
-        );
-        sleep(std::time::Duration::from_secs(duration)).await;
+        // Delay to account for OTEL installation: start with 1s, then 1.5s, 2s, etc.
+        let delay = Duration::from_millis(1000 + (attempt * 500));
+        info!("Waiting {}ms before next attempt...", delay.as_millis());
+        sleep(delay).await;
     }
+
+    info!("Failed to connect to daemon after 20 attempts");
     false
 }

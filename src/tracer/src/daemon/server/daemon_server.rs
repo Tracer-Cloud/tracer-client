@@ -35,7 +35,7 @@ async fn create_listener(server_url: String) -> TcpListener {
     match TcpListener::bind(addr).await {
         Ok(listener) => listener,
         Err(e) if e.kind() == io::ErrorKind::AddrInUse => {
-            panic!("❌ Failed to start Tracer daemon: Port {} is still in use.\n\nPlease run 'tracer cleanup-port' to resolve the port conflict before starting the daemon.",
+            panic!("Failed to start Tracer daemon: Port {} is still in use.\n\nPlease run 'tracer cleanup-port' to resolve the port conflict before starting the daemon.",
                    addr.port())
         }
         Err(e) => panic!("Failed to bind to address {}: {}", addr, e),
@@ -58,12 +58,20 @@ impl DaemonServer {
         let server_url = config.server.clone();
 
         let mut state = DaemonState::new(args, config, termination_token.clone());
-        state.start_tracer_client().await;
-        // spawn DaemonServer Router for DaemonClient
+
+        // Start the HTTP server first so it can respond to ping requests immediately
         let listener = create_listener(server_url).await;
         self.server = Some(tokio::spawn(
-            axum::serve(listener, get_router(state)).into_future(),
+            axum::serve(listener, get_router(state.clone())).into_future(),
         ));
+
+        // Initialize the TracerClient asynchronously after the server is running
+        tokio::spawn(async move {
+            info!("Initializing TracerClient...");
+            state.start_tracer_client().await;
+            info!("TracerClient initialization completed");
+        });
+
         let _ = termination_token.cancelled().await;
         self.terminate().await?;
         Ok(())

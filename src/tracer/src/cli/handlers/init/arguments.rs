@@ -7,6 +7,7 @@ use clap::{Args, ValueEnum};
 use colored::Colorize;
 use dialoguer::Select;
 use serde::Serialize;
+use std::collections::HashMap;
 
 pub const PIPELINE_NAME_ENV_VAR: &str = "TRACER_PIPELINE_NAME";
 pub const RUN_NAME_ENV_VAR: &str = "TRACER_RUN_NAME";
@@ -45,6 +46,15 @@ pub struct TracerCliInitArgs {
     /// valid values: trace, debug, info, warn, error (default: info)
     #[clap(long, env = LOG_LEVEL_ENV_VAR, default_value = "info")]
     pub log_level: String,
+
+    /// Additional environment variables for OpenTelemetry collector in KEY=VALUE format
+    /// Can be specified multiple times (e.g: --env-var AWS_REGION=us-east-1 --env-var LOG_LEVEL=debug)
+    #[clap(long, value_name = "KEY=VALUE")]
+    pub env_var: Vec<String>,
+
+    /// Directory to watch for log files (default: current working directory)
+    #[clap(long, value_name = "DIR")]
+    pub watch_dir: Option<String>,
 
     // run client as a standalone process rather than a daemon
     #[clap(long, hide = true)]
@@ -170,6 +180,18 @@ impl TracerCliInitArgs {
         };
         tags.pipeline_type = Some(pipeline_type);
 
+        // Process environment variables
+        let mut environment_variables = HashMap::new();
+        for env_var in &self.env_var {
+            if let Some((key, value)) = env_var.split_once('=') {
+                let key = key.trim();
+                let value = value.trim();
+                if !key.is_empty() {
+                    environment_variables.insert(key.to_string(), value.to_string());
+                }
+            }
+        }
+
         FinalizedInitArgs {
             pipeline_name,
             run_name,
@@ -179,6 +201,8 @@ impl TracerCliInitArgs {
             dev: self.dev,
             force_procfs: self.force_procfs,
             log_level: self.log_level,
+            environment_variables,
+            watch_dir: self.watch_dir,
         }
     }
 
@@ -285,6 +309,11 @@ fn print_help<T>() -> Option<T> {
     organization_id     | --organization-id   | TRACER_ORGANIZATION_ID
     instance_type***    | --instance-type     | TRACER_INSTANCE_TYPE
     environment_type*** | --environment-type  | TRACER_ENVIRONMENT_TYPE
+    
+    OpenTelemetry Configuration:
+    env_vars           | --env-var KEY=VALUE  | (multiple supported, interactive prompts available)
+    watch_dir          | --watch-dir DIR      | (default: current working directory)
+
     "#
     );
     None::<T>
@@ -302,4 +331,6 @@ pub struct FinalizedInitArgs {
     pub dev: bool,
     pub force_procfs: bool,
     pub log_level: String,
+    pub environment_variables: HashMap<String, String>,
+    pub watch_dir: Option<String>,
 }
