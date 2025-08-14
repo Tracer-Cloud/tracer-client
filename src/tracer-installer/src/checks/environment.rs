@@ -67,6 +67,7 @@ pub async fn get_aws_instance_metadata() -> Option<InstanceMetadata> {
         }
     }
 }
+
 fn annotate_ec2_metadata(metadata: &InstanceMetadata) {
     crate::Sentry::add_tag("aws_instance_id", &metadata.instance_id);
     crate::Sentry::add_tag("aws_region", metadata.region);
