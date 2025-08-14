@@ -41,12 +41,6 @@ impl OtelFileScanner {
         vec![
             "**/.nextflow.log*",
             "**/nextflow.log*",
-            "**/.nextflow*.log*",
-            "**/nextflow*.log*",
-            "**/.nextflow/log",
-            "**/work/**/.command.log",
-            "**/work/**/.command.err",
-            "**/work/**/.command.out",
             "**/.command.log",
             "**/.command.err",
             "**/.command.out",
