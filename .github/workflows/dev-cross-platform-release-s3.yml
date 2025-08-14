@@ -79,7 +79,7 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-          key: cargo-deps-${{ matrix.target }}-stable-v1
+          key: cargo-deps-${{ matrix.target }}-stable-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             cargo-deps-${{ matrix.target }}-stable-
 
@@ -89,18 +89,29 @@ jobs:
         with:
           path: |
             target/
-          key: cargo-build-${{ matrix.target }}-stable-${{ hashFiles('Cargo.lock') }}
+          key: cargo-build-${{ matrix.target }}-stable-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             cargo-build-${{ matrix.target }}-stable-
+
+      - name: Cache system dependencies (Ubuntu)
+        if: matrix.runner == 'ubuntu-22.04' || matrix.runner == 'ubuntu-22.04-arm'
+        uses: actions/cache@v3
+        with:
+          path: /var/cache/apt/archives/
+          key: ${{ matrix.runner }}-apt-deps-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ matrix.runner }}-apt-deps-
 
       - name: Install build dependencies
         run: |
           rustup toolchain install nightly-2025-04-15 --component rust-src
 
-           if [[ "${{ matrix.runner }}" == *"ubuntu"* ]]; then
-            # Install necessary eBPF dependencies for Linux
-            sudo apt-get update
-            sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm libelf-dev
+          if [[ "${{ matrix.runner }}" == *"ubuntu"* ]]; then
+            # Only install if not cached
+            if ! dpkg -l | grep -q "linux-headers-$(uname -r)"; then
+              sudo apt-get update
+              sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm libelf-dev
+            fi
           fi
 
       # Verify submodules are properly loaded
@@ -163,20 +174,6 @@ jobs:
       image: amazonlinux:2023
 
     steps:
-      - name: Install dependencies
-        run: |
-          yum update -y
-          yum groupinstall -y "Development Tools"
-          yum  install -y kernel-devel kernel-headers clang llvm libbpf-devel
-
-      - name: Install Rust
-        run: |
-          curl https://sh.rustup.rs -sSf | sh -s -- -y
-          echo 'source $HOME/.cargo/env' >> ~/.bashrc
-          source $HOME/.cargo/env
-          rustup target add x86_64-unknown-linux-gnu
-          rustup toolchain install nightly-2025-04-15 --component rust-src
-
       - name: Check out repository with submodules
         uses: actions/checkout@v4.1.4
         with:
@@ -186,6 +183,36 @@ jobs:
       - name: Configure Git safe directory
         run: git config --global --add safe.directory $GITHUB_WORKSPACE
 
+      - name: Cache Rust dependencies (Amazon Linux)
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: amazon-linux-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            amazon-linux-cargo-
+
+      - name: Install dependencies
+        run: |
+          # Only install if not cached
+          if ! rpm -qa | grep -q "kernel-devel"; then
+            yum update -y
+            yum groupinstall -y "Development Tools"
+            yum install -y kernel-devel kernel-headers clang llvm libbpf-devel
+          fi
+
+      - name: Install Rust
+        run: |
+          curl https://sh.rustup.rs -sSf | sh -s -- -y
+          echo 'source $HOME/.cargo/env' >> ~/.bashrc
+          source $HOME/.cargo/env
+          rustup target add x86_64-unknown-linux-gnu
+          rustup toolchain install nightly-2025-04-15 --component rust-src
+
       - name: Update version in Cargo.toml
         run: |
           # Get current date in YYYY.MM.DD format
@@ -194,12 +221,8 @@ jobs:
           TIME=$(date +'%H%M')
           # Create new version string
           NEW_VERSION="${DATE}+${TIME}"
-          # Update version in Cargo.toml (compatible with both macOS and Linux)
-          if [[ "${{ matrix.runner }}" == *"macos"* ]]; then
-            sed -i '' "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
-          else
-            sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
-          fi
+          # Update version in Cargo.toml
+          sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
           # Print the new version for verification
           echo "Updated version to: ${NEW_VERSION}"
 
