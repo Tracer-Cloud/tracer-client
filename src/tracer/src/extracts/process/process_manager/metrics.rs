@@ -56,6 +56,7 @@ impl ProcessMetricsHandler {
                 let system = system_refresher.get_system().read().await;
                 debug!("Extracting metrics for PID {}: {}, with target: {}", proc.pid, proc.comm, target);
                 let sys_proc = system.process(proc.pid.into());
+                debug!("System process for {}: {:?}", target, sys_proc);
                 let result = logger.log_process_metrics(target, proc, sys_proc).await?;
                 debug!("Metrics extracted for PID {}: {:?}", proc.pid, result);
             }
