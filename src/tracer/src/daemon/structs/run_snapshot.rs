@@ -1,52 +1,40 @@
 use crate::constants::DASHBOARD_BASE;
-use crate::process_identification::types::current_run::{PipelineCostSummary, PipelineMetadata};
-use crate::process_identification::types::pipeline_tags::PipelineTags;
+use crate::daemon::structs::OpenTelemetryStatus;
+use crate::process_identification::types::current_run::PipelineCostSummary;
 use chrono::{DateTime, TimeDelta, Utc};
 use itertools::Itertools;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 
-#[derive(serde::Serialize, serde::Deserialize, Clone)]
-pub struct OpenTelemetryStatus {
-    pub enabled: bool,
-    pub version: Option<String>,
-    pub pid: Option<u32>,
-    pub endpoint: Option<String>,
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-pub struct InfoResponse {
-    pub inner: Option<InnerInfoResponse>,
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct RunSnapshot {
+    pub(crate) name: String,
+    pub(crate) id: String,
+    pub(crate) start_time: DateTime<Utc>,
     processes: HashSet<String>,
     tasks: HashMap<String, usize>,
+    pub(crate) cost_summary: Option<PipelineCostSummary>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
-pub struct InnerInfoResponse {
-    pub run_name: String,
-    pub run_id: String,
-    pub pipeline_name: String,
-    pub start_time: DateTime<Utc>,
-    pub tags: PipelineTags,
-    pub cost_summary: Option<PipelineCostSummary>,
-    pub stage: String,
-    pub opentelemetry_status: Option<OpenTelemetryStatus>,
-}
-
-impl InfoResponse {
+impl RunSnapshot {
     pub fn new(
-        inner: Option<InnerInfoResponse>,
+        name: String,
+        id: String,
         processes: HashSet<String>,
         tasks: HashMap<String, usize>,
+        cost_summary: Option<PipelineCostSummary>,
+        start_time: DateTime<Utc>,
+        _opentelemetry_status: Option<OpenTelemetryStatus>,
     ) -> Self {
         Self {
-            inner,
+            name,
+            id,
+            start_time,
             processes,
             tasks,
+            cost_summary,
         }
     }
-
     pub fn process_count(&self) -> usize {
         self.processes.len()
     }
@@ -115,38 +103,11 @@ impl InfoResponse {
             vec![task_preview.join(", ")]
         }
     }
-}
 
-impl TryFrom<PipelineMetadata> for InnerInfoResponse {
-    type Error = anyhow::Error;
-    fn try_from(value: PipelineMetadata) -> Result<Self, Self::Error> {
-        if let Some(run) = value.run {
-            let cost_summary = run
-                .cost_summary
-                .as_ref()
-                .map(|ctx| ctx.refresh(run.start_time));
-            let stage = (if value.is_dev { "dev" } else { "prod" }).into();
-            Ok(Self {
-                run_id: run.id,
-                run_name: run.name,
-                pipeline_name: value.pipeline_name,
-                start_time: run.start_time,
-                tags: value.tags,
-                cost_summary,
-                stage,
-                opentelemetry_status: None,
-            })
-        } else {
-            Err(anyhow::anyhow!("No run found"))
-        }
+    pub fn get_run_url(&self, pipeline_name: String) -> String {
+        format!("{}/{}/{}", DASHBOARD_BASE, pipeline_name, self.id)
     }
-}
-
-impl InnerInfoResponse {
-    pub fn get_run_url(&self) -> String {
-        format!("{}/{}/{}", DASHBOARD_BASE, self.pipeline_name, self.run_id)
-    }
-    pub fn total_runtime(&self) -> TimeDelta {
+    fn total_runtime(&self) -> TimeDelta {
         Utc::now() - self.start_time
     }
 
@@ -167,24 +128,4 @@ impl InnerInfoResponse {
 
         parts.join(" ")
     }
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-pub struct RunData {
-    pub run_name: String,
-    pub run_id: String,
-    pub pipeline_name: String,
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-pub struct TagData {
-    pub names: Vec<String>,
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-pub struct LogData {}
-
-#[derive(Serialize, Deserialize)]
-pub struct Message {
-    pub payload: String,
 }

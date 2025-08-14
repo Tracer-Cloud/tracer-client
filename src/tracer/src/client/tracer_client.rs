@@ -1,23 +1,26 @@
 use crate::cli::handlers::init_arguments::FinalizedInitArgs;
-use crate::client::events::send_start_run_event;
+use crate::client::events::init_run;
 use crate::client::exporters::client_export_manager::ExporterManager;
 use crate::client::exporters::event_writer::LogWriterEnum;
 use crate::cloud_providers::aws::pricing::PricingSource;
 use crate::config::Config;
+use crate::daemon::structs::{PipelineMetadata, RunSnapshot};
 use crate::extracts::containers::DockerWatcher;
 use crate::extracts::metrics::system_metrics_collector::SystemMetricsCollector;
 use crate::extracts::process_watcher::watcher::ProcessWatcher;
 use crate::process_identification::recorder::EventDispatcher;
-use crate::process_identification::types::current_run::PipelineMetadata;
+use crate::process_identification::types::current_run::RunMetadata;
+use crate::process_identification::types::event::attributes::system_metrics::SystemProperties;
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::{Event, ProcessStatus};
-use crate::utils::env;
+use crate::utils::env::detect_environment_type;
 use crate::utils::system_info::get_kernel_version;
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use sysinfo::System;
+use tokio::sync::Mutex;
 use tokio::sync::{mpsc, RwLock};
+use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
 pub struct TracerClient {
@@ -25,24 +28,20 @@ pub struct TracerClient {
 
     pub process_watcher: Arc<ProcessWatcher>,
     docker_watcher: Arc<DockerWatcher>,
-
+    pub cancellation_token: CancellationToken,
     metrics_collector: SystemMetricsCollector,
 
-    pipeline: Arc<RwLock<PipelineMetadata>>,
-
-    pub pricing_client: PricingSource,
+    pipeline: Arc<Mutex<PipelineMetadata>>,
+    run: RunMetadata,
     config: Config,
     force_procfs: bool,
-    event_dispatcher: EventDispatcher,
-    pub exporter: Arc<ExporterManager>,
 
-    run_name: Option<String>,
-    pub user_id: String,
-    pipeline_name: String,
+    pub exporter: Arc<ExporterManager>,
 }
 
 impl TracerClient {
     pub async fn new(
+        _pipeline: Arc<Mutex<PipelineMetadata>>,
         config: Config,
         db_client: LogWriterEnum,
         cli_args: FinalizedInitArgs,
@@ -51,9 +50,35 @@ impl TracerClient {
 
         let pricing_client = Self::init_pricing_client(&config).await;
 
-        let pipeline = Self::init_pipeline(&cli_args);
+        let pipeline = Arc::new(Mutex::new(PipelineMetadata::new(&cli_args)));
 
-        let (event_dispatcher, rx) = Self::init_event_dispatcher(&pipeline);
+        let system = Arc::new(RwLock::new(System::new_all()));
+        let (run, system_properties) =
+            Self::init_run(system.clone(), &cli_args.run_name, pricing_client).await;
+
+        {
+            // Update pipeline tags with instance_type and environment_type
+            let mut pipeline = pipeline.lock().await;
+            if let Some(ref cost_summary) = run.cost_summary {
+                pipeline.tags.instance_type = Some(cost_summary.instance_type.clone());
+            }
+
+            let environment_type = detect_environment_type(1).await;
+            pipeline.tags.environment_type = Some(environment_type);
+        }
+
+        let (event_dispatcher, rx) = Self::init_event_dispatcher(pipeline.clone(), run.clone());
+
+        event_dispatcher
+            .log(
+                ProcessStatus::NewRun,
+                "[CLI] Starting new pipeline run".to_owned(),
+                Some(EventAttributes::SystemProperties(Box::new(
+                    system_properties,
+                ))),
+                None,
+            )
+            .await?;
 
         // Initialize system info lazily to avoid blocking startup
         let system = Arc::new(RwLock::new(System::new()));
@@ -66,24 +91,20 @@ impl TracerClient {
         let exporter = Arc::new(ExporterManager::new(db_client, rx));
 
         let metrics_collector = Self::init_watchers(&event_dispatcher, &system);
+        let cancellation_token = CancellationToken::new();
 
         Ok(TracerClient {
             // if putting a value to config, also update `TracerClient::reload_config_file`
             system: system.clone(),
-
-            pipeline,
-
+            cancellation_token,
             metrics_collector,
             process_watcher,
             exporter,
-            pricing_client,
             config,
-            event_dispatcher,
             force_procfs: cli_args.force_procfs,
-            pipeline_name: cli_args.pipeline_name,
-            run_name: cli_args.run_name,
-            user_id: cli_args.user_id,
             docker_watcher,
+            run,
+            pipeline,
         })
     }
 
@@ -91,20 +112,12 @@ impl TracerClient {
         PricingSource::new(config.aws_init_type.clone()).await
     }
 
-    fn init_pipeline(cli_args: &FinalizedInitArgs) -> Arc<RwLock<PipelineMetadata>> {
-        Arc::new(RwLock::new(PipelineMetadata {
-            pipeline_name: cli_args.pipeline_name.clone(),
-            run: None,
-            tags: cli_args.tags.clone(),
-            is_dev: cli_args.dev,
-        }))
-    }
-
     fn init_event_dispatcher(
-        pipeline: &Arc<RwLock<PipelineMetadata>>,
+        pipeline: Arc<Mutex<PipelineMetadata>>,
+        run_data: RunMetadata,
     ) -> (EventDispatcher, mpsc::Receiver<Event>) {
         let (tx, rx) = mpsc::channel::<Event>(100);
-        let event_dispatcher = EventDispatcher::new(pipeline.clone(), tx);
+        let event_dispatcher = EventDispatcher::new(pipeline, run_data, tx);
         (event_dispatcher, rx)
     }
 
@@ -195,78 +208,37 @@ impl TracerClient {
             .context("Failed to collect metrics")
     }
 
-    pub fn get_run_metadata(&self) -> Arc<RwLock<PipelineMetadata>> {
-        self.pipeline.clone()
-    }
+    pub async fn get_run_snapshot(&self) -> RunSnapshot {
+        let run = &self.run;
 
-    pub async fn start_new_run(&self, timestamp: Option<DateTime<Utc>>) -> Result<()> {
-        self.start_monitoring().await?;
+        let processes = self.process_watcher.get_monitored_processes().await;
 
-        if self.pipeline.read().await.run.is_some() {
-            self.stop_run().await?;
-        }
-
-        let start_time = timestamp.unwrap_or_else(Utc::now);
-
-        let (run, system_properties) = send_start_run_event(
-            &*self.system.read().await,
-            &self.pipeline_name,
-            &self.pricing_client,
-            &self.run_name,
-            start_time,
+        let tasks = self.process_watcher.get_matched_tasks().await;
+        RunSnapshot::new(
+            run.name.clone(),
+            run.id.clone(),
+            processes,
+            tasks,
+            run.cost_summary.clone(),
+            run.start_time,
+            None, // opentelemetry_status
         )
-        .await?;
-
-        // Update pipeline tags with instance_type and environment_type
-        {
-            let mut pipeline = self.pipeline.write().await;
-
-            if let Some(cost_summary) = &run.cost_summary {
-                pipeline.tags.instance_type = Some(cost_summary.instance_type.clone());
-            }
-
-            if pipeline.tags.environment_type.is_none() {
-                // use a longer timeout here
-                let environment_type = env::detect_environment_type(5).await;
-                pipeline.tags.environment_type = Some(environment_type);
-            }
-
-            pipeline.run = Some(run);
-        }
-
-        // NOTE: Do we need to output a totally new event if self.initialization_id.is_some() ?
-        self.event_dispatcher
-            .log(
-                ProcessStatus::NewRun,
-                "[CLI] Starting new pipeline run".to_owned(),
-                Some(EventAttributes::SystemProperties(Box::new(
-                    system_properties,
-                ))),
-                timestamp,
-            )
-            .await?;
-
-        Ok(())
     }
 
-    pub async fn stop_run(&self) -> Result<()> {
-        let mut pipeline = self.pipeline.write().await;
+    pub async fn get_pipeline_data(&self) -> PipelineMetadata {
+        let mut pipeline = self.pipeline.lock().await.clone();
+        pipeline.run_snapshot.replace(self.get_run_snapshot().await);
+        pipeline
+    }
 
-        if pipeline.run.is_none() {
-            self.event_dispatcher
-                .log_with_metadata(
-                    ProcessStatus::FinishedRun,
-                    "[CLI] Finishing pipeline run".to_owned(),
-                    None,
-                    Some(Utc::now()),
-                    &pipeline,
-                )
-                .await?;
-
-            pipeline.run = None;
-        }
-
-        Ok(())
+    pub async fn init_run(
+        system: Arc<RwLock<System>>,
+        run_name: &Option<String>,
+        pricing_source: PricingSource,
+    ) -> (RunMetadata, SystemProperties) {
+        let system = system.read().await;
+        let (run, system_properties) = init_run(&system, &pricing_source, run_name).await.unwrap();
+        (run, system_properties)
     }
 
     #[tracing::instrument(skip(self))]
@@ -292,8 +264,10 @@ impl TracerClient {
         Ok(())
     }
 
-    pub fn get_pipeline_name(&self) -> &str {
-        &self.pipeline_name
+    pub fn get_pipeline_name(&self) -> String {
+        // This would need to be async to access the pipeline field
+        // For now, return a placeholder or make this method async
+        "pipeline".to_string()
     }
 
     pub async fn close(&self) -> Result<()> {

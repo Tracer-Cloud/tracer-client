@@ -105,8 +105,8 @@ impl OtelUtils {
     }
 
     pub fn create_log_files() -> Result<(PathBuf, PathBuf)> {
-        let stdout_file = TRACER_WORK_DIR.resolve("otelcol.out");
-        let stderr_file = TRACER_WORK_DIR.resolve("otelcol.err");
+        let stdout_file = TRACER_WORK_DIR.otel_stdout_file.clone();
+        let stderr_file = TRACER_WORK_DIR.otel_stderr_file.clone();
 
         fs::write(&stdout_file, "").with_context(|| "Failed to create stdout log file")?;
         fs::write(&stderr_file, "").with_context(|| "Failed to create stderr log file")?;
@@ -124,7 +124,7 @@ impl OtelUtils {
 
     pub fn get_platform_info() -> Result<(&'static str, &'static str)> {
         let os = std::env::consts::OS;
-        let arch = std::env::consts::ARCH;
+        let arch: &str = std::env::consts::ARCH;
 
         match (os, arch) {
             ("linux", "x86_64") => Ok(("linux", "amd64")),

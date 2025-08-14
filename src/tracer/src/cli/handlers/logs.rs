@@ -17,11 +17,11 @@ pub async fn logs(follow: bool, lines: usize) -> Result<()> {
         error_message!("OpenTelemetry collector is not running");
         info_message!("Start the collector with: tracer otel start");
 
-        let stderr_file = TRACER_WORK_DIR.resolve("otelcol.err");
-        let stdout_file = TRACER_WORK_DIR.resolve("otelcol.out");
+        let stderr_file = &TRACER_WORK_DIR.otel_stderr_file;
+        let stdout_file = &TRACER_WORK_DIR.otel_stdout_file;
 
         if stderr_file.exists() {
-            let stderr_content = std::fs::read_to_string(&stderr_file).unwrap_or_default();
+            let stderr_content = std::fs::read_to_string(stderr_file).unwrap_or_default();
             if !stderr_content.trim().is_empty() {
                 info_message!("Previous collector error logs:");
                 println!("{}", stderr_content);
@@ -29,7 +29,7 @@ pub async fn logs(follow: bool, lines: usize) -> Result<()> {
         }
 
         if stdout_file.exists() {
-            let stdout_content = std::fs::read_to_string(&stdout_file).unwrap_or_default();
+            let stdout_content = std::fs::read_to_string(stdout_file).unwrap_or_default();
             if !stdout_content.trim().is_empty() {
                 info_message!("Previous collector stdout logs:");
                 println!("{}", stdout_content);
@@ -39,8 +39,8 @@ pub async fn logs(follow: bool, lines: usize) -> Result<()> {
         return Ok(());
     }
 
-    let stderr_file = TRACER_WORK_DIR.resolve("otelcol.err");
-    let stdout_file = TRACER_WORK_DIR.resolve("otelcol.out");
+    let stderr_file = &TRACER_WORK_DIR.otel_stderr_file;
+    let stdout_file = &TRACER_WORK_DIR.otel_stdout_file;
 
     if !stderr_file.exists() && !stdout_file.exists() {
         warning_message!("No log files found for OpenTelemetry collector");
@@ -58,12 +58,12 @@ pub async fn logs(follow: bool, lines: usize) -> Result<()> {
 
     if stderr_file.exists() {
         info_message!("Collector Error/Info Logs (STDERR) ===");
-        show_log_file(&stderr_file, lines_to_show, should_follow).await?;
+        show_log_file(stderr_file, lines_to_show, should_follow).await?;
     }
 
     if stdout_file.exists() {
         info_message!("=== Collector Output Logs (STDOUT) ===");
-        show_log_file(&stdout_file, lines_to_show, should_follow).await?;
+        show_log_file(stdout_file, lines_to_show, should_follow).await?;
     }
 
     Ok(())
@@ -121,7 +121,7 @@ async fn show_log_file(file_path: &Path, lines: usize, follow: bool) -> Result<(
     }
 
     if follow {
-        info_message!("Following logs in real-time... (Press Ctrl+C to stop)");
+        info_message!("Following logs in real time... (Press Ctrl+C to stop)");
 
         let mut last_size = file_size;
 
@@ -160,18 +160,23 @@ pub async fn otel_start_with_auto_install(
     let api_client = crate::daemon::client::DaemonClient::new(format!("http://{}", config.server));
 
     let otel_config = match api_client.send_info_request().await {
-        Ok(info_response) => {
-            if let Some(inner) = info_response.inner {
+        Ok(pipeline_data) => {
+            if let Some(run_snapshot) = pipeline_data.run_snapshot {
                 info_message!(
                     "Found active run: {} (ID: {})",
-                    inner.run_name,
-                    inner.run_id
+                    run_snapshot.name,
+                    run_snapshot.id
                 );
 
-                let run_id = inner.run_id.clone();
-                let run_name = inner.run_name.clone();
-                let pipeline_name = inner.pipeline_name.clone();
-                let user_id = inner.tags.user_id.unwrap_or_else(|| "unknown".to_string());
+                let run_id = run_snapshot.id.clone();
+                let run_name = run_snapshot.name.clone();
+                let pipeline_name = pipeline_data.name.clone();
+                let user_id = pipeline_data
+                    .tags
+                    .user_id
+                    .as_deref()
+                    .unwrap_or("unknown")
+                    .to_string();
 
                 let config = OtelConfig::with_environment_variables(
                     user_id,
@@ -317,24 +322,24 @@ pub async fn otel_status() -> Result<()> {
     );
 
     if collector.is_running() {
-        let pid_file = TRACER_WORK_DIR.resolve("otelcol.pid");
+        let pid_file = &TRACER_WORK_DIR.otel_pid_file;
         if pid_file.exists() {
-            if let Ok(pid_content) = std::fs::read_to_string(&pid_file) {
+            if let Ok(pid_content) = std::fs::read_to_string(pid_file) {
                 info_message!("  PID: {}", pid_content.trim());
             }
         }
 
-        let stdout_file = TRACER_WORK_DIR.resolve("otelcol.out");
-        let stderr_file = TRACER_WORK_DIR.resolve("otelcol.err");
+        let stdout_file = &TRACER_WORK_DIR.otel_stdout_file;
+        let stderr_file = &TRACER_WORK_DIR.otel_stderr_file;
 
         if stdout_file.exists() {
-            if let Ok(metadata) = std::fs::metadata(&stdout_file) {
+            if let Ok(metadata) = std::fs::metadata(stdout_file) {
                 info_message!("  STDOUT log size: {} bytes", metadata.len());
             }
         }
 
         if stderr_file.exists() {
-            if let Ok(metadata) = std::fs::metadata(&stderr_file) {
+            if let Ok(metadata) = std::fs::metadata(stderr_file) {
                 info_message!("  Collector logs size: {} bytes", metadata.len());
             }
         }

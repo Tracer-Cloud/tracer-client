@@ -15,6 +15,9 @@ const DEBUG_LOG: &str = "debug.log";
 const PROCESS_MATCHES_FILE: &str = "process_matches.txt";
 const STEP_MATCHES_FILE: &str = "step_matches.txt";
 const OTEL_CONFIG_FILE: &str = "otel-config.yaml";
+const OTEL_PID_FILE: &str = "otelcol.pid";
+const OTEL_STDOUT_FILE: &str = "otelcol.out";
+const OTEL_STDERR_FILE: &str = "otelcol.err";
 
 pub static TRACER_WORK_DIR: LazyLock<TracerWorkDir> = LazyLock::new(|| {
     let tmpdir = PathBuf::from("/tmp");
@@ -28,6 +31,9 @@ pub static TRACER_WORK_DIR: LazyLock<TracerWorkDir> = LazyLock::new(|| {
         process_matches_file: path.join(PROCESS_MATCHES_FILE),
         step_matches_file: path.join(STEP_MATCHES_FILE),
         otel_config_file: path.join(OTEL_CONFIG_FILE),
+        otel_pid_file: path.join(OTEL_PID_FILE),
+        otel_stdout_file: path.join(OTEL_STDOUT_FILE),
+        otel_stderr_file: path.join(OTEL_STDERR_FILE),
         path,
         canonical_path: tmpdir.canonicalize().map(|path| path.join("tracer")),
     }
@@ -44,6 +50,9 @@ pub struct TracerWorkDir {
     pub process_matches_file: PathBuf,
     pub step_matches_file: PathBuf,
     pub otel_config_file: PathBuf,
+    pub otel_pid_file: PathBuf,
+    pub otel_stdout_file: PathBuf,
+    pub otel_stderr_file: PathBuf,
 }
 
 impl TracerWorkDir {
@@ -73,6 +82,9 @@ impl TracerWorkDir {
             &self.process_matches_file,
             &self.step_matches_file,
             &self.otel_config_file,
+            &self.otel_pid_file,
+            &self.otel_stdout_file,
+            &self.otel_stderr_file,
         ]
         .iter()
         .try_for_each(|path| {

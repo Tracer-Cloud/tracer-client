@@ -1,6 +1,5 @@
-use crate::client::TracerClient;
 use crate::daemon::state::DaemonState;
-use crate::daemon::structs::{InfoResponse, InnerInfoResponse, OpenTelemetryStatus};
+use crate::daemon::structs::OpenTelemetryStatus;
 use crate::opentelemetry::collector::OtelCollector;
 use axum::extract::State;
 use axum::response::IntoResponse;
@@ -10,35 +9,28 @@ pub const INFO_ENDPOINT: &str = "/info";
 
 pub async fn info(State(state): State<DaemonState>) -> axum::response::Result<impl IntoResponse> {
     let guard = state.get_tracer_client().await;
-    let response = get_info_response(&guard).await;
+    let mut pipeline_data = if let Some(client) = guard {
+        let client = client.lock().await;
+        client.get_pipeline_data().await
+    } else {
+        state.get_pipeline_data().await
+    };
 
-    Ok(Json(response))
+    pipeline_data.opentelemetry_status = get_opentelemetry_status().await;
+
+    Ok(Json(pipeline_data))
 }
 
-pub async fn get_info_response(client: &TracerClient) -> InfoResponse {
-    let pipeline = client.get_run_metadata().read().await.clone();
-    let mut response_inner = InnerInfoResponse::try_from(pipeline).ok();
-
-    if let Some(ref mut inner) = response_inner {
-        inner.opentelemetry_status = get_opentelemetry_status().await;
-    }
-
-    let processes = client.process_watcher.get_monitored_processes().await;
-
-    let tasks = client.process_watcher.get_matched_tasks().await;
-
-    InfoResponse::new(response_inner, processes, tasks)
-}
-
+#[allow(dead_code)]
 async fn get_opentelemetry_status() -> Option<OpenTelemetryStatus> {
     match OtelCollector::new() {
         Ok(collector) => {
             let enabled = collector.is_running();
             let version = collector.get_version();
             let pid = if enabled {
-                let pid_file = crate::utils::workdir::TRACER_WORK_DIR.resolve("otelcol.pid");
+                let pid_file = &crate::utils::workdir::TRACER_WORK_DIR.otel_pid_file;
                 if pid_file.exists() {
-                    std::fs::read_to_string(&pid_file)
+                    std::fs::read_to_string(pid_file)
                         .ok()
                         .and_then(|content| content.trim().parse::<u32>().ok())
                 } else {

@@ -2,7 +2,7 @@ mod run_details;
 use crate::cloud_providers::aws::aws_metadata::get_aws_instance_metadata;
 use crate::cloud_providers::aws::pricing::PricingSource;
 use crate::extracts::metrics::system_metrics_collector::SystemMetricsCollector;
-use crate::process_identification::types::current_run::{PipelineCostSummary, Run};
+use crate::process_identification::types::current_run::{PipelineCostSummary, RunMetadata};
 use crate::process_identification::types::event::attributes::system_metrics::SystemProperties;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
@@ -53,32 +53,29 @@ async fn gather_system_properties(
     }
 }
 
-pub async fn send_start_run_event(
+pub async fn init_run(
     system: &System,
-    pipeline_name: &str,
     pricing_client: &PricingSource,
     run_name: &Option<String>,
-    timestamp: DateTime<Utc>,
-) -> Result<(Run, SystemProperties)> {
-    debug!("Starting new pipeline...");
+) -> Result<(RunMetadata, SystemProperties)> {
+    debug!("Starting new run...");
     let system_properties = gather_system_properties(system, pricing_client).await;
-
+    let timestamp: DateTime<Utc> = Utc::now();
     let cost_summary = system_properties
         .pricing_context
         .as_ref()
         .map(|pricing_context| PipelineCostSummary::new(timestamp, pricing_context));
 
-    let run = Run::with_timestamp_and_cost_summary(
+    let run_data = RunMetadata::new(
         run_name.as_ref().cloned().unwrap_or_else(generate_run_name),
         generate_run_id(),
-        timestamp,
         cost_summary,
     );
 
     info!(
-        "Run name: {}, run id: {}, service name: {} started successfully",
-        run.name, run.id, pipeline_name
+        "Run name: {}, run id: {} started successfully",
+        run_data.name, run_data.id
     );
 
-    Ok((run, system_properties))
+    Ok((run_data, system_properties))
 }

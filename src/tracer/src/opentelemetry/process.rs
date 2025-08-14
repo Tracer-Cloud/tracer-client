@@ -19,7 +19,7 @@ pub struct OtelProcessController {
 impl OtelProcessController {
     pub fn new(binary_path: PathBuf) -> Self {
         let config_path = TRACER_WORK_DIR.resolve("otel-config.yaml");
-        let pid_file = TRACER_WORK_DIR.resolve("otelcol.pid");
+        let pid_file = TRACER_WORK_DIR.otel_pid_file.clone();
 
         Self {
             binary_path,
@@ -385,7 +385,7 @@ impl OtelProcessController {
             if !pids.is_empty() {
                 info_message!("Found orphaned processes using port 8888:");
                 for pid in &pids {
-                    info_message!("  Process PID: {}", pid);
+                    info_message!("Process PID: {}", pid);
                 }
 
                 info_message!("Killing orphaned processes using port 8888...");

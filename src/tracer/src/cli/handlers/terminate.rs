@@ -1,4 +1,5 @@
 use crate::daemon::client::DaemonClient;
+use crate::daemon::server::DaemonServer;
 use crate::opentelemetry::collector::{cleanup_otel_processes, OtelCollector};
 use crate::process_identification::constants::DEFAULT_DAEMON_PORT;
 use crate::utils::workdir::TRACER_WORK_DIR;
@@ -17,6 +18,10 @@ pub(super) fn get_pid() -> Option<String> {
 }
 
 pub async fn terminate(api_client: &DaemonClient) -> bool {
+    if !DaemonServer::is_running() {
+        warning_message!("Daemon server is not running. Nothing to terminate.");
+        return false;
+    }
     if let Err(e) = api_client.send_terminate_request().await {
         error_message!("Failed to send terminate request to the daemon: {e}");
         error_message!(

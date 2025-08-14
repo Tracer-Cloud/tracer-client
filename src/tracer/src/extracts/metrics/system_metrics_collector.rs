@@ -115,22 +115,33 @@ impl SystemMetricsCollector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::process_identification::types::current_run::PipelineMetadata;
+    use crate::daemon::structs::PipelineMetadata;
+    use crate::process_identification::types::current_run::RunMetadata;
+    use tokio::sync::Mutex;
 
     #[tokio::test]
     async fn test_collect_metrics() {
         let system = System::new_all();
 
-        let pipeline = Arc::new(RwLock::new(PipelineMetadata {
-            pipeline_name: "test_pipeline".to_string(),
-            run: None,
+        let pipeline = Arc::new(Mutex::new(PipelineMetadata {
+            name: "test_pipeline".to_string(),
+            run_snapshot: None,
             tags: Default::default(),
             is_dev: true,
+            start_time: Default::default(),
         }));
+
+        let run = RunMetadata {
+            id: "test_run_id".to_string(),
+            name: "test_run_name".to_string(),
+            trace_id: Option::from("test_trace_id".to_string()),
+            start_time: Utc::now(),
+            cost_summary: None,
+        };
 
         let (tx, mut rx) = tokio::sync::mpsc::channel(100);
 
-        let recorder = EventDispatcher::new(pipeline, tx);
+        let recorder = EventDispatcher::new(pipeline, run, tx);
 
         let collector = SystemMetricsCollector::new(recorder, Arc::new(RwLock::new(system)));
 

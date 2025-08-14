@@ -3,7 +3,6 @@ use crate::cli::handlers::{info, otel_start_with_auto_install, terminate};
 use crate::cli::helper::wait;
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
-use crate::daemon::initialization::create_and_run_server;
 use crate::daemon::server::DaemonServer;
 use crate::utils::analytics::types::AnalyticsEventType;
 use crate::utils::system_info::check_sudo;
@@ -39,6 +38,7 @@ pub async fn init(
     if DaemonServer::is_running() {
         warning_message!("Daemon server is already running, trying to terminate it...");
         if !terminate(&api_client).await {
+            error_message!("Failed to terminate the existing daemon. Please check the logs.");
             return Ok(());
         }
     }
@@ -54,7 +54,6 @@ pub async fn init_with(
     confirm: bool,
 ) -> anyhow::Result<()> {
     info_message!("Starting daemon...");
-
     let args = args.finalize(default_pipeline_prefix, confirm).await;
 
     {
@@ -130,19 +129,18 @@ pub async fn init_with(
 
         success_message!("Daemon is ready and responding");
 
-        // Start the OTEL collector before showing info: auto install collector if needed
+        // Always try to start the OTEL collector during init
         if let Err(e) = otel_start_with_auto_install(args.watch_dir.clone(), true).await {
-            warning_message!("Failed to start OpenTelemetry collector: {}", e);
+            error_message!("Failed to start OpenTelemetry collector: {}", e);
+            warning_message!("Continuing without OpenTelemetry collector. You can start it later with 'tracer otel start'");
         }
 
         info(api_client, false).await;
 
         return Ok(());
     }
-
     setup_logging(&args.log_level)?;
-
-    create_and_run_server(args, config).await
+    DaemonServer::new().await.start(args, config).await
 }
 
 fn setup_logging(log_level: &String) -> anyhow::Result<()> {

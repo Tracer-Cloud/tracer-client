@@ -63,10 +63,18 @@ pub enum Command {
     Update,
 
     /// Start a new pipeline run
-    Start,
+    Start {
+        /// Output information in JSON format
+        #[clap(long)]
+        json: bool,
+    },
 
     /// End the current pipeline run
-    End,
+    Stop {
+        /// Also terminate the daemon
+        #[clap(long)]
+        terminate: bool,
+    },
 
     /// Shows the current version of the daemon
     Version,

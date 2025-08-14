@@ -1,59 +1,47 @@
 use crate::daemon::client::DaemonClient;
-use crate::info_message;
-use colored::Colorize;
-use tokio::time::sleep;
-use tracing::debug;
+use tokio::time::{sleep, Duration};
+use tracing::info;
 
 pub(super) async fn wait(api_client: &DaemonClient) -> bool {
-    // Try immediately first
-    match api_client.send_info().await {
-        Ok(resp) => {
-            if resp.status().is_success() {
-                debug!("Daemon responded immediately");
-                return true;
-            }
-            debug!("Got response, retrying: {:?}", resp);
-        }
-        Err(e) => {
-            if !(e.is_timeout() || e.is_connect()) {
-                panic!("Error trying to reach daemon server: {:?}", e)
-            }
-            debug!("Initial connection failed (expected): {:?}", e);
-        }
-    }
-
-    // Use longer intervals to give daemon more time to start (especially with OpenTelemetry)
-    let intervals = [1000, 1000, 2000, 2000, 3000, 5000]; // milliseconds: 1s, 1s, 2s, 2s, 3s, 5s = 14s total
-    let mut total_elapsed = 0;
-
-    for &interval in &intervals {
-        total_elapsed += interval;
-
-        info_message!(
-            "Waiting for daemon to be ready... ({} second{} elapsed)",
-            total_elapsed / 1000,
-            if total_elapsed > 1000 { "s" } else { "" }
+    // Try up to 20 times with increasing delays
+    for attempt in 0..20 {
+        info!(
+            "Attempting to connect to daemon (attempt {}/20)...",
+            attempt + 1
         );
 
-        sleep(std::time::Duration::from_millis(interval)).await;
-
-        match api_client.send_info().await {
-            Ok(resp) => {
-                if resp.status().is_success() {
-                    debug!(
-                        "Daemon responded after {} seconds",
-                        total_elapsed as f64 / 1000.0
-                    );
-                    return true;
-                }
-                debug!("Got response, retrying: {:?}", resp);
+        match api_client.ping().await {
+            Ok(_) => {
+                info!(
+                    "Successfully connected to daemon on attempt {}",
+                    attempt + 1
+                );
+                return true;
             }
             Err(e) => {
+                info!("Connection attempt {} failed: {:?}", attempt + 1, e);
+
+                // If it's not a timeout or connection error, it might be a real error
                 if !(e.is_timeout() || e.is_connect()) {
-                    panic!("Error trying to reach daemon server: {:?}", e)
+                    // On macOS, connection errors are common during startup, so we'll be more lenient
+                    #[cfg(target_os = "macos")]
+                    {
+                        // Continue retrying even for non-timeout errors on macOS
+                    }
+                    #[cfg(not(target_os = "macos"))]
+                    {
+                        panic!("Error trying to reach daemon server: {:?}", e);
+                    }
                 }
             }
         }
+
+        // Delay to account for OTEL installation: start with 1s, then 1.5s, 2s, etc.
+        let delay = Duration::from_millis(1000 + (attempt * 500));
+        info!("Waiting {}ms before next attempt...", delay.as_millis());
+        sleep(delay).await;
     }
+
+    info!("Failed to connect to daemon after 20 attempts");
     false
 }
