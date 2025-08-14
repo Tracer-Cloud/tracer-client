@@ -7,39 +7,32 @@
 //! overwrites.
 use anyhow::{bail, Context, Result};
 use softpath::prelude::*;
-use std::borrow::Cow;
 use std::fmt::{Display, Formatter};
-use std::fs::DirBuilder;
+use std::fs::{self, DirBuilder, File, Permissions};
 use std::io;
 use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
 use std::path::{Path, PathBuf};
+use tempfile::TempDir;
+use tokio::fs::File as AsyncFile;
 
-pub fn ensure_file_can_be_created<P: AsRef<Path>>(file_path: P) -> anyhow::Result<()> {
-    let file_path = file_path.as_ref();
-
-    if let Some(parent) = file_path.parent() {
-        std::fs::create_dir_all(parent).with_context(|| {
-            format!(
-                "Failed to create directory for file: {}",
-                file_path.display()
-            )
-        })?;
-    }
-    Ok(())
+#[derive(Debug)]
+pub enum TrustedDir {
+    /// An already sanitized directory path
+    Sanitized(PathBuf),
+    /// A temporary directory
+    Temp(TempDir),
 }
 
-/// A sanitized directory path
-#[derive(Debug)]
-pub struct TrustedDir(PathBuf);
-
 impl TrustedDir {
-    pub fn home() -> Result<Self> {
-        let path = dirs_next::home_dir().context("failed to get home directory")?;
-        Ok(Self(path.absolute()?))
+    pub fn tempdir() -> Result<Self> {
+        Ok(Self::Temp(tempfile::tempdir()?))
     }
 
-    pub fn as_path(&self) -> Result<&Path> {
-        let path = &self.0;
+    pub fn as_path(&self) -> Result<PathBuf> {
+        let path = match self {
+            Self::Sanitized(path) => path.to_owned(),
+            Self::Temp(temp_dir) => temp_dir.path().absolute()?,
+        };
         if !path.is_dir()? {
             bail!(io::Error::new(
                 io::ErrorKind::NotADirectory,
@@ -56,9 +49,9 @@ impl TrustedDir {
     {
         let path = self.as_path()?.join(subpath.try_into()?.into_path());
         if path.exists()? {
-            Ok(TrustedFile::Sanitized(path.absolute()?))
+            Ok(TrustedFile(path.absolute()?))
         } else {
-            Ok(TrustedFile::Sanitized(path))
+            Ok(TrustedFile(path))
         }
     }
 
@@ -71,7 +64,7 @@ impl TrustedDir {
         if !path.exists()? {
             ensure_dir_with_permissions(&path)?;
         }
-        Ok(TrustedDir(path.absolute()?))
+        Ok(TrustedDir::Sanitized(path.absolute()?))
     }
 }
 
@@ -82,7 +75,7 @@ impl TryFrom<&str> for TrustedDir {
         if !path.exists()? {
             ensure_dir_with_permissions(&path)?;
         }
-        Ok(TrustedDir(path.absolute()?))
+        Ok(TrustedDir::Sanitized(path.absolute()?))
     }
 }
 
@@ -131,96 +124,46 @@ fn ensure_dir_with_permissions(path: &PathBuf) -> Result<()> {
 
 impl Display for TrustedDir {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        self.0.display().fmt(f)
+        match self {
+            Self::Sanitized(path) => path.display().fmt(f),
+            Self::Temp(temp) => temp.path().display().fmt(f),
+        }
     }
 }
 
+/// An arbitrary path that is created and sanitized at runtime.
 #[derive(Clone, Debug)]
-pub enum TrustedFile {
-    /// Contains contents of file read at compile time from location inside the codebase
-    /// (e.g., using `include_str!` or `include_bytes!`).
-    Embedded(&'static str),
-    /// A static path to a file that is within the src hierarchy of this crate - should only
-    /// be used for testing.
-    Src(&'static str),
-    /// An arbitrary path that is created and sanitized at runtime.
-    Sanitized(PathBuf),
-}
+pub struct TrustedFile(PathBuf);
 
 impl TrustedFile {
-    pub const fn from_embedded_str(contents: &'static str) -> Self {
-        Self::Embedded(contents)
+    pub fn as_path(&self) -> &Path {
+        &self.0
     }
 
-    pub const fn from_src_path(path: &'static str) -> Self {
-        TrustedFile::Src(path)
+    /// SAFETY: we only open sanitized paths
+    pub fn open(&self) -> Result<File> {
+        Ok(File::open(self.as_path())?) // nosemgrep: rust.actix.path-traversal.tainted-path.tainted-path
     }
 
-    pub fn as_path(&self) -> Result<Cow<Path>> {
-        match self {
-            Self::Embedded(_) => bail!(io::Error::new(
-                io::ErrorKind::PermissionDenied,
-                "no physical path for embedded content",
-            )),
-            Self::Src(path) => Ok(Cow::Owned(Self::src_relative_path(path)?)),
-            Self::Sanitized(path) => Ok(Cow::Borrowed(path)),
-        }
+    pub async fn create_async(&self) -> Result<AsyncFile> {
+        Ok(AsyncFile::create(&self.as_path()).await?)
     }
 
-    fn src_relative_path(path: &str) -> Result<PathBuf> {
-        if !path.starts_with("src") {
-            bail!(io::Error::new(
-                io::ErrorKind::PermissionDenied,
-                "not crate-relative file"
-            ))
-        }
-        Ok(path.into_path()?)
-    }
-
-    pub fn tracer_binary() -> Result<Self> {
-        // the install location of the tracer binary - currently this is non-modifyable
-        const TRACER_BINARY_PATH: &str = "/usr/local/bin/tracer";
-        Ok(TrustedFile::Sanitized(TRACER_BINARY_PATH.absolute()?))
-    }
-
-    pub fn exists(&self) -> Result<bool> {
-        match self {
-            Self::Embedded(_) => Ok(false),
-            Self::Src(path) => Ok(Self::src_relative_path(path)?.exists()?),
-            Self::Sanitized(path) => Ok(path.exists()?),
-        }
-    }
-
-    pub fn read_to_string(&self) -> Result<String> {
-        match self {
-            Self::Embedded(contents) => Ok(contents.to_string()),
-            Self::Src(path) => Ok(Self::src_relative_path(path)?.read_to_string()?),
-            Self::Sanitized(path) => Ok(path.read_to_string()?),
-        }
-    }
-
-    pub fn write(&self, contents: &str) -> Result<()> {
-        match self {
-            Self::Embedded(_) => bail!(io::Error::new(
-                io::ErrorKind::PermissionDenied,
-                "cannot write to an embedded file",
-            )),
-            Self::Src(_) => bail!(io::Error::new(
-                io::ErrorKind::PermissionDenied,
-                "cannot overwrite a src-relative file",
-            )),
-            Self::Sanitized(path) => Ok(path.write_string(contents)?),
-        }
+    pub fn copy_to_with_permissions(
+        &self,
+        dest: &TrustedFile,
+        permissions: Permissions,
+    ) -> Result<()> {
+        let dest_path = dest.as_path();
+        self.as_path().copy_to(dest_path)?;
+        fs::set_permissions(dest_path, permissions)?;
+        Ok(())
     }
 }
 
 impl Display for TrustedFile {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Embedded(_) => f.write_str("<embedded>"),
-            Self::Src(path) => f.write_str(path),
-            Self::Sanitized(path) => path.display().fmt(f),
-        }
+        self.0.display().fmt(f)
     }
 }
 

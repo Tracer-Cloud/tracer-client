@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 use std::{fs, thread};
 use tempfile::TempDir;
-use tracer_common::secure::spawn::*;
+use tracer::utils::spawn::*;
 
 #[derive(Parser, Clone)]
 #[clap(name = "tracer-common")]

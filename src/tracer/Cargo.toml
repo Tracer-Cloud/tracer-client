@@ -9,7 +9,6 @@ default-run = "tracer"
 build = "build.rs"
 
 [dependencies]
-tracer-common.workspace = true
 tracer_ebpf.workspace = true
 
 anyhow.workspace = true
@@ -37,6 +36,7 @@ git2.workspace = true
 itertools.workspace = true
 log.workspace = true
 mockall.workspace = true
+nix.workspace = true
 octocrab.workspace = true
 percent-encoding.workspace = true
 rand.workspace = true
@@ -48,6 +48,7 @@ serde-query.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 shlex.workspace = true
+softpath.workspace = true
 sqlx.workspace = true
 sysinfo.workspace = true
 termion.workspace = true
@@ -62,6 +63,8 @@ uuid.workspace = true
 which.workspace = true
 yaml-rust2.workspace = true
 
+tempfile = { workspace = true, optional = true }
+
 [dev-dependencies]
 dotenvy.workspace = true
 pretty_assertions_sorted.workspace = true
@@ -72,3 +75,15 @@ uuid.workspace = true
 
 [build-dependencies]
 built.workspace = true
+
+[features]
+test-bins = ["dep:tempfile"]
+
+[[bin]]
+name = "tracer"
+path = "src/main.rs"
+
+[[bin]]
+name = "tracer-test-spawn"
+path = "tests/bin/test-spawn.rs"
+required-features = ["test-bins"]

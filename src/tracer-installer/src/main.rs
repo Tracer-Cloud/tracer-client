@@ -1,5 +1,6 @@
 mod checks;
 mod constants;
+mod fs;
 mod installer;
 mod message;
 mod sentry;
