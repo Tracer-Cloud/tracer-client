@@ -7,7 +7,7 @@ use std::os::unix::fs::MetadataExt;
 use std::path::{self, Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::LazyLock;
-use std::{env, io, os};
+use std::{env, io};
 
 // TODO: implement code signature verification
 
