@@ -46,9 +46,11 @@ pub async fn test(
     }
 
     // Finalize test args
-    let (init_args, pipeline) = args.finalize();
+    let (mut init_args, pipeline) = args.finalize();
     let default_pipeline_prefix = format!("test-{}", pipeline.name());
     let confirm = init_args.interactive_prompts != PromptMode::None;
+
+    init_args.watch_dir = Some("/tmp/tracer".to_string());
 
     // init tracer run
     crate::cli::handlers::init::init_with(
