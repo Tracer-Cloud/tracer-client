@@ -7,8 +7,6 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-tracer-common.workspace = true
-
 anyhow.workspace = true
 async-trait.workspace = true
 clap.workspace = true
@@ -24,8 +22,10 @@ reqwest.workspace = true
 rustls.workspace = true
 sentry.workspace = true
 serde.workspace = true
+softpath.workspace = true
 sysinfo.workspace = true
 tar.workspace = true
 tempfile.workspace = true
 tokio.workspace = true
 tokio-retry.workspace = true
+url.workspace = true

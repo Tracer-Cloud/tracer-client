@@ -7,13 +7,11 @@ use crate::daemon::server::DaemonServer;
 use crate::utils::analytics::types::AnalyticsEventType;
 use crate::utils::system_info::check_sudo;
 use crate::utils::workdir::TRACER_WORK_DIR;
-use crate::utils::{analytics, Sentry};
+use crate::utils::{analytics, spawn, Sentry};
 use crate::{error_message, info_message, success_message, warning_message};
 use anyhow::Context;
 use colored::Colorize;
 use serde_json::Value;
-use std::fs::File;
-use std::process::{Command, Stdio};
 use tracing_appender::rolling;
 use tracing_subscriber::fmt::time::SystemTime;
 use tracing_subscriber::layer::SubscriberExt;
@@ -72,48 +70,42 @@ pub async fn init_with(
     if !args.no_daemonize {
         DaemonServer::cleanup();
 
-        // Serialize the finalized args to pass to the spawned process
-        let current_exe = std::env::current_exe()?;
-
         info_message!("Spawning child process...");
 
-        let mut cmd = Command::new(&current_exe);
-        cmd.arg("init")
-            .arg("--no-daemonize")
-            .arg("--interactive-prompts")
-            .arg("none")
-            .arg("--pipeline-name")
-            .arg(&args.pipeline_name)
-            .arg("--environment")
-            .arg(args.tags.environment.as_deref().unwrap_or(""))
-            .arg("--environment-type")
-            .arg(args.tags.environment_type.as_deref().unwrap_or(""))
-            .arg("--pipeline-type")
-            .arg(args.tags.pipeline_type.as_deref().unwrap_or(""))
-            .arg("--user-id")
-            .arg(args.tags.user_id.as_deref().unwrap())
-            .args(if args.dev { vec!["--dev"] } else { vec![] })
-            .args(if args.force_procfs {
-                vec!["--force-procfs"]
-            } else {
-                vec![]
-            })
-            .arg("--log-level")
-            .arg(&args.log_level);
-
-        // Add environment variables for OTEL if provided
-        for (key, value) in &args.environment_variables {
-            cmd.arg("--env-var").arg(format!("{}={}", key, value));
+        let mut spawn_args = vec![
+            "init",
+            "--no-daemonize",
+            "--pipeline-name",
+            &args.pipeline_name,
+            "--environment",
+            args.tags.environment.as_deref().unwrap_or(""),
+            "--pipeline-type",
+            args.tags.pipeline_type.as_deref().unwrap_or(""),
+            "--user-id",
+            args.tags.user_id.as_deref().unwrap(),
+            "--log-level",
+            &args.log_level,
+        ];
+        if args.dev {
+            spawn_args.push("--dev");
         }
+        if args.force_procfs {
+            spawn_args.push("--force-procfs");
+        }
+        // Add environment variables for OTEL if provided
+        let env_args = args.environment_variables.iter().fold(
+            Vec::with_capacity(args.environment_variables.len() * 2),
+            |mut env_args, (key, value)| {
+                env_args.push("--env-var".to_string());
+                env_args.push(format!("{}={}", key, value));
+                env_args
+            },
+        );
+        spawn_args.extend(env_args.iter().map(|s| s.as_str()));
+        let child_id = spawn::spawn_child(spawn_args.as_slice())?;
 
-        let child = cmd
-            .stdin(Stdio::null())
-            .stdout(Stdio::from(File::create(&TRACER_WORK_DIR.stdout_file)?))
-            .stderr(Stdio::from(File::create(&TRACER_WORK_DIR.stderr_file)?))
-            .spawn()?;
-
-        std::fs::write(&TRACER_WORK_DIR.pid_file, child.id().to_string())?;
-        info_message!("Daemon process spawned (PID: {})", child.id());
+        std::fs::write(&TRACER_WORK_DIR.pid_file, child_id.to_string())?;
+        success_message!("Daemon started successfully.");
 
         // Wait for the daemon to be ready, then show info
         analytics::spawn_event(
