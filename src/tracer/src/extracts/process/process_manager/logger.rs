@@ -94,7 +94,7 @@ impl ProcessLogger {
         let display_name = target;
         let Some(system_process) = system_process else {
             // Process no longer exists
-            debug!("Process({}) wasn't found, process name: {}", process.pid, process.comm);
+            debug!("Process wasn't found, process name: {}", process.pid, process.comm);
             return Ok(ProcessResult::NotFound);
         };
 
