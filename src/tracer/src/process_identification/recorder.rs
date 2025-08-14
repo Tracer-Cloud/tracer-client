@@ -209,6 +209,7 @@ mod tests {
             tags: Default::default(),
             is_dev: true,
             start_time: Default::default(),
+            opentelemetry_status: None,
         }));
         (pipeline, run)
     }

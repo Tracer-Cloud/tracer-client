@@ -155,7 +155,6 @@ jobs:
 
           aws s3 cp release-files/tracer-installer-${{ matrix.target }}.tar.gz s3://tracer-installer-releases/${{ github.head_ref || github.ref_name }}/tracer-installer-${{ matrix.target }}.tar.gz
 
-
   build-and-release-amazon-linux:
     permissions: write-all
     runs-on: ubuntu-latest
@@ -165,9 +164,9 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          yum update -y
-          yum groupinstall -y "Development Tools"
-          yum  install -y kernel-devel kernel-headers clang llvm libbpf-devel
+          yum update -y --allowerasing
+          yum groupinstall -y "Development Tools" --allowerasing
+          yum install -y kernel-devel kernel-headers clang llvm libbpf-devel --allowerasing
 
       - name: Install Rust
         run: |

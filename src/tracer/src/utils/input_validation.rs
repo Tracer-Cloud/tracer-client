@@ -176,7 +176,7 @@ pub fn get_validated_input(
         match validate_input_string(&input, field_name) {
             Ok(_) => return input,
             Err(error_msg) => {
-                eprintln!("❌ {}", error_msg);
+                eprintln!("{}", error_msg);
                 eprintln!("Please enter a valid value without control characters, escape characters, path separators.");
             }
         }

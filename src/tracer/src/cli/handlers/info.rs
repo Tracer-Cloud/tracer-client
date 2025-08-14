@@ -52,6 +52,21 @@ impl InfoDisplay {
             "version": Version::current().to_string(),
         });
 
+        // OpenTelemetry status
+        if let Some(otel_status) = &pipeline.opentelemetry_status {
+            json["opentelemetry"] = serde_json::json!({
+                "enabled": otel_status.enabled,
+                "version": otel_status.version,
+                "pid": otel_status.pid,
+                "endpoint": otel_status.endpoint,
+            });
+        } else {
+            json["opentelemetry"] = serde_json::json!({
+                "enabled": false,
+                "status": "unknown"
+            });
+        }
+
         // Pipeline info
         json["pipeline"] = serde_json::json!({
             "status": format!("Running for {}", pipeline.formatted_runtime()),
@@ -99,6 +114,8 @@ impl InfoDisplay {
         formatter.add_header("Tracer CLI");
         formatter.add_empty_line();
         formatter.add_field("Version", &Version::current().to_string(), "bold");
+        formatter.add_field("Stage", pipeline.stage(), "bold");
+
         formatter.add_empty_line();
         formatter.add_section_header("Pipeline details");
         formatter.add_empty_line();
@@ -115,6 +132,33 @@ impl InfoDisplay {
         formatter.add_field("Environment", pipeline_environment, "yellow");
         formatter.add_field("User", pipeline_user, "magenta");
         formatter.add_field("Stage", pipeline.stage(), "yellow");
+
+        if let Some(otel_status) = &pipeline.opentelemetry_status {
+            let status_text = if otel_status.enabled {
+                "Running"
+            } else {
+                "Stopped"
+            };
+            let status_color = if otel_status.enabled {
+                "active"
+            } else {
+                "inactive"
+            };
+            formatter.add_status_field("Logging status", status_text, status_color);
+
+            if let Some(version) = &otel_status.version {
+                formatter.add_field("Version", version, "cyan");
+            }
+            if let Some(pid) = otel_status.pid {
+                formatter.add_field("PID", &pid.to_string(), "white");
+            }
+            if let Some(endpoint) = &otel_status.endpoint {
+                formatter.add_field("Endpoint", endpoint, "yellow");
+            }
+        } else {
+            formatter.add_status_field("Logging status", "Unknown", "inactive");
+        }
+
         formatter.add_empty_line();
         if let Some(run_snapshot) = &pipeline.run_snapshot {
             formatter.add_section_header("Run details");

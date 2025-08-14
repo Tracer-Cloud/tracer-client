@@ -6,7 +6,6 @@ use serde_json::{json, Value};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Config {
-    pub api_key: String,
     pub process_polling_interval_ms: u64,
     pub batch_submission_interval_ms: u64,
     pub batch_submission_retries: u64,

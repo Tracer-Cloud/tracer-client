@@ -17,8 +17,12 @@ fn trigger_yml_files_from_dir(dir_path: &str) {
 
 fn main() {
     // useful to trigger changes in the cargo build on the yml files
+    // process identification rules
     trigger_yml_files_from_dir("src/process_identification/target_pipeline/yml_rules");
     trigger_yml_files_from_dir("src/process_identification/target_process/yml_rules");
+
+    // opentelemetry config
+    trigger_yml_files_from_dir("src/tracer/src/opentelemetry");
 
     // write the build-time information to the file
     built::write_built_file().expect("Failed to acquire build-time information");

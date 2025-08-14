@@ -1,5 +1,5 @@
 use crate::cli::handlers::init::arguments::TracerCliInitArgs;
-use crate::cli::handlers::{info, terminate};
+use crate::cli::handlers::{info, otel_start_with_auto_install, terminate};
 use crate::cli::helper::wait;
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
@@ -77,8 +77,8 @@ pub async fn init_with(
 
         info_message!("Spawning child process...");
 
-        let child = Command::new(current_exe)
-            .arg("init")
+        let mut cmd = Command::new(&current_exe);
+        cmd.arg("init")
             .arg("--no-daemonize")
             .arg("--interactive-prompts")
             .arg("none")
@@ -99,25 +99,42 @@ pub async fn init_with(
                 vec![]
             })
             .arg("--log-level")
-            .arg(args.log_level)
+            .arg(&args.log_level);
+
+        // Add environment variables for OTEL if provided
+        for (key, value) in &args.environment_variables {
+            cmd.arg("--env-var").arg(format!("{}={}", key, value));
+        }
+
+        let child = cmd
             .stdin(Stdio::null())
             .stdout(Stdio::from(File::create(&TRACER_WORK_DIR.stdout_file)?))
             .stderr(Stdio::from(File::create(&TRACER_WORK_DIR.stderr_file)?))
             .spawn()?;
 
         std::fs::write(&TRACER_WORK_DIR.pid_file, child.id().to_string())?;
-        success_message!("Daemon started successfully.");
+        info_message!("Daemon process spawned (PID: {})", child.id());
 
-        // Wait a moment for the daemon to start, then show info
+        // Wait for the daemon to be ready, then show info
         analytics::spawn_event(
             args.user_id.clone(),
             AnalyticsEventType::DaemonStartAttempted,
             None,
         );
+
         if !wait(api_client).await {
             error_message!("Daemon is not responding, please check logs");
             return Ok(());
         }
+
+        success_message!("Daemon is ready and responding");
+
+        // Always try to start the OTEL collector during init
+        if let Err(e) = otel_start_with_auto_install(args.watch_dir.clone(), true).await {
+            error_message!("Failed to start OpenTelemetry collector: {}", e);
+            warning_message!("Continuing without OpenTelemetry collector. You can start it later with 'tracer otel start'");
+        }
+
         info(api_client, false).await;
 
         return Ok(());

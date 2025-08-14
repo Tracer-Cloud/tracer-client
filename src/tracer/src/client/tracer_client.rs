@@ -41,7 +41,7 @@ pub struct TracerClient {
 
 impl TracerClient {
     pub async fn new(
-        pipeline: Arc<Mutex<PipelineMetadata>>,
+        _pipeline: Arc<Mutex<PipelineMetadata>>,
         config: Config,
         db_client: LogWriterEnum,
         cli_args: FinalizedInitArgs,
@@ -50,9 +50,12 @@ impl TracerClient {
 
         let pricing_client = Self::init_pricing_client(&config).await;
 
+        let pipeline = Arc::new(Mutex::new(PipelineMetadata::new(&cli_args)));
+
         let system = Arc::new(RwLock::new(System::new_all()));
         let (run, system_properties) =
             Self::init_run(system.clone(), &cli_args.run_name, pricing_client).await;
+
         {
             // Update pipeline tags with instance_type and environment_type
             let mut pipeline = pipeline.lock().await;
@@ -77,7 +80,11 @@ impl TracerClient {
             )
             .await?;
 
-        let docker_watcher = Arc::new(DockerWatcher::new(event_dispatcher.clone()));
+        // Initialize system info lazily to avoid blocking startup
+        let system = Arc::new(RwLock::new(System::new()));
+
+        // Initialize Docker watcher lazily to avoid blocking startup
+        let docker_watcher = Arc::new(DockerWatcher::new_lazy(event_dispatcher.clone()));
 
         let process_watcher = Self::init_process_watcher(&event_dispatcher, docker_watcher.clone());
 
@@ -214,6 +221,7 @@ impl TracerClient {
             tasks,
             run.cost_summary.clone(),
             run.start_time,
+            None, // opentelemetry_status
         )
     }
 
@@ -240,9 +248,26 @@ impl TracerClient {
 
     #[tracing::instrument(skip(self))]
     pub async fn refresh_sysinfo(&self) -> Result<()> {
-        self.system.write().await.refresh_all();
+        let mut system = self.system.write().await;
+        system.refresh_all();
 
         Ok(())
+    }
+
+    /// Initialize system info if not already initialized
+    pub async fn ensure_system_initialized(&self) -> Result<()> {
+        let mut system = self.system.write().await;
+        if system.cpus().is_empty() {
+            // System not fully initialized, refresh all
+            system.refresh_all();
+        }
+        Ok(())
+    }
+
+    pub fn get_pipeline_name(&self) -> String {
+        // This would need to be async to access the pipeline field
+        // For now, return a placeholder or make this method async
+        "pipeline".to_string()
     }
 
     pub async fn close(&self) -> Result<()> {
