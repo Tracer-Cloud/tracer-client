@@ -136,21 +136,15 @@ impl BoxFormatter {
     }
 
     pub fn add_status_field(&mut self, label: &str, value: &str, status: &str) {
-        let (status_label, color) = match status {
-            "active" => ("[ACTIVE]", "green"),
-            "inactive" => ("[INACTIVE]", "red"),
-            "warning" => ("[WARNING]", "yellow"),
-            _ => ("[INFO]", "blue"),
+        let colored_value = match status {
+            "active" => value.green(),
+            "inactive" => value.red(),
+            "warning" => value.yellow(),
+            "info" => value.cyan(),
+            _ => value.normal(),
         };
 
-        writeln!(
-            &mut self.output,
-            "│ {:<20} │ {} {}  ",
-            label,
-            status_label.color(color),
-            value
-        )
-        .unwrap();
+        writeln!(&mut self.output, "│ {:<20} │ {}  ", label, colored_value).unwrap();
     }
 
     pub fn add_empty_line(&mut self) {

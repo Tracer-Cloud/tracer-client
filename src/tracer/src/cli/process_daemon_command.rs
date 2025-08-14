@@ -23,6 +23,11 @@ pub async fn process_daemon_command(command: Command, config: Config) {
         Command::Terminate => {
             let _ = handlers::terminate(&api_client).await;
         }
+        Command::Otel { command } => {
+            if let Err(e) = handlers::handle_otel_command(command).await {
+                warning_message!("Failed to execute OTel command: {}", e);
+            }
+        }
         _ => {
             warning_message!("Command is not implemented yet.");
         }

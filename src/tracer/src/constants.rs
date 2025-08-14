@@ -1,7 +1,6 @@
 use crate::cloud_providers::aws::types::aws_region::AwsRegion;
 use crate::cloud_providers::aws::types::aws_region::AwsRegion::UsEast2;
 
-pub const DEFAULT_API_KEY: &str = "EAjg7eHtsGnP3fTURcPz1";
 pub const PROCESS_POLLING_INTERVAL_MS: u64 = 5;
 pub const BATCH_SUBMISSION_INTERVAL_MS: u64 = 5000;
 pub const BATCH_SUBMISSION_RETRIES: u64 = 3;
@@ -19,3 +18,4 @@ pub const AWS_REGION: AwsRegion = UsEast2;
 
 pub const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics-supabase";
 pub const TRACER_SANDBOX_URL: &str = "https://sandbox.tracer.cloud";
+pub const OTEL_FORWARD_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/otel-forward";

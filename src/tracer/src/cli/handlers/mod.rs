@@ -1,6 +1,8 @@
 mod cleanup_port;
 mod info;
 mod init;
+mod logs;
+mod otel;
 mod start;
 mod stop;
 mod terminate;
@@ -13,6 +15,8 @@ pub(super) use cleanup_port::cleanup_port;
 pub(super) use info::info;
 pub use init::arguments as init_arguments;
 pub(super) use init::init;
+pub(super) use logs::{logs, otel_start_with_auto_install};
+pub(super) use otel::handle_otel_command;
 pub(super) use start::start;
 pub(super) use stop::stop;
 pub(super) use terminate::terminate;

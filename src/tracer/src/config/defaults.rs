@@ -2,8 +2,8 @@ use crate::cloud_providers::aws::config::AwsConfig;
 use crate::config::Config;
 use crate::constants::{
     AWS_REGION, BATCH_SUBMISSION_INTERVAL_MS, BATCH_SUBMISSION_RETRIES,
-    BATCH_SUBMISSION_RETRY_DELAY_MS, DEFAULT_API_KEY, EVENT_FORWARD_ENDPOINT_DEV,
-    EVENT_FORWARD_ENDPOINT_PROD, PROCESS_METRICS_SEND_INTERVAL_MS, PROCESS_POLLING_INTERVAL_MS,
+    BATCH_SUBMISSION_RETRY_DELAY_MS, EVENT_FORWARD_ENDPOINT_DEV, EVENT_FORWARD_ENDPOINT_PROD,
+    PROCESS_METRICS_SEND_INTERVAL_MS, PROCESS_POLLING_INTERVAL_MS,
 };
 use crate::process_identification::constants::DEFAULT_DAEMON_PORT;
 
@@ -27,7 +27,6 @@ fn get_aws_default_profile() -> String {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            api_key: DEFAULT_API_KEY.to_string(),
             process_polling_interval_ms: PROCESS_POLLING_INTERVAL_MS,
             batch_submission_interval_ms: BATCH_SUBMISSION_INTERVAL_MS,
             batch_submission_retries: BATCH_SUBMISSION_RETRIES,

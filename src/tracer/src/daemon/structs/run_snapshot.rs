@@ -1,4 +1,5 @@
 use crate::constants::DASHBOARD_BASE;
+use crate::daemon::structs::OpenTelemetryStatus;
 use crate::process_identification::types::current_run::PipelineCostSummary;
 use chrono::{DateTime, TimeDelta, Utc};
 use itertools::Itertools;
@@ -23,6 +24,7 @@ impl RunSnapshot {
         tasks: HashMap<String, usize>,
         cost_summary: Option<PipelineCostSummary>,
         start_time: DateTime<Utc>,
+        _opentelemetry_status: Option<OpenTelemetryStatus>,
     ) -> Self {
         Self {
             name,
