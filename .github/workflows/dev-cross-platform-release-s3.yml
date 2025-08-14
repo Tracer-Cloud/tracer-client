@@ -165,8 +165,8 @@ jobs:
       - name: Install dependencies
         run: |
           yum update -y --allowerasing
-          yum groupinstall -y "Development Tools"
-          yum install -y kernel-devel kernel-headers clang llvm libbpf-devel
+          yum groupinstall -y "Development Tools" --allowerasing
+          yum install -y kernel-devel kernel-headers clang llvm libbpf-devel --allowerasing
 
       - name: Install Rust
         run: |
