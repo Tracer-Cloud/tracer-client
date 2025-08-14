@@ -93,14 +93,18 @@ pub async fn init_with(
             spawn_args.push("--force-procfs");
         }
         // Add environment variables for OTEL if provided
-        for (key, value) in &args.environment_variables {
-            spawn_args.push("--env-var");
-            spawn_args.push(&format!("{}={}", key, value));
-        }
-
+        let env_args = args.environment_variables.iter().fold(
+            Vec::with_capacity(args.environment_variables.len() * 2),
+            |mut env_args, (key, value)| {
+                env_args.push("--env-var".to_string());
+                env_args.push(format!("{}={}", key, value));
+                env_args
+            },
+        );
+        spawn_args.extend(env_args.iter().map(|s| s.as_str()));
         let child_id = spawn::spawn_child(spawn_args.as_slice())?;
 
-        std::fs::write(&TRACER_WORK_DIR.pid_file, child.id().to_string())?;
+        std::fs::write(&TRACER_WORK_DIR.pid_file, child_id.to_string())?;
         success_message!("Daemon started successfully.");
 
         // Wait for the daemon to be ready, then show info
