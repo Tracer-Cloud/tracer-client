@@ -41,7 +41,7 @@ jobs:
         uses: actions/checkout@v4.1.4
         with:
           submodules: recursive # This will fetch all submodules recursively
-          fetch-depth: 0 # Fetch all history for versioning
+          fetch-depth: 1 # Shallow clone is sufficient and faster
 
       - name: Update version in Cargo.toml
         run: |
@@ -72,36 +72,36 @@ jobs:
 
       - name: Cache Rust dependencies
         id: cache-deps
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/bin/
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-          key: cargo-deps-${{ matrix.target }}-stable-v1
+          key: cargo-deps-${{ matrix.target }}-stable-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             cargo-deps-${{ matrix.target }}-stable-
 
       - name: Cache build artifacts
         id: cache-build
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             target/
-          key: cargo-build-${{ matrix.target }}-stable-${{ hashFiles('Cargo.lock') }}
+          key: cargo-build-${{ matrix.target }}-stable-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             cargo-build-${{ matrix.target }}-stable-
 
       - name: Install build dependencies
         run: |
-          rustup toolchain install nightly-2025-04-15 --component rust-src
-
-           if [[ "${{ matrix.runner }}" == *"ubuntu"* ]]; then
-            # Install necessary eBPF dependencies for Linux
-            sudo apt-get update
-            sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm libelf-dev
+          if [[ "${{ matrix.runner }}" == *"ubuntu"* ]]; then
+              rustup toolchain install nightly-2025-04-15 --component rust-src
+              sudo apt-get update
+              sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm libelf-dev
           fi
+
+
 
       # Verify submodules are properly loaded
       - name: Verify submodule content
@@ -125,7 +125,10 @@ jobs:
           fi
 
       - name: Build the binary
-        run: cargo build --release --target ${{ matrix.target }}
+        env:
+          CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+          CARGO_INCREMENTAL: "0"
+        run: cargo build --release --target ${{ matrix.target }} -p tracer -p tracer-installer
 
       - name: Prepare binary for release
         run: |
@@ -162,11 +165,23 @@ jobs:
       image: amazonlinux:2023
 
     steps:
+      - name: Cache Rust dependencies (Amazon Linux)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: amazon-linux-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            amazon-linux-cargo-
+
       - name: Install dependencies
         run: |
-          yum update -y --allowerasing
-          yum groupinstall -y "Development Tools" --allowerasing
-          yum install -y kernel-devel kernel-headers clang llvm libbpf-devel --allowerasing
+            yum update -y --allowerasing
+            yum groupinstall -y "Development Tools" --allowerasing
+            yum install -y kernel-devel kernel-headers clang llvm libbpf-devel --allowerasing
 
       - name: Install Rust
         run: |
@@ -175,6 +190,8 @@ jobs:
           source $HOME/.cargo/env
           rustup target add x86_64-unknown-linux-gnu
           rustup toolchain install nightly-2025-04-15 --component rust-src
+
+
 
       - name: Check out repository with submodules
         uses: actions/checkout@v4.1.4
@@ -193,19 +210,18 @@ jobs:
           TIME=$(date +'%H%M')
           # Create new version string
           NEW_VERSION="${DATE}+${TIME}"
-          # Update version in Cargo.toml (compatible with both macOS and Linux)
-          if [[ "${{ matrix.runner }}" == *"macos"* ]]; then
-            sed -i '' "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
-          else
-            sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
-          fi
+          # Update version in Cargo.toml
+          sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
           # Print the new version for verification
           echo "Updated version to: ${NEW_VERSION}"
 
       - name: Build the binary
+        env:
+          CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+          CARGO_INCREMENTAL: "0"
         run: |
           source $HOME/.cargo/env
-          cargo build --release
+          cargo build --release -p tracer
 
       - name: Prepare binary for release
         run: |
