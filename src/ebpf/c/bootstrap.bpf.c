@@ -171,7 +171,7 @@ fill_sched_process_exec(struct event *e,
     {
       if (j >= num_keys)
         break;
-      if (e->env_found_mask & (1u << j))
+      if (e->sched__sched_process_exec__payload.env_found_mask & (1u << j))
         continue;
 
       int klen = key_lens[j];
@@ -192,8 +192,8 @@ fill_sched_process_exec(struct event *e,
         if (c == '\0')
           break;
       }
-      e->env_values[j][VAL_MAX_LEN - 1] = '\0';
-      e->env_found_mask |= (1u << j);
+      e->sched__sched_process_exec__payload.env_values[j][VAL_MAX_LEN - 1] = '\0';
+      e->sched__sched_process_exec__payload.env_found_mask |= (1u << j);
       found++;
     }
 
