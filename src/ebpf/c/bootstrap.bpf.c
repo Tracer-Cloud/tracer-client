@@ -171,7 +171,7 @@ fill_sched_process_exec(struct event *e,
     {
       if (j >= num_keys)
         break;
-      if (e->found_mask & (1u << j))
+      if (e->env_found_mask & (1u << j))
         continue;
 
       int klen = key_lens[j];
