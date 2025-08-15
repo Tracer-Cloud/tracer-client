@@ -72,7 +72,7 @@ impl TrustedDir {
     where
         R: TryInto<RelativePath, Error = anyhow::Error>,
     {
-        TrustedFile::join(&self, subpath)
+        TrustedFile::join(self, subpath)
     }
 
     /// Creates a sanitized path for a directory. The directory is created if it doesn't exist.
@@ -96,14 +96,14 @@ pub fn ensure_dir_with_permissions(path: &PathBuf, permissions: Option<&str>) ->
     }
 
     if let Some(permissions) = permissions {
-        let mode = u32::from_str_radix(permissions, 8).expect("invalid octal number");
+        let target_mode = u32::from_str_radix(permissions, 8).expect("invalid octal number");
         if path.exists()? {
             // Directory exists, check if permissions are what we want
             match fs::metadata(path) {
                 Ok(metadata) => {
                     let perms = metadata.permissions();
-                    let mode = perms.mode() & mode; // Get only permission bits
-                    if mode != mode {
+                    let mode = perms.mode() & target_mode; // Get only permission bits
+                    if mode != target_mode {
                         // Permissions are not what we want, try to fix them
                         let mut new_perms = perms;
                         new_perms.set_mode(mode);
@@ -127,12 +127,12 @@ pub fn ensure_dir_with_permissions(path: &PathBuf, permissions: Option<&str>) ->
         } else {
             // Directory doesn't exist, create it with 777 permissions
             let mut builder = DirBuilder::new();
-            builder.mode(mode);
+            builder.mode(target_mode);
             builder.recursive(true);
             builder.create(path)
                 .with_context(|| format!(
                     "Failed to create working directory: {:?}. Please run: sudo mkdir -p {:?} && sudo chmod {} {:?}",
-                    path, path, mode, path
+                    path, path, target_mode, path
                 ))?;
         }
     } else if !path.exists()? {
