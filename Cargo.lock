@@ -4877,7 +4877,6 @@ dependencies = [
  "async-trait",
  "clap",
  "colored",
- "console 0.16.0",
  "dirs-next",
  "ec2_instance_metadata",
  "flate2",

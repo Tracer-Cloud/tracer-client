@@ -2,7 +2,7 @@ use crate::extracts::process::process_manager::logger::ProcessLogger;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
 use anyhow::Result;
-use tracing::debug;
+use tracing::{debug, error, warn};
 
 /// Handles periodic polling and updating of process metrics for monitored processes.
 ///
@@ -36,7 +36,8 @@ impl ProcessMetricsHandler {
         let monitored_pids = state_manager.get_monitored_processes_pids().await;
 
         if monitored_pids.is_empty() {
-            debug!("No processes are currently monitored - skipping metrics poll");
+            warn!("No processes are currently monitored - skipping metrics poll");
+            error!("No processes are currently monitored - skipping metrics poll");
             return Ok(());
         }
 
@@ -53,9 +54,14 @@ impl ProcessMetricsHandler {
         for (target, processes) in state_manager.get_state().await.get_monitoring().iter() {
             for proc in processes {
                 let system = system_refresher.get_system().read().await;
+                debug!(
+                    "Extracting metrics for PID {}: {}, with target: {}",
+                    proc.pid, proc.comm, target
+                );
                 let sys_proc = system.process(proc.pid.into());
-
-                logger.log_process_metrics(target, proc, sys_proc).await?;
+                debug!("System process for {}: {:?}", target, sys_proc);
+                let result = logger.log_process_metrics(target, proc, sys_proc).await?;
+                debug!("Metrics extracted for PID {}: {:?}", proc.pid, result);
             }
         }
 
