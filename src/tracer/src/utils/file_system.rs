@@ -110,14 +110,14 @@ pub fn ensure_dir_with_permissions(path: &PathBuf, mode: Option<&str>) -> Result
     }
 
     if let Some(mode) = mode {
-        let target_mod = u32::from_str_radix(mode, 8).expect("invalid octal number");
+        let target_mode = u32::from_str_radix(mode, 8).expect("invalid octal number");
         if path.exists()? {
             // Directory exists, check if permissions are what we want
             match fs::metadata(path) {
                 Ok(metadata) => {
                     let perms = metadata.permissions();
-                    let mode = perms.mode() & target_mod; // Get only permission bits
-                    if mode != target_mod {
+                    let mode = perms.mode() & target_mode; // Get only permission bits
+                    if mode != target_mode {
                         // Permissions are not what we want, try to fix them
                         let mut new_perms = perms;
                         new_perms.set_mode(mode);
@@ -141,7 +141,7 @@ pub fn ensure_dir_with_permissions(path: &PathBuf, mode: Option<&str>) -> Result
         } else {
             // Directory doesn't exist, create it with 777 permissions
             let mut builder = DirBuilder::new();
-            builder.mode(mode);
+            builder.mode(target_mode);
             builder.recursive(true);
             builder.create(path)
                 .with_context(|| format!(
