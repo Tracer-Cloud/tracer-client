@@ -265,7 +265,7 @@ impl TargetPipelineManager {
 
 impl Default for TargetPipelineManager {
     fn default() -> Self {
-        const RULE_FILES: &[YamlFile] = &[YamlFile::Embedded(include_str!(
+        const RULE_FILES: &[YamlFile] = &[YamlFile::from_embedded_str(include_str!(
             "yml_rules/tracer.pipelines.yml"
         ))];
         Self::new(RULE_FILES, &Vec::new()).expect("Failed to create default pipeline manager")
@@ -416,7 +416,7 @@ mod tests {
     use rstest::*;
     use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 
-    const PIPELINE_YAML_PATH: &[YamlFile] = &[YamlFile::StaticPath(
+    const PIPELINE_YAML_PATH: &[YamlFile] = &[YamlFile::from_src_path(
         "src/process_identification/target_pipeline/yml_rules/tracer.pipelines.yml",
     )];
 

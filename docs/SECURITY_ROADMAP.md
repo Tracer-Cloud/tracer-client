@@ -21,11 +21,9 @@ We take all security vulnerabilities seriously and will work to address them as 
     * If necessary and appropriate, add a semgrep exception and document the reasoning below
 5. Upon fixing any security issues, a new release is issued with a public disclosure of the issues and mitigations.
 
-As much as possible, we centralize mitigations in the [`tracer_common::secure`](../src/tracer-common/src/secure.rs) module.
-
 ## Existing Security Issues and Mitigations
 
-1. The `tracer` client spawns a child daemon process using the same binary. There are no completely secure ways to determine the path of the current executable. We currently use best practices to spawn the client in the most secure way possible on the platform where the binary is running:
+1. The `tracer` client spawns a child daemon process using the same binary. This triggers the `rust.lang.security.current-exe.current-exe` semgrep rule. There are no completely secure ways to determine the path of the current executable. We currently use best practices to spawn the client in the most secure way possible on the platform where the binary is running:
    1. On Linux
       1. We use `/proc/self/exe` to get a file descriptor for the current executable.
       2. We use `fork` to create the child process, and then `execveat` or `fexecve` to execute the command.
@@ -37,6 +35,22 @@ As much as possible, we centralize mitigations in the [`tracer_common::secure`](
       3. We verify that the current exe matches `argv[0]`.
       4. We verify that the current exe path has no world-writable components.
 
+2. The tracer insaller constructs a URL to download the tracer binary from. This triggers the `rust.actix.ssrf.reqwest-taint.reqwest-taint` semgrep rule.
+   * The URL is constructed from a static base URL and a filename based on the platform and architecture. No user input is involved.
+   * The URL is then parsed and validated before downloading.
+
+3. After downloading the tracer binary tarball, the installer extracts it to a temporary directory, then moves the extracted binary to the final installation directory, which is hardcoded to `/usr/local/bin`. This triggers the `rust.actix.path-traversal.tainted-path.tainted-path` semgrep rule.
+   * The temporary directory is created using `tempfile::TempDir`.
+   * The final installation directory is hardcoded and not user-provided.
+   * None of the paths are constructed from user input.
+
+4. The tracer client also uses the static path of the installed binary and well-known paths of user config files to uninstall the application and remove environment variables. This triggers the `rust.actix.path-traversal.tainted-path.tainted-path` semgrep rule.
+   * The final installation directory is hardcoded and not user-provided.
+   * None of the paths are constructed from user input.
+
+5. The tracer client reads YAML files from locations relative to the source path, and only during testing. In the installed binary, these files are embedded in the binary. None of the paths are constructed from user input.
+
 ## Security Roadmap
 
 1. Implement code signing and verification for all binaries on all platforms (Q4 2025)
+2. Implement SSRF protection for all HTTP requests (Q4 2025)

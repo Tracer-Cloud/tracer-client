@@ -1,17 +1,7 @@
 [workspace]
 resolver = "2"
-members = [
-    "src/tracer-common",
-    "src/tracer",
-    "src/ebpf",
-    "src/tracer-installer",
-]
-default-members = [
-    "src/tracer-common",
-    "src/tracer",
-    "src/ebpf",
-    "src/tracer-installer",
-]
+members = ["src/tracer", "src/ebpf", "src/tracer-installer"]
+default-members = ["src/tracer", "src/ebpf", "src/tracer-installer"]
 
 [workspace.package]
 version = "2025.5.15+1"
@@ -21,7 +11,6 @@ homepage = "https://tracer.cloud/"
 repository = "https://github.com/Tracer-Cloud/tracer-client/"
 
 [workspace.dependencies]
-tracer-common = { path = "src/tracer-common" }
 tracer_ebpf = { path = "src/ebpf" }
 
 anyhow = "1.0.98"
@@ -87,6 +76,7 @@ serde_json = "1.0.142"
 serde_regex = "1.1.0"
 serial_test = "3.2.0"
 shlex = "1.3.0"
+softpath = "0.2.2"
 sqlx = { version = "0.8.6", features = [
     "runtime-tokio-rustls",
     "postgres",
@@ -109,6 +99,7 @@ tracing-subscriber = { version = "0.3.19", features = [
     "local-time",
 ] }
 typed-builder = "0.21.0"
+url = "2.5.4"
 uuid = { version = "1.17.0", features = [
     "v4",
     "fast-rng",
