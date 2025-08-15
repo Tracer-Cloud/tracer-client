@@ -134,7 +134,7 @@ jobs:
           SCCACHE_GHA_ENABLED: ${{ steps.sccache.outputs.sccache_path != '' && 'true' || 'false' }}
           CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
           CARGO_INCREMENTAL: "0"
-        run: cargo build --locked --release --target ${{ matrix.target }} -p tracer -p tracer-installer
+        run: cargo build --release --target ${{ matrix.target }} -p tracer -p tracer-installer
 
       - name: Prepare binary for release
         run: |
@@ -232,7 +232,7 @@ jobs:
           CARGO_INCREMENTAL: "0"
         run: |
           source $HOME/.cargo/env
-          cargo build --locked --release -p tracer
+          cargo build --release -p tracer
 
       - name: Prepare binary for release
         run: |
