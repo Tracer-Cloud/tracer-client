@@ -102,6 +102,11 @@ jobs:
               sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm libelf-dev
           fi
 
+      - name: Set up sccache
+        id: sccache
+        uses: mozilla-actions/sccache-action@v0.0.4
+        continue-on-error: true
+
       # Verify submodules are properly loaded
       - name: Verify submodule content
         run: |
@@ -124,7 +129,12 @@ jobs:
           fi
 
       - name: Build the binary
-        run: cargo build --release --target ${{ matrix.target }}
+        env:
+          RUSTC_WRAPPER: ${{ steps.sccache.outputs.sccache_path != '' && 'sccache' || '' }}
+          SCCACHE_GHA_ENABLED: ${{ steps.sccache.outputs.sccache_path != '' && 'true' || 'false' }}
+          CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+          CARGO_INCREMENTAL: "0"
+        run: cargo build --locked --release --target ${{ matrix.target }} -p tracer -p tracer-installer
 
       - name: Prepare binary for release
         run: |
@@ -188,7 +198,9 @@ jobs:
           rustup toolchain install nightly-2025-04-15 --component rust-src
 
       - name: Set up sccache (Amazon Linux)
+        id: sccache
         uses: mozilla-actions/sccache-action@v0.0.4
+        continue-on-error: true
 
       - name: Check out repository with submodules
         uses: actions/checkout@v4.1.4
@@ -214,8 +226,8 @@ jobs:
 
       - name: Build the binary
         env:
-          RUSTC_WRAPPER: sccache
-          SCCACHE_GHA_ENABLED: "true"
+          RUSTC_WRAPPER: ${{ steps.sccache.outputs.sccache_path != '' && 'sccache' || '' }}
+          SCCACHE_GHA_ENABLED: ${{ steps.sccache.outputs.sccache_path != '' && 'true' || 'false' }}
           CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
           CARGO_INCREMENTAL: "0"
         run: |
