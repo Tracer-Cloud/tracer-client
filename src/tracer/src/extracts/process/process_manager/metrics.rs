@@ -52,16 +52,21 @@ impl ProcessMetricsHandler {
 
         // Step 3: Extract and log metrics for each monitored process
         for (target, processes) in state_manager.get_state().await.get_monitoring().iter() {
-            for proc in processes {
+            for process in processes {
                 let system = system_refresher.get_system().read().await;
                 debug!(
                     "Extracting metrics for PID {}: {}, with target: {}",
-                    proc.pid, proc.comm, target
+                    process.pid, process.comm, target
                 );
-                let sys_proc = system.process(proc.pid.into());
-                debug!("System process for {}: {:?}", target, sys_proc);
-                let result = logger.log_process_metrics(target, proc, sys_proc).await?;
-                debug!("Metrics extracted for PID {}: {:?}", proc.pid, result);
+                let process_data_from_system = system.process(process.pid.into());
+                debug!(
+                    "System process for {} with PID: {}: {:?}",
+                    target, process.pid, process_data_from_system
+                );
+                let result = logger
+                    .log_process_metrics(target, process, process_data_from_system)
+                    .await?;
+                debug!("Metrics extracted for PID {}: {:?}", process.pid, result);
             }
         }
 
