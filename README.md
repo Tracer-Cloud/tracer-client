@@ -16,7 +16,7 @@ Tracer Linux Agent: Observability for Scientific HPC Workloads
 
 <br />
 
-![image](https://github.com/user-attachments/assets/c59b2db5-81c0-4d92-b614-e8733a0303b9)
+![image](https://s15obc311h0vrt01.public.blob.vercel-storage.com/Github%20Readme%20Preview%20Tracer.png)
 
 <br />
 
