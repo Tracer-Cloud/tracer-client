@@ -93,6 +93,8 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                     env.push((key, value));
                 }
 
+                println!("env: {:?}", env);
+
                 Ok(ebpf_trigger::Trigger::ProcessStart(
                     ebpf_trigger::ProcessStartTrigger::from_bpf_event(
                         self.pid,
