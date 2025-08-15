@@ -101,7 +101,7 @@ fill_sched_process_exec(struct event *e,
 {
   struct task_struct *task = (struct task_struct *)bpf_get_current_task();
   struct mm_struct *mm;
-  unsigned long arg_start, arg_end, arg_ptr;
+  unsigned long arg_start, arg_end, arg_ptr, env_start, env_end;
   u32 i;
 
   BPF_CORE_READ_STR_INTO(&e->sched__sched_process_exec__payload.comm, task, comm);
@@ -130,7 +130,7 @@ fill_sched_process_exec(struct event *e,
   env_start = BPF_CORE_READ(mm, env_start);
   env_end = BPF_CORE_READ(mm, env_end);
   if (env_end <= env_start)
-    return 0;
+    return;
 
   /* Precompute key lengths (bounded by KEY_MAX_LEN) */
   int key_lens[MAX_KEYS] = {};
