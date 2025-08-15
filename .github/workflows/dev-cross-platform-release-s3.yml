@@ -93,22 +93,7 @@ jobs:
           restore-keys: |
             cargo-build-${{ matrix.target }}-stable-
 
-      - name: Cache system dependencies
-        id: cache-sys-deps
-        uses: actions/cache@v4
-        with:
-          path: |
-            /usr/local/lib
-            /usr/local/include
-            /usr/lib/x86_64-linux-gnu
-            /usr/lib/aarch64-linux-gnu
-            /usr/include
-          key: sys-deps-${{ matrix.runner }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            sys-deps-${{ matrix.runner }}-
-
       - name: Install build dependencies
-        if: steps.cache-sys-deps.outputs.cache-hit != 'true'
         run: |
           if [[ "${{ matrix.runner }}" == *"ubuntu"* ]]; then
               rustup toolchain install nightly-2025-04-15 --component rust-src
@@ -116,10 +101,7 @@ jobs:
               sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm libelf-dev
           fi
 
-      - name: Set up sccache
-        id: sccache
-        uses: mozilla-actions/sccache-action@v0.0.4
-        continue-on-error: true
+
 
       # Verify submodules are properly loaded
       - name: Verify submodule content
@@ -144,8 +126,6 @@ jobs:
 
       - name: Build the binary
         env:
-          RUSTC_WRAPPER: ${{ steps.sccache.outputs.sccache_path != '' && 'sccache' || '' }}
-          SCCACHE_GHA_ENABLED: ${{ steps.sccache.outputs.sccache_path != '' && 'true' || 'false' }}
           CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
           CARGO_INCREMENTAL: "0"
         run: cargo build --release --target ${{ matrix.target }} -p tracer -p tracer-installer
@@ -197,21 +177,7 @@ jobs:
           restore-keys: |
             amazon-linux-cargo-
 
-      - name: Cache system dependencies (Amazon Linux)
-        id: cache-sys-deps
-        uses: actions/cache@v4
-        with:
-          path: |
-            /usr/local/lib
-            /usr/local/include
-            /usr/lib64
-            /usr/include
-          key: amazon-linux-sys-deps-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            amazon-linux-sys-deps-
-
       - name: Install dependencies
-        if: steps.cache-sys-deps.outputs.cache-hit != 'true'
         run: |
             yum update -y --allowerasing
             yum groupinstall -y "Development Tools" --allowerasing
@@ -225,10 +191,7 @@ jobs:
           rustup target add x86_64-unknown-linux-gnu
           rustup toolchain install nightly-2025-04-15 --component rust-src
 
-      - name: Set up sccache (Amazon Linux)
-        id: sccache
-        uses: mozilla-actions/sccache-action@v0.0.4
-        continue-on-error: true
+
 
       - name: Check out repository with submodules
         uses: actions/checkout@v4.1.4
@@ -254,8 +217,6 @@ jobs:
 
       - name: Build the binary
         env:
-          RUSTC_WRAPPER: ${{ steps.sccache.outputs.sccache_path != '' && 'sccache' || '' }}
-          SCCACHE_GHA_ENABLED: ${{ steps.sccache.outputs.sccache_path != '' && 'true' || 'false' }}
           CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
           CARGO_INCREMENTAL: "0"
         run: |
