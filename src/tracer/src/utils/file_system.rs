@@ -9,8 +9,8 @@ use anyhow::{bail, Context, Result};
 use softpath::prelude::*;
 use std::borrow::Cow;
 use std::fmt::{Display, Formatter};
-use std::fs::DirBuilder;
-use std::io;
+use std::fs::{DirBuilder, File};
+use std::io::{self, BufReader};
 use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
@@ -28,22 +28,42 @@ pub fn ensure_file_can_be_created<P: AsRef<Path>>(file_path: P) -> anyhow::Resul
     Ok(())
 }
 
-/// A sanitized directory path
+/// A sanitized directory path. A `TrustedDir` is created if it doesn't already exist.
 #[derive(Debug)]
 pub struct TrustedDir(PathBuf);
 
 impl TrustedDir {
     pub fn home() -> Result<Self> {
         let path = dirs_next::home_dir().context("failed to get home directory")?;
-        Ok(Self(path.absolute()?))
+        Self::new(&path)
     }
 
-    pub fn as_path(&self) -> Result<&Path> {
+    pub fn new(path: &Path) -> Result<Self> {
+        let path = path.into_path()?;
+        if !path.exists()? {
+            ensure_dir_with_permissions(&path)?;
+        } else if !path.is_dir()? {
+            bail!(io::Error::new(
+                io::ErrorKind::NotADirectory,
+                format!("path is not a directory: {:?}", path),
+            ));
+        }
+        Ok(TrustedDir(path.absolute()?))
+    }
+
+    fn as_path(&self) -> Result<&Path> {
         let path = &self.0;
+        // check at each use that the path exists and is a directory
+        if !path.exists()? {
+            bail!(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("path does not exist: {:?}", path),
+            ));
+        }
         if !path.is_dir()? {
             bail!(io::Error::new(
                 io::ErrorKind::NotADirectory,
-                "trusted path is not a directory",
+                format!("path is not a directory: {:?}", path),
             ));
         }
         Ok(path)
@@ -54,12 +74,7 @@ impl TrustedDir {
     where
         R: TryInto<RelativePath, Error = anyhow::Error>,
     {
-        let path = self.as_path()?.join(subpath.try_into()?.into_path());
-        if path.exists()? {
-            Ok(TrustedFile::Sanitized(path.absolute()?))
-        } else {
-            Ok(TrustedFile::Sanitized(path))
-        }
+        TrustedFile::join(&self, subpath)
     }
 
     /// Creates a sanitized path for a directory. The directory is created if it doesn't exist.
@@ -68,21 +83,15 @@ impl TrustedDir {
         R: TryInto<RelativePath, Error = anyhow::Error>,
     {
         let path = self.as_path()?.join(subpath.try_into()?.into_path());
-        if !path.exists()? {
-            ensure_dir_with_permissions(&path)?;
-        }
-        Ok(TrustedDir(path.absolute()?))
+        Self::new(&path)
     }
 }
 
 impl TryFrom<&str> for TrustedDir {
     type Error = anyhow::Error;
+
     fn try_from(path: &str) -> Result<Self, Self::Error> {
-        let path = PathBuf::from(path);
-        if !path.exists()? {
-            ensure_dir_with_permissions(&path)?;
-        }
-        Ok(TrustedDir(path.absolute()?))
+        Self::new(&PathBuf::from(path))
     }
 }
 
@@ -135,6 +144,9 @@ impl Display for TrustedDir {
     }
 }
 
+/// Represents a file that either has embedded content, is a static path in the source folder,
+/// exists on disk and has been sanitized, or has a parent directory that exists on disk and has
+/// been sanitized.
 #[derive(Clone, Debug)]
 pub enum TrustedFile {
     /// Contains contents of file read at compile time from location inside the codebase
@@ -156,6 +168,42 @@ impl TrustedFile {
         TrustedFile::Src(path)
     }
 
+    pub fn new(path: &Path) -> Result<Self> {
+        let path = path.into_path()?;
+        if path.exists()? {
+            if !path.is_file()? {
+                bail!(io::Error::new(
+                    io::ErrorKind::IsADirectory,
+                    format!("path is not a file: {:?}", path),
+                ));
+            }
+            Ok(TrustedFile::Sanitized(path.absolute()?))
+        } else if let Some(parent) = path.parent() {
+            let parent = TrustedDir::new(parent)?;
+            if let Some(name) = path.file_name()? {
+                Self::join(&parent, name.as_str())
+            } else {
+                bail!(io::Error::new(
+                    io::ErrorKind::NotFound,
+                    format!("empty file name: {:?}", path),
+                ));
+            }
+        } else {
+            bail!(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("relative path has no parent: {:?}", path),
+            ));
+        }
+    }
+
+    fn join<R>(trusted_dir: &TrustedDir, subpath: R) -> Result<Self>
+    where
+        R: TryInto<RelativePath, Error = anyhow::Error>,
+    {
+        let path = trusted_dir.as_path()?.join(subpath.try_into()?.into_path());
+        Ok(Self::Sanitized(path))
+    }
+
     pub fn as_path(&self) -> Result<Cow<Path>> {
         match self {
             Self::Embedded(_) => bail!(io::Error::new(
@@ -171,16 +219,17 @@ impl TrustedFile {
         if !path.starts_with("src") {
             bail!(io::Error::new(
                 io::ErrorKind::PermissionDenied,
-                "not crate-relative file"
+                "not crate src-relative file"
             ))
         }
-        Ok(path.into_path()?)
-    }
-
-    pub fn tracer_binary() -> Result<Self> {
-        // the install location of the tracer binary - currently this is non-modifyable
-        const TRACER_BINARY_PATH: &str = "/usr/local/bin/tracer";
-        Ok(TrustedFile::Sanitized(TRACER_BINARY_PATH.absolute()?))
+        let path = path.into_path()?;
+        if !path.exists()? {
+            bail!(io::Error::new(
+                io::ErrorKind::NotFound,
+                "crate src-relative file does not exist"
+            ));
+        }
+        Ok(path)
     }
 
     pub fn exists(&self) -> Result<bool> {
@@ -189,6 +238,12 @@ impl TrustedFile {
             Self::Src(path) => Ok(Self::src_relative_path(path)?.exists()?),
             Self::Sanitized(path) => Ok(path.exists()?),
         }
+    }
+
+    /// SAFETY: we only open sanitized paths
+    pub fn read(&self) -> Result<BufReader<File>> {
+        let path = self.as_path()?.into_owned();
+        Ok(BufReader::new(File::open(path)?)) // nosemgrep: rust.actix.path-traversal.tainted-path.tainted-path
     }
 
     pub fn read_to_string(&self) -> Result<String> {
@@ -248,5 +303,74 @@ impl TryFrom<&str> for RelativePath {
         }
 
         Ok(Self(path))
+    }
+}
+
+#[cfg(test)]
+pub mod test {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_trusted_dir_creation() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let dir_path = temp_dir.path().join("test_dir");
+        let _trusted_dir = TrustedDir::new(&dir_path)?;
+        assert!(dir_path.exists()?);
+        assert!(dir_path.is_dir()?);
+        Ok(())
+    }
+
+    #[test]
+    fn test_trusted_dir_join_file() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let trusted_dir = TrustedDir::new(temp_dir.path())?;
+        let file = trusted_dir.join_file("test.txt")?;
+        assert!(!file.exists()?);
+        file.write("test content")?;
+        assert!(file.exists()?);
+        assert_eq!(file.read_to_string()?, "test content");
+        Ok(())
+    }
+
+    #[test]
+    fn test_trusted_dir_join_dir() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let trusted_dir = TrustedDir::new(temp_dir.path())?;
+        let _subdir = trusted_dir.join_dir("subdir")?;
+        assert!(temp_dir.path().join("subdir").exists()?);
+        assert!(temp_dir.path().join("subdir").is_dir()?);
+        Ok(())
+    }
+
+    #[test]
+    fn test_trusted_file_embedded() -> Result<()> {
+        let content = "test content";
+        let file = TrustedFile::from_embedded_str(content);
+        assert_eq!(file.read_to_string()?, content);
+        assert!(!file.exists()?);
+        assert!(file.write("new content").is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn test_trusted_file_src() {
+        let file = TrustedFile::from_src_path("not/src/file.txt");
+        assert!(file.as_path().is_err());
+    }
+
+    #[test]
+    fn test_relative_path() {
+        assert!(RelativePath::try_from("/absolute/path").is_err());
+        assert!(RelativePath::try_from("relative/path").is_ok());
+    }
+
+    #[test]
+    fn test_ensure_file_can_be_created() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let file_path = temp_dir.path().join("nested").join("test.txt");
+        ensure_file_can_be_created(&file_path)?;
+        assert!(file_path.parent().unwrap().exists());
+        Ok(())
     }
 }

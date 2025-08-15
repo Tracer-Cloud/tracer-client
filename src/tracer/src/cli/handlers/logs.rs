@@ -1,12 +1,11 @@
 use crate::opentelemetry::collector::OtelCollector;
 use crate::opentelemetry::config::OtelConfig;
+use crate::utils::file_system::TrustedFile;
 use crate::utils::workdir::TRACER_WORK_DIR;
 use crate::{error_message, info_message, success_message, warning_message};
 use anyhow::Result;
 use colored::Colorize;
-use std::fs::File;
-use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
-use std::path::Path;
+use std::io::{BufRead, Read, Seek, SeekFrom};
 use std::path::PathBuf;
 use tokio::time::{sleep, Duration};
 
@@ -39,10 +38,10 @@ pub async fn logs(follow: bool, lines: usize) -> Result<()> {
         return Ok(());
     }
 
-    let stderr_file = &TRACER_WORK_DIR.otel_stderr_file;
-    let stdout_file = &TRACER_WORK_DIR.otel_stdout_file;
+    let stderr_file: TrustedFile = TrustedFile::new(&TRACER_WORK_DIR.otel_stderr_file)?;
+    let stdout_file = TrustedFile::new(&TRACER_WORK_DIR.otel_stdout_file)?;
 
-    if !stderr_file.exists() && !stdout_file.exists() {
+    if !stderr_file.exists()? && !stdout_file.exists()? {
         warning_message!("No log files found for OpenTelemetry collector");
         info_message!(
             "This is normal if the collector just started or hasn't found any Nextflow logs yet"
@@ -56,22 +55,21 @@ pub async fn logs(follow: bool, lines: usize) -> Result<()> {
     let lines_to_show = if lines == 0 { 100 } else { lines };
     let should_follow = follow || lines == 0;
 
-    if stderr_file.exists() {
+    if stderr_file.exists()? {
         info_message!("Collector Error/Info Logs (STDERR) ===");
-        show_log_file(stderr_file, lines_to_show, should_follow).await?;
+        show_log_file(&stderr_file, lines_to_show, should_follow).await?;
     }
 
-    if stdout_file.exists() {
+    if stdout_file.exists()? {
         info_message!("=== Collector Output Logs (STDOUT) ===");
-        show_log_file(stdout_file, lines_to_show, should_follow).await?;
+        show_log_file(&stdout_file, lines_to_show, should_follow).await?;
     }
 
     Ok(())
 }
 
-async fn show_log_file(file_path: &Path, lines: usize, follow: bool) -> Result<()> {
-    let file = File::open(file_path)?;
-    let mut reader = BufReader::new(file);
+async fn show_log_file(file_path: &TrustedFile, lines: usize, follow: bool) -> Result<()> {
+    let mut reader = file_path.read()?;
 
     let file_size = reader.seek(SeekFrom::End(0))?;
 
@@ -81,7 +79,7 @@ async fn show_log_file(file_path: &Path, lines: usize, follow: bool) -> Result<(
             info_message!("Waiting for logs... (Press Ctrl+C to stop)");
             loop {
                 sleep(Duration::from_millis(100)).await;
-                let mut new_reader = BufReader::new(File::open(file_path)?);
+                let mut new_reader = file_path.read()?;
                 let current_size = new_reader.seek(SeekFrom::End(0))?;
                 if current_size > 0 {
                     break;
@@ -104,7 +102,7 @@ async fn show_log_file(file_path: &Path, lines: usize, follow: bool) -> Result<(
             info_message!("Waiting for logs... (Press Ctrl+C to stop)");
             loop {
                 sleep(Duration::from_millis(100)).await;
-                let mut new_reader = BufReader::new(File::open(file_path)?);
+                let mut new_reader = file_path.read()?;
                 let current_size = new_reader.seek(SeekFrom::End(0))?;
                 if current_size > 0 {
                     break;
@@ -128,7 +126,7 @@ async fn show_log_file(file_path: &Path, lines: usize, follow: bool) -> Result<(
         loop {
             sleep(Duration::from_millis(100)).await;
 
-            let mut new_reader = BufReader::new(File::open(file_path)?);
+            let mut new_reader = file_path.read()?;
             let current_size = new_reader.seek(SeekFrom::End(0))?;
 
             if current_size > last_size {

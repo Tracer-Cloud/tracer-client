@@ -28,15 +28,37 @@ impl TrustedDir {
         Ok(Self::Temp(tempfile::tempdir()?))
     }
 
+    /// Creates a new `TrustedDir` from an aribtrary path. The path must be sanitary. If the path
+    /// doesn't exist, the directory is created 
+    pub fn new(path: &Path) -> Result<Self> {
+        let path = path.into_path()?;
+        if !path.exists()? {
+            ensure_dir_with_permissions(&path)?;
+        } else if !path.is_dir()? {
+            bail!(io::Error::new(
+                io::ErrorKind::NotADirectory,
+                format!("path is not a directory: {:?}", path),
+            ));
+        }
+        Ok(TrustedDir::Sanitized(path.absolute()?))
+    }
+
     pub fn as_path(&self) -> Result<PathBuf> {
         let path = match self {
             Self::Sanitized(path) => path.to_owned(),
             Self::Temp(temp_dir) => temp_dir.path().absolute()?,
         };
+        // check at each use that the path exists and is a directory
+        if !path.exists()? {
+            bail!(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("path does not exist: {:?}", path),
+            ));
+        }
         if !path.is_dir()? {
             bail!(io::Error::new(
                 io::ErrorKind::NotADirectory,
-                "trusted path is not a directory",
+                format!("path is not a directory: {:?}", path),
             ));
         }
         Ok(path)
@@ -47,12 +69,7 @@ impl TrustedDir {
     where
         R: TryInto<RelativePath, Error = anyhow::Error>,
     {
-        let path = self.as_path()?.join(subpath.try_into()?.into_path());
-        if path.exists()? {
-            Ok(TrustedFile(path.absolute()?))
-        } else {
-            Ok(TrustedFile(path))
-        }
+        TrustedFile::join(&self, subpath)
     }
 
     /// Creates a sanitized path for a directory. The directory is created if it doesn't exist.
@@ -61,21 +78,15 @@ impl TrustedDir {
         R: TryInto<RelativePath, Error = anyhow::Error>,
     {
         let path = self.as_path()?.join(subpath.try_into()?.into_path());
-        if !path.exists()? {
-            ensure_dir_with_permissions(&path)?;
-        }
-        Ok(TrustedDir::Sanitized(path.absolute()?))
+        Self::new(&path)
     }
 }
 
 impl TryFrom<&str> for TrustedDir {
     type Error = anyhow::Error;
+
     fn try_from(path: &str) -> Result<Self, Self::Error> {
-        let path = PathBuf::from(path);
-        if !path.exists()? {
-            ensure_dir_with_permissions(&path)?;
-        }
-        Ok(TrustedDir::Sanitized(path.absolute()?))
+        Self::new(&PathBuf::from(path))
     }
 }
 
@@ -136,6 +147,42 @@ impl Display for TrustedDir {
 pub struct TrustedFile(PathBuf);
 
 impl TrustedFile {
+    pub fn new(path: &Path) -> Result<Self> {
+        let path = path.into_path()?;
+        if path.exists()? {
+            if !path.is_file()? {
+                bail!(io::Error::new(
+                    io::ErrorKind::IsADirectory,
+                    format!("path is not a file: {:?}", path),
+                ));
+            }
+            Ok(TrustedFile(path.absolute()?))
+        } else if let Some(parent) = path.parent() {
+            let parent = TrustedDir::new(parent)?;
+            if let Some(name) = path.file_name()? {
+                Self::join(&parent, name.as_str())
+            } else {
+                bail!(io::Error::new(
+                    io::ErrorKind::NotFound,
+                    format!("empty file name: {:?}", path),
+                ));
+            }
+        } else {
+            bail!(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("relative path has no parent: {:?}", path),
+            ));
+        }
+    }
+
+    fn join<R>(trusted_dir: &TrustedDir, subpath: R) -> Result<Self>
+    where
+        R: TryInto<RelativePath, Error = anyhow::Error>,
+    {
+        let path = trusted_dir.as_path()?.join(subpath.try_into()?.into_path());
+        Ok(Self(path))
+    }
+
     pub fn as_path(&self) -> &Path {
         &self.0
     }
