@@ -20,6 +20,7 @@ impl Sentry {
                 // Enables capturing user IPs and sensitive headers when using HTTP server integrations.
                 // See: https://docs.sentry.io/platforms/rust/data-management/data-collected/
                 send_default_pii: true,
+                debug: true,
                 ..Default::default()
             },
         ));
