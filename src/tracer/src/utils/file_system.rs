@@ -61,7 +61,7 @@ impl TrustedDir {
     where
         R: TryInto<RelativePath, Error = anyhow::Error>,
     {
-        TrustedFile::join(&self, subpath)
+        TrustedFile::join(self, subpath)
     }
 
     /// Creates a sanitized path for a directory. The directory is created if it doesn't exist.
@@ -110,14 +110,14 @@ pub fn ensure_dir_with_permissions(path: &PathBuf, mode: Option<&str>) -> Result
     }
 
     if let Some(mode) = mode {
-        let mode = u32::from_str_radix(mode, 8).expect("invalid octal number");
+        let target_mod = u32::from_str_radix(mode, 8).expect("invalid octal number");
         if path.exists()? {
             // Directory exists, check if permissions are what we want
             match fs::metadata(path) {
                 Ok(metadata) => {
                     let perms = metadata.permissions();
-                    let mode = perms.mode() & mode; // Get only permission bits
-                    if mode != mode {
+                    let mode = perms.mode() & target_mod; // Get only permission bits
+                    if mode != target_mod {
                         // Permissions are not what we want, try to fix them
                         let mut new_perms = perms;
                         new_perms.set_mode(mode);

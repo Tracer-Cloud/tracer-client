@@ -38,7 +38,7 @@ impl OtelBinaryManager {
         }
     }
 
-    pub async fn install(binary_path: &PathBuf) -> Result<()> {
+    pub async fn install(binary_path: &Path) -> Result<()> {
         if Self::check_availability(binary_path) {
             info_message!("OpenTelemetry collector is already available");
             return Ok(());
