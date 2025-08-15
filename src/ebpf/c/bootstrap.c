@@ -28,8 +28,8 @@ static struct env
 	bool verbose;
 	bool debug_bpf; // Propagate to .rodata
 } env = {
-		.verbose = false,
-		.debug_bpf = false,
+	.verbose = false,
+	.debug_bpf = false,
 };
 
 /* Find when the host system booted */
@@ -48,8 +48,8 @@ static u64 get_system_boot_ns(void)
 }
 
 static int libbpf_print_cb(enum libbpf_print_level lvl,
-													 const char *fmt,
-													 va_list args)
+						   const char *fmt,
+						   va_list args)
 {
 	if (lvl == LIBBPF_DEBUG && !env.verbose)
 		return 0;
@@ -82,7 +82,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	if (unlikely(data_sz != sizeof(struct event)))
 	{
 		fprintf(stderr, "C: size mismatch (%zu!=%zu)\n",
-						data_sz, sizeof(struct event));
+				data_sz, sizeof(struct event));
 		return 0;
 	}
 
@@ -106,16 +106,16 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 
 // Public API
 int initialize(void *buffer, size_t byte_cnt,
-							 event_callback_t cb, void *cb_ctx)
+			   event_callback_t cb, void *cb_ctx)
 {
 	struct lib_ctx lc = {
-			.buffer = buffer,
-			.buf_sz = byte_cnt,
-			.filled = 0,
-			.cb = cb,
-			.cb_ctx = cb_ctx,
-			.skel = NULL,
-			.rb = NULL,
+		.buffer = buffer,
+		.buf_sz = byte_cnt,
+		.filled = 0,
+		.cb = cb,
+		.cb_ctx = cb_ctx,
+		.skel = NULL,
+		.rb = NULL,
 	};
 	int err;
 
@@ -150,8 +150,8 @@ int initialize(void *buffer, size_t byte_cnt,
 	}
 
 	lc.rb = ring_buffer__new(
-			bpf_map__fd(lc.skel->maps.rb),
-			handle_event, &lc, NULL);
+		bpf_map__fd(lc.skel->maps.rb),
+		handle_event, &lc, NULL);
 	if (!lc.rb)
 	{
 		fprintf(stderr, "C: ring-buffer create failed\n");

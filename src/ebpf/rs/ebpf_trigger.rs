@@ -23,6 +23,9 @@ pub struct ProcessStartTrigger {
     pub file_name: String,
     /// Command arguments (the first element is the command)
     pub argv: Vec<String>,
+    /// Selected environment variables (key-value pairs)
+    /// Currently, only TRACER_TRACE_ID is supported
+    pub env: Vec<(String, String)>,
     /// Command string (from concatenating argv)
     pub command_string: String,
     /// Command start time
@@ -45,6 +48,7 @@ impl ProcessStartTrigger {
         ppid: u32,
         comm: &str,
         argv: Vec<String>,
+        env: Vec<(String, String)>,
         timestamp_ns: u64,
     ) -> Self {
         const NS_PER_SEC: u64 = 1_000_000_000;
@@ -55,6 +59,7 @@ impl ProcessStartTrigger {
             file_name: argv.first().cloned().unwrap_or_default(),
             command_string: join_args(&argv),
             argv: unquote(argv),
+            env,
             started_at: DateTime::from_timestamp(
                 (timestamp_ns / NS_PER_SEC) as i64,
                 (timestamp_ns % NS_PER_SEC) as u32,
@@ -76,6 +81,7 @@ impl ProcessStartTrigger {
             comm: name.to_string(),
             command_string: join_args(&argv),
             argv: unquote(argv),
+            env: Vec::new(),
             file_name: "".to_string(),
             started_at: Utc::now(),
         }
@@ -90,6 +96,7 @@ impl ProcessStartTrigger {
             ppid,
             comm,
             argv: unquote(argv),
+            env: Vec::new(),
             command_string: command_string.to_string(),
             file_name,
             started_at: Utc::now(),
