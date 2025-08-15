@@ -26,7 +26,6 @@ use tokio_retry::strategy::{jitter, ExponentialBackoff};
 use tokio_retry::Retry;
 
 const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics-supabase";
-const TRACER_INSTALLATION_PATH: &str = "/usr/local/bin";
 
 pub struct Installer {
     pub platform: PlatformInfo,
@@ -142,7 +141,7 @@ impl Installer {
 
     fn install_to_final_dir(&self, extracted_dir: &TrustedDir) -> Result<TrustedFile> {
         let extracted_binary = extracted_dir.join_file("tracer")?;
-        let tracer_installation_dir: TrustedDir = TRACER_INSTALLATION_PATH.try_into()?;
+        let tracer_installation_dir = TrustedDir::usr_local_bin()?;
         let final_path = tracer_installation_dir.join_file("tracer")?;
 
         extracted_binary

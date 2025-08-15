@@ -38,7 +38,7 @@ pub async fn logs(follow: bool, lines: usize) -> Result<()> {
         return Ok(());
     }
 
-    let stderr_file: TrustedFile = TrustedFile::new(&TRACER_WORK_DIR.otel_stderr_file)?;
+    let stderr_file = TrustedFile::new(&TRACER_WORK_DIR.otel_stderr_file)?;
     let stdout_file = TrustedFile::new(&TRACER_WORK_DIR.otel_stdout_file)?;
 
     if !stderr_file.exists()? && !stdout_file.exists()? {

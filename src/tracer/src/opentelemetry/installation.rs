@@ -1,13 +1,13 @@
-use crate::opentelemetry::utils::OtelUtils;
+use crate::opentelemetry::utils::{OtelUtils, TrustedUrl, OTEL_BINARY_NAME, OTEL_VERSION};
+use crate::utils::file_system::{TrustedDir, TrustedFile};
 use crate::utils::workdir::TRACER_WORK_DIR;
 use crate::{info_message, success_message, warning_message};
 use anyhow::{Context, Result};
 use colored::Colorize;
+use flate2::read::GzDecoder;
 use std::fs;
 use std::path::{Path, PathBuf};
-
-const OTEL_VERSION: &str = "0.102.1";
-const OTEL_BINARY_NAME: &str = "otelcol";
+use tar::Archive;
 
 #[derive(Debug, Clone)]
 pub struct OtelBinaryManager;
@@ -57,13 +57,14 @@ impl OtelBinaryManager {
             OTEL_VERSION
         );
 
-        let (platform, arch) = OtelUtils::get_platform_info()?;
-        let download_url = Self::build_download_url(platform, arch);
-        let temp_dir = TRACER_WORK_DIR.resolve("temp");
+        let trusted_binary_path = TrustedFile::new(binary_path)?;
 
-        fs::create_dir_all(&temp_dir)?;
-        let archive_path = temp_dir.join("otelcol-contrib.tar.gz");
-        let extract_dir = temp_dir.join("extract");
+        let (platform, arch) = OtelUtils::get_platform_info()?;
+        let download_url = TrustedUrl::otel_download_url(platform, arch)?;
+        let temp_dir = TrustedDir::work_dir()?.join_dir("temp")?;
+
+        let archive_path = temp_dir.join_file("otelcol-contrib.tar.gz")?;
+        let extract_dir = temp_dir.join_dir("extract")?;
 
         info_message!("Downloading OpenTelemetry collector...");
         Self::download_file_async(&download_url, &archive_path).await?;
@@ -76,17 +77,19 @@ impl OtelBinaryManager {
         } else {
             "otelcol-contrib"
         };
-        let extracted_binary = extract_dir.join(binary_name);
-        let final_binary_path = if extracted_binary.exists() {
+        let extracted_binary = extract_dir.join_file(binary_name)?;
+        let final_binary_path = if extracted_binary.exists()? {
             extracted_binary
         } else {
-            Self::find_binary_in_subdirs(&extract_dir, binary_name)?
+            extract_dir.find_file(binary_name)?
         };
 
-        fs::copy(&final_binary_path, binary_path)?;
-        OtelUtils::make_executable(binary_path)?;
-        Self::install_to_system_path(binary_path)?;
-        fs::remove_dir_all(&temp_dir)?;
+        final_binary_path.copy_to(&trusted_binary_path)?;
+        trusted_binary_path.make_executable()?;
+
+        Self::install_to_system_path(&trusted_binary_path)?;
+
+        temp_dir.remove_all()?;
 
         Ok(())
     }
@@ -120,15 +123,9 @@ impl OtelBinaryManager {
         Ok(binary_dir.join(OTEL_BINARY_NAME))
     }
 
-    fn build_download_url(platform: &str, arch: &str) -> String {
-        format!(
-            "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v{}/otelcol-contrib_{}_{}_{}.tar.gz",
-            OTEL_VERSION, OTEL_VERSION, platform, arch
-        )
-    }
-
-    async fn download_file_async(url: &str, path: &PathBuf) -> Result<()> {
-        let response = reqwest::get(url)
+    async fn download_file_async(url: &TrustedUrl, path: &TrustedFile) -> Result<()> {
+        let response = url
+            .get()
             .await
             .with_context(|| format!("Failed to download from {}", url))?;
 
@@ -139,8 +136,9 @@ impl OtelBinaryManager {
             ));
         }
 
-        let mut file =
-            fs::File::create(path).with_context(|| format!("Failed to create file {:?}", path))?;
+        let mut file = path
+            .create()
+            .with_context(|| format!("Failed to create file {:?}", path))?;
         let bytes = response
             .bytes()
             .await
@@ -155,20 +153,17 @@ impl OtelBinaryManager {
         Ok(())
     }
 
-    fn extract_archive(archive_path: &PathBuf, extract_dir: &PathBuf) -> Result<()> {
-        fs::create_dir_all(extract_dir)?;
-
-        let file = fs::File::open(archive_path)
-            .with_context(|| format!("Failed to open archive {:?}", archive_path))?;
-
+    fn extract_archive(archive: &TrustedFile, dest: &TrustedDir) -> Result<()> {
+        let file = archive
+            .open()
+            .with_context(|| format!("Failed to open archive {}", archive))?;
         if file.metadata()?.len() == 0 {
             return Err(anyhow::anyhow!("Archive file is empty"));
         }
-
-        let gz = flate2::read::GzDecoder::new(file);
-        let mut tar = tar::Archive::new(gz);
-
-        for entry_result in tar.entries()? {
+        let decompressed = GzDecoder::new(file);
+        let mut archive = Archive::new(decompressed);
+        let extract_dir = dest.as_path()?;
+        for entry_result in archive.entries()? {
             let mut entry = entry_result.with_context(|| "Failed to read tar entry")?;
 
             let path = entry.path()?.to_path_buf();
@@ -176,34 +171,18 @@ impl OtelBinaryManager {
                 .unpack_in(extract_dir)
                 .with_context(|| format!("Failed to extract {}", path.display()))?;
         }
-
         Ok(())
     }
 
-    fn find_binary_in_subdirs(extract_dir: &PathBuf, binary_name: &str) -> Result<PathBuf> {
-        for entry in fs::read_dir(extract_dir)? {
-            let entry = entry?;
-            if entry.file_type()?.is_dir() {
-                let potential_binary = entry.path().join(binary_name);
-                if potential_binary.exists() {
-                    return Ok(potential_binary);
-                }
-            }
-        }
-        Err(anyhow::anyhow!(
-            "Could not find {} in extracted archive",
-            binary_name
-        ))
-    }
+    fn install_to_system_path(binary_path: &TrustedFile) -> Result<()> {
+        const OTEL_COL_INSTALL_PATH: &str = "/usr/local/bin/otelcol";
+        let system_binary_path = TrustedFile::new(Path::new(OTEL_COL_INSTALL_PATH))?;
 
-    fn install_to_system_path(binary_path: &PathBuf) -> Result<()> {
-        let system_binary_path = PathBuf::from("/usr/local/bin/otelcol");
-
-        if let Err(e) = fs::copy(binary_path, &system_binary_path) {
+        if let Err(e) = binary_path.copy_to(&system_binary_path) {
             warning_message!("Failed to install to /usr/local/bin: {}", e);
             info_message!("Binary available at: {:?}", binary_path);
         } else {
-            OtelUtils::make_executable(&system_binary_path)?;
+            system_binary_path.make_executable()?;
             success_message!("OpenTelemetry collector installed to /usr/local/bin/otelcol");
         }
 
