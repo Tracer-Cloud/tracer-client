@@ -194,7 +194,7 @@ fill_sched_process_exec(struct event *e,
       // }
       e->sched__sched_process_exec__payload.env_values[j][0] = 'a';
       e->sched__sched_process_exec__payload.env_values[j][VAL_MAX_LEN - 1] = '\0';
-      e->sched__sched_process_exec__payload.env_found_mask |= (1u << j);
+      //e->sched__sched_process_exec__payload.env_found_mask |= (1u << j);
       found++;
     }
 
