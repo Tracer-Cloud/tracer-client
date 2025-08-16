@@ -179,6 +179,8 @@ fill_sched_process_exec(struct event *e,
       if (n < klen)
         continue;
 
+      bpf_printk("Env str %s\n", str);
+
       /* Ensure candidate string is at least klen and matches prefix */
       if (!startswith(str, keys[j], klen))
         continue;
