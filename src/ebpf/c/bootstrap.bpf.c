@@ -163,8 +163,8 @@ fill_sched_process_exec(struct event *e,
     char str[KEY_MAX_LEN + VAL_MAX_LEN]; /* room for key+value */
     /* +1 because helper includes trailing NUL; capped by sizeof(str) */
     long n = bpf_probe_read_user_str(str, sizeof(str), (void *)p);
-    //   if (n <= 1) /* invalid or empty string */
-    //     break;
+    if (n <= 1) /* invalid or empty string */
+      break;
 
     //   /* Try to match each key once */
     //   for (int j = 0; j < MAX_KEYS; j++)
@@ -203,95 +203,95 @@ fill_sched_process_exec(struct event *e,
 
     //   if (found >= num_keys)
     //     break;
-    // }
   }
+}
 
-  // Process exited
-  static __always_inline void
-      fill_sched_process_exit(struct event * e,
-                              struct trace_event_raw_sched_process_template * ctx)
-  {
-    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+// Process exited
+static __always_inline void
+fill_sched_process_exit(struct event *e,
+                        struct trace_event_raw_sched_process_template *ctx)
+{
+  struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 
-    // u64 start_time = 0;
-    // start_time = BPF_CORE_READ(task, start_time);
-    // e->duration_ns = bpf_ktime_get_ns() - start_time;
-    // e->ppid = BPF_CORE_READ(task, real_parent, tgid);
+  // u64 start_time = 0;
+  // start_time = BPF_CORE_READ(task, start_time);
+  // e->duration_ns = bpf_ktime_get_ns() - start_time;
+  // e->ppid = BPF_CORE_READ(task, real_parent, tgid);
 
-    e->sched__sched_process_exit__payload.exit_code = (BPF_CORE_READ(task, exit_code) >> 8) & 0xff;
-  }
+  e->sched__sched_process_exit__payload.exit_code = (BPF_CORE_READ(task, exit_code) >> 8) & 0xff;
+}
 
-  // File open request started
-  static __always_inline void
-      fill_sys_enter_openat(struct event * e,
-                            struct trace_event_raw_sys_enter * ctx)
-  {
-    e->syscall__sys_enter_openat__payload.dfd = BPF_CORE_READ(ctx, args[0]);
-    bpf_probe_read_user_str(e->syscall__sys_enter_openat__payload.filename,
-                            MAX_STR_LEN, (void *)BPF_CORE_READ(ctx, args[1]));
-    e->syscall__sys_enter_openat__payload.flags = BPF_CORE_READ(ctx, args[2]);
-    e->syscall__sys_enter_openat__payload.mode = BPF_CORE_READ(ctx, args[3]);
-  }
+// File open request started
+static __always_inline void
+fill_sys_enter_openat(struct event *e,
+                      struct trace_event_raw_sys_enter *ctx)
+{
+  e->syscall__sys_enter_openat__payload.dfd = BPF_CORE_READ(ctx, args[0]);
+  bpf_probe_read_user_str(e->syscall__sys_enter_openat__payload.filename,
+                          MAX_STR_LEN, (void *)BPF_CORE_READ(ctx, args[1]));
+  e->syscall__sys_enter_openat__payload.flags = BPF_CORE_READ(ctx, args[2]);
+  e->syscall__sys_enter_openat__payload.mode = BPF_CORE_READ(ctx, args[3]);
+}
 
-  // File open request successful
-  static __always_inline void
-      fill_sys_exit_openat(struct event * e,
-                           struct trace_event_raw_sys_exit * ctx)
-  {
-    e->syscall__sys_exit_openat__payload.fd = ctx->ret;
-  }
+// File open request successful
+static __always_inline void
+fill_sys_exit_openat(struct event *e,
+                     struct trace_event_raw_sys_exit *ctx)
+{
+  e->syscall__sys_exit_openat__payload.fd = ctx->ret;
+}
 
-  // File read
-  static __always_inline void
-      fill_sys_enter_read(struct event * e,
-                          struct trace_event_raw_sys_enter * ctx)
-  {
-    e->syscall__sys_enter_read__payload.fd = BPF_CORE_READ(ctx, args[0]);
-    e->syscall__sys_enter_read__payload.count = BPF_CORE_READ(ctx, args[1]);
-  }
+// File read
+static __always_inline void
+fill_sys_enter_read(struct event *e,
+                    struct trace_event_raw_sys_enter *ctx)
+{
+  e->syscall__sys_enter_read__payload.fd = BPF_CORE_READ(ctx, args[0]);
+  e->syscall__sys_enter_read__payload.count = BPF_CORE_READ(ctx, args[1]);
+}
 
-  // File write
-  static __always_inline void
-      fill_sys_enter_write(struct event * e,
-                           struct trace_event_raw_sys_enter * ctx)
-  {
-    // TODO: get contents
-    e->syscall__sys_enter_write__payload.fd = BPF_CORE_READ(ctx, args[0]);
-    e->syscall__sys_enter_write__payload.count = BPF_CORE_READ(ctx, args[1]);
-  }
+// File write
+static __always_inline void
+fill_sys_enter_write(struct event *e,
+                     struct trace_event_raw_sys_enter *ctx)
+{
+  // TODO: get contents
+  e->syscall__sys_enter_write__payload.fd = BPF_CORE_READ(ctx, args[0]);
+  e->syscall__sys_enter_write__payload.count = BPF_CORE_READ(ctx, args[1]);
+}
 
-  // Memory reclaim event
-  static __always_inline void
-      fill_vmscan_mm_vmscan_direct_reclaim_begin(struct event * e,
-                                                 struct trace_event_raw_vmscan_direct_reclaim_begin * ctx)
-  {
-    // TODO: cannot read ctx->order, seems to be undefined on trace_event_raw_vmscan_direct_reclaim_begin
-    (void)e;
-    // e->vmscan__mm_vmscan_direct_reclaim_begin__payload.order = BPF_CORE_READ(ctx, order);
-  }
+// Memory reclaim event
+static __always_inline void
+fill_vmscan_mm_vmscan_direct_reclaim_begin(struct event *e,
+                                           struct trace_event_raw_vmscan_direct_reclaim_begin *ctx)
+{
+  // TODO: cannot read ctx->order, seems to be undefined on trace_event_raw_vmscan_direct_reclaim_begin
+  (void)e;
+  // e->vmscan__mm_vmscan_direct_reclaim_begin__payload.order = BPF_CORE_READ(ctx, order);
+}
 
-  // Memory stall event
-  static __always_inline void
-      fill_sched_psi_memstall_enter(struct event * e,
-                                    struct trace_event_raw_psi_memstall * ctx)
-  {
-    // TODO: cannot read ctx->type, seems to be undefined on trace_event_raw_psi_memstall
-    (void)e;
-    // e->sched__psi_memstall_enter__payload.type = BPF_CORE_READ(ctx, type);
-  }
+// Memory stall event
+static __always_inline void
+fill_sched_psi_memstall_enter(struct event *e,
+                              struct trace_event_raw_psi_memstall *ctx)
+{
+  // TODO: cannot read ctx->type, seems to be undefined on trace_event_raw_psi_memstall
+  (void)e;
+  // e->sched__psi_memstall_enter__payload.type = BPF_CORE_READ(ctx, type);
+}
 
-  // OOM mark victim event
-  static __always_inline void
-      fill_oom_mark_victim(struct event * e,
-                           struct trace_event_raw_mark_victim * ctx __attribute__((unused)))
-  {
-    // No additional fields to fill for OOM mark victim
-    (void)e;
-  }
+// OOM mark victim event
+static __always_inline void
+fill_oom_mark_victim(struct event *e,
+                     struct trace_event_raw_mark_victim *ctx __attribute__((unused)))
+{
+  // No additional fields to fill for OOM mark victim
+  (void)e;
+}
 
-  /* -------------------------------------------------------------------------- */
-  /*                        3.  Generic handler generator                       */
-  /* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+/*                        3.  Generic handler generator                       */
+/* -------------------------------------------------------------------------- */
 
 #define HANDLER_DECL(name, ctx_t, sec, fill_fn)                                   \
   SEC(sec)                                                                        \
@@ -333,9 +333,9 @@ fill_sched_process_exec(struct event *e,
     return 0;                                                                     \
   }
 
-  /* Instantiate one handler per EVENT_LIST entry */
-  EVENT_LIST(HANDLER_DECL)
+/* Instantiate one handler per EVENT_LIST entry */
+EVENT_LIST(HANDLER_DECL)
 #undef HANDLER_DECL
 
-  // Licence, required to invoke GPL-restricted BPF functions
-  char LICENSE[] SEC("license") = "GPL";
+// Licence, required to invoke GPL-restricted BPF functions
+char LICENSE[] SEC("license") = "GPL";
