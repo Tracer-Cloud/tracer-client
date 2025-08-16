@@ -17,6 +17,10 @@ const volatile char keys[MAX_KEYS][KEY_MAX_LEN] = {
     "TRACER_TRACE_ID=",
     /* add more (up to MAX_KEYS) */
 };
+const volatile int key_lens[MAX_KEYS] = {
+    16,
+    /* add more (up to MAX_KEYS) */
+};
 
 // Ring buffer interface to user‑space reader (bootstrap.c)
 struct
@@ -130,24 +134,6 @@ fill_sched_process_exec(struct event *e,
   env_end = BPF_CORE_READ(mm, env_end);
   if (env_end <= env_start)
     return;
-
-  /* Precompute key lengths (bounded by KEY_MAX_LEN) */
-  int key_lens[MAX_KEYS] = {};
-#pragma clang loop unroll(full)
-  for (int j = 0; j < MAX_KEYS; j++)
-  {
-    if (j >= num_keys)
-      break;
-    int len = 0;
-#pragma clang loop unroll(full)
-    for (int k = 0; k < KEY_MAX_LEN; k++)
-    {
-      if (keys[j][k] == '\0')
-        break;
-      len++;
-    }
-    key_lens[j] = len;
-  }
 
   /* Walk env block: NUL-terminated strings packed back-to-back */
   unsigned long p = env_start;
