@@ -183,7 +183,7 @@ fill_sched_process_exec(struct event *e,
         continue;
 
       /* Copy value (portion after key) */
-      const char *val = str + klen;
+      // const char *val = str + klen;
       /* strncpy is not allowed; do bounded byte-wise copy */
       // for (int b = 0; b < VAL_MAX_LEN - 1; b++)
       // {
