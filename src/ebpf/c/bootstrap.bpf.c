@@ -149,11 +149,11 @@ fill_sched_process_exec(struct event *e,
       continue;
     if (n < key_len)
       continue;
-    /* Ensure candidate string is at least klen and matches prefix */
+    /* Ensure candidate string is at least key_len and matches prefix */
     if (!startswith(str, key, key_len))
       continue;
     /* Copy value (portion after key) */
-    const char *val = str + klen;
+    const char *val = str + key_len;
     /* strncpy is not allowed; do bounded byte-wise copy */
 #pragma clang loop unroll(disable)
     for (int b = 0; b < VAL_MAX_LEN - 1; b++)
