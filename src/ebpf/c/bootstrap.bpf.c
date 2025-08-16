@@ -178,12 +178,14 @@ fill_sched_process_exec(struct event *e,
       if (!klen)
         continue;
 
+      bpf_printk("Env str %s\n", str);
+
       /* Ensure candidate string is at least klen and matches prefix */
       if (!startswith(str, keys[j], klen))
         continue;
 
       /* Copy value (portion after key) */
-      // const char *val = str + klen;
+      const char *val = str + klen;
       /* strncpy is not allowed; do bounded byte-wise copy */
       // for (int b = 0; b < VAL_MAX_LEN - 1; b++)
       // {
@@ -192,9 +194,8 @@ fill_sched_process_exec(struct event *e,
       //   if (c == '\0')
       //     break;
       // }
-      e->sched__sched_process_exec__payload.env_values[j][0] = 'a';
-      //e->sched__sched_process_exec__payload.env_values[j][VAL_MAX_LEN - 1] = '\0';
-      e->sched__sched_process_exec__payload.env_found_mask |= (1u << j);
+      // e->sched__sched_process_exec__payload.env_values[j][VAL_MAX_LEN - 1] = '\0';
+      // e->sched__sched_process_exec__payload.env_found_mask |= (1u << j);
       found++;
     }
 
