@@ -39,7 +39,7 @@ struct sched__sched_process_exec__payload
     u32 argc;
     char argv[MAX_ARR_LEN][MAX_STR_LEN];
     u32 env_found_mask;                     // bit j == 1 => env_values[j] is populated
-    char env_values[MAX_KEYS][MAX_STR_LEN]; // Environment variables
+    char env_values[MAX_KEYS][VAL_MAX_LEN]; // Environment variables
 };
 
 struct sched__sched_process_exit__payload
