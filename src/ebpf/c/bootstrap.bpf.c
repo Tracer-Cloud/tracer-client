@@ -11,6 +11,12 @@
 // .rodata: globals tunable from user space
 const volatile bool debug_enabled SEC(".rodata") = false;
 const volatile u64 system_boot_ns SEC(".rodata") = 0;
+/* Keys to scan for, include the trailing '=' to match prefix cleanly. */
+const volatile int num_keys = 1;
+const volatile char keys[MAX_KEYS][KEY_MAX_LEN] = {
+    "TRACER_TRACE_ID=",
+    /* add more (up to MAX_KEYS) */
+};
 
 // Ring buffer interface to user‑space reader (bootstrap.c)
 struct
@@ -33,6 +39,19 @@ static __always_inline u64 make_upid(u32 pid, u64 start_ns)
   const u64 PID_MASK = 0x00FFFFFFULL;       /* 24 ones */
   const u64 TIME_MASK = 0x000FFFFFFFFFFULL; /* 40 ones */
   return ((u64)(pid & PID_MASK) << 40) | (start_ns & TIME_MASK);
+}
+
+static __always_inline int startswith(const char *s, const char *p, int plen)
+{
+  /* memcmp is verifier-friendly when plen is bounded */
+  for (int i = 0; i < plen; i++)
+  {
+    if (s[i] != p[i])
+      return 0;
+    if (!p[i])
+      break;
+  }
+  return 1;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -73,26 +92,6 @@ static __always_inline u64 make_upid(u32 pid, u64 start_ns)
 /* -------------------------------------------------------------------------- */
 /*                    2.  Variant‑specific payload helpers                    */
 /* -------------------------------------------------------------------------- */
-
-/* Keys to scan for, include the trailing '=' to match prefix cleanly. */
-const volatile int num_keys = 4;
-const volatile char keys[MAX_KEYS][KEY_MAX_LEN] = {
-    "TRACER_TRACE_ID=",
-    /* add more (up to MAX_KEYS) */
-};
-
-static __always_inline int startswith(const char *s, const char *p, int plen)
-{
-  /* memcmp is verifier-friendly when plen is bounded */
-  for (int i = 0; i < plen; i++)
-  {
-    if (s[i] != p[i])
-      return 0;
-    if (!p[i])
-      break;
-  }
-  return 1;
-}
 
 // Process launched successfully
 static __always_inline void
@@ -177,8 +176,8 @@ fill_sched_process_exec(struct event *e,
       int klen = key_lens[j];
       if (!klen)
         continue;
-
-      bpf_printk("Env str %s\n", str);
+      if (n < klen)
+        continue;
 
       /* Ensure candidate string is at least klen and matches prefix */
       if (!startswith(str, keys[j], klen))
@@ -187,15 +186,15 @@ fill_sched_process_exec(struct event *e,
       /* Copy value (portion after key) */
       const char *val = str + klen;
       /* strncpy is not allowed; do bounded byte-wise copy */
-      // for (int b = 0; b < VAL_MAX_LEN - 1; b++)
-      // {
-      //   char c = val[b];
-      //   e->sched__sched_process_exec__payload.env_values[j][b] = c;
-      //   if (c == '\0')
-      //     break;
-      // }
-      // e->sched__sched_process_exec__payload.env_values[j][VAL_MAX_LEN - 1] = '\0';
-      // e->sched__sched_process_exec__payload.env_found_mask |= (1u << j);
+      for (int b = 0; b < VAL_MAX_LEN - 1; b++)
+      {
+        char c = val[b];
+        e->sched__sched_process_exec__payload.env_values[j][b] = c;
+        if (c == '\0')
+          break;
+      }
+      e->sched__sched_process_exec__payload.env_values[j][VAL_MAX_LEN - 1] = '\0';
+      e->sched__sched_process_exec__payload.env_found_mask |= (1u << j);
       found++;
     }
 
