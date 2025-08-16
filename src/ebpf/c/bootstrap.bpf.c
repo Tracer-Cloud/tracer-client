@@ -11,8 +11,14 @@
 // .rodata: globals tunable from user space
 const volatile bool debug_enabled SEC(".rodata") = false;
 const volatile u64 system_boot_ns SEC(".rodata") = 0;
-const volatile char key[16] = "TRACER_TRACE_ID=";
-const volatile int key_len = 16;
+const volatile char keys[MAX_KEYS][KEY_MAX_LEN] = {
+    "TRACER_TRACE_ID=",
+    /* add more (up to MAX_KEYS) */
+};
+const volatile int key_lens[MAX_KEYS] = {
+    16,
+    /* add more (up to MAX_KEYS) */
+};
 
 // Ring buffer interface to user‑space reader (bootstrap.c)
 struct
@@ -47,6 +53,32 @@ static __always_inline int startswith(const char *s, const char *p, int plen)
     if (!p[i])
       break;
   }
+  return 1;
+}
+
+static __always_inline int store_env_val(struct event *e, int idx, char *str, int str_len)
+{
+  if (e->sched__sched_process_exec__payload.env_found_mask & (1u << idx))
+    return 0;
+  const int key_len = key_lens[idx];
+  if (str_len < key_len)
+    return 0;
+  /* Ensure candidate string is at least key_len and matches prefix */
+  if (!startswith(str, keys[idx], key_len))
+    return 0;
+  /* Copy value (portion after key) */
+  const char *val = str + key_len;
+  /* strncpy is not allowed; do bounded byte-wise copy */
+#pragma clang loop unroll(disable)
+  for (int b = 0; b < VAL_MAX_LEN - 1; b++)
+  {
+    char c = val[b];
+    e->sched__sched_process_exec__payload.env_values[idx][b] = c;
+    if (c == '\0')
+      break;
+  }
+  e->sched__sched_process_exec__payload.env_values[idx][VAL_MAX_LEN - 1] = '\0';
+  e->sched__sched_process_exec__payload.env_found_mask |= (1u << idx);
   return 1;
 }
 
@@ -122,6 +154,10 @@ fill_sched_process_exec(struct event *e,
     arg_ptr += n; // jump over NUL byte
   }
 
+  // NOTE: this currently works because we are only looking for a single key. Trying to look for
+  // multiple keys in a loop will not work because the verifier will complain that program is too
+  // complex.
+
   env_start = BPF_CORE_READ(mm, env_start);
   env_end = BPF_CORE_READ(mm, env_end);
   if (env_end <= env_start)
@@ -147,24 +183,10 @@ fill_sched_process_exec(struct event *e,
     scanned_bytes += (int)n;
     if (n <= 1) /* invalid or empty string */
       continue;
-    if (n < key_len)
-      continue;
-    /* Ensure candidate string is at least key_len and matches prefix */
-    if (!startswith(str, key, key_len))
-      continue;
-    /* Copy value (portion after key) */
-    const char *val = str + key_len;
-    /* strncpy is not allowed; do bounded byte-wise copy */
-#pragma clang loop unroll(disable)
-    for (int b = 0; b < VAL_MAX_LEN - 1; b++)
-    {
-      char c = val[b];
-      e->sched__sched_process_exec__payload.env_value[b] = c;
-      if (c == '\0')
-        break;
-    }
-    e->sched__sched_process_exec__payload.env_value[VAL_MAX_LEN - 1] = '\0';
-    break;
+    if (store_env_val(e, 0, str, n))
+      found++;
+    if (found >= MAX_KEYS)
+      break;
   }
 }
 
