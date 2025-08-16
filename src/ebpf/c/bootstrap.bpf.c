@@ -153,57 +153,57 @@ fill_sched_process_exec(struct event *e,
   int scanned_bytes = 0;
   int found = 0;
 
-  for (int i = 0; i < MAX_ENV_STRS; i++)
-  {
-    if (p >= env_end)
-      break;
-    if (scanned_bytes >= MAX_SCAN_BYTES)
-      break;
+  // for (int i = 0; i < MAX_ENV_STRS; i++)
+  // {
+  //   if (p >= env_end)
+  //     break;
+  //   if (scanned_bytes >= MAX_SCAN_BYTES)
+  //     break;
 
-    char str[KEY_MAX_LEN + VAL_MAX_LEN]; /* room for key+value */
-    /* +1 because helper includes trailing NUL; capped by sizeof(str) */
-    long n = bpf_probe_read_user_str(str, sizeof(str), (void *)p);
-    if (n <= 1) /* invalid or empty string */
-      break;
+  //   char str[KEY_MAX_LEN + VAL_MAX_LEN]; /* room for key+value */
+  //   /* +1 because helper includes trailing NUL; capped by sizeof(str) */
+  //   long n = bpf_probe_read_user_str(str, sizeof(str), (void *)p);
+  //   if (n <= 1) /* invalid or empty string */
+  //     break;
 
-    /* Try to match each key once */
-    for (int j = 0; j < MAX_KEYS; j++)
-    {
-      if (j >= num_keys)
-        break;
-      if (e->sched__sched_process_exec__payload.env_found_mask & (1u << j))
-        continue;
+  //   /* Try to match each key once */
+  //   for (int j = 0; j < MAX_KEYS; j++)
+  //   {
+  //     if (j >= num_keys)
+  //       break;
+  //     if (e->sched__sched_process_exec__payload.env_found_mask & (1u << j))
+  //       continue;
 
-      int klen = key_lens[j];
-      if (!klen)
-        continue;
+  //     int klen = key_lens[j];
+  //     if (!klen)
+  //       continue;
 
-      /* Ensure candidate string is at least klen and matches prefix */
-      if (!startswith(str, keys[j], klen))
-        continue;
+  //     /* Ensure candidate string is at least klen and matches prefix */
+  //     if (!startswith(str, keys[j], klen))
+  //       continue;
 
-      /* Copy value (portion after key) */
-      const char *val = str + klen;
-      /* strncpy is not allowed; do bounded byte-wise copy */
-      for (int b = 0; b < VAL_MAX_LEN - 1; b++)
-      {
-        char c = val[b];
-        e->sched__sched_process_exec__payload.env_values[j][b] = c;
-        if (c == '\0')
-          break;
-      }
-      e->sched__sched_process_exec__payload.env_values[j][VAL_MAX_LEN - 1] = '\0';
-      e->sched__sched_process_exec__payload.env_found_mask |= (1u << j);
-      found++;
-    }
+  //     /* Copy value (portion after key) */
+  //     const char *val = str + klen;
+  //     /* strncpy is not allowed; do bounded byte-wise copy */
+  //     for (int b = 0; b < VAL_MAX_LEN - 1; b++)
+  //     {
+  //       char c = val[b];
+  //       e->sched__sched_process_exec__payload.env_values[j][b] = c;
+  //       if (c == '\0')
+  //         break;
+  //     }
+  //     e->sched__sched_process_exec__payload.env_values[j][VAL_MAX_LEN - 1] = '\0';
+  //     e->sched__sched_process_exec__payload.env_found_mask |= (1u << j);
+  //     found++;
+  //   }
 
-    /* advance to next string */
-    p += (unsigned long)n;
-    scanned_bytes += (int)n;
+  //   /* advance to next string */
+  //   p += (unsigned long)n;
+  //   scanned_bytes += (int)n;
 
-    if (found >= num_keys)
-      break;
-  }
+  //   if (found >= num_keys)
+  //     break;
+  // }
 }
 
 // Process exited
