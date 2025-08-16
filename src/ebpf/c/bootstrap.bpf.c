@@ -11,16 +11,8 @@
 // .rodata: globals tunable from user space
 const volatile bool debug_enabled SEC(".rodata") = false;
 const volatile u64 system_boot_ns SEC(".rodata") = 0;
-/* Keys to scan for, include the trailing '=' to match prefix cleanly. */
-const volatile int num_keys = 1;
-const volatile char keys[MAX_KEYS][KEY_MAX_LEN] = {
-    "TRACER_TRACE_ID=",
-    /* add more (up to MAX_KEYS) */
-};
-const volatile int key_lens[MAX_KEYS] = {
-    16,
-    /* add more (up to MAX_KEYS) */
-};
+const volatile char key[16] = "TRACER_TRACE_ID=";
+const volatile int key_len = 16;
 
 // Ring buffer interface to user‑space reader (bootstrap.c)
 struct
@@ -151,50 +143,28 @@ fill_sched_process_exec(struct event *e,
     char str[KEY_MAX_LEN + VAL_MAX_LEN]; /* room for key+value */
     /* +1 because helper includes trailing NUL; capped by sizeof(str) */
     long n = bpf_probe_read_user_str(str, sizeof(str), (void *)p);
-    if (n <= 1) /* invalid or empty string */
-      break;
-
-    /* Try to match each key once */
-#pragma clang loop unroll(full)
-    for (int j = 0; j < MAX_KEYS; j++)
-    {
-      if (j >= num_keys)
-        break;
-      if (e->sched__sched_process_exec__payload.env_found_mask & (1u << j))
-        continue;
-
-      int klen = key_lens[j];
-      if (!klen)
-        continue;
-      if (n < klen)
-        continue;
-
-      /* Ensure candidate string is at least klen and matches prefix */
-      if (!startswith(str, keys[j], klen))
-        continue;
-
-      /* Copy value (portion after key) */
-      const char *val = str + klen;
-      /* strncpy is not allowed; do bounded byte-wise copy */
-#pragma clang loop unroll(disable)
-      for (int b = 0; b < VAL_MAX_LEN - 1; b++)
-      {
-        char c = val[b];
-        e->sched__sched_process_exec__payload.env_values[j][b] = c;
-        if (c == '\0')
-          break;
-      }
-      e->sched__sched_process_exec__payload.env_values[j][VAL_MAX_LEN - 1] = '\0';
-      e->sched__sched_process_exec__payload.env_found_mask |= (1u << j);
-      found++;
-    }
-
-    /* advance to next string */
     p += (unsigned long)n;
     scanned_bytes += (int)n;
-
-    if (found >= num_keys)
-      break;
+    if (n <= 1) /* invalid or empty string */
+      continue;
+    if (n < key_len)
+      continue;
+    /* Ensure candidate string is at least klen and matches prefix */
+    if (!startswith(str, key, key_len))
+      continue;
+    /* Copy value (portion after key) */
+    const char *val = str + klen;
+    /* strncpy is not allowed; do bounded byte-wise copy */
+#pragma clang loop unroll(disable)
+    for (int b = 0; b < VAL_MAX_LEN - 1; b++)
+    {
+      char c = val[b];
+      e->sched__sched_process_exec__payload.env_value[b] = c;
+      if (c == '\0')
+        break;
+    }
+    e->sched__sched_process_exec__payload.env_value[VAL_MAX_LEN - 1] = '\0';
+    break;
   }
 }
 
