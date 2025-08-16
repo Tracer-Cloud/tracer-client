@@ -56,14 +56,18 @@ static __always_inline int startswith(const char *s, const char *p, int plen)
   return 1;
 }
 
+/* Tries to match the key with index `idx` against `str` - if they match, the value of the
+ * environment variable is stored in the event payload. Returns `1` if a match was found,
+ * `0` otherwise.
+ */
 static __always_inline int store_env_val(struct event *e, int idx, char *str, int str_len)
 {
   if (e->sched__sched_process_exec__payload.env_found_mask & (1u << idx))
     return 0;
+  /* Ensure candidate string is at least key_len and matches prefix */
   const int key_len = key_lens[idx];
   if (str_len < key_len)
     return 0;
-  /* Ensure candidate string is at least key_len and matches prefix */
   if (!startswith(str, keys[idx], key_len))
     return 0;
   /* Copy value (portion after key) */
@@ -173,7 +177,6 @@ fill_sched_process_exec(struct event *e,
       break;
 
     char str[KEY_MAX_LEN + VAL_MAX_LEN]; /* room for key+value */
-    /* +1 because helper includes trailing NUL; capped by sizeof(str) */
     long n = bpf_probe_read_user_str(str, sizeof(str), (void *)p);
     p += (unsigned long)n;
     scanned_bytes += (int)n;
