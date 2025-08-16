@@ -27,7 +27,7 @@ pub struct SchedProcessExecPayload {
     pub argc: u32,
     pub argv: [[u8; MAX_STR_LEN]; MAX_ARR_LEN],
     pub env_found_mask: u32,
-    pub env_value: [[u8; MAX_STR_LEN]; MAX_ENV_LEN],
+    pub env_values: [[u8; MAX_STR_LEN]; MAX_ENV_LEN],
 }
 
 pub struct SchedProcessExitPayload {
