@@ -1,6 +1,7 @@
 use crate::opentelemetry::config::OtelConfig;
 use crate::opentelemetry::installation::OtelBinaryManager;
 use crate::opentelemetry::utils::OtelUtils;
+use crate::utils::file_system::TrustedFile;
 use crate::utils::workdir::TRACER_WORK_DIR;
 use crate::{error_message, info_message, success_message, warning_message};
 use anyhow::{Context, Result};
@@ -197,16 +198,16 @@ impl OtelProcessController {
     fn spawn_process(
         &self,
         watch_dir: &PathBuf,
-        stdout_file: &PathBuf,
-        stderr_file: &PathBuf,
+        stdout_file: &TrustedFile,
+        stderr_file: &TrustedFile,
     ) -> Result<std::process::Child> {
         Command::new(&self.binary_path)
             .arg("--config")
             .arg(&self.config_path)
             .current_dir(watch_dir)
             .stdin(Stdio::null())
-            .stdout(Stdio::from(fs::File::create(stdout_file)?))
-            .stderr(Stdio::from(fs::File::create(stderr_file)?))
+            .stdout(Stdio::from(stdout_file.create()?))
+            .stderr(Stdio::from(stderr_file.create()?))
             .spawn()
             .with_context(|| {
                 format!(
@@ -219,8 +220,8 @@ impl OtelProcessController {
     fn wait_for_startup(
         &self,
         child: &mut std::process::Child,
-        stdout_file: &PathBuf,
-        stderr_file: &PathBuf,
+        stdout_file: &TrustedFile,
+        stderr_file: &TrustedFile,
     ) -> Result<()> {
         std::thread::sleep(std::time::Duration::from_millis(1000));
 
@@ -273,8 +274,8 @@ impl OtelProcessController {
     async fn wait_for_startup_async(
         &self,
         child: &mut std::process::Child,
-        stdout_file: &PathBuf,
-        stderr_file: &PathBuf,
+        stdout_file: &TrustedFile,
+        stderr_file: &TrustedFile,
     ) -> Result<()> {
         tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
 

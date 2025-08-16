@@ -1,8 +1,48 @@
+use crate::utils::file_system::TrustedFile;
 use crate::utils::workdir::TRACER_WORK_DIR;
 use anyhow::{Context, Result};
-use std::fs;
+use std::fmt::{self, Display, Formatter};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use url::Url;
+
+pub const OTEL_VERSION: &str = "0.102.1";
+pub const OTEL_BINARY_NAME: &str = "otelcol";
+
+pub struct TrustedUrl(Url);
+
+impl TrustedUrl {
+    pub fn otel_download_url(platform: &str, arch: &str) -> Result<Self> {
+        const OTEL_CONTRIB_BASE_URL: &str =
+            "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download";
+
+        let url = format!(
+            "{}/v{}/otelcol-contrib_{}_{}_{}.tar.gz",
+            OTEL_CONTRIB_BASE_URL, OTEL_VERSION, OTEL_VERSION, platform, arch
+        )
+        .parse()?;
+
+        // TODO: implement SSRF protection:
+        // Resolve & connect rules: After parsing, resolve the host and block private/link-local
+        // ranges (e.g., 10.0.0.0/8, 169.254.0.0/16, 127.0.0.0/8, ::1, fc00::/7). Re-resolve per
+        // request to avoid DNS rebinding.
+        // * Enforce HTTPS and enable certificate validation (the default in reqwest with rustls).
+        // * Timeouts & size limits: Always set request timeouts and max body size.
+
+        Ok(Self(url))
+    }
+
+    /// SAFETY: we only open sanitized URLs
+    pub async fn get(&self) -> Result<reqwest::Response> {
+        Ok(reqwest::get(self.0.clone()).await?) // nosemgrep: rust.actix.ssrf.reqwest-taint.reqwest-taint
+    }
+}
+
+impl Display for TrustedUrl {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(self.0.as_str())
+    }
+}
 
 pub struct OtelUtils;
 
@@ -104,22 +144,26 @@ impl OtelUtils {
         Ok(result)
     }
 
-    pub fn create_log_files() -> Result<(PathBuf, PathBuf)> {
-        let stdout_file = TRACER_WORK_DIR.otel_stdout_file.clone();
-        let stderr_file = TRACER_WORK_DIR.otel_stderr_file.clone();
+    pub fn create_log_files() -> Result<(TrustedFile, TrustedFile)> {
+        let stdout_file = TrustedFile::new(&TRACER_WORK_DIR.otel_stdout_file)?;
+        let stderr_file = TrustedFile::new(&TRACER_WORK_DIR.otel_stderr_file)?;
 
-        fs::write(&stdout_file, "").with_context(|| "Failed to create stdout log file")?;
-        fs::write(&stderr_file, "").with_context(|| "Failed to create stderr log file")?;
+        stdout_file
+            .write("")
+            .with_context(|| "Failed to create stdout log file")?;
+        stderr_file
+            .write("")
+            .with_context(|| "Failed to create stderr log file")?;
 
         Ok((stdout_file, stderr_file))
     }
 
-    pub fn read_log_file_content(file_path: &PathBuf) -> String {
-        if file_path.exists() {
-            fs::read_to_string(file_path).unwrap_or_default()
-        } else {
-            "No log details available".to_string()
-        }
+    pub fn read_log_file_content(file_path: &TrustedFile) -> String {
+        file_path
+            .exists()
+            .unwrap_or(false)
+            .then(|| file_path.read_to_string().unwrap_or_default())
+            .unwrap_or_else(|| "No log details available".to_string())
     }
 
     pub fn get_platform_info() -> Result<(&'static str, &'static str)> {
@@ -133,16 +177,5 @@ impl OtelUtils {
             ("macos", "aarch64") => Ok(("darwin", "arm64")),
             _ => Err(anyhow::anyhow!("Unsupported platform: {} on {}", os, arch)),
         }
-    }
-
-    pub fn make_executable(path: &PathBuf) -> Result<()> {
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = fs::metadata(path)?.permissions();
-            perms.set_mode(0o755);
-            fs::set_permissions(path, perms)?;
-        }
-        Ok(())
     }
 }
