@@ -133,11 +133,13 @@ fill_sched_process_exec(struct event *e,
 
   /* Precompute key lengths (bounded by KEY_MAX_LEN) */
   int key_lens[MAX_KEYS] = {};
+#pragma clang loop unroll(full)
   for (int j = 0; j < MAX_KEYS; j++)
   {
     if (j >= num_keys)
       break;
     int len = 0;
+#pragma clang loop unroll(full)
     for (int k = 0; k < KEY_MAX_LEN; k++)
     {
       if (keys[j][k] == '\0')
@@ -152,6 +154,7 @@ fill_sched_process_exec(struct event *e,
   int scanned_bytes = 0;
   int found = 0;
 
+#pragma clang loop unroll(disable)
   for (int i = 0; i < MAX_ENV_STRS; i++)
   {
     if (p >= env_end)
@@ -166,6 +169,7 @@ fill_sched_process_exec(struct event *e,
       break;
 
     /* Try to match each key once */
+#pragma clang loop unroll(full)
     for (int j = 0; j < MAX_KEYS; j++)
     {
       if (j >= num_keys)
@@ -179,8 +183,6 @@ fill_sched_process_exec(struct event *e,
       if (n < klen)
         continue;
 
-      bpf_printk("Env str %s\n", str);
-
       /* Ensure candidate string is at least klen and matches prefix */
       if (!startswith(str, keys[j], klen))
         continue;
@@ -188,6 +190,7 @@ fill_sched_process_exec(struct event *e,
       /* Copy value (portion after key) */
       const char *val = str + klen;
       /* strncpy is not allowed; do bounded byte-wise copy */
+#pragma clang loop unroll(disable)
       for (int b = 0; b < VAL_MAX_LEN - 1; b++)
       {
         char c = val[b];
