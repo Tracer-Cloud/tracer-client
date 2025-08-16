@@ -192,7 +192,7 @@ fill_sched_process_exec(struct event *e,
       //   if (c == '\0')
       //     break;
       // }
-      e->sched__sched_process_exec__payload.env_values[j][b] = 'a';
+      e->sched__sched_process_exec__payload.env_values[j][0] = 'a';
       e->sched__sched_process_exec__payload.env_values[j][VAL_MAX_LEN - 1] = '\0';
       e->sched__sched_process_exec__payload.env_found_mask |= (1u << j);
       found++;
