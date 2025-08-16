@@ -154,10 +154,6 @@ fill_sched_process_exec(struct event *e,
     arg_ptr += n; // jump over NUL byte
   }
 
-  // NOTE: this currently works because we are only looking for a single key. Trying to look for
-  // multiple keys in a loop will not work because the verifier will complain that program is too
-  // complex.
-
   env_start = BPF_CORE_READ(mm, env_start);
   env_end = BPF_CORE_READ(mm, env_end);
   if (env_end <= env_start)
@@ -183,8 +179,13 @@ fill_sched_process_exec(struct event *e,
     scanned_bytes += (int)n;
     if (n <= 1) /* invalid or empty string */
       continue;
+
+    // NOTE: this currently works because we are only looking for a single key. Trying to look for
+    // multiple keys in a loop will not work because the verifier will complain that program is too
+    // complex. For each new key to look for, we will need to add a new branch here.
     if (store_env_val(e, 0, str, n))
       found++;
+
     if (found >= MAX_KEYS)
       break;
   }
