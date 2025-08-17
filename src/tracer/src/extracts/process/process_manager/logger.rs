@@ -98,13 +98,7 @@ impl ProcessLogger {
             return Ok(ProcessResult::NotFound);
         };
 
-        debug!(
-            "Loaded process. PID: ebpf={}, system={:?}; Start Time: ebpf={}, system={:?};",
-            process.pid,
-            system_process.pid(),
-            process.started_at.timestamp(),
-            system_process.start_time()
-        );
+        debug!("Loaded process. PID: {}", process.pid);
 
         // Don't process input files for update events
         let properties = extract_process_data::gather_process_data(
@@ -115,7 +109,7 @@ impl ProcessLogger {
         )
         .await;
 
-        debug!("Process data completed. PID={}", process.pid);
+        debug!("Process data completed for PID: {}", process.pid);
 
         self.event_dispatcher
             .log(

@@ -2,7 +2,10 @@ use crate::extracts::process::process_manager::logger::ProcessLogger;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
 use anyhow::Result;
-use tracing::{debug, error, warn};
+use std::collections::HashSet;
+use sysinfo::System;
+use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
+use tracing::{debug, warn};
 
 /// Handles periodic polling and updating of process metrics for monitored processes.
 ///
@@ -32,46 +35,44 @@ impl ProcessMetricsHandler {
     ) -> Result<()> {
         debug!("Starting periodic process metrics polling");
 
-        // Step 1: Get all monitored process PIDs
+        // Get all monitored process PIDs
         let monitored_pids = state_manager.get_monitored_processes_pids().await;
 
         if monitored_pids.is_empty() {
             warn!("No processes are currently monitored - skipping metrics poll");
-            error!("No processes are currently monitored - skipping metrics poll");
             return Ok(());
         }
 
-        debug!(
-            "Polling metrics for {} monitored processes",
-            monitored_pids.len()
-        );
-
-        // Step 2: Refresh system data for all monitored processes
+        // Refresh system data for all monitored processes
         system_refresher.refresh_system(&monitored_pids).await?;
         debug!("System data refreshed for {} PIDs", monitored_pids.len());
 
-        // Step 3: Extract and log metrics for each monitored process
-        for (target, processes) in state_manager.get_state().await.get_monitoring().iter() {
-            for process in processes {
-                let system = system_refresher.get_system().read().await;
-                debug!(
-                    "Extracting metrics for PID {}: {}, with target: {}",
-                    process.pid, process.comm, target
-                );
-                let process_data_from_system = system.process(process.pid.into());
-                debug!(
-                    "System process for {} with PID: {}: {:?}",
-                    target, process.pid, process_data_from_system
-                );
-                let result = logger
-                    .log_process_metrics(target, process, process_data_from_system)
-                    .await?;
-                debug!("Metrics extracted for PID {}: {:?}", process.pid, result);
-            }
-        }
+        let system = system_refresher.get_system().read().await; // Acquire the lock once
 
-        debug!("Metrics polling completed");
+        // Extract and log metrics for each monitored process
+        for (target, processes) in state_manager.get_state().await.get_monitoring().iter() {
+            process_metrics_for_target(target, processes, &system, logger).await?;
+        }
 
         Ok(())
     }
+}
+
+// Extract and log metrics for a single target
+pub async fn process_metrics_for_target(
+    target: &String,
+    processes: &HashSet<ProcessStartTrigger>,
+    system: &System,
+    logger: &ProcessLogger,
+) -> Result<()> {
+    for process in processes {
+        if let Some(process_data) = system.process(process.pid.into()) {
+            let result = logger
+                .log_process_metrics(target, process, Some(process_data))
+                .await?;
+            debug!("Metrics extracted for PID {}: {:?}", process.pid, result);
+        }
+    }
+
+    Ok(())
 }
