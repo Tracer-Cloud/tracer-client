@@ -14,12 +14,12 @@ pub struct StateManager {
 
 impl StateManager {
     /// Gets a write lock on the process state
-    pub async fn get_state_mut(&self) -> RwLockWriteGuard<ProcessState> {
+    pub async fn get_state_mut(&self) -> RwLockWriteGuard<'_, ProcessState> {
         self.state.write().await
     }
 
     /// Gets a read lock on the process state
-    pub async fn get_state(&self) -> tokio::sync::RwLockReadGuard<ProcessState> {
+    pub async fn get_state(&self) -> tokio::sync::RwLockReadGuard<'_, ProcessState> {
         self.state.read().await
     }
 
