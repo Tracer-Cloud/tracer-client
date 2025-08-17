@@ -127,7 +127,8 @@ jobs:
       - name: Build the binary
         env:
           CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
-          CARGO_INCREMENTAL: "0"
+          CARGO_INCREMENTAL: "1"
+          CARGO_BUILD_JOBS: "8"
         run: cargo build --release --target ${{ matrix.target }} -p tracer -p tracer-installer
 
       - name: Prepare binary for release
@@ -218,10 +219,11 @@ jobs:
       - name: Build the binary
         env:
           CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
-          CARGO_INCREMENTAL: "0"
+          CARGO_INCREMENTAL: "1"
+          CARGO_BUILD_JOBS: "8"
         run: |
           source $HOME/.cargo/env
-          cargo build --release -p tracer
+          cargo build --release -p tracer -p tracer-installer
 
       - name: Prepare binary for release
         run: |
@@ -229,6 +231,13 @@ jobs:
           cp target/release/tracer release-files/amazon-linux/tracer
           chmod +x release-files/amazon-linux/tracer
           tar -czf release-files/tracer-x86_64-amazon-linux-gnu.tar.gz -C release-files/amazon-linux tracer
+
+          # Copy Tracer Installer binary (if it was built)
+          if [ -f target/release/tracer-installer ]; then
+            cp target/release/tracer-installer release-files/amazon-linux/tracer-installer
+            chmod +x release-files/amazon-linux/tracer-installer
+            tar -czf release-files/tracer-installer-x86_64-amazon-linux-gnu.tar.gz -C release-files/amazon-linux tracer-installer
+          fi
 
       - name: Install AWS CLI
         run: |
@@ -247,3 +256,6 @@ jobs:
         run: |
           aws s3 cp release-files/tracer-x86_64-amazon-linux-gnu.tar.gz s3://tracer-releases/tracer-x86_64-amazon-linux-gnu.tar.gz
           aws s3 cp release-files/tracer-x86_64-amazon-linux-gnu.tar.gz s3://tracer-releases/${{ github.head_ref || github.ref_name }}/tracer-x86_64-amazon-linux-gnu.tar.gz
+          
+          # Upload tracer-installer binary for Amazon Linux
+          aws s3 cp release-files/tracer-installer-x86_64-amazon-linux-gnu.tar.gz s3://tracer-installer-releases/${{ github.head_ref || github.ref_name }}/tracer-installer-x86_64-amazon-linux-gnu.tar.gz

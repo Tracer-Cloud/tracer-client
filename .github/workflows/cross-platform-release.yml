@@ -94,16 +94,16 @@ jobs:
       - name: Prepare binary for release
         run: |
           mkdir -p release-files/${{ matrix.target }}
+
+          # Copy tracer main binary
           cp target/${{ matrix.target }}/release/tracer release-files/${{ matrix.target }}/tracer
           chmod +x release-files/${{ matrix.target }}/tracer
           tar -czf release-files/tracer-${{ matrix.target }}.tar.gz -C release-files/${{ matrix.target }} tracer
 
-          # Copy Tracer Installer binary (if it was built)
-          if [ -f target/${{ matrix.target }}/release/tracer-installer ]; then
-            cp target/${{ matrix.target }}/release/tracer-installer release-files/${{ matrix.target }}/tracer-installer
-            chmod +x release-files/${{ matrix.target }}/tracer-installer
-            tar -czf release-files/tracer-installer-${{ matrix.target }}.tar.gz -C release-files/${{ matrix.target }} tracer-installer
-          fi
+          # Copy Tracer Installer binary
+          cp target/${{ matrix.target }}/release/tracer-installer release-files/${{ matrix.target }}/tracer-installer
+          chmod +x release-files/${{ matrix.target }}/tracer-installer
+          tar -czf release-files/tracer-installer-${{ matrix.target }}.tar.gz -C release-files/${{ matrix.target }} tracer-installer
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -158,20 +158,33 @@ jobs:
       - name: Build the binary
         run: |
           source $HOME/.cargo/env
-          cargo build --release
+          cargo build --release -p tracer -p tracer-installer
 
       - name: Prepare binary for release
         run: |
           mkdir -p release-files/amazon-linux
+
+          # Copy tracer main binary
           cp target/release/tracer release-files/amazon-linux/tracer
           chmod +x release-files/amazon-linux/tracer
           tar -czf release-files/tracer-x86_64-amazon-linux-gnu.tar.gz -C release-files/amazon-linux tracer
 
-      - name: Upload artifact
+          # Copy tracer installer binary
+          cp target/release/tracer-installer release-files/amazon-linux/tracer-installer
+          chmod +x release-files/amazon-linux/tracer-installer
+          tar -czf release-files/tracer-installer-x86_64-amazon-linux-gnu.tar.gz -C release-files/amazon-linux tracer-installer
+
+      - name: Upload tracer artifact
         uses: actions/upload-artifact@v4
         with:
           name: tracer-amazon-linux
           path: release-files/tracer-x86_64-amazon-linux-gnu.tar.gz
+
+      - name: Upload tracer-installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracer-installer-amazon-linux
+          path: release-files/tracer-installer-x86_64-amazon-linux-gnu.tar.gz
 
   create-release:
     needs: [build-binaries, build-amazon-linux]
