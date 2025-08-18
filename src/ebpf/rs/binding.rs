@@ -177,7 +177,7 @@ mod linux {
 
         #[tokio::test]
         async fn test_exit_code() {
-            let (tx, rx) = mpsc::unbounded_channel::<Trigger>();
+            let (tx, mut rx) = mpsc::unbounded_channel::<Trigger>();
             super::start_processing_events(tx).unwrap();
 
             // run a process that exits with an error
