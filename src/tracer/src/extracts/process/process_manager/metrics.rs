@@ -1,4 +1,4 @@
-use crate::extracts::process::process_manager::logger::EventRecorder;
+use crate::extracts::process::process_manager::recorder::EventRecorder;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
 use anyhow::Result;
@@ -60,7 +60,7 @@ impl ProcessMetricsHandler {
                 );
                 let sys_proc = system.process(proc.pid.into());
                 debug!("System process for {}: {:?}", target, sys_proc);
-                let result = logger.log_process_metrics(target, proc, sys_proc).await?;
+                let result = logger.record_process_metrics(target, proc, sys_proc).await?;
                 debug!("Metrics extracted for PID {}: {:?}", proc.pid, result);
             }
         }

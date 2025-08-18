@@ -1,4 +1,4 @@
-use crate::extracts::process::process_manager::logger::EventRecorder;
+use crate::extracts::process::process_manager::recorder::EventRecorder;
 use crate::extracts::process::process_manager::state::StateManager;
 use anyhow::Result;
 use std::collections::HashMap;
@@ -63,7 +63,7 @@ impl ProcessTerminationHandler {
                 };
 
                 logger
-                    .log_process_completion(&target, &start_trigger, &finish_trigger)
+                    .record_process_completion(&target, &start_trigger, &finish_trigger)
                     .await?;
             }
         }

@@ -1,4 +1,4 @@
-use crate::extracts::process::process_manager::logger::EventRecorder;
+use crate::extracts::process::process_manager::recorder::EventRecorder;
 use crate::extracts::process::process_manager::matcher;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
@@ -131,7 +131,7 @@ impl ProcessStartHandler {
                 pipeline_manager.register_process(trigger, task_pid, matched_target)
             {
                 // the process triggered a task match
-                logger.log_task_match(task_match).await?;
+                logger.record_task_match(task_match).await?;
             }
         }
         Ok(())

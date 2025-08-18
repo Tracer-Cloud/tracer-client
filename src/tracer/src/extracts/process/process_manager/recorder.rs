@@ -31,7 +31,7 @@ impl EventRecorder {
         }
     }
 
-    /// Logs information about a newly detected process
+    /// Records information about a newly detected process
     pub async fn record_new_process(
         &self,
         target: &String,
@@ -84,8 +84,8 @@ impl EventRecorder {
         Ok(ProcessResult::Found)
     }
 
-    /// Logs metrics update for an already running process
-    pub async fn log_process_metrics(
+    /// Records metrics update for an already running process
+    pub async fn record_process_metrics(
         &self,
         target: &String,
         process: &ProcessStartTrigger,
@@ -129,8 +129,8 @@ impl EventRecorder {
         Ok(ProcessResult::Found)
     }
 
-    /// Logs completion of a process
-    pub async fn log_process_completion(
+    /// Records completion of a process
+    pub async fn record_process_completion(
         &self,
         target: &str,
         start_trigger: &ProcessStartTrigger,
@@ -142,7 +142,7 @@ impl EventRecorder {
             .unwrap_or(0);
 
         error!(
-            "log_process_completion: START: finish trigger: {:?}",
+            "record_process_completion: START: finish trigger: {:?}",
             finish_trigger
         );
 
@@ -174,8 +174,8 @@ impl EventRecorder {
         Ok(())
     }
 
-    /// Logs a match for a set of processes to a job.
-    pub async fn log_task_match(&self, task_match: TaskMatch) -> Result<()> {
+    /// Record a match for a set of processes to a job.
+    pub async fn record_task_match(&self, task_match: TaskMatch) -> Result<()> {
         self.event_dispatcher
             .log(
                 TracerProcessStatus::TaskMatch,
