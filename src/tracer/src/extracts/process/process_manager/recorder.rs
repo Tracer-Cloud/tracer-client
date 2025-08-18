@@ -15,15 +15,15 @@ use tracer_ebpf::ebpf_trigger::{ProcessEndTrigger, ProcessStartTrigger};
 use tracing::debug;
 use tracing::error;
 
-/// Handles logging of process-related events
-pub struct ProcessLogger {
+/// Handles recording of process-related events
+pub struct EventRecorder {
     event_dispatcher: EventDispatcher,
     /// shared reference to the docker watcher - used to get the ContainerEvent associated
     /// with a process
     docker_watcher: Arc<DockerWatcher>,
 }
 
-impl ProcessLogger {
+impl EventRecorder {
     pub fn new(event_dispatcher: EventDispatcher, docker_watcher: Arc<DockerWatcher>) -> Self {
         Self {
             event_dispatcher,
@@ -31,8 +31,8 @@ impl ProcessLogger {
         }
     }
 
-    /// Logs information about a newly detected process
-    pub async fn log_new_process(
+    /// Records information about a newly detected process
+    pub async fn record_new_process(
         &self,
         target: &String,
         process: &ProcessStartTrigger,
@@ -84,8 +84,8 @@ impl ProcessLogger {
         Ok(ProcessResult::Found)
     }
 
-    /// Logs metrics update for an already running process
-    pub async fn log_process_metrics(
+    /// Records metrics update for an already running process
+    pub async fn record_process_metrics(
         &self,
         target: &String,
         process: &ProcessStartTrigger,
@@ -129,8 +129,8 @@ impl ProcessLogger {
         Ok(ProcessResult::Found)
     }
 
-    /// Logs completion of a process
-    pub async fn log_process_completion(
+    /// Records completion of a process
+    pub async fn record_process_completion(
         &self,
         target: &str,
         start_trigger: &ProcessStartTrigger,
@@ -142,7 +142,7 @@ impl ProcessLogger {
             .unwrap_or(0);
 
         error!(
-            "log_process_completion: START: finish trigger: {:?}",
+            "record_process_completion: START: finish trigger: {:?}",
             finish_trigger
         );
 
@@ -174,8 +174,8 @@ impl ProcessLogger {
         Ok(())
     }
 
-    /// Logs a match for a set of processes to a job.
-    pub async fn log_task_match(&self, task_match: TaskMatch) -> Result<()> {
+    /// Record a match for a set of processes to a job.
+    pub async fn record_task_match(&self, task_match: TaskMatch) -> Result<()> {
         self.event_dispatcher
             .log(
                 TracerProcessStatus::TaskMatch,

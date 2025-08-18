@@ -1,12 +1,11 @@
 use crate::extracts::process::types::process_state::ProcessState;
-use crate::process_identification::target_process::target::Target;
 use crate::process_identification::utils::log_matched_process;
 use std::collections::{HashMap, HashSet};
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 
-/// Finds processes that match our targets
+/// Filters processes to only include those that match our targets
 /// Uses the state's target manager for consistency
-pub fn find_matching_processes<'a>(
+pub fn filter_processes_by_target<'a>(
     triggers: &'a [ProcessStartTrigger],
     state: &ProcessState,
 ) -> HashMap<String, HashSet<&'a ProcessStartTrigger>> {
@@ -32,15 +31,4 @@ pub fn find_matching_processes<'a>(
                 matched_processes
             },
         )
-}
-
-/// Collects all PIDs from the filtered target processes map
-/// TODO: this is never called
-pub fn collect_pids_to_refresh(
-    filtered_target_processes: &HashMap<Target, HashSet<ProcessStartTrigger>>,
-) -> HashSet<usize> {
-    filtered_target_processes
-        .values()
-        .flat_map(|procs| procs.iter().map(|p| p.pid))
-        .collect()
 }
