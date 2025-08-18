@@ -47,7 +47,7 @@ Choose your preferred tech stack from the left-hand menu.
 Copy the pre-filled curl command (also shown in the Sandbox) and run it in your terminal:
 
 ```bash
-curl -sSL https://install.tracer.cloud | sh
+curl -sSL https://install.tracer.cloud | sh -s _USERID_
 ```
 
 → Some environments (e.g. Docker) may require 1-2 additional steps.
@@ -57,7 +57,7 @@ curl -sSL https://install.tracer.cloud | sh
 Copy the pre-filled tracer init command (also shown in the Sandbox) and run it in your terminal:
 
 ```bash
-tracer init --user-id user_31KboryFJnD08UZBsYr8w6AcJAb
+tracer init --user-id _USERID_
 ```
 Depending on the tech stack, this line can be preceded by sudo as shown in the Sandbox.
 
