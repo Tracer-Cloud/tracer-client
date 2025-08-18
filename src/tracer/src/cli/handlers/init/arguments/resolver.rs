@@ -2,8 +2,8 @@
 use crate::utils::env;
 use std::collections::HashMap;
 
-use super::arguments::{FinalizedInitArgs, PromptMode, TracerCliInitArgs};
 use super::super::user_prompts::{print_help, UserPrompts};
+use super::arguments::{FinalizedInitArgs, PromptMode, TracerCliInitArgs};
 use super::user_id_resolver::resolve_user_id;
 
 /// Constants for argument resolution

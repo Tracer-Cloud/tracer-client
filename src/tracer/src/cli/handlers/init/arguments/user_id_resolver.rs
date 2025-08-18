@@ -2,16 +2,13 @@ use crate::utils::env;
 use crate::warning_message;
 use colored::Colorize;
 
-use super::arguments::{PromptMode, USERNAME_ENV_VAR};
 use super::super::user_prompts::{print_help, UserPrompts};
+use super::arguments::{PromptMode, USERNAME_ENV_VAR};
 
 /// Resolves user ID from various sources using functional programming approach
-pub fn resolve_user_id(
-    current_user_id: Option<String>,
-    prompt_mode: &PromptMode,
-) -> String {
+pub fn resolve_user_id(current_user_id: Option<String>, prompt_mode: &PromptMode) -> String {
     let username = env::get_env_var(USERNAME_ENV_VAR);
-    
+
     resolve_user_id_with_sources(current_user_id, prompt_mode, username)
         .or_else(print_help)
         .expect("Failed to get user ID from environment variable, command line, or prompt")
@@ -32,9 +29,7 @@ fn resolve_user_id_with_sources(
         (None, PromptMode::Minimal | PromptMode::Required) => {
             Some(UserPrompts::prompt_for_user_id(username.as_deref()))
         }
-        (None, PromptMode::None) => {
-            handle_no_user_id_fallback(username)
-        }
+        (None, PromptMode::None) => handle_no_user_id_fallback(username),
     }
 }
 
@@ -59,31 +54,21 @@ mod tests {
 
     #[test]
     fn test_resolve_user_id_with_existing_id_non_required() {
-        let result = resolve_user_id_with_sources(
-            Some("test_user".to_string()),
-            &PromptMode::None,
-            None,
-        );
+        let result =
+            resolve_user_id_with_sources(Some("test_user".to_string()), &PromptMode::None, None);
         assert_eq!(result, Some("test_user".to_string()));
     }
 
     #[test]
     fn test_resolve_user_id_fallback_to_username() {
-        let result = resolve_user_id_with_sources(
-            None,
-            &PromptMode::None,
-            Some("system_user".to_string()),
-        );
+        let result =
+            resolve_user_id_with_sources(None, &PromptMode::None, Some("system_user".to_string()));
         assert_eq!(result, Some("system_user".to_string()));
     }
 
     #[test]
     fn test_resolve_user_id_no_fallback() {
-        let result = resolve_user_id_with_sources(
-            None,
-            &PromptMode::None,
-            None,
-        );
+        let result = resolve_user_id_with_sources(None, &PromptMode::None, None);
         assert_eq!(result, None);
     }
 }
