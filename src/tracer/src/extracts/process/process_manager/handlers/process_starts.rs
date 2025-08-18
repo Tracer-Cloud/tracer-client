@@ -1,5 +1,5 @@
-use crate::extracts::process::process_manager::recorder::EventRecorder;
 use crate::extracts::process::process_manager::matcher;
+use crate::extracts::process::process_manager::recorder::EventRecorder;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
 use anyhow::Result;
@@ -31,9 +31,11 @@ impl ProcessStartHandler {
 
         Self::refresh_process_data(system_refresher, &matched_processes).await?;
 
-        Self::record_matched_processes(event_recorder, system_refresher, &matched_processes).await?;
+        Self::record_matched_processes(event_recorder, system_refresher, &matched_processes)
+            .await?;
 
-        Self::record_matching_tasks(event_recorder, state_manager, &triggers, &matched_processes).await?;
+        Self::record_matching_tasks(event_recorder, state_manager, &triggers, &matched_processes)
+            .await?;
 
         Self::update_monitoring(state_manager, matched_processes).await?;
 
@@ -93,7 +95,9 @@ impl ProcessStartHandler {
             for process in processes {
                 let system = system_refresher.get_system().read().await;
                 let sys_proc = system.process(process.pid.into());
-                let _ = event_recorder.record_new_process(target, process, sys_proc).await?;
+                let _ = event_recorder
+                    .record_new_process(target, process, sys_proc)
+                    .await?;
             }
         }
 

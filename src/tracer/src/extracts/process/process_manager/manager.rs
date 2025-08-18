@@ -1,7 +1,7 @@
 use crate::extracts::process::process_manager::handlers::process_starts::ProcessStartHandler;
 use crate::extracts::process::process_manager::handlers::process_terminations::ProcessTerminationHandler;
-use crate::extracts::process::process_manager::recorder::EventRecorder;
 use crate::extracts::process::process_manager::metrics::ProcessMetricsHandler;
+use crate::extracts::process::process_manager::recorder::EventRecorder;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
 use crate::extracts::{

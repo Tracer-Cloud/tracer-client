@@ -60,7 +60,9 @@ impl ProcessMetricsHandler {
                 );
                 let sys_proc = system.process(proc.pid.into());
                 debug!("System process for {}: {:?}", target, sys_proc);
-                let result = event_recorder.record_process_metrics(target, proc, sys_proc).await?;
+                let result = event_recorder
+                    .record_process_metrics(target, proc, sys_proc)
+                    .await?;
                 debug!("Metrics extracted for PID {}: {:?}", proc.pid, result);
             }
         }
