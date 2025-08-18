@@ -124,15 +124,21 @@ impl ArgumentResolver {
 
     fn resolve_environment(&mut self, prompt_mode: &PromptMode) {
         let environment = match (self.args.tags.environment.clone(), prompt_mode) {
-            (Some(env), PromptMode::Required) => Some(UserPrompts::prompt_for_environment_name(&env)),
-            (Some(name), _) => Some(name),
-            (None, PromptMode::Required) if self.args.tags.environment_type.is_some() => Some(
-                UserPrompts::prompt_for_environment_name(self.args.tags.environment_type.as_ref().unwrap()),
-            ),
-            (None, PromptMode::Required) => {
-                Some(UserPrompts::prompt_for_environment_name(DEFAULT_ENVIRONMENT))
+            (Some(env), PromptMode::Required) => {
+                Some(UserPrompts::prompt_for_environment_name(&env))
             }
-            (None, _) if self.args.tags.environment_type.is_some() => self.args.tags.environment_type.clone(),
+            (Some(name), _) => Some(name),
+            (None, PromptMode::Required) if self.args.tags.environment_type.is_some() => {
+                Some(UserPrompts::prompt_for_environment_name(
+                    self.args.tags.environment_type.as_ref().unwrap(),
+                ))
+            }
+            (None, PromptMode::Required) => Some(UserPrompts::prompt_for_environment_name(
+                DEFAULT_ENVIRONMENT,
+            )),
+            (None, _) if self.args.tags.environment_type.is_some() => {
+                self.args.tags.environment_type.clone()
+            }
             (None, _) => Some(DEFAULT_ENVIRONMENT.to_string()),
         }
         .or_else(print_help)
@@ -145,7 +151,9 @@ impl ArgumentResolver {
         let pipeline_type = match (self.args.tags.pipeline_type.clone(), prompt_mode) {
             (Some(env), PromptMode::Required) => UserPrompts::prompt_for_pipeline_type(&env),
             (Some(env), _) => env,
-            (None, PromptMode::Required) => UserPrompts::prompt_for_pipeline_type(DEFAULT_PIPELINE_TYPE),
+            (None, PromptMode::Required) => {
+                UserPrompts::prompt_for_pipeline_type(DEFAULT_PIPELINE_TYPE)
+            }
             (None, _) => DEFAULT_PIPELINE_TYPE.to_string(),
         };
 

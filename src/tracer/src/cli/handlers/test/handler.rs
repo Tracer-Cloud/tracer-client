@@ -1,6 +1,6 @@
 use crate::cli::handlers::info;
-use crate::cli::handlers::terminate;
 use crate::cli::handlers::init::arguments::TracerCliInitArgs;
+use crate::cli::handlers::terminate;
 use crate::cli::handlers::test::arguments::TracerCliTestArgs;
 use crate::cli::handlers::test::pipeline::Pipeline;
 use crate::cli::handlers::test::requests::{get_user_id_from_daemon, update_run_name_for_test};
@@ -55,8 +55,7 @@ async fn run_test_with_new_daemon(
         init_args.pipeline_name = Some(new_test_pipeline_name);
     }
 
-    crate::cli::handlers::init::init(init_args, config, api_client)
-    .await?;
+    crate::cli::handlers::init::init(init_args, config, api_client).await?;
 
     // Run the pipeline after the daemon has been started
     let result = selected_test_pipeline.execute();
@@ -71,8 +70,14 @@ async fn run_test_with_new_daemon(
 }
 
 /// Run test pipeline when daemon is already running
-async fn run_test_with_existing_daemon(api_client: &DaemonClient, selected_test_pipeline: Pipeline) -> Result<()> {
-    info_message!("Daemon is already running, executing {} pipeline...", selected_test_pipeline.name());
+async fn run_test_with_existing_daemon(
+    api_client: &DaemonClient,
+    selected_test_pipeline: Pipeline,
+) -> Result<()> {
+    info_message!(
+        "Daemon is already running, executing {} pipeline...",
+        selected_test_pipeline.name()
+    );
 
     let user_id = get_user_id_from_daemon(api_client).await;
     update_run_name_for_test(api_client, &user_id).await;

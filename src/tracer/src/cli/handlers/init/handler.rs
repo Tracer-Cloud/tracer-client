@@ -2,19 +2,22 @@
 use crate::cli::handlers::init::arguments::TracerCliInitArgs;
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
-use colored::Colorize;
 use crate::daemon::server::DaemonServer;
+use crate::info_message;
 use crate::utils::system_info::check_sudo;
 use crate::utils::workdir::TRACER_WORK_DIR;
-use crate::info_message;
+use colored::Colorize;
 
-use super::daemon_spawn::spawn_daemon_process;
 use super::daemon_existing::handle_existing_daemon;
-use super::setup_sentry_context::setup_sentry_context;
+use super::daemon_spawn::spawn_daemon_process;
 use super::setup_daemon_logging::setup_daemon_logging;
+use super::setup_sentry_context::setup_sentry_context;
 
 /// Performs initial setup and validation before starting daemon
-async fn init_setup_validation(args: &TracerCliInitArgs, api_client: &DaemonClient) -> anyhow::Result<()> {
+async fn init_setup_validation(
+    args: &TracerCliInitArgs,
+    api_client: &DaemonClient,
+) -> anyhow::Result<()> {
     if !args.force_procfs && cfg!(target_os = "linux") {
         // Check if running with sudo
         check_sudo("init");
@@ -62,5 +65,3 @@ pub async fn init(
     setup_daemon_logging(&args.log_level)?;
     DaemonServer::new().await.start(args, config).await
 }
-
-
