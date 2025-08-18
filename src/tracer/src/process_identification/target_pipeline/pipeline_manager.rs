@@ -222,12 +222,12 @@ impl TargetPipelineManager {
                 })
         };
 
-        self.log_task_match(rule, process.pid, task_pid, best_match.as_ref());
+        self.record_task_match(rule, process.pid, task_pid, best_match.as_ref());
 
         best_match
     }
 
-    fn log_task_match(
+    fn record_task_match(
         &self,
         rule: &str,
         pid: usize,

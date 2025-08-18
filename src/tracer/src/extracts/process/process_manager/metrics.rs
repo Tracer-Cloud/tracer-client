@@ -1,4 +1,4 @@
-use crate::extracts::process::process_manager::logger::ProcessLogger;
+use crate::extracts::process::process_manager::recorder::EventRecorder;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
 use anyhow::Result;
@@ -30,7 +30,7 @@ impl ProcessMetricsHandler {
     /// to keep process metrics up to date.
     pub async fn poll_process_metrics(
         state_manager: &StateManager,
-        logger: &ProcessLogger,
+        event_recorder: &EventRecorder,
         system_refresher: &SystemRefresher,
     ) -> Result<()> {
         debug!("Starting periodic process metrics polling");
@@ -67,7 +67,7 @@ pub async fn process_metrics_for_target(
 ) -> Result<()> {
     for process in processes {
         if let Some(process_data) = system.process(process.pid.into()) {
-            let result = logger
+            let result = event_recorder
                 .log_process_metrics(target, process, Some(process_data))
                 .await?;
             debug!("Metrics extracted for PID {}: {:?}", process.pid, result);

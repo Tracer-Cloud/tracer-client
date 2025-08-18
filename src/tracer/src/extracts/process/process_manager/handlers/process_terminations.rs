@@ -1,4 +1,4 @@
-use crate::extracts::process::process_manager::logger::ProcessLogger;
+use crate::extracts::process::process_manager::recorder::EventRecorder;
 use crate::extracts::process::process_manager::state::StateManager;
 use anyhow::Result;
 use std::collections::HashMap;
@@ -13,7 +13,7 @@ impl ProcessTerminationHandler {
     /// Handles process terminations by removing them from state and logging completion
     pub async fn handle_process_terminations(
         state_manager: &StateManager,
-        logger: &ProcessLogger,
+        event_recorder: &EventRecorder,
         triggers: Vec<ProcessEndTrigger>,
     ) -> Result<()> {
         debug!("Processing {} process terminations", triggers.len());
@@ -62,8 +62,8 @@ impl ProcessTerminationHandler {
                     continue;
                 };
 
-                logger
-                    .log_process_completion(&target, &start_trigger, &finish_trigger)
+                event_recorder
+                    .record_process_completion(&target, &start_trigger, &finish_trigger)
                     .await?;
             }
         }
