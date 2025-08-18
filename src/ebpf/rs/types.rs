@@ -90,7 +90,7 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                     .take(MAX_ENV_LEN)
                     .try_for_each(|(i, key)| {
                         if payload.env_found_mask & (1 << i) != 0 {
-                            let key = ENV_KEYS[i].to_owned();
+                            let key = key.to_owned();
                             let value = from_bpf_str(&payload.env_values[i])?.to_string();
                             env.push((key, value));
                         }
