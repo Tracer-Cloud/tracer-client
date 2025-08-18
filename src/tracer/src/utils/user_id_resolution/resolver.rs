@@ -1,3 +1,4 @@
+use crate::info_message;
 use crate::utils::env::{self, USER_ID_ENV_VAR};
 use anyhow::Result;
 use colored::Colorize;
@@ -11,10 +12,7 @@ use super::shell_config_reader::read_user_id_from_shell_configs;
 pub fn extract_user_id(current_user_id: Option<String>) -> Result<String> {
     let mut sentry_reporter = create_reporter_with_context("user_id_extraction", "extract_user_id");
 
-    println!(
-        "🔍 {}",
-        "Resolving user ID through multiple strategies...".yellow()
-    );
+    info_message!("Resolving user ID...");
 
     // High-level resolution steps in priority order
     let result = try_provided_user_id(current_user_id, &mut sentry_reporter)
@@ -24,8 +22,8 @@ pub fn extract_user_id(current_user_id: Option<String>) -> Result<String> {
 
     // Show final result
     match &result {
-        Ok(user_id) => println!("✅ {}", format!("User ID resolved: {}", user_id).green()),
-        Err(_) => println!("❌ {}", "User ID resolution failed".red()),
+        Ok(user_id) => info_message!("User ID resolved: {}", user_id),
+        Err(_) => info_message!("User ID resolution failed"),
     }
 
     result
@@ -36,55 +34,23 @@ fn try_provided_user_id(
     current_user_id: Option<String>,
     sentry_reporter: &mut UserIdSentryReporter,
 ) -> Option<Result<String>> {
-    println!(
-        "  🔍 {}",
-        "Step 1: Checking provided user_id parameter...".cyan()
-    );
-
     if let Some(user_id) = current_user_id {
         if !user_id.trim().is_empty() {
-            println!("    ✅ {}", format!("Found user_id: {}", user_id).green());
             sentry_reporter.report_success("provided_user_id", &user_id);
             return Some(Ok(user_id));
-        } else {
-            println!("    ❌ {}", "Provided user_id parameter is empty".red());
         }
-    } else {
-        println!(
-            "    ❌ {}",
-            "No user_id provided as command line parameter".red()
-        );
     }
     None
 }
 
 /// Step 2: Try reading from TRACER_USER_ID environment variable
 fn try_environment_variable(sentry_reporter: &mut UserIdSentryReporter) -> Option<Result<String>> {
-    println!(
-        "  🔍 {}",
-        format!(
-            "Step 2: Checking {} environment variable...",
-            USER_ID_ENV_VAR
-        )
-        .cyan()
-    );
-
     if let Some(user_id) = env::get_env_var(USER_ID_ENV_VAR) {
         if !user_id.trim().is_empty() {
-            println!("    ✅ {}", format!("Found user_id: {}", user_id).green());
             sentry_reporter.report_success("environment_variable", &user_id);
             return Some(Ok(user_id));
-        } else {
-            println!(
-                "    ❌ {}",
-                format!("Environment variable {} is set but empty", USER_ID_ENV_VAR).red()
-            );
         }
     } else {
-        println!(
-            "    ❌ {}",
-            format!("Environment variable {} is not set", USER_ID_ENV_VAR).red()
-        );
         sentry_reporter.report_env_var_missing(USER_ID_ENV_VAR);
     }
     None
@@ -94,22 +60,11 @@ fn try_environment_variable(sentry_reporter: &mut UserIdSentryReporter) -> Optio
 fn try_shell_configuration_files(
     sentry_reporter: &mut UserIdSentryReporter,
 ) -> Option<Result<String>> {
-    println!(
-        "  🔍 {}",
-        "Step 3: Checking shell configuration files...".cyan()
-    );
-
     match read_user_id_from_shell_configs(sentry_reporter) {
         Ok(Some(user_id)) => {
             if !user_id.trim().is_empty() {
-                println!("    ✅ {}", format!("Found user_id: {}", user_id).green());
                 sentry_reporter.report_success("shell_config_files", &user_id);
                 return Some(Ok(user_id));
-            } else {
-                println!(
-                    "    ❌ {}",
-                    "Found TRACER_USER_ID in shell config but value is empty".red()
-                );
             }
         }
         Ok(None) => {
@@ -120,21 +75,10 @@ fn try_shell_configuration_files(
                 ".bash_profile".to_string(),
                 ".profile".to_string(),
             ];
-            println!(
-                "    ❌ {}",
-                format!(
-                    "No TRACER_USER_ID found in shell configuration files: {}",
-                    attempted_files.join(", ")
-                )
-                .red()
-            );
             sentry_reporter.report_shell_config_missing(&attempted_files);
         }
-        Err(e) => {
-            println!(
-                "    ❌ {}",
-                format!("Error reading shell configuration files: {}", e).red()
-            );
+        Err(_) => {
+            // Error already logged by shell config reader
         }
     }
     None
