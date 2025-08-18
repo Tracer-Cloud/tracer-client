@@ -1,4 +1,4 @@
-use crate::extracts::process::process_manager::matcher;
+use crate::extracts::process::process_manager::filter;
 use crate::extracts::process::process_manager::recorder::EventRecorder;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
@@ -64,7 +64,7 @@ impl ProcessStartHandler {
             triggers.len()
         );
         let state = state_manager.get_state().await;
-        matcher::find_matching_processes(triggers, &state)
+        filter::filter_processes_by_target(triggers, &state)
     }
 
     /// Step 3: Refresh system data for matched processes.
