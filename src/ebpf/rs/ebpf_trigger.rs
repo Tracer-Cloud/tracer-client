@@ -96,6 +96,14 @@ impl ProcessStartTrigger {
             started_at: Utc::now(),
         }
     }
+
+    /// Returns the value of the specified variable from the process' environment, if present
+    pub fn get_env_var(&self, key: &str) -> Option<&str> {
+        self.env
+            .iter()
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| v.as_str())
+    }
 }
 
 /// A trigger indicating a process exited. `exit_reason` is only set if known,
