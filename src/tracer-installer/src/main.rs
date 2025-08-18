@@ -9,14 +9,23 @@ use utils::print_anteater_banner;
 
 mod checks;
 mod constants;
+mod fs;
 mod installer;
 mod message;
 mod sentry;
 mod types;
 mod utils;
 
-#[tokio::main]
-async fn main() {
+use crate::sentry::Sentry;
+use crate::utils::print_title;
+use checks::CheckManager;
+use clap::Parser;
+use installer::{Installer, PlatformInfo};
+use tokio::runtime::Runtime;
+use types::{InstallTracerCli, InstallerCommand};
+use utils::print_anteater_banner;
+
+fn main() {
     rustls::crypto::ring::default_provider()
         .install_default()
         .expect("Failed to install rustls crypto provider");
@@ -34,6 +43,12 @@ async fn main() {
 async fn run_installer() -> anyhow::Result<()> {
     let args = InstallTracerCli::parse();
 
+    let runtime = Runtime::new().expect("Failed to create tokio runtime");
+
+    runtime.block_on(async_main(args));
+}
+
+async fn async_main(args: InstallTracerCli) {
     match args.command {
         InstallerCommand::Run { channel, user_id } => {
             // Add initial installer context

@@ -1,8 +1,8 @@
+use crate::sentry::Sentry;
+use ec2_instance_metadata::InstanceMetadata;
 use std::env;
 use std::fs;
 use std::path::Path;
-
-use ec2_instance_metadata::InstanceMetadata;
 
 use super::InstallCheck;
 
@@ -62,11 +62,14 @@ pub async fn get_aws_instance_metadata() -> Option<InstanceMetadata> {
     match client.get() {
         Ok(metadata) => Some(metadata),
         Err(err) => {
-            println!("error getting metadata: {err}");
+            let msg = format!("error getting metadata: {err}");
+            Sentry::capture_message(&msg, sentry::Level::Error);
+            println!("{}", msg);
             None
         }
     }
 }
+
 fn annotate_ec2_metadata(metadata: &InstanceMetadata) {
     crate::Sentry::add_tag("aws_instance_id", &metadata.instance_id);
     crate::Sentry::add_tag("aws_region", metadata.region);
