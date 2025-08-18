@@ -75,7 +75,7 @@ fn run_pixi_task(manifest: PathBuf, task: String) -> Result<()> {
     let pixi_path = which::which("pixi").unwrap_or_else(|_| {
         info_message!("Installing pixi...");
         // install() returns a PathBuf
-        pixi::install().expect("pixi installation failed")
+        pixi::install_pixi().expect("pixi installation failed")
     });
 
     exec(

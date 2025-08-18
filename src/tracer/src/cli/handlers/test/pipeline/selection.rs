@@ -1,7 +1,7 @@
 use super::prompts::{get_default_or_first_pipeline, prompt_for_pipeline_selection};
 use super::Pipeline;
 use crate::cli::handlers::init::arguments::PromptMode;
-use crate::cli::handlers::test::pipelines_git_repo::TracerPipelinesRepo;
+use crate::cli::handlers::test::git_repo_pipelines::TracerPipelinesRepo;
 use anyhow::{anyhow, Result};
 
 impl Pipeline {

@@ -2,7 +2,7 @@ use crate::cli::handlers::info;
 use crate::cli::handlers::terminate;
 use crate::cli::handlers::test::arguments::TracerCliTestArgs;
 use crate::cli::handlers::test::pipeline::Pipeline;
-use crate::cli::handlers::test::pipelines_git_repo::get_tracer_pipeline_path;
+use crate::cli::handlers::test::git_repo_pipelines::get_tracer_pipeline_path;
 use crate::cli::handlers::test::requests::{get_user_id_from_daemon, update_run_name_for_test};
 
 use crate::config::Config;
@@ -45,7 +45,7 @@ async fn run_test_with_new_daemon(
     init_args.watch_dir = Some("/tmp/tracer".to_string());
 
     // Force non-interactive mode for test command to avoid prompts
-    init_args.interactive_prompts = crate::cli::handlers::init::arguments::PromptMode::None;
+    init_args.set_non_interactive();
 
     // Set the pipeline name only if user hasn't provided one
     if init_args.pipeline_name.is_none() {
@@ -53,10 +53,7 @@ async fn run_test_with_new_daemon(
         init_args.pipeline_name = Some(new_test_pipeline_name);
     }
 
-    crate::cli::handlers::init::init_with(
-        init_args, config, api_client,
-        "test", // This prefix won't be used since pipeline_name is already set
-    )
+    crate::cli::handlers::init::init(init_args, config, api_client)
     .await?;
 
     // Run the pipeline after the daemon has been started

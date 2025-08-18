@@ -11,7 +11,7 @@ pub async fn process_daemon_command(command: Command, config: Config) {
     let api_client = DaemonClient::new(format!("http://{}", config.server));
     match command {
         Command::Init(args) => {
-            if let Err(e) = handlers::init(*args, config, api_client).await {
+            if let Err(e) = handlers::init(*args, config, &api_client).await {
                 // Send error details to Sentry
                 Sentry::add_extra(
                     "init_error_details",
