@@ -19,8 +19,6 @@ pub struct ProcessStartTrigger {
     pub ppid: usize,
     /// Command name (without path)
     pub comm: String,
-    /// Command file name (with path)
-    pub file_name: String,
     /// Command arguments (the first element is the command)
     pub argv: Vec<String>,
     /// Selected environment variables (key-value pairs)
@@ -56,7 +54,6 @@ impl ProcessStartTrigger {
             pid: pid as usize,
             ppid: ppid as usize,
             comm: comm.to_string(),
-            file_name: argv.first().cloned().unwrap_or_default(),
             command_string: join_args(&argv),
             argv: unquote(argv),
             env,
@@ -82,7 +79,6 @@ impl ProcessStartTrigger {
             command_string: join_args(&argv),
             argv: unquote(argv),
             env: Vec::new(),
-            file_name: "".to_string(),
             started_at: Utc::now(),
         }
     }
@@ -90,7 +86,6 @@ impl ProcessStartTrigger {
     pub fn from_command_string(pid: usize, ppid: usize, command_string: &str) -> Self {
         let argv = split_args(command_string);
         let comm = argv.first().cloned().unwrap_or_default();
-        let file_name = comm.clone();
         Self {
             pid,
             ppid,
@@ -98,7 +93,6 @@ impl ProcessStartTrigger {
             argv: unquote(argv),
             env: Vec::new(),
             command_string: command_string.to_string(),
-            file_name,
             started_at: Utc::now(),
         }
     }
