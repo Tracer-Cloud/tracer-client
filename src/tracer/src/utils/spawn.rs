@@ -270,7 +270,7 @@ mod tests {
     #[once]
     fn canonical_exe() -> (PathBuf, Option<u64>) {
         let (path, inode) = &*CANONICAL_EXE;
-        (path.clone(), inode.clone())
+        (path.clone(), *inode)
     }
 
     #[rstest]
