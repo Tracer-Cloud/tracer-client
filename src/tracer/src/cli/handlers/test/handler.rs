@@ -30,9 +30,6 @@ pub async fn test(args: TracerCliTestArgs, config: Config, api_client: DaemonCli
         run_test_with_new_daemon(args, config, &api_client).await
     };
 
-    // Always show info
-    info::info(&api_client, false).await;
-
     result
 }
 
@@ -49,18 +46,26 @@ async fn run_test_with_new_daemon(
     let (mut init_args, selected_test_pipeline) = args.resolve_test_arguments()?;
     init_args.watch_dir = Some("/tmp/tracer".to_string());
 
-    let new_test_pipeline_name = format!("test-{}", selected_test_pipeline.name());
+    // Force non-interactive mode for test command to avoid prompts
+    init_args.interactive_prompts = crate::cli::handlers::init::arguments::PromptMode::None;
+
+    // Set the pipeline name only if user hasn't provided one
+    if init_args.pipeline_name.is_none() {
+        let new_test_pipeline_name = format!("test-{}", selected_test_pipeline.name());
+        init_args.pipeline_name = Some(new_test_pipeline_name);
+    }
 
     crate::cli::handlers::init::init_with(
-        init_args,
-        config,
-        api_client,
-        &new_test_pipeline_name,
+        init_args, config, api_client,
+        "test", // This prefix won't be used since pipeline_name is already set
     )
     .await?;
 
     // Run the pipeline after the daemon has been started
     let result = selected_test_pipeline.execute();
+
+    // Show info to check if the process where recognized correctly s
+    info::info(&api_client, false).await;
 
     info_message!("Shutting down daemon following test completion...");
     terminate::terminate(&api_client).await;
@@ -77,5 +82,10 @@ async fn run_test_with_existing_daemon(api_client: &DaemonClient) -> Result<()> 
     let user_id = get_user_id_from_daemon(api_client).await;
     update_run_name_for_test(api_client, &user_id).await;
 
-    fastquorum_pipeline.execute()
+    let result = fastquorum_pipeline.execute();
+
+    // Show info to check if the process where recognized correctly s
+    info::info(&api_client, false).await;
+
+    result
 }

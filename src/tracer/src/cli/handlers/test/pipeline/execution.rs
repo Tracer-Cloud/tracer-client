@@ -2,8 +2,10 @@ use super::pixi;
 use super::Pipeline;
 use crate::info_message;
 use crate::utils::command::check_status;
+use crate::utils::Sentry;
 use anyhow::Result;
 use colored::Colorize;
+use serde_json::json;
 use std::ffi::OsStr;
 use std::path::PathBuf;
 use std::process::Command;
@@ -12,6 +14,20 @@ impl Pipeline {
     /// Single entry point to execute any pipeline variant.
     pub fn execute(&self) -> Result<()> {
         info_message!("Running pipeline...");
+
+        // Add pipeline context to Sentry
+        Sentry::add_context(
+            "Pipeline Execution",
+            json!({
+                "pipeline_name": self.name(),
+                "pipeline_type": match self {
+                    Pipeline::LocalPixi { .. } => "LocalPixi",
+                    Pipeline::LocalNextflow { .. } => "LocalNextflow",
+                    Pipeline::GithubNextflow { .. } => "GithubNextflow",
+                    Pipeline::LocalTool { .. } => "LocalTool",
+                }
+            }),
+        );
 
         let result = match self {
             Pipeline::LocalPixi { manifest, task, .. } => {
@@ -22,8 +38,30 @@ impl Pipeline {
             Pipeline::LocalTool { path, args } => run_tool(path, args),
         };
 
-        if result.is_ok() {
-            info_message!("Pipeline run completed successfully.");
+        match &result {
+            Ok(_) => {
+                info_message!("Pipeline run completed successfully.");
+                Sentry::capture_message(
+                    &format!("Pipeline '{}' executed successfully", self.name()),
+                    sentry::Level::Info,
+                );
+            }
+            Err(e) => {
+                // Capture pipeline execution error to Sentry
+                Sentry::add_extra(
+                    "error_details",
+                    json!({
+                        "error_message": e.to_string(),
+                        "pipeline_name": self.name(),
+                        "error_chain": format!("{:?}", e)
+                    }),
+                );
+
+                Sentry::capture_message(
+                    &format!("Pipeline '{}' execution failed: {}", self.name(), e),
+                    sentry::Level::Error,
+                );
+            }
         }
 
         result

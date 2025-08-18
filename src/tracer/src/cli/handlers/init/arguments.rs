@@ -92,7 +92,8 @@ impl TracerCliInitArgs {
         // unless mode is set to non-interactive; error if missing
         let username = env::get_env_var(USERNAME_ENV_VAR);
         let user_id = match (tags.user_id, &prompt_mode) {
-            (Some(user_id), PromptMode::Minimal | PromptMode::Required) => {
+            (Some(user_id), PromptMode::Required) => {
+                // Only prompt for confirmation in Required mode
                 Some(Self::prompt_for_user_id(Some(&user_id)))
             }
             (Some(user_id), _) => Some(user_id),
@@ -120,7 +121,8 @@ impl TracerCliInitArgs {
         // pipeline name is required - try to get it from the command line, fall back to user
         // prompt unless mode is set to non-interactive; generate from user-id if missing
         let pipeline_name = match (self.pipeline_name, &prompt_mode) {
-            (Some(name), PromptMode::Minimal | PromptMode::Required) => {
+            (Some(name), PromptMode::Required) => {
+                // Only prompt for confirmation in Required mode
                 Some(Self::prompt_for_pipeline_name(&name))
             }
             (Some(name), _) => Some(name),
@@ -153,9 +155,7 @@ impl TracerCliInitArgs {
         // command line, fall back to user prompt if the mode allows it, otherwise generate a
         // default value
         let environment = match (tags.environment, &prompt_mode) {
-            (Some(env), PromptMode::Required) => {
-                Some(Self::prompt_for_environment_name(&env))
-            }
+            (Some(env), PromptMode::Required) => Some(Self::prompt_for_environment_name(&env)),
             (Some(name), _) => Some(name),
             (None, PromptMode::Required) if tags.environment_type.is_some() => Some(
                 Self::prompt_for_environment_name(tags.environment_type.as_ref().unwrap()),
