@@ -41,4 +41,3 @@ pub async fn update_run_name_for_test(api_client: &DaemonClient, user_id: &str) 
         }
     }
 }
-

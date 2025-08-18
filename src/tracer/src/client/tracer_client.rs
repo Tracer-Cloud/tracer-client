@@ -232,7 +232,10 @@ impl TracerClient {
     }
 
     pub async fn update_run_name(&mut self, new_run_name: String) -> Result<()> {
-        info!("Updating run name from '{}' to '{}'", self.run.name, new_run_name);
+        info!(
+            "Updating run name from '{}' to '{}'",
+            self.run.name, new_run_name
+        );
         self.run.name = new_run_name;
         Ok(())
     }

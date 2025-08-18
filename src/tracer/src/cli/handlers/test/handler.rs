@@ -1,9 +1,9 @@
 use crate::cli::handlers::info;
 use crate::cli::handlers::init::arguments::PromptMode;
 use crate::cli::handlers::terminate;
-use crate::cli::handlers::test::pipelines_git_repo::get_tracer_pipeline_path;
-use crate::cli::handlers::test::pipeline::Pipeline;
 use crate::cli::handlers::test::arguments::TracerCliTestArgs;
+use crate::cli::handlers::test::pipeline::Pipeline;
+use crate::cli::handlers::test::pipelines_git_repo::get_tracer_pipeline_path;
 use crate::cli::handlers::test::requests::{get_user_id_from_daemon, update_run_name_for_test};
 
 use crate::config::Config;
@@ -41,7 +41,7 @@ pub async fn test(args: TracerCliTestArgs, config: Config, api_client: DaemonCli
 async fn run_test_with_new_daemon(
     args: TracerCliTestArgs,
     config: Config,
-    api_client: &DaemonClient
+    api_client: &DaemonClient,
 ) -> Result<()> {
     info_message!("[run_test_with_new_daemon] Daemon is not running, starting new instance...");
     TRACER_WORK_DIR.init().expect("creating work files failed");
@@ -82,4 +82,3 @@ async fn run_test_with_existing_daemon(api_client: &DaemonClient) -> Result<()> 
 
     fastquorum_pipeline.execute()
 }
-

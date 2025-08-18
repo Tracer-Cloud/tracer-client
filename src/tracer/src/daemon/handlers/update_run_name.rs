@@ -23,7 +23,7 @@ pub async fn update_run_name(
     Json(request): Json<UpdateRunNameRequest>,
 ) -> axum::response::Result<impl IntoResponse> {
     let guard = state.get_tracer_client().await;
-    
+
     if let Some(client) = guard {
         let mut client = client.lock().await;
         match client.update_run_name(request.run_name.clone()).await {

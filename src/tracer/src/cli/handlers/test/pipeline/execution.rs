@@ -1,5 +1,5 @@
-use super::Pipeline;
 use super::pixi;
+use super::Pipeline;
 use crate::info_message;
 use crate::utils::command::check_status;
 use anyhow::Result;
@@ -14,7 +14,9 @@ impl Pipeline {
         info_message!("Running pipeline...");
 
         let result = match self {
-            Pipeline::LocalPixi { manifest, task, .. } => run_pixi_task(manifest.clone(), task.clone()),
+            Pipeline::LocalPixi { manifest, task, .. } => {
+                run_pixi_task(manifest.clone(), task.clone())
+            }
             Pipeline::LocalNextflow { path, args } => run_nextflow(path, args),
             Pipeline::GithubNextflow { repo, args } => run_nextflow(repo, args),
             Pipeline::LocalTool { path, args } => run_tool(path, args),

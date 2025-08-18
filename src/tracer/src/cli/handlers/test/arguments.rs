@@ -18,11 +18,7 @@ impl TracerCliTestArgs {
     /// Resolve init arguments and select test pipeline
     pub fn resolve_test_arguments(self) -> Result<(TracerCliInitArgs, Pipeline)> {
         let interactive_prompts = self.init_args.interactive_prompts.clone();
-        let pipeline = Pipeline::select_test_pipeline(
-            self.demo_pipeline_id,
-            interactive_prompts
-        )?;
+        let pipeline = Pipeline::select_test_pipeline(self.demo_pipeline_id, interactive_prompts)?;
         Ok((self.init_args, pipeline))
     }
 }
-

@@ -10,7 +10,8 @@ pub fn prompt_for_pipeline_selection(pipelines: &[Pipeline]) -> Result<String> {
     let mut names: Vec<&str> = pipelines.iter().map(|p| p.name()).collect();
     names.sort_unstable();
 
-    let default_idx = names.iter()
+    let default_idx = names
+        .iter()
         .position(|&name| name == DEFAULT_PIPELINE)
         .unwrap_or(0);
 
@@ -26,7 +27,8 @@ pub fn prompt_for_pipeline_selection(pipelines: &[Pipeline]) -> Result<String> {
 
 /// Get default pipeline or first available pipeline
 pub fn get_default_or_first_pipeline(pipelines: &[Pipeline]) -> Result<String> {
-    pipelines.iter()
+    pipelines
+        .iter()
         .find(|p| p.name() == DEFAULT_PIPELINE)
         .or_else(|| pipelines.first())
         .map(|p| p.name().to_string())

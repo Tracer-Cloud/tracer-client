@@ -107,7 +107,8 @@ mod tests {
             },
         };
 
-        let (_, pipeline) = args.resolve_test_arguments()
+        let (_, pipeline) = args
+            .resolve_test_arguments()
             .expect("failed to resolve pipeline");
 
         assert_eq!(pipeline.name(), "fastquorum");
@@ -123,6 +124,8 @@ mod tests {
     fn test_get_tracer_pipeline_path() {
         let path = get_tracer_pipeline_path("fastquorum");
         assert!(path.to_string_lossy().contains("nextflow-test-pipelines"));
-        assert!(path.to_string_lossy().contains("pipelines/shared/fastquorum"));
+        assert!(path
+            .to_string_lossy()
+            .contains("pipelines/shared/fastquorum"));
     }
 }
