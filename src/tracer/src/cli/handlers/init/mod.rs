@@ -1,10 +1,10 @@
 pub mod arguments;
 mod daemon_spawn;
-mod existing_daemon;
+mod daemon_existing;
 mod handler;
-mod prompts;
-mod resolver;
-mod sentry_context;
+mod user_prompts;
+mod arguments_resolver;
+mod setup_sentry_context;
 mod setup_daemon_logging;
 
 pub use handler::{init};

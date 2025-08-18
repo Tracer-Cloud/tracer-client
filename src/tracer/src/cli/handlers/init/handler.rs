@@ -1,3 +1,4 @@
+/// tracer/src/cli/handlers/init/handler.rs
 use crate::cli::handlers::init::arguments::TracerCliInitArgs;
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
@@ -8,12 +9,12 @@ use crate::utils::workdir::TRACER_WORK_DIR;
 use crate::info_message;
 
 use super::daemon_spawn::spawn_daemon_process;
-use super::existing_daemon::handle_existing_daemon;
-use super::sentry_context::setup_sentry_context;
+use super::daemon_existing::handle_existing_daemon;
+use super::setup_sentry_context::setup_sentry_context;
 use super::setup_daemon_logging::setup_daemon_logging;
 
 /// Performs initial setup and validation before starting daemon
-async fn perform_init_setup(args: &TracerCliInitArgs, api_client: &DaemonClient) -> anyhow::Result<()> {
+async fn init_setup_validation(args: &TracerCliInitArgs, api_client: &DaemonClient) -> anyhow::Result<()> {
     if !args.force_procfs && cfg!(target_os = "linux") {
         // Check if running with sudo
         check_sudo("init");
@@ -40,7 +41,7 @@ pub async fn init(
 ) -> anyhow::Result<()> {
     const DEFAULT_PIPELINE_PREFIX: &str = "pipeline";
     // Perform initial setup and validation
-    perform_init_setup(&args, api_client).await?;
+    init_setup_validation(&args, api_client).await?;
 
     info_message!("Starting daemon...");
 

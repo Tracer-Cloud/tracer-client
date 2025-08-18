@@ -5,7 +5,7 @@ use colored::Colorize;
 use std::collections::HashMap;
 
 use super::arguments::{FinalizedInitArgs, PromptMode, TracerCliInitArgs, USERNAME_ENV_VAR};
-use super::prompts::{print_help, UserPrompts};
+use super::user_prompts::{print_help, UserPrompts};
 
 /// Constants for argument resolution
 pub const DEFAULT_PIPELINE_TYPE: &str = "Preprocessing";

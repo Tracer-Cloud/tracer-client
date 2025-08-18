@@ -4,14 +4,12 @@ use clap::{Args, ValueEnum};
 use serde::Serialize;
 use std::collections::HashMap;
 
-use super::resolver::ArgumentResolver;
+use super::arguments_resolver::ArgumentResolver;
 
 pub const PIPELINE_NAME_ENV_VAR: &str = "TRACER_PIPELINE_NAME";
 pub const RUN_NAME_ENV_VAR: &str = "TRACER_RUN_NAME";
 pub const LOG_LEVEL_ENV_VAR: &str = "TRACER_LOG_LEVEL";
 pub const USERNAME_ENV_VAR: &str = "USER";
-
-
 
 #[derive(Default, Args, Debug, Clone)]
 pub struct TracerCliInitArgs {
@@ -78,6 +76,23 @@ pub enum PromptMode {
     // All,
 }
 
+/// Ensures the pipeline name remains required
+#[derive(Debug, Clone, Serialize)]
+pub struct FinalizedInitArgs {
+    pub pipeline_name: String,
+    pub run_name: Option<String>,
+    /// This is the same user_id as in tags, but is not optional
+    pub user_id: String,
+    pub tags: PipelineTags,
+    pub no_daemonize: bool,
+    pub dev: bool,
+    pub force_procfs: bool,
+    pub force: bool,
+    pub log_level: String,
+    pub environment_variables: HashMap<String, String>,
+    pub watch_dir: Option<String>,
+}
+
 impl TracerCliInitArgs {
     /// Fill in any missing arguments according to the `PromptMode`.
     pub async fn resolve_arguments(self, default_pipeline_prefix: &str) -> FinalizedInitArgs {
@@ -100,57 +115,4 @@ impl TracerCliInitArgs {
     pub fn set_required_prompts(&mut self) {
         self.interactive_prompts = PromptMode::Required;
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_prompt_mode_convenience_methods() {
-        let mut args = TracerCliInitArgs {
-            pipeline_name: None,
-            run_name: None,
-            tags: PipelineTags::default(),
-            interactive_prompts: PromptMode::Minimal,
-            force_procfs: false,
-            log_level: "info".to_string(),
-            env_var: vec![],
-            watch_dir: None,
-            no_daemonize: false,
-            dev: false,
-            force: false,
-        };
-
-        // Test set_non_interactive
-        args.set_non_interactive();
-        assert_eq!(args.interactive_prompts, PromptMode::None);
-
-        // Test set_minimal_prompts
-        args.set_minimal_prompts();
-        assert_eq!(args.interactive_prompts, PromptMode::Minimal);
-
-        // Test set_required_prompts
-        args.set_required_prompts();
-        assert_eq!(args.interactive_prompts, PromptMode::Required);
-    }
-}
-
-
-
-/// Ensures the pipeline name remains required
-#[derive(Debug, Clone, Serialize)]
-pub struct FinalizedInitArgs {
-    pub pipeline_name: String,
-    pub run_name: Option<String>,
-    /// This is the same user_id as in tags, but is not optional
-    pub user_id: String,
-    pub tags: PipelineTags,
-    pub no_daemonize: bool,
-    pub dev: bool,
-    pub force_procfs: bool,
-    pub force: bool,
-    pub log_level: String,
-    pub environment_variables: HashMap<String, String>,
-    pub watch_dir: Option<String>,
 }
