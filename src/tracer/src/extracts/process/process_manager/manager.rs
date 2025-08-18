@@ -20,19 +20,19 @@ use tracer_ebpf::ebpf_trigger::{OutOfMemoryTrigger, ProcessEndTrigger, ProcessSt
 /// Uses functional programming principles with direct component access
 pub struct ProcessManager {
     pub state_manager: StateManager,
-    pub logger: EventRecorder,
+    pub event_recorder: EventRecorder,
     pub system_refresher: SystemRefresher,
 }
 
 impl ProcessManager {
     pub fn new(event_dispatcher: EventDispatcher, docker_watcher: Arc<DockerWatcher>) -> Self {
         let state_manager = StateManager::default();
-        let logger = EventRecorder::new(event_dispatcher, docker_watcher);
+        let event_recorder = EventRecorder::new(event_dispatcher, docker_watcher);
         let system_refresher = SystemRefresher::new();
 
         ProcessManager {
             state_manager,
-            logger,
+            event_recorder,
             system_refresher,
         }
     }
@@ -65,7 +65,7 @@ impl ProcessManager {
     ) -> Result<()> {
         ProcessTerminationHandler::handle_process_terminations(
             &self.state_manager,
-            &self.logger,
+            &self.event_recorder,
             triggers,
         )
         .await
@@ -75,7 +75,7 @@ impl ProcessManager {
     pub async fn handle_process_starts(&self, triggers: Vec<ProcessStartTrigger>) -> Result<()> {
         ProcessStartHandler::handle_process_starts(
             &self.state_manager,
-            &self.logger,
+            &self.event_recorder,
             &self.system_refresher,
             triggers,
         )
@@ -86,7 +86,7 @@ impl ProcessManager {
     pub async fn poll_process_metrics(&self) -> Result<()> {
         ProcessMetricsHandler::poll_process_metrics(
             &self.state_manager,
-            &self.logger,
+            &self.event_recorder,
             &self.system_refresher,
         )
         .await
