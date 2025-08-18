@@ -61,3 +61,33 @@ async fn init_setup_validation(
 
     Ok(())
 }
+
+/// Initialize the tracer daemon with the given pipeline prefix
+pub async fn init(
+    mut args: TracerCliInitArgs,
+    config: Config,
+    api_client: &DaemonClient,
+) -> anyhow::Result<()> {
+    const DEFAULT_PIPELINE_PREFIX: &str = "pipeline";
+    // Perform initial setup and validation
+    init_setup_validation(&args, api_client).await?;
+
+    info_message!("Starting daemon...");
+
+    // Force non-interactive mode when running as daemon process
+    if args.no_daemonize {
+        args.set_non_interactive();
+    }
+
+    let args = args.resolve_arguments(DEFAULT_PIPELINE_PREFIX).await;
+
+    // Set up Sentry context for monitoring
+    setup_sentry_context(&args)?;
+
+    if !args.no_daemonize {
+        // Spawn daemon process and wait for it to be ready
+        return spawn_daemon_process(&args, api_client).await;
+    }
+    setup_daemon_logging(&args.log_level)?;
+    DaemonServer::new().await.start(args, config).await
+}
