@@ -15,14 +15,25 @@ pub fn extract_user_id(current_user_id: Option<String>) -> Result<String> {
     info_message!("Resolving user ID...");
 
     // High-level resolution steps in priority order
-    let result = try_provided_user_id(current_user_id, &mut sentry_reporter)
-        .or_else(|| try_environment_variable(&mut sentry_reporter))
-        .or_else(|| try_shell_configuration_files(&mut sentry_reporter))
-        .unwrap_or_else(|| report_user_id_resolution_failure(&mut sentry_reporter));
+    let (result, strategy) = try_provided_user_id(current_user_id, &mut sentry_reporter)
+        .map(|r| (r, "provided parameter flag"))
+        .or_else(|| {
+            try_environment_variable(&mut sentry_reporter).map(|r| (r, "environment variable"))
+        })
+        .or_else(|| {
+            try_shell_configuration_files(&mut sentry_reporter)
+                .map(|r| (r, "shell configuration files"))
+        })
+        .unwrap_or_else(|| {
+            (
+                report_user_id_resolution_failure(&mut sentry_reporter),
+                "failed",
+            )
+        });
 
-    // Show final result
+    // Show final result with strategy
     match &result {
-        Ok(user_id) => info_message!("User ID resolved: {}", user_id),
+        Ok(user_id) => info_message!("User ID resolved from {}: {}", strategy, user_id),
         Err(_) => info_message!("User ID resolution failed"),
     }
 

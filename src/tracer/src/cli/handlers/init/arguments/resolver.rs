@@ -59,7 +59,14 @@ impl ArgumentResolver {
                 // Only prompt for confirmation in Required mode
                 Some(UserPrompts::prompt_for_pipeline_name(&name))
             }
-            (Some(name), _) => Some(name),
+            (Some(name), _) => {
+                // If the pipeline name is "test", expand it to "test-{user_id}"
+                if name == "test" {
+                    Some(format!("test-{}", user_id))
+                } else {
+                    Some(name)
+                }
+            }
             (None, PromptMode::Minimal | PromptMode::Required) => {
                 Some(UserPrompts::prompt_for_pipeline_name(user_id))
             }
