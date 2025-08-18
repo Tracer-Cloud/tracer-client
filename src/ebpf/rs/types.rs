@@ -31,6 +31,7 @@ pub struct SchedProcessExecPayload {
 }
 
 pub struct SchedProcessExitPayload {
+    pub term_signal: u8,
     pub exit_code: u8,
 }
 
@@ -112,6 +113,7 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                 // Access the exec payload by casting
                 let payload_ptr = self.payload.as_ptr() as *const SchedProcessExitPayload;
                 let payload = unsafe { &*payload_ptr };
+                let term_signal = payload.term_signal as i64;
                 let exit_code = payload.exit_code as i64;
 
                 Ok(ebpf_trigger::Trigger::ProcessEnd(
@@ -122,6 +124,11 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                             (self.timestamp_ns % 1_000_000_000) as u32,
                         )
                         .unwrap(),
+                        term_signal: if term_signal > 0 {
+                            Some(term_signal)
+                        } else {
+                            None
+                        },
                         exit_reason: Some(exit_code.into()),
                     },
                 ))

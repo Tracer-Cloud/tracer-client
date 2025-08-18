@@ -112,6 +112,7 @@ impl ProcessStartTrigger {
 pub struct ProcessEndTrigger {
     pub pid: usize,
     pub finished_at: DateTime<Utc>,
+    pub term_signal: Option<i64>,
     pub exit_reason: Option<ExitReason>,
 }
 

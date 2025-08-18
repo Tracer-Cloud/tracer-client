@@ -201,12 +201,16 @@ fill_sched_process_exit(struct event *e,
 {
   struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 
-  // u64 start_time = 0;
-  // start_time = BPF_CORE_READ(task, start_time);
-  // e->duration_ns = bpf_ktime_get_ns() - start_time;
-  // e->ppid = BPF_CORE_READ(task, real_parent, tgid);
+  int code = BPF_CORE_READ(task, exit_code);
 
-  e->sched__sched_process_exit__payload.exit_code = (BPF_CORE_READ(task, exit_code) >> 8) & 0xff;
+  bool signaled = (code & 0x7f) != 0;   // nonzero => terminated by signal
+  bool dumped   = signaled && (code & 0x80);
+
+  if (signaled) {
+    e->sched__sched_process_exit__payload.term_signal = code & 0x7f;
+  } else {
+    e->sched__sched_process_exit__payload.exit_code = (code >> 8) & 0xff;
+  }
 }
 
 // File open request started

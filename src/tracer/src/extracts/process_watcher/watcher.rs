@@ -112,6 +112,7 @@ impl ProcessWatcher {
                         let end_trigger = ProcessEndTrigger {
                             pid: old_pid as usize,
                             finished_at: Default::default(),
+                            term_signal: None,
                             exit_reason: Some(tracer_ebpf::ebpf_trigger::ExitReason::success()),
                         };
                         if let Err(e) = watcher

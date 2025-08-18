@@ -44,6 +44,7 @@ struct sched__sched_process_exec__payload
 
 struct sched__sched_process_exit__payload
 {
+    unsigned term_signal;
     unsigned exit_code;
 };
 
