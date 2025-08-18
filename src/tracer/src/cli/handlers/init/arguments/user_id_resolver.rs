@@ -1,13 +1,13 @@
-use crate::utils::user_id_resolution::resolve_user_id_robust;
+use crate::utils::user_id_resolution::extract_user_id;
 
 use super::super::user_prompts::{print_help, UserPrompts};
 use super::arguments::PromptMode;
 
 /// Resolves user ID from various sources using functional programming approach
-/// Now uses the robust resolver with shell config file reading and Sentry instrumentation
+/// Uses extract_user_id with shell config file reading and comprehensive Sentry instrumentation
 pub fn resolve_user_id(current_user_id: Option<String>, prompt_mode: &PromptMode) -> String {
-    // First try the robust resolver which handles all fallback strategies
-    match resolve_user_id_robust(current_user_id) {
+    // First try extracting user_id which handles all fallback strategies
+    match extract_user_id(current_user_id) {
         Ok(user_id) => {
             // If we have a user_id and prompts are required, confirm with user
             match prompt_mode {
@@ -18,7 +18,7 @@ pub fn resolve_user_id(current_user_id: Option<String>, prompt_mode: &PromptMode
             }
         }
         Err(_) => {
-            // If robust resolver fails, fall back to prompting if allowed
+            // If user_id extraction fails, fall back to prompting if allowed
             match prompt_mode {
                 PromptMode::Minimal | PromptMode::Required => {
                     UserPrompts::prompt_for_user_id(None)

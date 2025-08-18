@@ -4,23 +4,19 @@ use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::server::DaemonServer;
 use crate::info_message;
-use crate::utils::system_info::check_sudo;
+use crate::utils::system_info::check_sudo_with_procfs_option;
 use crate::utils::workdir::TRACER_WORK_DIR;
 use colored::Colorize;
 
-use super::setup::{
-    handle_existing_daemon, setup_daemon_logging, setup_sentry_context, spawn_daemon_process,
-};
+use super::setup::{handle_existing_daemon, spawn_daemon_process, setup_daemon_logging, setup_sentry_context};
 
 /// Performs initial setup and validation before starting daemon
 async fn init_setup_validation(
     args: &TracerCliInitArgs,
     api_client: &DaemonClient,
 ) -> anyhow::Result<()> {
-    if !args.force_procfs && cfg!(target_os = "linux") {
-        // Check if running with sudo
-        check_sudo("init");
-    }
+    // Check if running with sudo (Linux only, unless force_procfs is enabled)
+    check_sudo_with_procfs_option("init", args.force_procfs);
 
     // Create work dir for logging and daemonizing files
     TRACER_WORK_DIR

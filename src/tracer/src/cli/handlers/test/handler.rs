@@ -4,13 +4,13 @@ use crate::cli::handlers::terminate;
 use crate::cli::handlers::test::arguments::TracerCliTestArgs;
 use crate::cli::handlers::test::pipeline::Pipeline;
 use crate::cli::handlers::test::requests::{get_user_id_from_daemon, update_run_name_for_test};
-use crate::utils::user_id_resolution::resolve_user_id_robust;
+use crate::utils::user_id_resolution::extract_user_id;
 
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::server::DaemonServer;
 use crate::info_message;
-use crate::utils::system_info::check_sudo;
+use crate::utils::system_info::check_sudo_with_procfs_option;
 use crate::utils::workdir::TRACER_WORK_DIR;
 
 use anyhow::Result;
@@ -19,9 +19,7 @@ use colored::Colorize;
 /// TODO: fastquorum segfault on ARM mac; Rosetta/x86 pixi option may be needed.
 pub async fn test(args: TracerCliTestArgs, config: Config, api_client: DaemonClient) -> Result<()> {
     // this is the entry function for the test command
-    if !args.init_args.force_procfs && cfg!(target_os = "linux") {
-        check_sudo("init");
-    }
+    check_sudo_with_procfs_option("test", args.init_args.force_procfs);
 
     // Resolve the pipeline early so we can pass it to both functions
     let (init_args, selected_test_pipeline) = args.resolve_test_arguments()?;
@@ -44,16 +42,13 @@ async fn run_test_with_new_daemon(
     info_message!("[run_test_with_new_daemon] Daemon is not running, starting new instance...");
     TRACER_WORK_DIR.init().expect("creating work files failed");
 
-    // prepare test arguments
-    init_args.watch_dir = Some("/tmp/tracer".to_string());
-
-    // Force non-interactive mode for test command to avoid prompts
-    init_args.set_non_interactive();
+    // Configure init args for test scenarios
+    init_args.configure_for_test();
 
     // Set the pipeline name only if user hasn't provided one
     if init_args.pipeline_name.is_none() {
-        // Use the robust user_id resolver with shell config reading and Sentry instrumentation
-        let user_id = resolve_user_id_robust(init_args.tags.user_id.clone())
+        // Extract user_id with comprehensive fallback strategies and Sentry instrumentation
+        let user_id = extract_user_id(init_args.tags.user_id.clone())
             .unwrap_or_else(|_| "unknown".to_string());
 
         let new_test_pipeline_name = format!("test-{}-{}", selected_test_pipeline.name(), user_id);

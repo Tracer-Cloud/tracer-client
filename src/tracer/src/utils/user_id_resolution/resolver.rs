@@ -1,49 +1,67 @@
 use crate::utils::env::{self, USER_ID_ENV_VAR};
 use crate::warning_message;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use colored::Colorize;
-use std::fs;
-use std::path::PathBuf;
 
 use super::sentry_context::{create_reporter_with_context, UserIdSentryReporter};
+use super::shell_file_parser::read_user_id_from_file;
 
-/// Comprehensive user ID resolution with multiple fallback strategies
-/// Instrumented with Sentry for monitoring and debugging
-pub fn resolve_user_id_robust(current_user_id: Option<String>) -> Result<String> {
-    let mut resolution_attempts: Vec<String> = Vec::new();
-    let mut reporter = create_reporter_with_context("user_id_resolution", "resolve_user_id_robust");
+/// Main user ID extraction function with comprehensive fallback strategies
+/// Tries multiple sources in priority order with full Sentry error reporting
+pub fn extract_user_id(current_user_id: Option<String>) -> Result<String> {
+    let mut sentry_reporter = create_reporter_with_context("user_id_extraction", "extract_user_id");
 
-    // Strategy 1: Use provided user_id
+    // High-level resolution steps in priority order
+    try_provided_user_id(current_user_id, &mut sentry_reporter)
+        .or_else(|| try_environment_variable(&mut sentry_reporter))
+        .or_else(|| try_shell_configuration_files(&mut sentry_reporter))
+        .or_else(|| try_system_username_fallback(&mut sentry_reporter))
+        .unwrap_or_else(|| {
+            sentry_reporter.report_all_strategies_failed(&[
+                "provided_user_id".to_string(),
+                "environment_variable".to_string(),
+                "shell_config_files".to_string(),
+                "system_username".to_string(),
+            ]);
+            Err(anyhow::anyhow!("Failed to extract user ID from any available source"))
+        })
+}
+
+/// Step 1: Try using the provided user_id parameter
+fn try_provided_user_id(
+    current_user_id: Option<String>,
+    sentry_reporter: &mut UserIdSentryReporter
+) -> Option<Result<String>> {
     if let Some(user_id) = current_user_id {
         if !user_id.trim().is_empty() {
-            reporter.report_success("provided_user_id", &user_id);
-            return Ok(user_id);
+            sentry_reporter.report_success("provided_user_id", &user_id);
+            return Some(Ok(user_id));
         }
-        resolution_attempts.push("provided_user_id: empty".to_string());
-    } else {
-        resolution_attempts.push("provided_user_id: none".to_string());
     }
+    None
+}
 
-    // Strategy 2: Environment variable TRACER_USER_ID
+/// Step 2: Try reading from TRACER_USER_ID environment variable
+fn try_environment_variable(sentry_reporter: &mut UserIdSentryReporter) -> Option<Result<String>> {
     if let Some(user_id) = env::get_env_var(USER_ID_ENV_VAR) {
         if !user_id.trim().is_empty() {
-            reporter.report_success("env_tracer_user_id", &user_id);
-            return Ok(user_id);
+            sentry_reporter.report_success("environment_variable", &user_id);
+            return Some(Ok(user_id));
         }
-        resolution_attempts.push("env_tracer_user_id: empty".to_string());
     } else {
-        reporter.report_env_var_missing(USER_ID_ENV_VAR);
-        resolution_attempts.push("env_tracer_user_id: not_set".to_string());
+        sentry_reporter.report_env_var_missing(USER_ID_ENV_VAR);
     }
+    None
+}
 
-    // Strategy 3: Read from shell configuration files
-    match read_user_id_from_shell_configs(&mut reporter) {
+/// Step 3: Try reading from shell configuration files (.zshrc, .bashrc, etc.)
+fn try_shell_configuration_files(sentry_reporter: &mut UserIdSentryReporter) -> Option<Result<String>> {
+    match read_user_id_from_shell_configs(sentry_reporter) {
         Ok(Some(user_id)) => {
             if !user_id.trim().is_empty() {
-                reporter.report_success("shell_config_files", &user_id);
-                return Ok(user_id);
+                sentry_reporter.report_success("shell_config_files", &user_id);
+                return Some(Ok(user_id));
             }
-            resolution_attempts.push("shell_config_files: empty".to_string());
         }
         Ok(None) => {
             let attempted_files = vec![
@@ -53,15 +71,17 @@ pub fn resolve_user_id_robust(current_user_id: Option<String>) -> Result<String>
                 ".bash_profile".to_string(),
                 ".profile".to_string(),
             ];
-            reporter.report_shell_config_missing(&attempted_files);
-            resolution_attempts.push("shell_config_files: not_found".to_string());
+            sentry_reporter.report_shell_config_missing(&attempted_files);
         }
-        Err(e) => {
-            resolution_attempts.push(format!("shell_config_files: error({})", e));
+        Err(_) => {
+            // Error already reported in read_user_id_from_shell_configs
         }
     }
+    None
+}
 
-    // Strategy 4: System username fallback
+/// Step 4: Try system username as fallback (with warning)
+fn try_system_username_fallback(sentry_reporter: &mut UserIdSentryReporter) -> Option<Result<String>> {
     if let Some(username) = env::get_env_var("USER") {
         if !username.trim().is_empty() {
             warning_message!(
@@ -71,22 +91,16 @@ pub fn resolve_user_id_robust(current_user_id: Option<String>) -> Result<String>
                 username
             );
 
-            reporter.report_system_username_fallback(&username);
-            return Ok(username);
+            sentry_reporter.report_system_username_fallback(&username);
+            return Some(Ok(username));
         }
-        resolution_attempts.push("system_username: empty".to_string());
-    } else {
-        resolution_attempts.push("system_username: not_set".to_string());
     }
-
-    // All strategies failed
-    reporter.report_all_strategies_failed(&resolution_attempts);
-    anyhow::bail!("Failed to resolve user ID from any source: {:?}", resolution_attempts)
+    None
 }
 
 /// Reads user ID from shell configuration files (.zshrc, .bashrc, etc.)
 /// Returns Ok(Some(user_id)) if found, Ok(None) if not found, Err if IO error
-fn read_user_id_from_shell_configs(reporter: &mut UserIdSentryReporter) -> Result<Option<String>> {
+fn read_user_id_from_shell_configs(sentry_reporter: &mut UserIdSentryReporter) -> Result<Option<String>> {
     const SHELL_CONFIG_FILES: &[&str] = &[
         ".zshrc",
         ".bashrc", 
@@ -99,7 +113,7 @@ fn read_user_id_from_shell_configs(reporter: &mut UserIdSentryReporter) -> Resul
         Some(home) => home,
         None => {
             let error = anyhow::anyhow!("Could not find home directory");
-            reporter.report_home_directory_error(&error);
+            sentry_reporter.report_home_directory_error(&error);
             return Err(error);
         }
     };
@@ -121,7 +135,7 @@ fn read_user_id_from_shell_configs(reporter: &mut UserIdSentryReporter) -> Resul
                 // Continue to next file
             }
             Err(e) => {
-                reporter.report_shell_config_read_error(
+                sentry_reporter.report_shell_config_read_error(
                     &config_path.to_string_lossy(),
                     &e
                 );
@@ -133,78 +147,28 @@ fn read_user_id_from_shell_configs(reporter: &mut UserIdSentryReporter) -> Resul
     Ok(None)
 }
 
-/// Reads user ID from a specific shell configuration file
-fn read_user_id_from_file(file_path: &PathBuf, export_pattern: &str) -> Result<Option<String>> {
-    let content = fs::read_to_string(file_path)
-        .with_context(|| format!("Failed to read file: {:?}", file_path))?;
 
-    for line in content.lines() {
-        let line = line.trim();
-        if line.starts_with(export_pattern) {
-            // Extract value from: export TRACER_USER_ID="value" or export TRACER_USER_ID=value
-            let value_part = &line[export_pattern.len()..];
-            let user_id = if value_part.starts_with('"') && value_part.ends_with('"') {
-                // Remove quotes: "value" -> value
-                value_part[1..value_part.len()-1].to_string()
-            } else if value_part.starts_with('\'') && value_part.ends_with('\'') {
-                // Remove single quotes: 'value' -> value
-                value_part[1..value_part.len()-1].to_string()
-            } else {
-                // No quotes: value
-                value_part.to_string()
-            };
-            
-            if !user_id.trim().is_empty() {
-                return Ok(Some(user_id));
-            }
-        }
-    }
-
-    Ok(None)
-}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::env;
-    use tempfile::NamedTempFile;
-    use std::io::Write;
 
     #[test]
-    fn test_resolve_user_id_with_provided_id() {
-        let result = resolve_user_id_robust(Some("test_user".to_string()));
+    fn test_extract_user_id_with_provided_id() {
+        let result = extract_user_id(Some("test_user".to_string()));
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "test_user");
     }
 
     #[test]
-    fn test_resolve_user_id_with_env_var() {
+    fn test_extract_user_id_with_env_var() {
         env::set_var(USER_ID_ENV_VAR, "env_test_user");
-        let result = resolve_user_id_robust(None);
+        let result = extract_user_id(None);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "env_test_user");
         env::remove_var(USER_ID_ENV_VAR);
     }
 
-    #[test]
-    fn test_read_user_id_from_file_with_quotes() -> Result<()> {
-        let mut temp_file = NamedTempFile::new()?;
-        writeln!(temp_file, "# Some comment")?;
-        writeln!(temp_file, r#"export TRACER_USER_ID="quoted_user""#)?;
-        writeln!(temp_file, "# Another comment")?;
-        
-        let result = read_user_id_from_file(&temp_file.path().to_path_buf(), "export TRACER_USER_ID=")?;
-        assert_eq!(result, Some("quoted_user".to_string()));
-        Ok(())
-    }
 
-    #[test]
-    fn test_read_user_id_from_file_without_quotes() -> Result<()> {
-        let mut temp_file = NamedTempFile::new()?;
-        writeln!(temp_file, "export TRACER_USER_ID=unquoted_user")?;
-        
-        let result = read_user_id_from_file(&temp_file.path().to_path_buf(), "export TRACER_USER_ID=")?;
-        assert_eq!(result, Some("unquoted_user".to_string()));
-        Ok(())
-    }
 }

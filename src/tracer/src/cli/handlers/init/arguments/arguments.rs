@@ -115,4 +115,15 @@ impl TracerCliInitArgs {
     pub fn set_required_prompts(&mut self) {
         self.interactive_prompts = PromptMode::Required;
     }
+
+    /// Configure init args for test scenarios with appropriate defaults
+    pub fn configure_for_test(&mut self) {
+        // Set test-specific watch directory
+        if self.watch_dir.is_none() {
+            self.watch_dir = Some("/tmp/tracer".to_string());
+        }
+
+        // Force non-interactive mode for tests
+        self.set_non_interactive();
+    }
 }
