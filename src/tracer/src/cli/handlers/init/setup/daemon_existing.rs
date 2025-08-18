@@ -1,4 +1,4 @@
-use crate::cli::handlers::init::arguments::TracerCliInitArgs;
+use super::super::arguments::TracerCliInitArgs;
 use crate::cli::handlers::terminate::{get_pid, terminate};
 use crate::cli::handlers::INTERACTIVE_THEME;
 use crate::daemon::client::DaemonClient;

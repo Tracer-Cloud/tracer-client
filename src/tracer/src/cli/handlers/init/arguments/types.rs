@@ -4,7 +4,7 @@ use clap::{Args, ValueEnum};
 use serde::Serialize;
 use std::collections::HashMap;
 
-use super::arguments_resolver::ArgumentResolver;
+use super::resolver::ArgumentResolver;
 
 pub const PIPELINE_NAME_ENV_VAR: &str = "TRACER_PIPELINE_NAME";
 pub const RUN_NAME_ENV_VAR: &str = "TRACER_RUN_NAME";
@@ -95,10 +95,8 @@ pub struct FinalizedInitArgs {
 
 impl TracerCliInitArgs {
     /// Fill in any missing arguments according to the `PromptMode`.
-    pub async fn resolve_arguments(self, default_pipeline_prefix: &str) -> FinalizedInitArgs {
-        ArgumentResolver::new(self, default_pipeline_prefix)
-            .resolve()
-            .await
+    pub async fn resolve_arguments(self) -> FinalizedInitArgs {
+        ArgumentResolver::new(self).resolve().await
     }
 
     /// Set the prompt mode to non-interactive (no prompts)
@@ -114,5 +112,16 @@ impl TracerCliInitArgs {
     /// Set the prompt mode to required (prompt for all required values)
     pub fn set_required_prompts(&mut self) {
         self.interactive_prompts = PromptMode::Required;
+    }
+
+    /// Configure init args for test scenarios with appropriate defaults
+    pub fn configure_for_test(&mut self) {
+        // Set test-specific watch directory
+        if self.watch_dir.is_none() {
+            self.watch_dir = Some("/tmp/tracer".to_string());
+        }
+
+        // Force non-interactive mode for tests
+        self.set_non_interactive();
     }
 }

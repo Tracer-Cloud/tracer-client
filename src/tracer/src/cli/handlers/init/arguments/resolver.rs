@@ -1,11 +1,10 @@
-// src/tracer/src/cli/handlers/init/resolver.rs
+// src/tracer/src/cli/handlers/init/arguments/resolver.rs
 use crate::utils::env;
-use crate::warning_message;
-use colored::Colorize;
 use std::collections::HashMap;
 
-use super::arguments::{FinalizedInitArgs, PromptMode, TracerCliInitArgs, USERNAME_ENV_VAR};
-use super::user_prompts::{print_help, UserPrompts};
+use super::super::user_prompts::{print_help, UserPrompts};
+use super::user_id_resolver::resolve_user_id;
+use super::{FinalizedInitArgs, PromptMode, TracerCliInitArgs};
 
 /// Constants for argument resolution
 pub const DEFAULT_PIPELINE_TYPE: &str = "Preprocessing";
@@ -14,15 +13,11 @@ pub const DEFAULT_ENVIRONMENT: &str = "local";
 /// Handles argument resolution logic
 pub struct ArgumentResolver {
     args: TracerCliInitArgs,
-    default_pipeline_prefix: String,
 }
 
 impl ArgumentResolver {
-    pub fn new(args: TracerCliInitArgs, default_pipeline_prefix: &str) -> Self {
-        Self {
-            args,
-            default_pipeline_prefix: default_pipeline_prefix.to_string(),
-        }
+    pub fn new(args: TracerCliInitArgs) -> Self {
+        Self { args }
     }
 
     pub async fn resolve(mut self) -> FinalizedInitArgs {
@@ -53,33 +48,7 @@ impl ArgumentResolver {
     }
 
     fn resolve_user_id(&mut self, prompt_mode: &PromptMode) -> String {
-        let username = env::get_env_var(USERNAME_ENV_VAR);
-        let user_id = match (self.args.tags.user_id.clone(), prompt_mode) {
-            (Some(user_id), PromptMode::Required) => {
-                // Only prompt for confirmation in Required mode
-                Some(UserPrompts::prompt_for_user_id(Some(&user_id)))
-            }
-            (Some(user_id), _) => Some(user_id),
-            (None, PromptMode::Minimal | PromptMode::Required) => {
-                Some(UserPrompts::prompt_for_user_id(username.as_deref()))
-            }
-            (None, PromptMode::None) => {
-                // TODO: remove this once we can source the user ID from the credentials file
-                if let Some(username) = &username {
-                    warning_message!(
-                        "Failed to get user ID from environment variable, command line, or prompt. \
-                        defaulting to the system username '{}', which may not be your Tracer user ID! \
-                        Please set the TRACER_USER_ID environment variable or specify the --user-id \
-                        option.",
-                        username
-                    );
-                }
-                username
-            }
-        }
-        .or_else(print_help)
-        .expect("Failed to get user ID from environment variable, command line, or prompt");
-
+        let user_id = resolve_user_id(self.args.tags.user_id.clone(), prompt_mode);
         self.args.tags.user_id = Some(user_id.clone());
         user_id
     }
@@ -92,14 +61,9 @@ impl ArgumentResolver {
             }
             (Some(name), _) => Some(name),
             (None, PromptMode::Minimal | PromptMode::Required) => {
-                Some(UserPrompts::prompt_for_pipeline_name(
-                    Self::generate_pipeline_name(&self.default_pipeline_prefix, user_id),
-                ))
+                Some(UserPrompts::prompt_for_pipeline_name(user_id))
             }
-            (None, PromptMode::None) => Some(Self::generate_pipeline_name(
-                &self.default_pipeline_prefix,
-                user_id,
-            )),
+            (None, PromptMode::None) => Some(user_id.to_string()),
         }
         .or_else(print_help)
         .expect("Failed to get pipeline name from command line, environment variable, or prompt")
@@ -123,11 +87,11 @@ impl ArgumentResolver {
     }
 
     fn resolve_environment(&mut self, prompt_mode: &PromptMode) {
-        let environment = match (self.args.tags.environment.clone(), prompt_mode) {
+        let environment = match (&self.args.tags.environment, prompt_mode) {
             (Some(env), PromptMode::Required) => {
-                Some(UserPrompts::prompt_for_environment_name(&env))
+                Some(UserPrompts::prompt_for_environment_name(env))
             }
-            (Some(name), _) => Some(name),
+            (Some(name), _) => Some(name.clone()),
             (None, PromptMode::Required) if self.args.tags.environment_type.is_some() => {
                 Some(UserPrompts::prompt_for_environment_name(
                     self.args.tags.environment_type.as_ref().unwrap(),
@@ -148,9 +112,9 @@ impl ArgumentResolver {
     }
 
     fn resolve_pipeline_type(&mut self, prompt_mode: &PromptMode) {
-        let pipeline_type = match (self.args.tags.pipeline_type.clone(), prompt_mode) {
-            (Some(env), PromptMode::Required) => UserPrompts::prompt_for_pipeline_type(&env),
-            (Some(env), _) => env,
+        let pipeline_type = match (&self.args.tags.pipeline_type, prompt_mode) {
+            (Some(env), PromptMode::Required) => UserPrompts::prompt_for_pipeline_type(env),
+            (Some(env), _) => env.clone(),
             (None, PromptMode::Required) => {
                 UserPrompts::prompt_for_pipeline_type(DEFAULT_PIPELINE_TYPE)
             }
@@ -172,10 +136,5 @@ impl ArgumentResolver {
             }
         }
         environment_variables
-    }
-
-    fn generate_pipeline_name(prefix: &str, user_id: &str) -> String {
-        // TODO: use username instead? Either from UI (via API call) or from env::get_env("USER").
-        format!("{}-{}", prefix, user_id)
     }
 }
