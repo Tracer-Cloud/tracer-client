@@ -41,6 +41,7 @@ pub async fn init(
         }
     }
 
+    // initializing a default pipeline
     init_with(args, config, &api_client, "test", false).await
 }
 
