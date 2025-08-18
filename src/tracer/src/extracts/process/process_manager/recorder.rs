@@ -15,7 +15,7 @@ use tracer_ebpf::ebpf_trigger::{ProcessEndTrigger, ProcessStartTrigger};
 use tracing::debug;
 use tracing::error;
 
-/// Handles logging of process-related events
+/// Handles recording of process-related events
 pub struct EventRecorder {
     event_dispatcher: EventDispatcher,
     /// shared reference to the docker watcher - used to get the ContainerEvent associated
