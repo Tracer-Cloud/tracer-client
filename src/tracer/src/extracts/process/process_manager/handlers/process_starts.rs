@@ -14,7 +14,7 @@ impl ProcessStartHandler {
     /// Entry point: handles newly started processes.
     pub async fn handle_process_starts(
         state_manager: &StateManager,
-        logger: &EventRecorder,
+        event_recorder: &EventRecorder,
         system_refresher: &SystemRefresher,
         triggers: Vec<ProcessStartTrigger>,
     ) -> Result<()> {
@@ -31,9 +31,9 @@ impl ProcessStartHandler {
 
         Self::refresh_process_data(system_refresher, &matched_processes).await?;
 
-        Self::log_matched_processes(logger, system_refresher, &matched_processes).await?;
+        Self::record_matched_processes(event_recorder, system_refresher, &matched_processes).await?;
 
-        Self::log_matching_tasks(logger, state_manager, &triggers, &matched_processes).await?;
+        Self::record_matching_tasks(event_recorder, state_manager, &triggers, &matched_processes).await?;
 
         Self::update_monitoring(state_manager, matched_processes).await?;
 
@@ -81,8 +81,8 @@ impl ProcessStartHandler {
     }
 
     /// Step 4: Log data for each matched process.
-    async fn log_matched_processes(
-        logger: &EventRecorder,
+    async fn record_matched_processes(
+        event_recorder: &EventRecorder,
         system_refresher: &SystemRefresher,
         matched_processes: &HashMap<String, HashSet<&ProcessStartTrigger>>,
     ) -> Result<()> {
@@ -93,7 +93,7 @@ impl ProcessStartHandler {
             for process in processes {
                 let system = system_refresher.get_system().read().await;
                 let sys_proc = system.process(process.pid.into());
-                let _ = logger.record_new_process(target, process, sys_proc).await?;
+                let _ = event_recorder.record_new_process(target, process, sys_proc).await?;
             }
         }
 
@@ -102,8 +102,8 @@ impl ProcessStartHandler {
     }
 
     /// Step 5: Match pipelines for matched processes.
-    async fn log_matching_tasks(
-        logger: &EventRecorder,
+    async fn record_matching_tasks(
+        event_recorder: &EventRecorder,
         state_manager: &StateManager,
         triggers: &[ProcessStartTrigger],
         matched_processes: &HashMap<String, HashSet<&ProcessStartTrigger>>,
@@ -131,7 +131,7 @@ impl ProcessStartHandler {
                 pipeline_manager.register_process(trigger, task_pid, matched_target)
             {
                 // the process triggered a task match
-                logger.record_task_match(task_match).await?;
+                event_recorder.record_task_match(task_match).await?;
             }
         }
         Ok(())

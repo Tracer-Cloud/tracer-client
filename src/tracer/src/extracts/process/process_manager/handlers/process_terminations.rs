@@ -13,7 +13,7 @@ impl ProcessTerminationHandler {
     /// Handles process terminations by removing them from state and logging completion
     pub async fn handle_process_terminations(
         state_manager: &StateManager,
-        logger: &EventRecorder,
+        event_recorder: &EventRecorder,
         triggers: Vec<ProcessEndTrigger>,
     ) -> Result<()> {
         debug!("Processing {} process terminations", triggers.len());
@@ -62,7 +62,7 @@ impl ProcessTerminationHandler {
                     continue;
                 };
 
-                logger
+                event_recorder
                     .record_process_completion(&target, &start_trigger, &finish_trigger)
                     .await?;
             }
