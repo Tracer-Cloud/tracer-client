@@ -11,6 +11,7 @@ pub fn install() -> Result<PathBuf> {
         .arg("-c")
         .arg(install_cmd)
         .env("PIXI_HOME", &pixi_dir)
+        .env("PIXI_NO_PATH_UPDATE", "1")
         .status();
     check_status(status, "Failed to install pixi")?;
     Ok(pixi_dir.join("bin/pixi"))
