@@ -51,7 +51,7 @@ impl ProcessMetricsHandler {
 
         // Extract and log metrics for each monitored process
         for (target, processes) in state_manager.get_state().await.get_monitoring().iter() {
-            process_metrics_for_target(target, processes, &system, logger).await?;
+            process_metrics_for_target(target, processes, &system, event_recorder).await?;
         }
 
         Ok(())
@@ -63,12 +63,12 @@ pub async fn process_metrics_for_target(
     target: &String,
     processes: &HashSet<ProcessStartTrigger>,
     system: &System,
-    logger: &ProcessLogger,
+    event_recorder: &EventRecorder,
 ) -> Result<()> {
     for process in processes {
         if let Some(process_data) = system.process(process.pid.into()) {
             let result = event_recorder
-                .log_process_metrics(target, process, Some(process_data))
+                .record_process_metrics(target, process, Some(process_data))
                 .await?;
             debug!("Metrics extracted for PID {}: {:?}", process.pid, result);
         }
