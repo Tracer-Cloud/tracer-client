@@ -112,7 +112,6 @@ impl ProcessStartTrigger {
 pub struct ProcessEndTrigger {
     pub pid: usize,
     pub finished_at: DateTime<Utc>,
-    pub term_signal: Option<i64>,
     pub exit_reason: Option<ExitReason>,
 }
 
@@ -131,6 +130,16 @@ pub enum Trigger {
     OutOfMemory(OutOfMemoryTrigger),
 }
 
+//                 let signaled = (status & 0x7f) != 0;   // nonzero => terminated by signal
+//                 let dumped   = signaled && (code & 0x80);
+
+//   if (signaled) {
+
+//     ;
+//   } else {
+//     e->sched__sched_process_exit__payload.exit_code =
+//   }
+
 /// Exit code along with short reason and longer explanation.
 ///
 /// We always create the reason and explanation when creating the struct (rather than on-demand
@@ -139,6 +148,9 @@ pub enum Trigger {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ExitReason {
     pub code: i64,
+    /// If the process was terminated by a signal, the signal number and whether a core dump was
+    /// generated
+    pub term_signal: Option<(u16, bool)>,
     pub reason: String,
     pub explanation: String,
 }
@@ -159,10 +171,22 @@ impl fmt::Display for ExitReason {
     }
 }
 
+/// Convert an exit status to an ExitReason.
+/// For now, only POSIX wait statuses are supported. A POSIX wait status is a 16-bit integer
+/// with the high 8 bits being the exit code and the low 7 bits being the termination signal.
 impl From<i64> for ExitReason {
-    fn from(code: i64) -> Self {
+    fn from(value: i64) -> Self {
+        let status = value as u16;
+        let code = ((status >> 8) & 0xff) as i64;
+        let signaled = (status & 0x7f) != 0;
+        let term_signal = if signaled {
+            Some((status & 0x7f, status & 0x80 != 0))
+        } else {
+            None
+        };
         Self {
             code,
+            term_signal,
             reason: exit_code_reason(code),
             explanation: exit_code_explanation(code),
         }

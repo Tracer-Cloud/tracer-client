@@ -200,17 +200,7 @@ fill_sched_process_exit(struct event *e,
                         struct trace_event_raw_sched_process_template *ctx)
 {
   struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-
-  int code = BPF_CORE_READ(task, exit_code);
-
-  bool signaled = (code & 0x7f) != 0;   // nonzero => terminated by signal
-  bool dumped   = signaled && (code & 0x80);
-
-  if (signaled) {
-    e->sched__sched_process_exit__payload.term_signal = code & 0x7f;
-  } else {
-    e->sched__sched_process_exit__payload.exit_code = (code >> 8) & 0xff;
-  }
+  e->sched__sched_process_exit__payload.status = BPF_CORE_READ(task, exit_code);
 }
 
 // File open request started
