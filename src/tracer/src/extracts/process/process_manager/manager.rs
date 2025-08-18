@@ -1,6 +1,6 @@
 use crate::extracts::process::process_manager::handlers::process_starts::ProcessStartHandler;
 use crate::extracts::process::process_manager::handlers::process_terminations::ProcessTerminationHandler;
-use crate::extracts::process::process_manager::logger::ProcessLogger;
+use crate::extracts::process::process_manager::logger::EventRecorder;
 use crate::extracts::process::process_manager::metrics::ProcessMetricsHandler;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
@@ -20,14 +20,14 @@ use tracer_ebpf::ebpf_trigger::{OutOfMemoryTrigger, ProcessEndTrigger, ProcessSt
 /// Uses functional programming principles with direct component access
 pub struct ProcessManager {
     pub state_manager: StateManager,
-    pub logger: ProcessLogger,
+    pub logger: EventRecorder,
     pub system_refresher: SystemRefresher,
 }
 
 impl ProcessManager {
     pub fn new(event_dispatcher: EventDispatcher, docker_watcher: Arc<DockerWatcher>) -> Self {
         let state_manager = StateManager::default();
-        let logger = ProcessLogger::new(event_dispatcher, docker_watcher);
+        let logger = EventRecorder::new(event_dispatcher, docker_watcher);
         let system_refresher = SystemRefresher::new();
 
         ProcessManager {

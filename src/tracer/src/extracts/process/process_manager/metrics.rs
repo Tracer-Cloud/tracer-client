@@ -1,4 +1,4 @@
-use crate::extracts::process::process_manager::logger::ProcessLogger;
+use crate::extracts::process::process_manager::logger::EventRecorder;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
 use anyhow::Result;
@@ -27,7 +27,7 @@ impl ProcessMetricsHandler {
     /// to keep process metrics up to date.
     pub async fn poll_process_metrics(
         state_manager: &StateManager,
-        logger: &ProcessLogger,
+        logger: &EventRecorder,
         system_refresher: &SystemRefresher,
     ) -> Result<()> {
         debug!("Starting periodic process metrics polling");

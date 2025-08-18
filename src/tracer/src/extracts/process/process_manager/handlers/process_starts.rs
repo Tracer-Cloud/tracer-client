@@ -1,4 +1,4 @@
-use crate::extracts::process::process_manager::logger::ProcessLogger;
+use crate::extracts::process::process_manager::logger::EventRecorder;
 use crate::extracts::process::process_manager::matcher;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
@@ -14,7 +14,7 @@ impl ProcessStartHandler {
     /// Entry point: handles newly started processes.
     pub async fn handle_process_starts(
         state_manager: &StateManager,
-        logger: &ProcessLogger,
+        logger: &EventRecorder,
         system_refresher: &SystemRefresher,
         triggers: Vec<ProcessStartTrigger>,
     ) -> Result<()> {
@@ -82,7 +82,7 @@ impl ProcessStartHandler {
 
     /// Step 4: Log data for each matched process.
     async fn log_matched_processes(
-        logger: &ProcessLogger,
+        logger: &EventRecorder,
         system_refresher: &SystemRefresher,
         matched_processes: &HashMap<String, HashSet<&ProcessStartTrigger>>,
     ) -> Result<()> {
@@ -93,7 +93,7 @@ impl ProcessStartHandler {
             for process in processes {
                 let system = system_refresher.get_system().read().await;
                 let sys_proc = system.process(process.pid.into());
-                let _ = logger.log_new_process(target, process, sys_proc).await?;
+                let _ = logger.record_new_process(target, process, sys_proc).await?;
             }
         }
 
@@ -103,7 +103,7 @@ impl ProcessStartHandler {
 
     /// Step 5: Match pipelines for matched processes.
     async fn log_matching_tasks(
-        logger: &ProcessLogger,
+        logger: &EventRecorder,
         state_manager: &StateManager,
         triggers: &[ProcessStartTrigger],
         matched_processes: &HashMap<String, HashSet<&ProcessStartTrigger>>,

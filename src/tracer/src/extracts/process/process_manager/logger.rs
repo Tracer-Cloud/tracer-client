@@ -16,14 +16,14 @@ use tracing::debug;
 use tracing::error;
 
 /// Handles logging of process-related events
-pub struct ProcessLogger {
+pub struct EventRecorder {
     event_dispatcher: EventDispatcher,
     /// shared reference to the docker watcher - used to get the ContainerEvent associated
     /// with a process
     docker_watcher: Arc<DockerWatcher>,
 }
 
-impl ProcessLogger {
+impl EventRecorder {
     pub fn new(event_dispatcher: EventDispatcher, docker_watcher: Arc<DockerWatcher>) -> Self {
         Self {
             event_dispatcher,
@@ -32,7 +32,7 @@ impl ProcessLogger {
     }
 
     /// Logs information about a newly detected process
-    pub async fn log_new_process(
+    pub async fn record_new_process(
         &self,
         target: &String,
         process: &ProcessStartTrigger,
