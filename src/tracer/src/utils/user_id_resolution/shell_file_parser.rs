@@ -10,9 +10,8 @@ pub fn read_user_id_from_file(file_path: &PathBuf, export_pattern: &str) -> Resu
 
     for line in content.lines() {
         let line = line.trim();
-        if line.starts_with(export_pattern) {
+        if let Some(value_part) = line.strip_prefix(export_pattern) {
             // Extract value from: export TRACER_USER_ID="value" or export TRACER_USER_ID=value
-            let value_part = &line[export_pattern.len()..];
             let user_id = if value_part.starts_with('"') && value_part.ends_with('"') {
                 // Remove quotes: "value" -> value
                 value_part[1..value_part.len() - 1].to_string()

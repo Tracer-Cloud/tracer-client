@@ -1,7 +1,7 @@
 use crate::utils::user_id_resolution::extract_user_id;
 
 use super::super::user_prompts::{print_help, UserPrompts};
-use super::arguments::PromptMode;
+use super::PromptMode;
 
 /// Resolves user ID from various sources using functional programming approach
 /// Uses extract_user_id with shell config file reading and comprehensive Sentry instrumentation

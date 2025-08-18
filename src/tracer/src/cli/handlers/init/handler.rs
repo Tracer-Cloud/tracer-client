@@ -12,27 +12,6 @@ use super::setup::{
     handle_existing_daemon, setup_daemon_logging, setup_sentry_context, spawn_daemon_process,
 };
 
-/// Performs initial setup and validation before starting daemon
-async fn init_setup_validation(
-    args: &TracerCliInitArgs,
-    api_client: &DaemonClient,
-) -> anyhow::Result<()> {
-    // Check if running with sudo (Linux only, unless force_procfs is enabled)
-    check_sudo_with_procfs_option("init", args.force_procfs);
-
-    // Create work dir for logging and daemonizing files
-    TRACER_WORK_DIR
-        .init()
-        .expect("Error while creating necessary files");
-
-    // Check for existing daemon and handle appropriately
-    if DaemonServer::is_running() {
-        handle_existing_daemon(args, api_client).await?;
-    }
-
-    Ok(())
-}
-
 /// Initialize the tracer daemon with the given pipeline prefix
 pub async fn init(
     mut args: TracerCliInitArgs,
@@ -60,4 +39,25 @@ pub async fn init(
     }
     setup_daemon_logging(&args.log_level)?;
     DaemonServer::new().await.start(args, config).await
+}
+
+/// Performs initial setup and validation before starting daemon
+async fn init_setup_validation(
+    args: &TracerCliInitArgs,
+    api_client: &DaemonClient,
+) -> anyhow::Result<()> {
+    // Check if running with sudo (Linux only, unless force_procfs is enabled)
+    check_sudo_with_procfs_option("init", args.force_procfs);
+
+    // Create work dir for logging and daemonizing files
+    TRACER_WORK_DIR
+        .init()
+        .expect("Error while creating necessary files");
+
+    // Check for existing daemon and handle appropriately
+    if DaemonServer::is_running() {
+        handle_existing_daemon(args, api_client).await?;
+    }
+
+    Ok(())
 }

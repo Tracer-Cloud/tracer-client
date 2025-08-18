@@ -9,15 +9,13 @@ pub fn check_sudo(command: &str) {
 
 pub fn check_sudo_with_procfs_option(command: &str, force_procfs: bool) {
     // Only require sudo on Linux systems, and only if not forcing procfs polling
-    if cfg!(target_os = "linux") && !force_procfs {
-        if !is_root() && !is_sudo() {
-            warning_message!(
-                "`{}` requires root privileges. Please run `sudo tracer {}`.",
-                command,
-                command
-            );
-            exit(1);
-        }
+    if cfg!(target_os = "linux") && !force_procfs && !is_root() && !is_sudo() {
+        warning_message!(
+            "`{}` requires root privileges. Please run `sudo tracer {}`.",
+            command,
+            command
+        );
+        exit(1);
     }
 }
 pub fn is_root() -> bool {

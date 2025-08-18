@@ -3,8 +3,8 @@ use crate::utils::env;
 use std::collections::HashMap;
 
 use super::super::user_prompts::{print_help, UserPrompts};
-use super::arguments::{FinalizedInitArgs, PromptMode, TracerCliInitArgs};
 use super::user_id_resolver::resolve_user_id;
+use super::{FinalizedInitArgs, PromptMode, TracerCliInitArgs};
 
 /// Constants for argument resolution
 pub const DEFAULT_PIPELINE_TYPE: &str = "Preprocessing";
@@ -87,11 +87,11 @@ impl ArgumentResolver {
     }
 
     fn resolve_environment(&mut self, prompt_mode: &PromptMode) {
-        let environment = match (self.args.tags.environment.clone(), prompt_mode) {
+        let environment = match (&self.args.tags.environment, prompt_mode) {
             (Some(env), PromptMode::Required) => {
-                Some(UserPrompts::prompt_for_environment_name(&env))
+                Some(UserPrompts::prompt_for_environment_name(env))
             }
-            (Some(name), _) => Some(name),
+            (Some(name), _) => Some(name.clone()),
             (None, PromptMode::Required) if self.args.tags.environment_type.is_some() => {
                 Some(UserPrompts::prompt_for_environment_name(
                     self.args.tags.environment_type.as_ref().unwrap(),
@@ -112,9 +112,9 @@ impl ArgumentResolver {
     }
 
     fn resolve_pipeline_type(&mut self, prompt_mode: &PromptMode) {
-        let pipeline_type = match (self.args.tags.pipeline_type.clone(), prompt_mode) {
-            (Some(env), PromptMode::Required) => UserPrompts::prompt_for_pipeline_type(&env),
-            (Some(env), _) => env,
+        let pipeline_type = match (&self.args.tags.pipeline_type, prompt_mode) {
+            (Some(env), PromptMode::Required) => UserPrompts::prompt_for_pipeline_type(env),
+            (Some(env), _) => env.clone(),
             (None, PromptMode::Required) => {
                 UserPrompts::prompt_for_pipeline_type(DEFAULT_PIPELINE_TYPE)
             }

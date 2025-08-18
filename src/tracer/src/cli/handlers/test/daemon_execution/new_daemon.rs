@@ -12,39 +12,56 @@ use crate::utils::workdir::TRACER_WORK_DIR;
 use anyhow::Result;
 use colored::Colorize;
 
-/// Initialize daemon with new pipeline name and run test pipeline
 pub async fn run_test_with_new_daemon(
-    mut init_args: TracerCliInitArgs,
+    init_args: TracerCliInitArgs,
     config: Config,
     api_client: &DaemonClient,
     selected_test_pipeline: Pipeline,
 ) -> Result<()> {
-    info_message!("[run_test_with_new_daemon] Daemon is not running, starting new instance...");
-    TRACER_WORK_DIR.init().expect("creating work files failed");
+    let user_id = extract_user_id(init_args.tags.user_id.clone())?;
+    let configured_args = prepare_test_environment(init_args, &user_id)?;
 
-    // Configure init args for test scenarios
+    // Init daemon, run pipeline, cleanup
+    initialize_daemon_for_testing(configured_args, config, api_client).await?;
+    execute_pipeline_and_report(selected_test_pipeline, api_client).await?;
+    cleanup_daemon(api_client).await;
+
+    Ok(())
+}
+
+fn prepare_test_environment(
+    mut init_args: TracerCliInitArgs,
+    user_id: &str,
+) -> Result<TracerCliInitArgs> {
+    TRACER_WORK_DIR
+        .init()
+        .map_err(|_| anyhow::anyhow!("Failed to create tracer work directory"))?;
+
     init_args.configure_for_test();
 
-    // Set the pipeline name only if user hasn't provided one
     if init_args.pipeline_name.is_none() {
-        // Extract user_id with comprehensive fallback strategies and Sentry instrumentation
-        let user_id = extract_user_id(init_args.tags.user_id.clone())
-            .unwrap_or_else(|_| "unknown".to_string());
-
-        let new_test_pipeline_name = format!("test-{}-{}", selected_test_pipeline.name(), user_id);
-        init_args.pipeline_name = Some(new_test_pipeline_name);
+        init_args.pipeline_name = Some(format!("test-{}", user_id));
     }
 
-    crate::cli::handlers::init::init(init_args, config, api_client).await?;
+    Ok(init_args)
+}
 
-    // Run the pipeline after the daemon has been started
-    let result = selected_test_pipeline.execute();
+async fn initialize_daemon_for_testing(
+    init_args: TracerCliInitArgs,
+    config: Config,
+    api_client: &DaemonClient,
+) -> Result<()> {
+    info_message!("Starting daemon for test execution...");
+    crate::cli::handlers::init::init(init_args, config, api_client).await
+}
 
-    // Show info to check if the process where recognized correctly s
+async fn execute_pipeline_and_report(pipeline: Pipeline, api_client: &DaemonClient) -> Result<()> {
+    pipeline.execute()?;
     info::info(api_client, false).await;
+    Ok(())
+}
 
-    info_message!("Shutting down daemon following test completion...");
+async fn cleanup_daemon(api_client: &DaemonClient) {
+    info_message!("Cleaning up daemon...");
     terminate::terminate(api_client).await;
-
-    result
 }
