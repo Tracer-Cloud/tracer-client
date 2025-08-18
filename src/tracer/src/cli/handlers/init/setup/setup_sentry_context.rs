@@ -1,4 +1,4 @@
-use crate::cli::handlers::init::arguments::FinalizedInitArgs;
+use super::super::arguments::FinalizedInitArgs;
 use crate::utils::Sentry;
 use serde_json::Value;
 

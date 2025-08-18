@@ -1,4 +1,4 @@
-use crate::cli::handlers::init::arguments::FinalizedInitArgs;
+use super::super::arguments::FinalizedInitArgs;
 use crate::cli::handlers::{info, otel_start_with_auto_install};
 use crate::cli::helper::wait;
 use colored::Colorize;
