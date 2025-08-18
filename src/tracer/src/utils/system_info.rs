@@ -4,7 +4,12 @@ use std::process::{exit, Command};
 use tracing::error;
 
 pub fn check_sudo(command: &str) {
-    if !is_root() && !is_sudo() {
+    check_sudo_with_procfs_option(command, false);
+}
+
+pub fn check_sudo_with_procfs_option(command: &str, force_procfs: bool) {
+    // Only require sudo on Linux systems, and only if not forcing procfs polling
+    if cfg!(target_os = "linux") && !force_procfs && !is_root() && !is_sudo() {
         warning_message!(
             "`{}` requires root privileges. Please run `sudo tracer {}`.",
             command,
