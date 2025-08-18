@@ -78,4 +78,4 @@ jobs:
         run: cargo clippy -- -D warnings
 
       - name: Run tests
-        run: sudo cargo test --features test-bins
+        run: cargo test --features test-bins
