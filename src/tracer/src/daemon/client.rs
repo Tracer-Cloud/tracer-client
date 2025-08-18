@@ -1,8 +1,12 @@
 use super::structs::PipelineMetadata;
+use crate::daemon::handlers::get_user_id::{GetUserIdResponse, GET_USER_ID_ENDPOINT};
 use crate::daemon::handlers::info::INFO_ENDPOINT;
 use crate::daemon::handlers::start::START_ENDPOINT;
 use crate::daemon::handlers::stop::STOP_ENDPOINT;
 use crate::daemon::handlers::terminate::TERMINATE_ENDPOINT;
+use crate::daemon::handlers::update_run_name::{
+    UpdateRunNameRequest, UpdateRunNameResponse, UPDATE_RUN_NAME_ENDPOINT,
+};
 use crate::daemon::server::DaemonServer;
 use crate::error_message;
 use colored::Colorize;
@@ -46,6 +50,19 @@ impl DaemonClient {
         self.send_request(INFO_ENDPOINT, Method::Get).await
     }
 
+    pub async fn send_update_run_name_request(
+        &self,
+        run_name: String,
+    ) -> Result<UpdateRunNameResponse, &str> {
+        let request = UpdateRunNameRequest { run_name };
+        self.send_request_with_body(UPDATE_RUN_NAME_ENDPOINT, Method::Post, request)
+            .await
+    }
+
+    pub async fn send_get_user_id_request(&self) -> Result<GetUserIdResponse, &str> {
+        self.send_request(GET_USER_ID_ENDPOINT, Method::Get).await
+    }
+
     pub async fn ping(&self) -> reqwest::Result<Response> {
         self.client.get(self.get_url(INFO_ENDPOINT)).send().await
     }
@@ -62,6 +79,41 @@ impl DaemonClient {
         let response = match method {
             Method::Get => self.client.get(self.get_url(endpoint)).send().await,
             Method::Post => self.client.post(self.get_url(endpoint)).send().await,
+        };
+        match self.unpack_response(response) {
+            Some(response) => self.extract_json(response).await,
+            None => {
+                error_message!("Failed to send request to {}", endpoint);
+                Err("Failed to send request")
+            }
+        }
+    }
+
+    async fn send_request_with_body<T: serde::de::DeserializeOwned, B: serde::Serialize>(
+        &self,
+        endpoint: &str,
+        method: Method,
+        body: B,
+    ) -> Result<T, &str> {
+        if !DaemonServer::is_running() {
+            error_message!("Tracer daemon is not running");
+            return Err("Tracer daemon is not running");
+        }
+        let response = match method {
+            Method::Get => {
+                self.client
+                    .get(self.get_url(endpoint))
+                    .json(&body)
+                    .send()
+                    .await
+            }
+            Method::Post => {
+                self.client
+                    .post(self.get_url(endpoint))
+                    .json(&body)
+                    .send()
+                    .await
+            }
         };
         match self.unpack_response(response) {
             Some(response) => self.extract_json(response).await,

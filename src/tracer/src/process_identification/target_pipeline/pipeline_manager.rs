@@ -472,7 +472,7 @@ mod tests {
 
     /// Fixture that creates a TargetPipelineManager with default pipeline rules
     #[fixture]
-    fn pipeline_manager(test_targets: &Vec<Target>) -> TargetPipelineManager {
+    fn pipeline_manager(test_targets: &[Target]) -> TargetPipelineManager {
         TargetPipelineManager::new(PIPELINE_YAML_PATH, test_targets)
             .expect("Error creating pipeline manager")
     }
@@ -504,11 +504,11 @@ mod tests {
     #[rstest]
     fn test_register_gunzip_gtf_process(
         mut pipeline_manager: TargetPipelineManager,
-        test_targets: &Vec<Target>,
+        test_targets: &[Target],
     ) {
         // Register a gunzip process that matches the gunzip_gtf rule
         let process = create_process_trigger("gzip -cd foo.gtf.gz", 1001, 1);
-        let target = find_target_by_display_name(&test_targets, "gunzip_gtf").unwrap();
+        let target = find_target_by_display_name(test_targets, "gunzip_gtf").unwrap();
         let result = pipeline_manager.register_process(
             &process,
             1,
@@ -531,13 +531,13 @@ mod tests {
     #[rstest]
     fn test_register_all_processes_for_bbmap_bbsplit(
         pipeline_manager: TargetPipelineManager,
-        test_targets: &Vec<Target>,
+        test_targets: &[Target],
     ) {
         let mut manager = pipeline_manager;
 
         // Register jshell process
         let jshell_process = create_process_trigger("jshell", 1002, 1);
-        let jshell_target = find_target_by_display_name(&test_targets, "jshell").unwrap();
+        let jshell_target = find_target_by_display_name(test_targets, "jshell").unwrap();
         let result1 = manager.register_process(
             &jshell_process,
             1,
@@ -549,7 +549,7 @@ mod tests {
 
         // Register bbsplit process
         let bbsplit_process = create_process_trigger("bbsplit.sh", 1001, 1);
-        let bbsplit_target = find_target_by_display_name(&test_targets, "bbsplit").unwrap();
+        let bbsplit_target = find_target_by_display_name(test_targets, "bbsplit").unwrap();
         let result2 = manager.register_process(
             &bbsplit_process,
             1,
@@ -571,11 +571,11 @@ mod tests {
     #[rstest]
     fn test_different_task_pids(
         mut pipeline_manager: TargetPipelineManager,
-        test_targets: &Vec<Target>,
+        test_targets: &[Target],
     ) {
         // Register jshell process
         let jshell_process = create_process_trigger("jshell", 1001, 1);
-        let jshell_target = find_target_by_display_name(&test_targets, "jshell").unwrap();
+        let jshell_target = find_target_by_display_name(test_targets, "jshell").unwrap();
         let result1 = pipeline_manager.register_process(
             &jshell_process,
             1,
@@ -587,7 +587,7 @@ mod tests {
 
         // Register bbsplit process
         let bbsplit_process = create_process_trigger("bbsplit.sh", 1002, 2);
-        let bbsplit_target = find_target_by_display_name(&test_targets, "bbsplit").unwrap();
+        let bbsplit_target = find_target_by_display_name(test_targets, "bbsplit").unwrap();
         let result2 = pipeline_manager.register_process(
             &bbsplit_process,
             2,
@@ -599,7 +599,7 @@ mod tests {
 
         // Register jshell process
         let jshell_process = create_process_trigger("jshell", 1003, 2);
-        let jshell_target = find_target_by_display_name(&test_targets, "jshell").unwrap();
+        let jshell_target = find_target_by_display_name(test_targets, "jshell").unwrap();
         let result3 = pipeline_manager.register_process(
             &jshell_process,
             2,
@@ -619,7 +619,7 @@ mod tests {
 
         // Register bbsplit process
         let bbsplit_process = create_process_trigger("bbsplit.sh", 1004, 1);
-        let bbsplit_target = find_target_by_display_name(&test_targets, "bbsplit").unwrap();
+        let bbsplit_target = find_target_by_display_name(test_targets, "bbsplit").unwrap();
         let result4 = pipeline_manager.register_process(
             &bbsplit_process,
             1,
@@ -641,13 +641,13 @@ mod tests {
     #[rstest]
     fn test_register_all_processes_for_star_preparegenome(
         pipeline_manager: TargetPipelineManager,
-        test_targets: &Vec<Target>,
+        test_targets: &[Target],
     ) {
         let mut manager = pipeline_manager;
 
         // Register (optional) samtools process
         let samtools_process = create_process_trigger("samtools faidx", 1002, 1);
-        let samtools_target = find_target_by_display_name(&test_targets, "samtools faidx").unwrap();
+        let samtools_target = find_target_by_display_name(test_targets, "samtools faidx").unwrap();
         let result1 = manager.register_process(
             &samtools_process,
             1,
@@ -668,7 +668,7 @@ mod tests {
 
         // Register STAR process
         let star_process = create_process_trigger("STAR --runMode genomeGenerate", 1001, 1);
-        let star_target = find_target_by_display_name(&test_targets, "STAR index").unwrap();
+        let star_target = find_target_by_display_name(test_targets, "STAR index").unwrap();
         let result2 = manager.register_process(
             &star_process,
             1,
@@ -695,11 +695,11 @@ mod tests {
     #[rstest]
     fn test_duplicate_pid_registration(
         mut pipeline_manager: TargetPipelineManager,
-        test_targets: &Vec<Target>,
+        test_targets: &[Target],
     ) {
         // Register a gunzip process that matches the gunzip_gtf rule
         let process = create_process_trigger("gzip -cd foo.gtf.gz", 1001, 1);
-        let target = find_target_by_display_name(&test_targets, "gunzip_gtf").unwrap();
+        let target = find_target_by_display_name(test_targets, "gunzip_gtf").unwrap();
         let result1 = pipeline_manager.register_process(
             &process,
             1,

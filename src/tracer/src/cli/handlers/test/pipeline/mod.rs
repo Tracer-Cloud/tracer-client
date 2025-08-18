@@ -1,3 +1,8 @@
+mod execution;
+mod pixi;
+mod prompts;
+mod selection;
+
 use anyhow::{bail, Result};
 use std::path::PathBuf;
 

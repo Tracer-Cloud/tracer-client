@@ -3,6 +3,7 @@ use crate::daemon::server::DaemonServer;
 use crate::daemon::structs::PipelineMetadata;
 use crate::utils::cli::BoxFormatter;
 use crate::utils::Version;
+
 pub async fn info(api_client: &DaemonClient, json: bool) {
     if !DaemonServer::is_running() {
         let display = InfoDisplay::new(80, json);

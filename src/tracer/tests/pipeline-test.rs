@@ -77,7 +77,7 @@ fn process_triggers(
 }
 
 /// Returns a map with the expected number of events we expect to see for each process
-fn compute_expected_counts(processes: &Vec<ProcessInfo>) -> BTreeMap<String, usize> {
+fn compute_expected_counts(processes: &[ProcessInfo]) -> BTreeMap<String, usize> {
     processes
         .iter()
         .fold(BTreeMap::new(), |mut counts, process| {
@@ -92,7 +92,7 @@ fn compute_expected_counts(processes: &Vec<ProcessInfo>) -> BTreeMap<String, usi
         })
 }
 
-fn compute_observed_counts(events: &Vec<Event>) -> BTreeMap<String, usize> {
+fn compute_observed_counts(events: &[Event]) -> BTreeMap<String, usize> {
     events.iter().fold(BTreeMap::new(), |mut counts, event| {
         if let Some(EventAttributes::Process(ProcessProperties::Full(properties))) =
             &event.attributes

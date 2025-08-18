@@ -43,6 +43,11 @@ impl DaemonState {
         data.clone()
     }
 
+    pub async fn get_user_id(&self) -> Option<String> {
+        let args = self.args.lock().await;
+        Some(args.user_id.clone())
+    }
+
     pub fn terminate_server(&self) {
         self.server_token.cancel();
     }

@@ -1,131 +1,91 @@
 use crate::cli::handlers::info;
-use crate::cli::handlers::init::arguments::PromptMode;
+use crate::cli::handlers::init::arguments::TracerCliInitArgs;
 use crate::cli::handlers::terminate;
 use crate::cli::handlers::test::arguments::TracerCliTestArgs;
 use crate::cli::handlers::test::pipeline::Pipeline;
-use crate::cli::handlers::test::pixi;
+use crate::cli::handlers::test::requests::{get_user_id_from_daemon, update_run_name_for_test};
+
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::server::DaemonServer;
-use crate::utils::command::check_status;
+use crate::info_message;
 use crate::utils::system_info::check_sudo;
 use crate::utils::workdir::TRACER_WORK_DIR;
-use crate::warning_message;
+
 use anyhow::Result;
 use colored::Colorize;
-use std::ffi::OsStr;
-use std::path::PathBuf;
-use std::process::Command;
 
-/// TODO: I am getting a segfault running fastquorum on ARM mac
-/// It works if I run with Rosetta emulation
-/// env /usr/bin/arch -x86_64 -c -e TERM=$TERM /bin/sh --login
-/// We may want to offer The option to install the x86 version of
-/// pixi and run nextflow under x86 emulation
-pub async fn test(
-    args: TracerCliTestArgs,
-    config: Config,
-    api_client: DaemonClient,
-) -> anyhow::Result<()> {
+/// TODO: fastquorum segfault on ARM mac; Rosetta/x86 pixi option may be needed.
+pub async fn test(args: TracerCliTestArgs, config: Config, api_client: DaemonClient) -> Result<()> {
+    // this is the entry function for the test command
     if !args.init_args.force_procfs && cfg!(target_os = "linux") {
-        // Check if running with sudo
         check_sudo("init");
     }
 
-    // Create necessary files for logging and daemonizing
-    TRACER_WORK_DIR
-        .init()
-        .expect("Error while creating necessary files");
+    // Resolve the pipeline early so we can pass it to both functions
+    let (init_args, selected_test_pipeline) = args.resolve_test_arguments()?;
+    let daemon_was_already_running = DaemonServer::is_running();
 
-    // Check for port conflict before starting daemon
-    if DaemonServer::is_running() {
-        warning_message!("Daemon server is already running, trying to terminate it...");
-        if !terminate::terminate(&api_client).await {
-            return Ok(());
-        }
+    if daemon_was_already_running {
+        run_test_with_existing_daemon(&api_client, selected_test_pipeline).await
+    } else {
+        run_test_with_new_daemon(init_args, config, &api_client, selected_test_pipeline).await
     }
+}
 
-    // Finalize test args
-    let (mut init_args, pipeline) = args.finalize();
-    let default_pipeline_prefix = format!("test-{}", pipeline.name());
-    let confirm = init_args.interactive_prompts != PromptMode::None;
+/// Initialize daemon with new pipeline name and run test pipeline
+async fn run_test_with_new_daemon(
+    mut init_args: TracerCliInitArgs,
+    config: Config,
+    api_client: &DaemonClient,
+    selected_test_pipeline: Pipeline,
+) -> Result<()> {
+    info_message!("[run_test_with_new_daemon] Daemon is not running, starting new instance...");
+    TRACER_WORK_DIR.init().expect("creating work files failed");
 
+    // prepare test arguments
     init_args.watch_dir = Some("/tmp/tracer".to_string());
 
-    // init tracer run
-    crate::cli::handlers::init::init_with(
-        init_args,
-        config,
-        &api_client,
-        &default_pipeline_prefix,
-        confirm,
-    )
-    .await?;
+    // Force non-interactive mode for test command to avoid prompts
+    init_args.set_non_interactive();
 
-    // run the pipeline
-    println!("Running pipeline...");
-    let result = match pipeline {
-        Pipeline::LocalPixi { manifest, task, .. } => run_pixi_task(manifest, task),
-        Pipeline::LocalNextflow { path, args } => run_nextflow(path, args),
-        Pipeline::GithubNextflow { repo, args } => run_nextflow(repo, args),
-        Pipeline::LocalTool { path, args } => run_tool(path, args),
-    };
-
-    if result.is_ok() {
-        println!("Pipeline run completed successfully.");
+    // Set the pipeline name only if user hasn't provided one
+    if init_args.pipeline_name.is_none() {
+        let new_test_pipeline_name = format!("test-{}", selected_test_pipeline.name());
+        init_args.pipeline_name = Some(new_test_pipeline_name);
     }
 
-    info::info(&api_client, false).await;
+    crate::cli::handlers::init::init(init_args, config, api_client).await?;
 
-    if DaemonServer::is_running() {
-        println!("Shutting down daemon...");
-        terminate::terminate(&api_client).await;
-    }
+    // Run the pipeline after the daemon has been started
+    let result = selected_test_pipeline.execute();
+
+    // Show info to check if the process where recognized correctly s
+    info::info(api_client, false).await;
+
+    info_message!("Shutting down daemon following test completion...");
+    terminate::terminate(api_client).await;
 
     result
 }
 
-/// Install pixi if necessary, then run the specified task in the specified manifest
-fn run_pixi_task(manifest: PathBuf, task: String) -> Result<()> {
-    // install pixi if it doesn't exist in the path
-    let pixi_path = if let Ok(path) = which::which("pixi") {
-        path
-    } else {
-        println!("Installing pixi...");
-        pixi::install()?
-    };
+/// Run test pipeline when daemon is already running
+async fn run_test_with_existing_daemon(
+    api_client: &DaemonClient,
+    selected_test_pipeline: Pipeline,
+) -> Result<()> {
+    info_message!(
+        "Daemon is already running, executing {} pipeline...",
+        selected_test_pipeline.name()
+    );
 
-    let status = Command::new(pixi_path)
-        .arg("run")
-        .arg("--manifest-path")
-        .arg(manifest)
-        .arg(task)
-        .spawn()
-        .and_then(|mut child| child.wait());
-    check_status(status, "Pipeline run failed")
-}
+    let user_id = get_user_id_from_daemon(api_client).await;
+    update_run_name_for_test(api_client, &user_id).await;
 
-/// Run the pipeline with nextflow in the host environment with the specified arguments
-fn run_nextflow<S: AsRef<OsStr>>(pipeline: S, args: Vec<String>) -> Result<()> {
-    check_status(
-        Command::new("nextflow").arg("-version").status(),
-        "Nextflow not found",
-    )?;
+    let result = selected_test_pipeline.execute();
 
-    let status = Command::new("nextflow")
-        .arg("run")
-        .args(args)
-        .arg(pipeline)
-        .spawn()
-        .and_then(|mut child| child.wait());
-    check_status(status, "Pipeline run failed")
-}
+    // Show info to check if the process where recognized correctly s
+    info::info(api_client, false).await;
 
-/// Run the pipeline with nextflow in the host environment with the specified arguments
-fn run_tool<S: AsRef<OsStr>>(tool: S, args: Vec<String>) -> Result<()> {
-    let status = Command::new(tool)
-        .args(args)
-        .spawn()
-        .and_then(|mut child| child.wait());
-    check_status(status, "Tool run failed")
+    result
 }
