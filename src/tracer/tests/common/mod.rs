@@ -46,8 +46,8 @@ impl ProcessInfo {
             let match_command = self.pattern.split(" ").next().unwrap().trim();
             // Removes regex characters from the first element in `self.pattern` to turn it into a valid
             // path. Currontly only removes leading '^' and strips whitespace.
-            let match_command = if match_command.starts_with('^') {
-                &match_command[1..]
+            let match_command = if let Some(stripped) = match_command.strip_prefix('^') {
+                stripped
             } else {
                 match_command
             };

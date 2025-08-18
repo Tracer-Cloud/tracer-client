@@ -24,13 +24,11 @@ pub async fn test(args: TracerCliTestArgs, config: Config, api_client: DaemonCli
 
     let daemon_was_already_running = DaemonServer::is_running();
 
-    let result = if daemon_was_already_running {
+    if daemon_was_already_running {
         run_test_with_existing_daemon(&api_client).await
     } else {
         run_test_with_new_daemon(args, config, &api_client).await
-    };
-
-    result
+    }
 }
 
 /// Initialize daemon with new pipeline name and run test pipeline
@@ -65,10 +63,10 @@ async fn run_test_with_new_daemon(
     let result = selected_test_pipeline.execute();
 
     // Show info to check if the process where recognized correctly s
-    info::info(&api_client, false).await;
+    info::info(api_client, false).await;
 
     info_message!("Shutting down daemon following test completion...");
-    terminate::terminate(&api_client).await;
+    terminate::terminate(api_client).await;
 
     result
 }
@@ -85,7 +83,7 @@ async fn run_test_with_existing_daemon(api_client: &DaemonClient) -> Result<()> 
     let result = fastquorum_pipeline.execute();
 
     // Show info to check if the process where recognized correctly s
-    info::info(&api_client, false).await;
+    info::info(api_client, false).await;
 
     result
 }
