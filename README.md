@@ -38,9 +38,11 @@ New metrics that help you speed up your pipelines and maximize your budget:
 The easiest way to get started with Tracer is via our **browser-based sandbox**:  
 👉 [https://sandbox.tracer.cloud/](https://sandbox.tracer.cloud/)
 
-→ Click **“Get started”** to launch a guided onboarding experience tailored to your preferred tech stack — *no AWS credentials or setup required*.
+→ Click **“Proceed to Onboarding”** to launch a guided onboarding experience tailored to your preferred tech stack — *no AWS credentials or setup required*.
 
 ### 2. Install Tracer With One Line of Code
+
+Choose your preferred tech stack from the left-hand menu.
 
 Copy the pre-filled curl command (also shown in the Sandbox) and run it in your terminal:
 
@@ -50,19 +52,32 @@ curl -sSL https://install.tracer.cloud | sh
 
 → Some environments (e.g. Docker) may require 1-2 additional steps.
 
-### 3. Initialize a Pipeline
+### 3. Start Tracer agent
 
-Follow the sandbox instructions to launch your own pipeline or run a script to launch a **demo bioinformatics pipeline** (Nextflow, WDL, and more) from our [nextflow-test-pipelines-bioinformatics](https://github.com/Tracer-Cloud/nextflow-test-pipelines) repository.
+Copy the pre-filled tracer init command (also shown in the Sandbox) and run it in your terminal:
 
-### 4. Monitor Your Pipeline With Our Grafana Dashboard
+```bash
+tracer init --user-id user_31KboryFJnD08UZBsYr8w6AcJAb
+```
+Depending on the tech stack, this line can be preceded by sudo as shown in the Sandbox.
 
-Access the Tracer monitoring dashboard on **Grafana** to watch your pipeline in action, including:
+### 4. Initialize a Pipeline
+
+You can now choose to run any pipeline you want or use 'tracer test' to launch a prepared pipeline.
+Run your own pipeline by following your usual workflow or try with one of our test examples first (https://github.com/Tracer-Cloud/nextflow-test-pipelines):
+```bash
+sudo -E tracer test
+```
+
+### 5. Monitor Your Pipeline With Our Dashboard
+
+Access the Tracer monitoring dashboard to watch your pipeline in action, including:
 
 - Real-time execution metrics  
 - Pipeline stages  
 - Resource usage across runs  
 
-→ The sandbox will guide you through creating your personal account and navigating the Grafana interface.
+→ The sandbox will guide you to your personal dashboard at the bottom of the onboarding page.
 
 <br />
 
