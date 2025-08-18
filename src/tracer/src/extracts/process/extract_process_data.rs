@@ -2,7 +2,9 @@ use crate::process_identification::types::event::attributes::process::{
     FullProcessProperties, ProcessProperties,
 };
 use crate::utils::env;
+use crate::warning_message;
 use chrono::{DateTime, Utc};
+use colored::Colorize;
 use itertools::Itertools;
 use mockall::automock;
 use std::path::PathBuf;
@@ -86,12 +88,42 @@ pub async fn gather_process_data<P: ProcessTrait>(
     proc: &P,
     display_name: String,
     process_start_time: DateTime<Utc>,
-    process_argv: Vec<String>,
+    process_argv: &[String],
+    process_env: &[(String, String)],
 ) -> ProcessProperties {
     debug!("Gathering process data for {}", display_name);
 
+    // we collect the TRACER_TRACE_ID environment variable from the eBPF process environment, and
+    // might also be able to get it from the proc file system - prefer the eBPF value if we have it
+    // warn if the values differ
+
+    let bpf_trace_id = process_env
+        .iter()
+        .find(|(k, _)| k == env::TRACE_ID_ENV_VAR)
+        .map(|(_, v)| v.to_owned());
+
     // get the process environment variables
-    let (container_id, job_id, trace_id) = get_process_environment_variables(proc);
+    let (container_id, job_id, proc_trace_id) = get_process_environment_variables(proc);
+
+    let trace_id = match (bpf_trace_id, proc_trace_id) {
+        (Some(bpf_trace_id), Some(proc_trace_id)) if bpf_trace_id == proc_trace_id => {
+            Some(bpf_trace_id)
+        }
+        (Some(bpf_trace_id), Some(proc_trace_id))
+            if !bpf_trace_id.trim().is_empty() && proc_trace_id.trim().is_empty() =>
+        {
+            warning_message!(
+                "Mismatched trace IDs for process {}: {} vs {}",
+                proc.pid(),
+                bpf_trace_id,
+                proc_trace_id
+            );
+            Some(bpf_trace_id)
+        }
+        (_, Some(proc_trace_id)) => Some(proc_trace_id),
+        (Some(bpf_trace_id), _) => Some(bpf_trace_id),
+        (None, None) => None,
+    };
 
     // get the process working directory
     let working_directory = proc.cwd().as_ref().map(|p| p.to_string_lossy().to_string());
@@ -423,7 +455,8 @@ mod tests {
             &mock_process,
             display_name.clone(),
             process_start_time,
-            Vec::new(),
+            &[],
+            &[],
         )
         .await;
 
@@ -492,7 +525,8 @@ mod tests {
             &mock_process,
             display_name.clone(),
             process_start_time,
-            Vec::new(),
+            &[],
+            &[],
         )
         .await;
 
@@ -547,7 +581,7 @@ mod tests {
         let process_start_time = Utc::now() - Duration::minutes(5);
 
         let result =
-            gather_process_data(&mock_process, display_name, process_start_time, Vec::new()).await;
+            gather_process_data(&mock_process, display_name, process_start_time, &[], &[]).await;
 
         match result {
             ProcessProperties::Full(props) => {

@@ -48,7 +48,8 @@ impl EventRecorder {
                     system_process,
                     display_name.clone(),
                     process.started_at,
-                    process.argv.clone(),
+                    &process.argv,
+                    &process.env,
                 )
                 .await
             }
@@ -111,7 +112,8 @@ impl EventRecorder {
             system_process,
             display_name.clone(),
             process.started_at,
-            process.argv.clone(),
+            &process.argv,
+            &process.env,
         )
         .await;
 

@@ -84,14 +84,18 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                 }
 
                 let mut env = Vec::new();
-                for i in 0..MAX_ENV_LEN {
-                    if payload.env_found_mask & (1 << i) == 0 {
-                        continue;
-                    }
-                    let key = ENV_KEYS[i].to_owned();
-                    let value = from_bpf_str(&payload.env_values[i])?.to_string();
-                    env.push((key, value));
-                }
+                ENV_KEYS
+                    .iter()
+                    .enumerate()
+                    .take(MAX_ENV_LEN)
+                    .try_for_each(|(i, key)| {
+                        if payload.env_found_mask & (1 << i) != 0 {
+                            let key = ENV_KEYS[i].to_owned();
+                            let value = from_bpf_str(&payload.env_values[i])?.to_string();
+                            env.push((key, value));
+                        }
+                        Ok::<_, anyhow::Error>(())
+                    })?;
 
                 Ok(ebpf_trigger::Trigger::ProcessStart(
                     ebpf_trigger::ProcessStartTrigger::from_bpf_event(
