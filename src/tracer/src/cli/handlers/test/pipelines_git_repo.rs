@@ -89,3 +89,40 @@ impl TracerPipelinesRepo {
         vec![pipeline]
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cli::handlers::init::arguments::{PromptMode, TracerCliInitArgs};
+    use crate::cli::handlers::test::arguments::TracerCliTestArgs;
+
+    #[test]
+    fn test_fastquorum_pipeline_resolution() {
+        let args = TracerCliTestArgs {
+            demo_pipeline_id: Some("fastquorum".to_string()),
+            init_args: TracerCliInitArgs {
+                interactive_prompts: PromptMode::Minimal,
+                log_level: "info".into(),
+                ..Default::default()
+            },
+        };
+
+        let (_, pipeline) = args.resolve_test_arguments()
+            .expect("failed to resolve pipeline");
+
+        assert_eq!(pipeline.name(), "fastquorum");
+
+        if let Pipeline::LocalPixi { path, .. } = &pipeline {
+            assert_eq!(path, &get_tracer_pipeline_path("fastquorum"));
+        } else {
+            panic!("expected LocalPixi pipeline");
+        }
+    }
+
+    #[test]
+    fn test_get_tracer_pipeline_path() {
+        let path = get_tracer_pipeline_path("fastquorum");
+        assert!(path.to_string_lossy().contains("nextflow-test-pipelines"));
+        assert!(path.to_string_lossy().contains("pipelines/shared/fastquorum"));
+    }
+}

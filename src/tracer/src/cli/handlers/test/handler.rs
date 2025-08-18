@@ -1,9 +1,9 @@
 use crate::cli::handlers::info;
 use crate::cli::handlers::init::arguments::PromptMode;
 use crate::cli::handlers::terminate;
-use crate::cli::handlers::test::git::get_tracer_pipeline_path;
+use crate::cli::handlers::test::pipelines_git_repo::get_tracer_pipeline_path;
 use crate::cli::handlers::test::pipeline::Pipeline;
-use crate::cli::handlers::test::resolve_test_args::{resolve_test_arguments, TracerCliTestArgs};
+use crate::cli::handlers::test::arguments::TracerCliTestArgs;
 use crate::cli::handlers::test::requests::{get_user_id_from_daemon, update_run_name_for_test};
 
 use crate::config::Config;
@@ -47,8 +47,7 @@ async fn run_test_with_new_daemon(
     TRACER_WORK_DIR.init().expect("creating work files failed");
 
     // prepare test arguments
-    let mut init_args = resolve_test_arguments(args.clone());
-    let selected_test_pipeline = Pipeline::select_test_pipeline(args.demo_pipeline_id, args.init_args.interactive_prompts)?;
+    let (mut init_args, selected_test_pipeline) = args.resolve_test_arguments()?;
     init_args.watch_dir = Some("/tmp/tracer".to_string());
 
     let new_test_pipeline_name = format!("test-{}", selected_test_pipeline.name());

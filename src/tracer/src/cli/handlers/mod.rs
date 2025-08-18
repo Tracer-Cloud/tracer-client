@@ -20,7 +20,7 @@ pub(super) use otel::handle_otel_command;
 pub(super) use start::start;
 pub(super) use stop::stop;
 pub(super) use terminate::terminate;
-pub use test::resolve_test_args as test_arguments;
+pub use test::arguments as test_arguments;
 pub(super) use test::test;
 pub use theme::INTERACTIVE_THEME;
 pub(super) use uninstall::uninstall;
