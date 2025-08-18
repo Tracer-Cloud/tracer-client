@@ -84,6 +84,8 @@ processors:
     log_statements:
       - context: log
         statements:
+          - set(attributes["file_id"], SHA256(attributes["log.file.path_resolved"])) where attributes["log.file.path_resolved"] != nil
+          - set(attributes["file_id"], SHA256(attributes["log.file.path"])) where attributes["file_id"] == nil and attributes["log.file.path"] != nil
           - set(attributes["user_id"], "{{user_id}}")
           - set(attributes["status"], "error") where IsMatch(body, "(?i).*(error|failed|exception|fatal|critical).*")
           - set(attributes["status"], "warning") where IsMatch(body, "(?i).*(warn|warning|caution|deprecated).*")
