@@ -1,6 +1,6 @@
+pub mod filtering;
 pub mod handlers;
 pub mod manager;
-pub mod filtering;
 pub mod metrics;
 pub mod recorder;
 pub mod state;
