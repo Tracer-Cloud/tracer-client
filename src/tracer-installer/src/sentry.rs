@@ -1,6 +1,9 @@
 use crate::checks::kernel::KernelCheck;
 use crate::constants::SENTRY_DSN;
+use sentry::protocol::Context;
 use sentry::ClientOptions;
+use serde_json::Value;
+use std::collections::BTreeMap;
 
 pub struct Sentry;
 
@@ -48,5 +51,34 @@ impl Sentry {
             return;
         }
         sentry::capture_message(message, level);
+    }
+
+    /// Adds a context (flat JSON object) to the Sentry event.
+    pub fn add_context(key: &str, value: Value) {
+        if cfg!(test) {
+            return;
+        }
+        // Only accept flat JSON objects
+        let map = match value {
+            Value::Object(obj) => obj
+                .into_iter()
+                .filter(|(_, v)| !v.is_object() && !v.is_array())
+                .collect::<BTreeMap<String, Value>>(),
+            _ => BTreeMap::new(),
+        };
+
+        sentry::configure_scope(|scope| {
+            scope.set_context(key, Context::Other(map));
+        });
+    }
+
+    /// Adds extra data (arbitrary JSON) to the Sentry event.
+    pub fn add_extra(key: &str, value: Value) {
+        if cfg!(test) {
+            return;
+        }
+        sentry::configure_scope(|scope| {
+            scope.set_extra(key, value);
+        });
     }
 }

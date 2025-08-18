@@ -1,3 +1,4 @@
+#!/bin/sh
 send_sentry_alert() {
   message="$1"
   level="${2:-info}"

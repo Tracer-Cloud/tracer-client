@@ -1,6 +1,7 @@
 use super::platform::PlatformInfo;
 use crate::constants::USER_ID_ENV_VAR;
 use crate::installer::url_builder::TracerUrlFinder;
+use crate::sentry::Sentry;
 use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
 use crate::utils::{print_message, print_status, print_title, TagColor};
 use crate::{success_message, warning_message};
@@ -53,24 +54,53 @@ impl Installer {
         let finder = TracerUrlFinder;
         let url = finder
             .get_binary_url(self.channel.clone(), &self.platform)
-            .await?;
+            .await
+            .with_context(|| {
+                Sentry::add_tag("error_substage", "url_resolution");
+                "Failed to resolve binary download URL"
+            })?;
 
         print_message("DOWNLOADING", url.as_str(), TagColor::Blue);
+        Sentry::add_tag("download_url", &url);
 
-        let temp_dir = tempfile::tempdir()?;
+        let temp_dir = tempfile::tempdir()
+            .with_context(|| {
+                Sentry::add_tag("error_substage", "temp_dir_creation");
+                "Failed to create temporary directory"
+            })?;
         let archive_path = temp_dir.path().join("tracer.tar.gz");
 
-        self.download_with_progress(&url, &archive_path).await?;
+        self.download_with_progress(&url, &archive_path).await
+            .with_context(|| {
+                Sentry::add_tag("error_substage", "download");
+                format!("Failed to download binary from {}", url)
+            })?;
 
         let extract_path = temp_dir.path().join("extracted");
-        std::fs::create_dir_all(&extract_path)?;
+        std::fs::create_dir_all(&extract_path)
+            .with_context(|| {
+                Sentry::add_tag("error_substage", "extract_dir_creation");
+                format!("Failed to create extraction directory: {:?}", extract_path)
+            })?;
 
-        self.extract_tarball(&archive_path, &extract_path)?;
-        let _ = self.install_to_final_dir(&extract_path)?;
+        self.extract_tarball(&archive_path, &extract_path)
+            .with_context(|| {
+                Sentry::add_tag("error_substage", "extraction");
+                format!("Failed to extract archive from {:?} to {:?}", archive_path, extract_path)
+            })?;
+
+        let _ = self.install_to_final_dir(&extract_path)
+            .with_context(|| {
+                Sentry::add_tag("error_substage", "binary_copy");
+                format!("Failed to install binary from {:?} to final location", extract_path)
+            })?;
 
         Self::patch_rc_files_async(self.user_id.clone())
             .await
-            .expect("failed to write to rc files");
+            .with_context(|| {
+                Sentry::add_tag("error_substage", "shell_config_patching");
+                "Failed to update shell configuration files"
+            })?;
 
         if let Some(handle) = self
             .emit_analytic_event(AnalyticsEventType::InstallScriptCompleted)
