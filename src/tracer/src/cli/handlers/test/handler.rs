@@ -1,5 +1,4 @@
 use crate::cli::handlers::info;
-use crate::cli::handlers::init::arguments::PromptMode;
 use crate::cli::handlers::terminate;
 use crate::cli::handlers::test::arguments::TracerCliTestArgs;
 use crate::cli::handlers::test::pipeline::Pipeline;
@@ -51,14 +50,12 @@ async fn run_test_with_new_daemon(
     init_args.watch_dir = Some("/tmp/tracer".to_string());
 
     let new_test_pipeline_name = format!("test-{}", selected_test_pipeline.name());
-    let confirm = init_args.interactive_prompts != PromptMode::None;
 
     crate::cli::handlers::init::init_with(
         init_args,
         config,
         api_client,
         &new_test_pipeline_name,
-        confirm,
     )
     .await?;
 

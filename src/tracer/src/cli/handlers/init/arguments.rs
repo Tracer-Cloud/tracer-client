@@ -80,9 +80,7 @@ pub enum PromptMode {
 
 impl TracerCliInitArgs {
     /// Fill in any missing arguments according to the `PromptMode`.
-    /// If `confirm` is `true`, then the user will be prompted for all options, and any specified
-    /// values will be used as defaults; otherwise, the user is only be for missing values.
-    pub async fn finalize(self, default_pipeline_prefix: &str, confirm: bool) -> FinalizedInitArgs {
+    pub async fn finalize(self, default_pipeline_prefix: &str) -> FinalizedInitArgs {
         let prompt_mode = if self.no_daemonize {
             PromptMode::None
         } else {
@@ -94,7 +92,7 @@ impl TracerCliInitArgs {
         // unless mode is set to non-interactive; error if missing
         let username = env::get_env_var(USERNAME_ENV_VAR);
         let user_id = match (tags.user_id, &prompt_mode) {
-            (Some(user_id), PromptMode::Minimal | PromptMode::Required) if confirm => {
+            (Some(user_id), PromptMode::Minimal | PromptMode::Required) => {
                 Some(Self::prompt_for_user_id(Some(&user_id)))
             }
             (Some(user_id), _) => Some(user_id),
@@ -122,7 +120,7 @@ impl TracerCliInitArgs {
         // pipeline name is required - try to get it from the command line, fall back to user
         // prompt unless mode is set to non-interactive; generate from user-id if missing
         let pipeline_name = match (self.pipeline_name, &prompt_mode) {
-            (Some(name), PromptMode::Minimal | PromptMode::Required) if confirm => {
+            (Some(name), PromptMode::Minimal | PromptMode::Required) => {
                 Some(Self::prompt_for_pipeline_name(&name))
             }
             (Some(name), _) => Some(name),
@@ -155,7 +153,7 @@ impl TracerCliInitArgs {
         // command line, fall back to user prompt if the mode allows it, otherwise generate a
         // default value
         let environment = match (tags.environment, &prompt_mode) {
-            (Some(env), PromptMode::Required) if confirm => {
+            (Some(env), PromptMode::Required) => {
                 Some(Self::prompt_for_environment_name(&env))
             }
             (Some(name), _) => Some(name),
@@ -173,7 +171,7 @@ impl TracerCliInitArgs {
         tags.environment = Some(environment);
 
         let pipeline_type = match (tags.pipeline_type, &prompt_mode) {
-            (Some(env), PromptMode::Required) if confirm => Self::prompt_for_pipeline_type(&env),
+            (Some(env), PromptMode::Required) => Self::prompt_for_pipeline_type(&env),
             (Some(env), _) => env,
             (None, PromptMode::Required) => Self::prompt_for_pipeline_type(DEFAULT_PIPELINE_TYPE),
             (None, _) => DEFAULT_PIPELINE_TYPE.to_string(),

@@ -42,7 +42,7 @@ pub async fn init(
     }
 
     // initializing a default pipeline
-    init_with(args, config, &api_client, "test", false).await
+    init_with(args, config, &api_client, "test").await
 }
 
 pub async fn init_with(
@@ -50,10 +50,9 @@ pub async fn init_with(
     config: Config,
     api_client: &DaemonClient,
     default_pipeline_prefix: &str,
-    confirm: bool,
 ) -> anyhow::Result<()> {
     info_message!("Starting daemon...");
-    let args = args.finalize(default_pipeline_prefix, confirm).await;
+    let args = args.finalize(default_pipeline_prefix).await;
 
     {
         // Layer tags on top of args
