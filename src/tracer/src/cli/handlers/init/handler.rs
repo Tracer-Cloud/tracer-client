@@ -8,10 +8,7 @@ use crate::utils::system_info::check_sudo;
 use crate::utils::workdir::TRACER_WORK_DIR;
 use colored::Colorize;
 
-use super::daemon_existing::handle_existing_daemon;
-use super::daemon_spawn::spawn_daemon_process;
-use super::setup_daemon_logging::setup_daemon_logging;
-use super::setup_sentry_context::setup_sentry_context;
+use super::setup::{handle_existing_daemon, spawn_daemon_process, setup_daemon_logging, setup_sentry_context};
 
 /// Performs initial setup and validation before starting daemon
 async fn init_setup_validation(

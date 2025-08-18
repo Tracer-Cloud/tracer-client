@@ -4,7 +4,7 @@ use clap::{Args, ValueEnum};
 use serde::Serialize;
 use std::collections::HashMap;
 
-use super::arguments_resolver::ArgumentResolver;
+use super::resolver::ArgumentResolver;
 
 pub const PIPELINE_NAME_ENV_VAR: &str = "TRACER_PIPELINE_NAME";
 pub const RUN_NAME_ENV_VAR: &str = "TRACER_RUN_NAME";
