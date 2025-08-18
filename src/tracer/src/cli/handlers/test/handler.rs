@@ -43,7 +43,7 @@ async fn run_test_with_new_daemon(
     config: Config,
     api_client: &DaemonClient
 ) -> Result<()> {
-    info_message!("Daemon is not running, starting new instance...");
+    info_message!("[run_test_with_new_daemon] Daemon is not running, starting new instance...");
     TRACER_WORK_DIR.init().expect("creating work files failed");
 
     // prepare test arguments

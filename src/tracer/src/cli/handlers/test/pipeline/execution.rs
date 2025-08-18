@@ -1,5 +1,5 @@
 use super::Pipeline;
-use crate::cli::handlers::test::pixi;
+use super::pixi;
 use crate::info_message;
 use crate::utils::command::check_status;
 use anyhow::Result;

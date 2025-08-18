@@ -1,4 +1,5 @@
 mod execution;
+mod pixi;
 mod prompts;
 mod selection;
 
