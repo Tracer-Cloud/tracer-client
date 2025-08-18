@@ -1,74 +1,56 @@
-use crate::utils::env;
-use crate::warning_message;
-use colored::Colorize;
+use crate::utils::user_id_resolution::resolve_user_id_robust;
 
 use super::super::user_prompts::{print_help, UserPrompts};
-use super::arguments::{PromptMode, USERNAME_ENV_VAR};
+use super::arguments::PromptMode;
 
 /// Resolves user ID from various sources using functional programming approach
+/// Now uses the robust resolver with shell config file reading and Sentry instrumentation
 pub fn resolve_user_id(current_user_id: Option<String>, prompt_mode: &PromptMode) -> String {
-    let username = env::get_env_var(USERNAME_ENV_VAR);
-
-    resolve_user_id_with_sources(current_user_id, prompt_mode, username)
-        .or_else(print_help)
-        .expect("Failed to get user ID from environment variable, command line, or prompt")
-}
-
-/// Pure function that resolves user ID based on inputs
-fn resolve_user_id_with_sources(
-    current_user_id: Option<String>,
-    prompt_mode: &PromptMode,
-    username: Option<String>,
-) -> Option<String> {
-    match (current_user_id, prompt_mode) {
-        (Some(user_id), PromptMode::Required) => {
-            // Only prompt for confirmation in Required mode
-            Some(UserPrompts::prompt_for_user_id(Some(&user_id)))
+    // First try the robust resolver which handles all fallback strategies
+    match resolve_user_id_robust(current_user_id) {
+        Ok(user_id) => {
+            // If we have a user_id and prompts are required, confirm with user
+            match prompt_mode {
+                PromptMode::Required => {
+                    UserPrompts::prompt_for_user_id(Some(&user_id))
+                }
+                _ => user_id
+            }
         }
-        (Some(user_id), _) => Some(user_id),
-        (None, PromptMode::Minimal | PromptMode::Required) => {
-            Some(UserPrompts::prompt_for_user_id(username.as_deref()))
+        Err(_) => {
+            // If robust resolver fails, fall back to prompting if allowed
+            match prompt_mode {
+                PromptMode::Minimal | PromptMode::Required => {
+                    UserPrompts::prompt_for_user_id(None)
+                }
+                PromptMode::None => {
+                    print_help().expect("Failed to get user ID from any source")
+                }
+            }
         }
-        (None, PromptMode::None) => handle_no_user_id_fallback(username),
     }
 }
 
-/// Handles fallback when no user ID is provided and prompts are disabled
-fn handle_no_user_id_fallback(username: Option<String>) -> Option<String> {
-    // TODO: remove this once we can source the user ID from the credentials file
-    if let Some(ref username_val) = username {
-        warning_message!(
-            "Failed to get user ID from environment variable, command line, or prompt. \
-            defaulting to the system username '{}', which may not be your Tracer user ID! \
-            Please set the TRACER_USER_ID environment variable or specify the --user-id \
-            option.",
-            username_val
-        );
-    }
-    username
-}
+
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::env;
 
     #[test]
-    fn test_resolve_user_id_with_existing_id_non_required() {
-        let result =
-            resolve_user_id_with_sources(Some("test_user".to_string()), &PromptMode::None, None);
-        assert_eq!(result, Some("test_user".to_string()));
+    fn test_resolve_user_id_with_existing_id() {
+        // Test that provided user_id is used when available
+        let result = resolve_user_id(Some("test_user".to_string()), &PromptMode::None);
+        assert_eq!(result, "test_user");
     }
 
     #[test]
-    fn test_resolve_user_id_fallback_to_username() {
-        let result =
-            resolve_user_id_with_sources(None, &PromptMode::None, Some("system_user".to_string()));
-        assert_eq!(result, Some("system_user".to_string()));
-    }
-
-    #[test]
-    fn test_resolve_user_id_no_fallback() {
-        let result = resolve_user_id_with_sources(None, &PromptMode::None, None);
-        assert_eq!(result, None);
+    fn test_resolve_user_id_with_env_var() {
+        // Test that environment variable is used as fallback
+        env::set_var("TRACER_USER_ID", "env_test_user");
+        let result = resolve_user_id(None, &PromptMode::None);
+        assert_eq!(result, "env_test_user");
+        env::remove_var("TRACER_USER_ID");
     }
 }

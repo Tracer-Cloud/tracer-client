@@ -1,7 +1,7 @@
-mod daemon_existing;
-mod daemon_spawn;
 mod setup_daemon_logging;
 mod setup_sentry_context;
+mod daemon_existing;
+mod daemon_spawn;
 
 // Re-export commonly used functions for convenience
 pub use daemon_existing::handle_existing_daemon;

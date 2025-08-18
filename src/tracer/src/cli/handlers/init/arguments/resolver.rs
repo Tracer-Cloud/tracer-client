@@ -13,15 +13,11 @@ pub const DEFAULT_ENVIRONMENT: &str = "local";
 /// Handles argument resolution logic
 pub struct ArgumentResolver {
     args: TracerCliInitArgs,
-    default_pipeline_prefix: String,
 }
 
 impl ArgumentResolver {
-    pub fn new(args: TracerCliInitArgs, default_pipeline_prefix: &str) -> Self {
-        Self {
-            args,
-            default_pipeline_prefix: default_pipeline_prefix.to_string(),
-        }
+    pub fn new(args: TracerCliInitArgs) -> Self {
+        Self { args }
     }
 
     pub async fn resolve(mut self) -> FinalizedInitArgs {
@@ -65,14 +61,9 @@ impl ArgumentResolver {
             }
             (Some(name), _) => Some(name),
             (None, PromptMode::Minimal | PromptMode::Required) => {
-                Some(UserPrompts::prompt_for_pipeline_name(
-                    Self::generate_pipeline_name(&self.default_pipeline_prefix, user_id),
-                ))
+                Some(UserPrompts::prompt_for_pipeline_name(user_id))
             }
-            (None, PromptMode::None) => Some(Self::generate_pipeline_name(
-                &self.default_pipeline_prefix,
-                user_id,
-            )),
+            (None, PromptMode::None) => Some(user_id.to_string()),
         }
         .or_else(print_help)
         .expect("Failed to get pipeline name from command line, environment variable, or prompt")
@@ -147,8 +138,5 @@ impl ArgumentResolver {
         environment_variables
     }
 
-    fn generate_pipeline_name(prefix: &str, user_id: &str) -> String {
-        // TODO: use username instead? Either from UI (via API call) or from env::get_env("USER").
-        format!("{}-{}", prefix, user_id)
-    }
+
 }

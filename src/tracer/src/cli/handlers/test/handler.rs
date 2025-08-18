@@ -4,6 +4,7 @@ use crate::cli::handlers::terminate;
 use crate::cli::handlers::test::arguments::TracerCliTestArgs;
 use crate::cli::handlers::test::pipeline::Pipeline;
 use crate::cli::handlers::test::requests::{get_user_id_from_daemon, update_run_name_for_test};
+use crate::utils::user_id_resolution::resolve_user_id_robust;
 
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
@@ -51,7 +52,11 @@ async fn run_test_with_new_daemon(
 
     // Set the pipeline name only if user hasn't provided one
     if init_args.pipeline_name.is_none() {
-        let new_test_pipeline_name = format!("test-{}", selected_test_pipeline.name());
+        // Use the robust user_id resolver with shell config reading and Sentry instrumentation
+        let user_id = resolve_user_id_robust(init_args.tags.user_id.clone())
+            .unwrap_or_else(|_| "unknown".to_string());
+
+        let new_test_pipeline_name = format!("test-{}-{}", selected_test_pipeline.name(), user_id);
         init_args.pipeline_name = Some(new_test_pipeline_name);
     }
 

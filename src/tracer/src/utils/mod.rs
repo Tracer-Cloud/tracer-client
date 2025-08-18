@@ -10,5 +10,6 @@ pub mod file_system;
 pub mod input_validation;
 pub mod spawn;
 pub mod system_info;
+pub mod user_id_resolution;
 pub mod workdir;
 pub mod yaml;

@@ -95,8 +95,8 @@ pub struct FinalizedInitArgs {
 
 impl TracerCliInitArgs {
     /// Fill in any missing arguments according to the `PromptMode`.
-    pub async fn resolve_arguments(self, default_pipeline_prefix: &str) -> FinalizedInitArgs {
-        ArgumentResolver::new(self, default_pipeline_prefix)
+    pub async fn resolve_arguments(self) -> FinalizedInitArgs {
+        ArgumentResolver::new(self)
             .resolve()
             .await
     }

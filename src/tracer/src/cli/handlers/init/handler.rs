@@ -41,7 +41,6 @@ pub async fn init(
     config: Config,
     api_client: &DaemonClient,
 ) -> anyhow::Result<()> {
-    const DEFAULT_PIPELINE_PREFIX: &str = "pipeline";
     // Perform initial setup and validation
     init_setup_validation(&args, api_client).await?;
 
@@ -52,7 +51,7 @@ pub async fn init(
         args.set_non_interactive();
     }
 
-    let args = args.resolve_arguments(DEFAULT_PIPELINE_PREFIX).await;
+    let args = args.resolve_arguments().await;
 
     // Set up Sentry context for monitoring
     setup_sentry_context(&args)?;
