@@ -231,6 +231,12 @@ impl TracerClient {
         pipeline
     }
 
+    pub async fn update_run_name(&mut self, new_run_name: String) -> Result<()> {
+        info!("Updating run name from '{}' to '{}'", self.run.name, new_run_name);
+        self.run.name = new_run_name;
+        Ok(())
+    }
+
     pub async fn init_run(
         system: Arc<RwLock<System>>,
         run_name: &Option<String>,
