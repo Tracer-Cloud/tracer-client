@@ -32,10 +32,13 @@ impl UserIdSentryReporter {
         });
 
         Sentry::add_context("user_id_resolution_error", error_context.clone());
-        
+
         // Also capture as a Sentry error for monitoring
         Sentry::capture_message(
-            &format!("User ID environment variable {} not available", env_var_name),
+            &format!(
+                "User ID environment variable {} not available",
+                env_var_name
+            ),
             sentry::Level::Warning,
         );
     }
@@ -45,7 +48,7 @@ impl UserIdSentryReporter {
         let error_context = json!({
             "error_type": "user_id_shell_config_missing",
             "attempted_files": attempted_files,
-            "severity": "warning", 
+            "severity": "warning",
             "resolution_context": self.context,
             "message": "No TRACER_USER_ID found in any shell configuration files",
             "impact": "Falling back to system username",
@@ -53,10 +56,13 @@ impl UserIdSentryReporter {
         });
 
         Sentry::add_context("user_id_resolution_error", error_context.clone());
-        
+
         // Also capture as a Sentry error for monitoring
         Sentry::capture_message(
-            &format!("User ID not found in shell config files: {:?}", attempted_files),
+            &format!(
+                "User ID not found in shell config files: {:?}",
+                attempted_files
+            ),
             sentry::Level::Warning,
         );
     }
@@ -75,7 +81,7 @@ impl UserIdSentryReporter {
         });
 
         Sentry::add_context("user_id_resolution_error", error_context.clone());
-        
+
         // Capture as a Sentry error with the actual error
         Sentry::capture_message(&error.to_string(), sentry::Level::Error);
     }
@@ -93,10 +99,13 @@ impl UserIdSentryReporter {
         });
 
         Sentry::add_context("user_id_resolution_error", error_context.clone());
-        
+
         // Capture as a critical Sentry error
         Sentry::capture_message(
-            &format!("Critical: All user ID resolution strategies failed: {:?}", attempted_strategies),
+            &format!(
+                "Critical: All user ID resolution strategies failed: {:?}",
+                attempted_strategies
+            ),
             sentry::Level::Error,
         );
     }
@@ -114,27 +123,6 @@ impl UserIdSentryReporter {
         Sentry::add_context("user_id_resolution_success", success_context);
     }
 
-    /// Report fallback to system username with warning
-    pub fn report_system_username_fallback(&self, username: &str) {
-        let warning_context = json!({
-            "error_type": "user_id_system_username_fallback",
-            "system_username": username,
-            "severity": "warning",
-            "resolution_context": self.context,
-            "message": format!("Falling back to system username: {}", username),
-            "impact": "Using system username which may not match Tracer user ID",
-            "recommendation": "Set TRACER_USER_ID environment variable or run tracer-installer"
-        });
-
-        Sentry::add_context("user_id_resolution_error", warning_context.clone());
-        
-        // Capture as a warning
-        Sentry::capture_message(
-            &format!("Warning: Using system username fallback: {}", username),
-            sentry::Level::Warning,
-        );
-    }
-
     /// Report when home directory cannot be found
     pub fn report_home_directory_error(&self, error: &anyhow::Error) {
         let error_context = json!({
@@ -148,7 +136,7 @@ impl UserIdSentryReporter {
         });
 
         Sentry::add_context("user_id_resolution_error", error_context.clone());
-        
+
         // Capture as a Sentry error
         Sentry::capture_message(&error.to_string(), sentry::Level::Error);
     }
@@ -161,10 +149,7 @@ impl Default for UserIdSentryReporter {
 }
 
 /// Helper function to create a reporter with common context
-pub fn create_reporter_with_context(
-    operation: &str,
-    source: &str,
-) -> UserIdSentryReporter {
+pub fn create_reporter_with_context(operation: &str, source: &str) -> UserIdSentryReporter {
     let mut reporter = UserIdSentryReporter::new();
     reporter.add_context("operation", json!(operation));
     reporter.add_context("source", json!(source));
@@ -192,7 +177,10 @@ mod tests {
     #[test]
     fn test_create_reporter_with_context() {
         let reporter = create_reporter_with_context("test_operation", "test_source");
-        assert_eq!(reporter.context.get("operation"), Some(&json!("test_operation")));
+        assert_eq!(
+            reporter.context.get("operation"),
+            Some(&json!("test_operation"))
+        );
         assert_eq!(reporter.context.get("source"), Some(&json!("test_source")));
         assert!(reporter.context.contains_key("timestamp"));
     }

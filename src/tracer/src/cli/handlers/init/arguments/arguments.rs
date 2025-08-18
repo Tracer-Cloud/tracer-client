@@ -96,9 +96,7 @@ pub struct FinalizedInitArgs {
 impl TracerCliInitArgs {
     /// Fill in any missing arguments according to the `PromptMode`.
     pub async fn resolve_arguments(self) -> FinalizedInitArgs {
-        ArgumentResolver::new(self)
-            .resolve()
-            .await
+        ArgumentResolver::new(self).resolve().await
     }
 
     /// Set the prompt mode to non-interactive (no prompts)

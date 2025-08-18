@@ -16,10 +16,12 @@
 //! - Functional programming approach with pure functions
 //! - Extensive test coverage and error handling
 
+mod error_reporter;
 mod resolver;
 mod sentry_context;
+mod shell_config_reader;
 mod shell_file_parser;
 
 // Re-export the main functions and types
 pub use resolver::extract_user_id;
-pub use sentry_context::{UserIdSentryReporter, create_reporter_with_context};
+pub use sentry_context::{create_reporter_with_context, UserIdSentryReporter};

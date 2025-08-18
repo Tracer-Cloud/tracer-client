@@ -11,27 +11,19 @@ pub fn resolve_user_id(current_user_id: Option<String>, prompt_mode: &PromptMode
         Ok(user_id) => {
             // If we have a user_id and prompts are required, confirm with user
             match prompt_mode {
-                PromptMode::Required => {
-                    UserPrompts::prompt_for_user_id(Some(&user_id))
-                }
-                _ => user_id
+                PromptMode::Required => UserPrompts::prompt_for_user_id(Some(&user_id)),
+                _ => user_id,
             }
         }
         Err(_) => {
             // If user_id extraction fails, fall back to prompting if allowed
             match prompt_mode {
-                PromptMode::Minimal | PromptMode::Required => {
-                    UserPrompts::prompt_for_user_id(None)
-                }
-                PromptMode::None => {
-                    print_help().expect("Failed to get user ID from any source")
-                }
+                PromptMode::Minimal | PromptMode::Required => UserPrompts::prompt_for_user_id(None),
+                PromptMode::None => print_help().expect("Failed to get user ID from any source"),
             }
         }
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {

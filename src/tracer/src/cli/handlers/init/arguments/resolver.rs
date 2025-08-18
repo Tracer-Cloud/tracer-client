@@ -137,6 +137,4 @@ impl ArgumentResolver {
         }
         environment_variables
     }
-
-
 }

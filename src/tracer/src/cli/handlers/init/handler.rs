@@ -8,7 +8,9 @@ use crate::utils::system_info::check_sudo_with_procfs_option;
 use crate::utils::workdir::TRACER_WORK_DIR;
 use colored::Colorize;
 
-use super::setup::{handle_existing_daemon, spawn_daemon_process, setup_daemon_logging, setup_sentry_context};
+use super::setup::{
+    handle_existing_daemon, setup_daemon_logging, setup_sentry_context, spawn_daemon_process,
+};
 
 /// Performs initial setup and validation before starting daemon
 async fn init_setup_validation(
