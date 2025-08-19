@@ -31,26 +31,33 @@ pub async fn process_daemon_command(command: Command, config: Config) {
                 std::process::exit(1);
             }
         }
-        Command::Test(args) => {
-            if let Err(e) = handlers::test(*args, config, api_client).await {
+        Command::Demo(args) => {
+            if let Err(e) = handlers::demo(*args, config, api_client).await {
                 // Send error details to Sentry
                 Sentry::add_extra(
-                    "test_error_details",
+                    "demo_error_details",
                     json!({
                         "error_message": e.to_string(),
                         "error_chain": format!("{:?}", e),
-                        "command": "test"
+                        "command": "demo"
                     }),
                 );
 
                 Sentry::capture_message(
-                    &format!("Test command failed: {}", e),
+                    &format!("Demo command failed: {}", e),
                     sentry::Level::Error,
                 );
 
-                eprintln!("Error during test: {}", e);
+                eprintln!("Error during demo: {}", e);
                 std::process::exit(1);
             }
+        }
+        Command::Test(_args) => {
+            // Redirect users to the new demo command
+            eprintln!("The 'test' command has been renamed to 'demo'.");
+            eprintln!("Please use 'tracer demo' instead of 'tracer test'.");
+            eprintln!("Run 'tracer demo --help' for more information.");
+            std::process::exit(1);
         }
         Command::Info { json } => handlers::info(&api_client, json).await,
         Command::Start { json } => {

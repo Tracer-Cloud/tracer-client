@@ -1,4 +1,5 @@
 mod cleanup_port;
+mod demo;
 mod info;
 mod init;
 mod logs;
@@ -12,6 +13,8 @@ mod uninstall;
 mod update;
 
 pub(super) use cleanup_port::cleanup_port;
+pub use demo::arguments as demo_arguments;
+pub(super) use demo::demo;
 pub(super) use info::info;
 pub use init::arguments as init_arguments;
 pub(super) use init::init;
@@ -21,7 +24,6 @@ pub(super) use start::start;
 pub(super) use stop::stop;
 pub(super) use terminate::terminate;
 pub use test::arguments as test_arguments;
-pub(super) use test::test;
 pub use theme::INTERACTIVE_THEME;
 pub(super) use uninstall::uninstall;
 pub(super) use update::update;

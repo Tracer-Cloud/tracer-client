@@ -60,9 +60,11 @@ impl ArgumentResolver {
                 Some(UserPrompts::prompt_for_pipeline_name(&name))
             }
             (Some(name), _) => {
-                // If the pipeline name is "test", expand it to "test-{user_id}"
+                // If the pipeline name is "test" or "demo", expand it to include user_id
                 if name == "test" {
                     Some(format!("test-{}", user_id))
+                } else if name == "demo" {
+                    Some(format!("demo-{}", user_id))
                 } else {
                     Some(name)
                 }

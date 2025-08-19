@@ -1,3 +1,4 @@
+use crate::cli::handlers::demo_arguments::TracerCliDemoArgs;
 use crate::cli::handlers::init_arguments::TracerCliInitArgs;
 use crate::cli::handlers::test_arguments::TracerCliTestArgs;
 use crate::utils::workdir::TRACER_WORK_DIR;
@@ -56,7 +57,11 @@ pub enum Command {
         json: bool,
     },
 
-    /// Execute example pipelines
+    /// Run demo pipelines with automatic tracing
+    Demo(Box<TracerCliDemoArgs>),
+
+    /// [DEPRECATED] Use 'demo' command instead
+    #[clap(hide = true)]
     Test(Box<TracerCliTestArgs>),
 
     /// Update the daemon to the latest version
