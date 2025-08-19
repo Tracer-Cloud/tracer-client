@@ -185,25 +185,23 @@ mod linux {
             // wait for eBPF to start up
             time::sleep(Duration::from_secs(1)).await;
 
+            // run a process that exits with an error
+            let status = Command::new("bash")
+                .arg("-c")
+                .arg("sleep 2; exit 1")
+                .status()
+                .unwrap();
+            assert!(!status.success());
+
             // check that we got exec and exit events
             const MAX_TRIES: usize = 10;
             let mut tries: usize = 0;
             let mut exec_trigger: Option<ProcessStartTrigger> = None;
             let mut exit_trigger: Option<ProcessEndTrigger> = None;
             loop {
-                // run a process that exits with an error
-                let status = Command::new("bash")
-                    .arg("-c")
-                    .arg("sleep 2; exit 1")
-                    .status()
-                    .unwrap();
-                assert!(!status.success());
-
                 match tokio::time::timeout(std::time::Duration::from_secs(1), rx.recv()).await {
                     Ok(Some(event)) => match event {
-                        Trigger::ProcessStart(trigger)
-                            if trigger.command_string == "bash -c \"sleep 2; exit 1\"" =>
-                        {
+                        Trigger::ProcessStart(trigger) if trigger.comm == "bash" => {
                             exec_trigger = Some(trigger)
                         }
                         Trigger::ProcessEnd(trigger)
