@@ -167,18 +167,21 @@ pub fn get_validated_input(
             {
                 Ok(input) => input,
                 Err(e) => {
-                    eprintln!("Warning: Cannot prompt for {} (not a terminal): {}", field_name, e);
+                    eprintln!(
+                        "Warning: Cannot prompt for {} (not a terminal): {}",
+                        field_name, e
+                    );
                     return None;
                 }
             }
         } else {
-            match Input::with_theme(theme)
-                .with_prompt(prompt)
-                .interact_text()
-            {
+            match Input::with_theme(theme).with_prompt(prompt).interact_text() {
                 Ok(input) => input,
                 Err(e) => {
-                    eprintln!("Warning: Cannot prompt for {} (not a terminal): {}", field_name, e);
+                    eprintln!(
+                        "Warning: Cannot prompt for {} (not a terminal): {}",
+                        field_name, e
+                    );
                     return None;
                 }
             }

@@ -38,15 +38,24 @@ impl TracerCliDemoArgs {
     pub fn resolve_demo_arguments(self) -> Result<(TracerCliInitArgs, Pipeline)> {
         match self.command {
             DemoCommand::Fastquorum { init_args } => {
-                let pipeline = Pipeline::select_demo_pipeline(Some("fastquorum".to_string()), init_args.interactive_prompts.clone())?;
+                let pipeline = Pipeline::select_demo_pipeline(
+                    Some("fastquorum".to_string()),
+                    init_args.interactive_prompts.clone(),
+                )?;
                 Ok((init_args, pipeline))
             }
             DemoCommand::Wdl { init_args } => {
-                let pipeline = Pipeline::select_demo_pipeline(Some("wdl".to_string()), init_args.interactive_prompts.clone())?;
+                let pipeline = Pipeline::select_demo_pipeline(
+                    Some("wdl".to_string()),
+                    init_args.interactive_prompts.clone(),
+                )?;
                 Ok((init_args, pipeline))
             }
             DemoCommand::Run { name, init_args } => {
-                let pipeline = Pipeline::select_demo_pipeline(Some(name), init_args.interactive_prompts.clone())?;
+                let pipeline = Pipeline::select_demo_pipeline(
+                    Some(name),
+                    init_args.interactive_prompts.clone(),
+                )?;
                 Ok((init_args, pipeline))
             }
             DemoCommand::List => {

@@ -75,9 +75,17 @@ impl ArgumentResolver {
                 } else if name.starts_with("demo-pipeline:") {
                     // For demo pipelines with specific pipeline ID: "demo-pipeline:{pipeline_id}" -> "{environment}-demo-{pipeline_id}-{user_id}"
                     let pipeline_id = name.strip_prefix("demo-pipeline:").unwrap();
-                    let env_type = self.args.tags.environment_type
+                    let env_type = self
+                        .args
+                        .tags
+                        .environment_type
                         .as_ref()
-                        .map(|env| env.to_lowercase().replace(" ", "-").replace("(", "").replace(")", ""))
+                        .map(|env| {
+                            env.to_lowercase()
+                                .replace(" ", "-")
+                                .replace("(", "")
+                                .replace(")", "")
+                        })
                         .unwrap_or_else(|| "local".to_string());
                     format!("{}-demo-{}-{}", env_type, pipeline_id, user_id)
                 } else {
@@ -85,18 +93,28 @@ impl ArgumentResolver {
                 }
             }
             (None, PromptMode::Minimal | PromptMode::Required) => {
-                UserPrompts::prompt_for_pipeline_name(user_id)
-                    .unwrap_or_else(|| {
-                        // Generate pipeline name with environment prefix
-                        let env_type = self.args.tags.environment_type
-                            .as_ref()
-                            .map(|env| env.to_lowercase().replace(" ", "-").replace("(", "").replace(")", ""))
-                            .unwrap_or_else(|| "no-terminal".to_string());
-                        let default_name = format!("{}-{}", env_type, user_id);
-                        eprintln!("Warning: No terminal detected. Using generated pipeline name: '{}'", default_name);
-                        eprintln!("To specify a custom pipeline name, use: --pipeline-name <name>");
+                UserPrompts::prompt_for_pipeline_name(user_id).unwrap_or_else(|| {
+                    // Generate pipeline name with environment prefix
+                    let env_type = self
+                        .args
+                        .tags
+                        .environment_type
+                        .as_ref()
+                        .map(|env| {
+                            env.to_lowercase()
+                                .replace(" ", "-")
+                                .replace("(", "")
+                                .replace(")", "")
+                        })
+                        .unwrap_or_else(|| "no-terminal".to_string());
+                    let default_name = format!("{}-{}", env_type, user_id);
+                    eprintln!(
+                        "Warning: No terminal detected. Using generated pipeline name: '{}'",
                         default_name
-                    })
+                    );
+                    eprintln!("To specify a custom pipeline name, use: --pipeline-name <name>");
+                    default_name
+                })
             }
             (None, PromptMode::None) => user_id.to_string(),
         }
@@ -116,7 +134,9 @@ impl ArgumentResolver {
         // we create the client, otherwise use a short timeout so the init call doesn't take too long
         if self.args.tags.environment_type.is_none() {
             // Always detect environment for demo pipelines (they use demo-pipeline: prefix)
-            let is_demo_pipeline = self.args.pipeline_name
+            let is_demo_pipeline = self
+                .args
+                .pipeline_name
                 .as_ref()
                 .map(|name| name.starts_with("demo-pipeline:"))
                 .unwrap_or(false);

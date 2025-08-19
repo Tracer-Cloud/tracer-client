@@ -38,7 +38,8 @@ pub async fn demo(args: TracerCliDemoArgs, config: Config, api_client: DaemonCli
             if daemon_was_already_running {
                 run_demo_with_existing_daemon(&api_client, selected_demo_pipeline).await
             } else {
-                run_demo_with_new_daemon(init_args, config, &api_client, selected_demo_pipeline).await
+                run_demo_with_new_daemon(init_args, config, &api_client, selected_demo_pipeline)
+                    .await
             }
         }
     }

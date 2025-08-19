@@ -27,7 +27,10 @@ pub async fn run_demo_with_new_daemon(
     Ok(())
 }
 
-fn prepare_demo_environment(mut init_args: TracerCliInitArgs, pipeline: &Pipeline) -> Result<TracerCliInitArgs> {
+fn prepare_demo_environment(
+    mut init_args: TracerCliInitArgs,
+    pipeline: &Pipeline,
+) -> Result<TracerCliInitArgs> {
     TRACER_WORK_DIR
         .init()
         .map_err(|_| anyhow::anyhow!("Failed to create tracer work directory"))?;

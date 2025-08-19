@@ -46,7 +46,8 @@ impl UserPrompts {
                 "Enter custom environment name",
                 None,
                 "environment name",
-            ).unwrap_or_else(|| "custom".to_string())
+            )
+            .unwrap_or_else(|| "custom".to_string())
         } else {
             environment.to_string()
         }
@@ -75,7 +76,8 @@ impl UserPrompts {
                 "Enter custom pipeline type",
                 default,
                 "pipeline type",
-            ).unwrap_or_else(|| "Custom".to_string())
+            )
+            .unwrap_or_else(|| "Custom".to_string())
         } else {
             pipeline_type.to_string()
         }

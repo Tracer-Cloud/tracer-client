@@ -180,7 +180,11 @@ pub async fn monitor(client: Arc<Mutex<TracerClient>>, server_token: Cancellatio
 
     // Create the log directory if it doesn't exist
     if let Err(e) = std::fs::create_dir_all(&log_dir) {
-        error!("Failed to create log directory {}: {}", log_dir.display(), e);
+        error!(
+            "Failed to create log directory {}: {}",
+            log_dir.display(),
+            e
+        );
     }
 
     let log_filename = format!("tracer-run-{}.log", run_id);
