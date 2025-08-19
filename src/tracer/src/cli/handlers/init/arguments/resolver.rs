@@ -24,10 +24,13 @@ impl ArgumentResolver {
         let prompt_mode = self.args.interactive_prompts.clone();
 
         let user_id = self.resolve_user_id(&prompt_mode);
+
+        // Resolve environment type first so it can be used in pipeline name generation
+        self.resolve_environment_type().await;
+
         let pipeline_name = self.resolve_pipeline_name(&prompt_mode, &user_id);
         let run_name = self.resolve_run_name();
 
-        self.resolve_environment_type().await;
         self.resolve_environment(&prompt_mode);
         self.resolve_pipeline_type(&prompt_mode);
         let environment_variables = self.resolve_environment_variables();
@@ -57,25 +60,64 @@ impl ArgumentResolver {
         match (self.args.pipeline_name.clone(), prompt_mode) {
             (Some(name), PromptMode::Required) => {
                 // Only prompt for confirmation in Required mode
-                Some(UserPrompts::prompt_for_pipeline_name(&name))
+                UserPrompts::prompt_for_pipeline_name(&name)
+                    .unwrap_or_else(|| {
+                        eprintln!("Warning: Using provided pipeline name '{}' (could not prompt for confirmation)", name);
+                        name
+                    })
             }
             (Some(name), _) => {
                 // If the pipeline name is "test" or "demo", expand it to include user_id
                 if name == "test" {
-                    Some(format!("test-{}", user_id))
+                    format!("test-{}", user_id)
                 } else if name == "demo" {
-                    Some(format!("demo-{}", user_id))
+                    format!("demo-{}", user_id)
+                } else if name.starts_with("demo-pipeline:") {
+                    // For demo pipelines with specific pipeline ID: "demo-pipeline:{pipeline_id}" -> "{environment}-demo-{pipeline_id}-{user_id}"
+                    let pipeline_id = name.strip_prefix("demo-pipeline:").unwrap();
+                    let env_type = self
+                        .args
+                        .tags
+                        .environment_type
+                        .as_ref()
+                        .map(|env| {
+                            env.to_lowercase()
+                                .replace(" ", "-")
+                                .replace("(", "")
+                                .replace(")", "")
+                        })
+                        .unwrap_or_else(|| "local".to_string());
+                    format!("{}-demo-{}-{}", env_type, pipeline_id, user_id)
                 } else {
-                    Some(name)
+                    name
                 }
             }
             (None, PromptMode::Minimal | PromptMode::Required) => {
-                Some(UserPrompts::prompt_for_pipeline_name(user_id))
+                UserPrompts::prompt_for_pipeline_name(user_id).unwrap_or_else(|| {
+                    // Generate pipeline name with environment prefix
+                    let env_type = self
+                        .args
+                        .tags
+                        .environment_type
+                        .as_ref()
+                        .map(|env| {
+                            env.to_lowercase()
+                                .replace(" ", "-")
+                                .replace("(", "")
+                                .replace(")", "")
+                        })
+                        .unwrap_or_else(|| "no-terminal".to_string());
+                    let default_name = format!("{}-{}", env_type, user_id);
+                    eprintln!(
+                        "Warning: No terminal detected. Using generated pipeline name: '{}'",
+                        default_name
+                    );
+                    eprintln!("To specify a custom pipeline name, use: --pipeline-name <name>");
+                    default_name
+                })
             }
-            (None, PromptMode::None) => Some(user_id.to_string()),
+            (None, PromptMode::None) => user_id.to_string(),
         }
-        .or_else(print_help)
-        .expect("Failed to get pipeline name from command line, environment variable, or prompt")
     }
 
     fn resolve_run_name(&self) -> Option<String> {
@@ -90,8 +132,18 @@ impl ArgumentResolver {
     async fn resolve_environment_type(&mut self) {
         // this call can take a while - if this is the daemon process being spawned, defer it until
         // we create the client, otherwise use a short timeout so the init call doesn't take too long
-        if self.args.tags.environment_type.is_none() && !self.args.no_daemonize {
-            self.args.tags.environment_type = Some(env::detect_environment_type(1).await);
+        if self.args.tags.environment_type.is_none() {
+            // Always detect environment for demo pipelines (they use demo-pipeline: prefix)
+            let is_demo_pipeline = self
+                .args
+                .pipeline_name
+                .as_ref()
+                .map(|name| name.starts_with("demo-pipeline:"))
+                .unwrap_or(false);
+
+            if !self.args.no_daemonize || is_demo_pipeline {
+                self.args.tags.environment_type = Some(env::detect_environment_type(1).await);
+            }
         }
     }
 

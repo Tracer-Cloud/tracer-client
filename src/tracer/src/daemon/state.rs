@@ -88,9 +88,22 @@ impl DaemonState {
             let pipeline_data = client_guard.get_pipeline_data().await;
             let run_id = &pipeline_data.run_snapshot.unwrap().id;
 
-            // Create log file name
+            // Create log directory and file name
+            let log_base_dir = self.directory.join("tracer-run-logs");
+            let log_dir_name = format!("run-{}", run_id);
+            let log_dir = log_base_dir.join(&log_dir_name);
+
+            // Create the log directory if it doesn't exist
+            if let Err(e) = std::fs::create_dir_all(&log_dir) {
+                tracing::error!(
+                    "Failed to create log directory {}: {}",
+                    log_dir.display(),
+                    e
+                );
+            }
+
             let log_filename = format!("tracer-run-{}.log", run_id);
-            let log_path = self.directory.join(&log_filename);
+            let log_path = log_dir.join(&log_filename);
 
             // Get pipeline data and write to log file
             let pipeline_data = client_guard.get_pipeline_data().await;
