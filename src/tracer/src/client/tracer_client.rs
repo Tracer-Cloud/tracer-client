@@ -183,6 +183,7 @@ impl TracerClient {
 
         self.start_process_polling().await
     }
+    
     async fn start_process_polling(&self) -> Result<()> {
         info!("Starting process polling monitoring");
         match self
