@@ -189,11 +189,13 @@ mod linux {
             // wait for eBPF to start up
             time::sleep(Duration::from_secs(1)).await;
 
+            // set the env var
+            std::env::set_var("TRACER_TRACE_ID", "foobar");
+
             // run a process that exits with an error
             let status = Command::new("bash")
                 .arg("-c")
                 .arg("sleep 2; exit 1")
-                .env("TRACER_TRACE_ID", "foobar")
                 .status()
                 .unwrap();
             assert!(!status.success());
