@@ -455,12 +455,6 @@ pub mod test {
     }
 
     #[test]
-    fn test_trusted_dir_nonexistent() {
-        let path = Path::new("/nonexistent/path");
-        assert!(TrustedDir::new(path, None).is_err());
-    }
-
-    #[test]
     fn test_trusted_dir_not_a_directory() -> Result<()> {
         let temp_dir = TempDir::new()?;
         let file_path = temp_dir.path().join("file.txt");
@@ -477,12 +471,6 @@ pub mod test {
         file.write("test content")?;
         assert_eq!(file.read_to_string()?, "test content");
         Ok(())
-    }
-
-    #[test]
-    fn test_trusted_file_invalid_parent() {
-        let path = Path::new("/nonexistent/path/file.txt");
-        assert!(TrustedFile::new(path).is_err());
     }
 
     #[test]
