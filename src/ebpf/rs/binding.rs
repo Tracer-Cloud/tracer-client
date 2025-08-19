@@ -3,7 +3,7 @@ pub use linux::start_processing_events;
 #[cfg(not(target_os = "linux"))]
 pub use non_linux::start_processing_events;
 
-#[cfg(target_os = "linux")]
+//#[cfg(target_os = "linux")]
 mod linux {
     use crate::ebpf_trigger::Trigger;
     use anyhow::Result;
@@ -200,30 +200,56 @@ mod linux {
                 .unwrap();
             assert!(!status.success());
 
+            let status = Command::new("cat")
+                .arg("file1")
+                .arg("file2")
+                .status()
+                .unwrap();
+            assert!(!status.success());
+
             // check that we got exec and exit events
             const MAX_TRIES: usize = 10;
             let mut tries: usize = 0;
-            let mut exec_trigger: Option<ProcessStartTrigger> = None;
-            let mut exit_trigger: Option<ProcessEndTrigger> = None;
+            let mut bash_exec_trigger: Option<ProcessStartTrigger> = None;
+            let mut bash_exit_trigger: Option<ProcessEndTrigger> = None;
+            let mut cat_exec_trigger: Option<ProcessStartTrigger> = None;
+            let mut cat_exit_trigger: Option<ProcessEndTrigger> = None;
             loop {
                 match tokio::time::timeout(std::time::Duration::from_secs(1), rx.recv()).await {
                     Ok(Some(event)) => match event {
                         Trigger::ProcessStart(trigger) if trigger.comm == "bash" => {
-                            exec_trigger = Some(trigger)
+                            bash_exec_trigger = Some(trigger)
+                        }
+                        Trigger::ProcessStart(trigger) if trigger.comm == "cat" => {
+                            cat_exec_trigger = Some(trigger)
                         }
                         Trigger::ProcessEnd(trigger)
-                            if exec_trigger
+                            if bash_exec_trigger
                                 .as_ref()
                                 .map(|t| t.pid == trigger.pid)
                                 .unwrap_or(false) =>
                         {
-                            exit_trigger = Some(trigger);
-                            break;
+                            bash_exit_trigger = Some(trigger);
+                        }
+                        Trigger::ProcessEnd(trigger)
+                            if cat_exec_trigger
+                                .as_ref()
+                                .map(|t| t.pid == trigger.pid)
+                                .unwrap_or(false) =>
+                        {
+                            cat_exit_trigger = Some(trigger);
                         }
                         _ => {}
                     },
                     Ok(None) => break,
                     _ => (),
+                }
+                if bash_exec_trigger.is_some()
+                    && bash_exit_trigger.is_some()
+                    && cat_exec_trigger.is_some()
+                    && cat_exit_trigger.is_some()
+                {
+                    break;
                 }
                 tries += 1;
                 if tries > MAX_TRIES {
@@ -231,13 +257,22 @@ mod linux {
                 }
                 time::sleep(Duration::from_millis(100)).await;
             }
-            assert!(exec_trigger.is_some());
+
+            assert!(bash_exec_trigger.is_some());
             assert_eq!(
-                exec_trigger.unwrap().env,
+                bash_exec_trigger.unwrap().env,
                 vec![("TRACER_TRACE_ID".to_string(), "foobar".to_string())]
             );
-            assert!(exit_trigger.is_some());
-            assert_eq!(exit_trigger.unwrap().exit_reason.unwrap().code, 1);
+            assert!(bash_exit_trigger.is_some());
+            assert_eq!(bash_exit_trigger.unwrap().exit_reason.unwrap().code, 1);
+
+            assert!(cat_exec_trigger.is_some());
+            assert_eq!(
+                cat_exec_trigger.unwrap().env,
+                vec![("TRACER_TRACE_ID".to_string(), "foobar".to_string())]
+            );
+            assert!(cat_exit_trigger.is_some());
+            assert_eq!(cat_exit_trigger.unwrap().exit_reason.unwrap().code, 1);
         }
 
         fn is_root_user() -> bool {
