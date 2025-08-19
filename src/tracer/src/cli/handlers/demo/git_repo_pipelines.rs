@@ -1,4 +1,4 @@
-use crate::cli::handlers::test::pipeline::Pipeline;
+use crate::cli::handlers::demo::pipeline::Pipeline;
 use crate::utils::workdir::TRACER_WORK_DIR;
 use anyhow::Result;
 use git2::{AutotagOption, FetchOptions, Repository};
@@ -93,12 +93,12 @@ impl TracerPipelinesRepo {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cli::handlers::demo::arguments::TracerCliDemoArgs;
     use crate::cli::handlers::init::arguments::{PromptMode, TracerCliInitArgs};
-    use crate::cli::handlers::test::arguments::TracerCliTestArgs;
 
     #[test]
     fn test_fastquorum_pipeline_resolution() {
-        let args = TracerCliTestArgs {
+        let args = TracerCliDemoArgs {
             demo_pipeline_id: Some("fastquorum".to_string()),
             init_args: TracerCliInitArgs {
                 interactive_prompts: PromptMode::Minimal,
@@ -108,13 +108,13 @@ mod tests {
         };
 
         let (_, pipeline) = args
-            .resolve_test_arguments()
+            .resolve_demo_arguments()
             .expect("failed to resolve pipeline");
 
         assert_eq!(pipeline.name(), "fastquorum");
 
         if let Pipeline::LocalPixi { path, .. } = &pipeline {
-            assert_eq!(path, &get_tracer_pipeline_path("fastquorum"));
+            assert_eq!(*path, get_tracer_pipeline_path("fastquorum"));
         } else {
             panic!("expected LocalPixi pipeline");
         }

@@ -1,5 +1,5 @@
+use crate::cli::handlers::demo::pipeline::Pipeline;
 use crate::cli::handlers::info;
-use crate::cli::handlers::test::pipeline::Pipeline;
 
 use crate::daemon::client::DaemonClient;
 use crate::{info_message, warning_message};
@@ -7,20 +7,20 @@ use crate::{info_message, warning_message};
 use anyhow::Result;
 use colored::Colorize;
 
-/// Run test pipeline when daemon is already running
-pub async fn run_test_with_existing_daemon(
+/// Run demo pipeline when daemon is already running
+pub async fn run_demo_with_existing_daemon(
     api_client: &DaemonClient,
-    selected_test_pipeline: Pipeline,
+    selected_demo_pipeline: Pipeline,
 ) -> Result<()> {
     info_message!(
         "Daemon is already running, executing {} pipeline...",
-        selected_test_pipeline.name()
+        selected_demo_pipeline.name()
     );
 
     let user_id = get_user_id_from_daemon(api_client).await;
-    update_run_name_for_test(api_client, &user_id).await;
+    update_run_name_for_demo(api_client, &user_id).await;
 
-    let result = selected_test_pipeline.execute();
+    let result = selected_demo_pipeline.execute();
 
     // Show info to check if the process where recognized correctly s
     info::info(api_client, false).await;
@@ -49,9 +49,9 @@ pub async fn get_user_id_from_daemon(api_client: &DaemonClient) -> String {
     }
 }
 
-/// Update run name for test with user ID
-pub async fn update_run_name_for_test(api_client: &DaemonClient, user_id: &str) {
-    let new_run_name = format!("test-fastquorum-{}", user_id);
+/// Update run name for demo with user ID
+pub async fn update_run_name_for_demo(api_client: &DaemonClient, user_id: &str) {
+    let new_run_name = format!("demo-fastquorum-{}", user_id);
     info_message!("Updating run name to: {}", new_run_name);
 
     match api_client.send_update_run_name_request(new_run_name).await {
