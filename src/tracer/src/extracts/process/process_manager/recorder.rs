@@ -31,6 +31,10 @@ impl EventRecorder {
         }
     }
 
+    pub fn get_trace_id(&self) -> &Option<String> {
+        self.event_dispatcher.get_trace_id()
+    }
+
     /// Records information about a newly detected process
     pub async fn record_new_process(
         &self,

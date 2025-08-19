@@ -23,6 +23,10 @@ impl EventDispatcher {
         EventDispatcher { pipeline, run, tx }
     }
 
+    pub fn get_trace_id(&self) -> &Option<String> {
+        &self.run.trace_id
+    }
+
     pub async fn log_with_metadata(
         &self,
         process_status: ProcessStatus,

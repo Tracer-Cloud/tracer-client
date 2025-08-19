@@ -3,7 +3,7 @@ pub use linux::start_processing_events;
 #[cfg(not(target_os = "linux"))]
 pub use non_linux::start_processing_events;
 
-#[cfg(target_os = "linux")]
+//#[cfg(target_os = "linux")]
 mod linux {
     use crate::ebpf_trigger::Trigger;
     use anyhow::Result;
@@ -195,9 +195,9 @@ mod linux {
             //std::env::set_var("TRACER_TRACE_ID", "foobar");
 
             // run a process that exits with an error
-            let status = Command::new("bash")
-                .arg("-c")
-                .arg(" cat file1 file2")
+            let status = Command::new("cat")
+                .arg("file1")
+                .arg("file2")
                 // TODO: this doesn't work in CI, and eBPF doesn't seem to
                 // see the env var in the child process
                 .env("TRACER_TRACE_ID", "foobar")
@@ -208,28 +208,28 @@ mod linux {
             // check that we got exec and exit events
             const MAX_TRIES: usize = 10;
             let mut tries: usize = 0;
-            let mut bash_exec_trigger: Option<ProcessStartTrigger> = None;
-            let mut bash_exit_trigger: Option<ProcessEndTrigger> = None;
+            let mut exec_trigger: Option<ProcessStartTrigger> = None;
+            let mut exit_trigger: Option<ProcessEndTrigger> = None;
             loop {
                 match tokio::time::timeout(std::time::Duration::from_secs(1), rx.recv()).await {
                     Ok(Some(event)) => match event {
                         Trigger::ProcessStart(trigger) if trigger.comm == "cat" => {
-                            bash_exec_trigger = Some(trigger)
+                            exec_trigger = Some(trigger)
                         }
                         Trigger::ProcessEnd(trigger)
-                            if bash_exec_trigger
+                            if exec_trigger
                                 .as_ref()
                                 .map(|t| t.pid == trigger.pid)
                                 .unwrap_or(false) =>
                         {
-                            bash_exit_trigger = Some(trigger);
+                            exit_trigger = Some(trigger);
                         }
                         _ => {}
                     },
                     Ok(None) => break,
                     _ => (),
                 }
-                if bash_exec_trigger.is_some() && bash_exit_trigger.is_some() {
+                if exec_trigger.is_some() && exit_trigger.is_some() {
                     break;
                 }
                 tries += 1;
@@ -239,9 +239,9 @@ mod linux {
                 time::sleep(Duration::from_millis(100)).await;
             }
 
-            assert!(bash_exec_trigger.is_some());
-            assert!(bash_exit_trigger.is_some());
-            assert_eq!(bash_exit_trigger.unwrap().exit_reason.unwrap().code, 1);
+            assert!(exec_trigger.is_some());
+            assert!(exit_trigger.is_some());
+            assert_eq!(exit_trigger.unwrap().exit_reason.unwrap().code, 1);
             // assert_eq!(
             //     bash_exec_trigger.unwrap().env,
             //     vec![("TRACER_TRACE_ID".to_string(), "foobar".to_string())]

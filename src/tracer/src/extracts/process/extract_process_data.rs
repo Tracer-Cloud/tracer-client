@@ -105,6 +105,7 @@ pub async fn gather_process_data<P: ProcessTrait>(
     // get the process environment variables
     let (container_id, job_id, proc_trace_id) = get_process_environment_variables(proc);
 
+    // resolve trace_id - prefer the eBPF value if we have it, warn if the values differ
     let trace_id = match (bpf_trace_id, proc_trace_id) {
         (Some(bpf_trace_id), Some(proc_trace_id)) if bpf_trace_id == proc_trace_id => {
             Some(bpf_trace_id)

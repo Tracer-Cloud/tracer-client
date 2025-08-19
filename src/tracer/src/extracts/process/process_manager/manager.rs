@@ -101,4 +101,8 @@ impl ProcessManager {
     pub async fn get_matched_tasks(&self) -> HashMap<String, usize> {
         self.state_manager.get_matched_tasks().await
     }
+
+    pub fn get_trace_id(&self) -> &Option<String> {
+        self.event_recorder.get_trace_id()
+    }
 }

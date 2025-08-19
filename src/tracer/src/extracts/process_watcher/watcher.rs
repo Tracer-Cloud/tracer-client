@@ -3,6 +3,7 @@ use crate::extracts::process::extract_process_data::get_process_argv;
 use crate::extracts::process::process_manager::ProcessManager;
 use crate::extracts::process_watcher::handler::trigger::trigger_processor::TriggerProcessor;
 use crate::process_identification::recorder::EventDispatcher;
+use crate::utils::env::TRACE_ID_ENV_VAR;
 use crate::utils::workdir::TRACER_WORK_DIR;
 use anyhow::{Error, Result};
 use std::collections::{HashMap, HashSet};
@@ -222,11 +223,10 @@ impl ProcessWatcher {
     }
 
     /// Processes a batch of triggers, separating start, finish, and OOM events
-    pub async fn process_triggers(self: &Arc<Self>, triggers: Vec<Trigger>) -> Result<()> {
-        let mut process_start_triggers: Vec<ProcessStartTrigger> = vec![];
-        let mut process_end_triggers: Vec<ProcessEndTrigger> = vec![];
-        let mut out_of_memory_triggers: Vec<OutOfMemoryTrigger> = vec![];
-
+    pub async fn process_triggers(
+        self: &Arc<Self>,
+        triggers: Vec<Trigger>,
+    ) -> Result<Option<NewRun>> {
         debug!("ProcessWatcher: processing {} triggers", triggers.len());
 
         // Create the directory if it doesn't exist
@@ -236,6 +236,38 @@ impl ProcessWatcher {
                 error!("Failed to create log directory: {}", e);
             }
         }
+
+        // partition the list based on trace ID - we need to start a new run when the trade ID
+        // changes
+        let cur_trace_id = self
+            .process_manager
+            .read()
+            .await
+            .event_recorder
+            .get_trace_id();
+        let split_idx = triggers.iter().position(|trigger| {
+            if let Trigger::ProcessStart(start_trigger) = trigger {
+                start_trigger.env.iter().any(|(k, v)| {
+                    k == TRACE_ID_ENV_VAR && cur_trace_id.map(|id| id != v).unwrap_or(false)
+                })
+            } else {
+                false
+            }
+        });
+        if let Some(split_idx) = split_idx {
+            let (triggers, rest) = triggers.split_at(split_idx);
+            self.process_trigger_types(triggers.to_vec()).await?;
+            self.process_triggers(rest.to_vec()).await
+        } else {
+            self.process_trigger_types(triggers).await?;
+            Ok(None)
+        }
+    }
+
+    async fn process_trigger_types(self: &Arc<Self>, triggers: Vec<Trigger>) -> Result<()> {
+        let mut process_start_triggers: Vec<ProcessStartTrigger> = vec![];
+        let mut process_end_triggers: Vec<ProcessEndTrigger> = vec![];
+        let mut out_of_memory_triggers: Vec<OutOfMemoryTrigger> = vec![];
 
         for trigger in triggers.into_iter() {
             match trigger {
@@ -298,4 +330,9 @@ impl ProcessWatcher {
     pub async fn get_matched_tasks(&self) -> HashMap<String, usize> {
         self.process_manager.read().await.get_matched_tasks().await
     }
+}
+
+pub struct NewRun {
+    pub trace_id: String,
+    pub triggers: Vec<Trigger>,
 }
