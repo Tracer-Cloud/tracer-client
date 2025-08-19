@@ -151,30 +151,41 @@ pub fn validate_input_string(input: &str, field: &str) -> Result<(), String> {
 }
 
 /// Validates and returns the input string, or prompts for a new one if invalid
+/// Returns None if prompting fails (e.g., not a terminal)
 pub fn get_validated_input(
     theme: &ColorfulTheme,
     prompt: &str,
     default: Option<&str>,
     field_name: &str,
-) -> String {
+) -> Option<String> {
     loop {
         let input = if let Some(default_val) = default {
-            Input::with_theme(theme)
+            match Input::with_theme(theme)
                 .with_prompt(prompt)
                 .default(default_val.to_string())
                 .interact_text()
-                .inspect_err(|e| panic!("Error while prompting for {}: {e}", field_name))
-                .unwrap()
+            {
+                Ok(input) => input,
+                Err(e) => {
+                    eprintln!("Warning: Cannot prompt for {} (not a terminal): {}", field_name, e);
+                    return None;
+                }
+            }
         } else {
-            Input::with_theme(theme)
+            match Input::with_theme(theme)
                 .with_prompt(prompt)
                 .interact_text()
-                .inspect_err(|e| panic!("Error while prompting for {}: {e}", field_name))
-                .unwrap()
+            {
+                Ok(input) => input,
+                Err(e) => {
+                    eprintln!("Warning: Cannot prompt for {} (not a terminal): {}", field_name, e);
+                    return None;
+                }
+            }
         };
 
         match validate_input_string(&input, field_name) {
-            Ok(_) => return input,
+            Ok(_) => return Some(input),
             Err(error_msg) => {
                 eprintln!("{}", error_msg);
                 eprintln!("Please enter a valid value without control characters, escape characters, path separators.");

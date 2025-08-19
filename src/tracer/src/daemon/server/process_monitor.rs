@@ -172,9 +172,19 @@ pub async fn monitor(client: Arc<Mutex<TracerClient>>, server_token: Cancellatio
 
     let run_snapshot = guard.get_run_snapshot().await;
     let run_id = &run_snapshot.id;
-    // Create log file name (same as in start_tracer_client)
+
+    // Create log directory and file name (same as in start_tracer_client)
+    let log_base_dir = std::env::current_dir().unwrap().join("tracer-run-logs");
+    let log_dir_name = format!("run-{}", run_id);
+    let log_dir = log_base_dir.join(&log_dir_name);
+
+    // Create the log directory if it doesn't exist
+    if let Err(e) = std::fs::create_dir_all(&log_dir) {
+        error!("Failed to create log directory {}: {}", log_dir.display(), e);
+    }
+
     let log_filename = format!("tracer-run-{}.log", run_id);
-    let log_path = std::env::current_dir().unwrap().join(&log_filename);
+    let log_path = log_dir.join(&log_filename);
 
     let stopping_content = format!("\n\nStopping run:\n{:#?}", pipeline_data);
 

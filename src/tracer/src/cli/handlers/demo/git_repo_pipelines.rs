@@ -85,8 +85,9 @@ impl TracerPipelinesRepo {
         // if path.file_name().unwrap() == ".git" {
         //     path = path.parent().unwrap();
         // }
-        let pipeline = Pipeline::tracer(get_tracer_pipeline_path("fastquorum")).unwrap();
-        vec![pipeline]
+        let fastquorum_pipeline = Pipeline::tracer(get_tracer_pipeline_path("fastquorum")).unwrap();
+        let wdl_pipeline = Pipeline::tracer(get_tracer_pipeline_path("wdl")).unwrap();
+        vec![fastquorum_pipeline, wdl_pipeline]
     }
 }
 
@@ -99,11 +100,12 @@ mod tests {
     #[test]
     fn test_fastquorum_pipeline_resolution() {
         let args = TracerCliDemoArgs {
-            demo_pipeline_id: Some("fastquorum".to_string()),
-            init_args: TracerCliInitArgs {
-                interactive_prompts: PromptMode::Minimal,
-                log_level: "info".into(),
-                ..Default::default()
+            command: crate::cli::handlers::demo::arguments::DemoCommand::Fastquorum {
+                init_args: TracerCliInitArgs {
+                    interactive_prompts: PromptMode::Minimal,
+                    log_level: "info".into(),
+                    ..Default::default()
+                },
             },
         };
 
