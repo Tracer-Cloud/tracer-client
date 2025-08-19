@@ -213,7 +213,7 @@ mod linux {
             loop {
                 match tokio::time::timeout(std::time::Duration::from_secs(1), rx.recv()).await {
                     Ok(Some(event)) => match event {
-                        Trigger::ProcessStart(trigger) if trigger.comm == "bash" => {
+                        Trigger::ProcessStart(trigger) if trigger.comm == "cat" => {
                             bash_exec_trigger = Some(trigger)
                         }
                         Trigger::ProcessEnd(trigger)
