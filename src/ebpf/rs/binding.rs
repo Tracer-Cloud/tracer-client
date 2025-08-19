@@ -3,7 +3,7 @@ pub use linux::start_processing_events;
 #[cfg(not(target_os = "linux"))]
 pub use non_linux::start_processing_events;
 
-#[cfg(target_os = "linux")]
+//#[cfg(target_os = "linux")]
 mod linux {
     use crate::ebpf_trigger::Trigger;
     use anyhow::Result;
@@ -169,63 +169,67 @@ mod linux {
         Ok(())
     }
 
-    // #[cfg(test)]
-    // mod tests {
-    //     use crate::ebpf_trigger::{ProcessEndTrigger, ProcessStartTrigger, Trigger};
-    //     use std::process::Command;
-    //     use tokio::sync::mpsc;
+    #[cfg(test)]
+    mod tests {
+        use crate::ebpf_trigger::{ProcessEndTrigger, ProcessStartTrigger, Trigger};
+        use std::process::Command;
+        use std::time::Duration;
+        use tokio::sync::mpsc;
+        use tokio::time;
 
-    //     #[tokio::test]
-    //     async fn test_exit_code() {
-    //         let (tx, mut rx) = mpsc::unbounded_channel::<Trigger>();
-    //         super::start_processing_events(tx).unwrap();
+        #[tokio::test]
+        async fn test_exit_code() {
+            let (tx, mut rx) = mpsc::unbounded_channel::<Trigger>();
+            super::start_processing_events(tx).unwrap();
 
-    //         // run a process that exits with an error
-    //         let mut handle = Command::new("bash")
-    //             .arg("-c")
-    //             .arg("\"sleep 10; exit 1\"")
-    //             .spawn()
-    //             .unwrap();
-    //         let status = handle.wait().unwrap();
-    //         assert!(!status.success());
+            // wait for eBPF to start up
+            time::sleep(Duration::from_secs(1)).await;
+            
+            // run a process that exits with an error
+            let status = Command::new("bash")
+                .arg("-c")
+                .arg("sleep 2; exit 1")
+                .status()
+                .unwrap();
+            assert!(!status.success());
 
-    //         // check that we got exec and exit events
-    //         const MAX_TRIES: usize = 10;
-    //         let mut tries: usize = 0;
-    //         let mut exec_trigger: Option<ProcessStartTrigger> = None;
-    //         let mut exit_trigger: Option<ProcessEndTrigger> = None;
-    //         loop {
-    //             match tokio::time::timeout(std::time::Duration::from_secs(5), rx.recv()).await {
-    //                 Ok(Some(event)) => match event {
-    //                     Trigger::ProcessStart(trigger)
-    //                         if trigger.command_string == "bash -c \"sleep 10; exit 1\"" =>
-    //                     {
-    //                         exec_trigger = Some(trigger)
-    //                     }
-    //                     Trigger::ProcessEnd(trigger)
-    //                         if exec_trigger
-    //                             .as_ref()
-    //                             .map(|t| t.pid == trigger.pid)
-    //                             .unwrap_or(false) =>
-    //                     {
-    //                         exit_trigger = Some(trigger);
-    //                         break;
-    //                     }
-    //                     _ => {}
-    //                 },
-    //                 Ok(None) => break,
-    //                 _ => (),
-    //             }
-    //             tries += 1;
-    //             if tries > MAX_TRIES {
-    //                 break;
-    //             }
-    //         }
-    //         assert!(exec_trigger.is_some());
-    //         assert!(exit_trigger.is_some());
-    //         assert_eq!(exit_trigger.unwrap().exit_reason.unwrap().code, 1);
-    //     }
-    // }
+            // check that we got exec and exit events
+            const MAX_TRIES: usize = 10;
+            let mut tries: usize = 0;
+            let mut exec_trigger: Option<ProcessStartTrigger> = None;
+            let mut exit_trigger: Option<ProcessEndTrigger> = None;
+            loop {
+                match tokio::time::timeout(std::time::Duration::from_secs(1), rx.recv()).await {
+                    Ok(Some(event)) => match event {
+                        Trigger::ProcessStart(trigger)
+                            if trigger.command_string == "bash -c \"sleep 2; exit 1\"" =>
+                        {
+                            exec_trigger = Some(trigger)
+                        }
+                        Trigger::ProcessEnd(trigger)
+                            if exec_trigger
+                                .as_ref()
+                                .map(|t| t.pid == trigger.pid)
+                                .unwrap_or(false) =>
+                        {
+                            exit_trigger = Some(trigger);
+                            break;
+                        }
+                        _ => {}
+                    },
+                    Ok(None) => break,
+                    _ => (),
+                }
+                tries += 1;
+                if tries > MAX_TRIES {
+                    break;
+                }
+            }
+            assert!(exec_trigger.is_some());
+            assert!(exit_trigger.is_some());
+            assert_eq!(exit_trigger.unwrap().exit_reason.unwrap().code, 1);
+        }
+    }
 }
 
 // No-op implementation for non-Linux platforms
