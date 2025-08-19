@@ -9,8 +9,10 @@ use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::ProcessStatus as TracerProcessStatus;
 use anyhow::Result;
 use chrono::Utc;
+use std::collections::HashSet;
 use std::sync::Arc;
 use sysinfo::Process;
+use tokio::sync::RwLock;
 use tracer_ebpf::ebpf_trigger::{ProcessEndTrigger, ProcessStartTrigger};
 use tracing::debug;
 use tracing::error;
@@ -21,6 +23,8 @@ pub struct EventRecorder {
     /// shared reference to the docker watcher - used to get the ContainerEvent associated
     /// with a process
     docker_watcher: Arc<DockerWatcher>,
+    /// trace IDs that have already been logged
+    logged_trace_ids: Arc<RwLock<HashSet<String>>>,
 }
 
 impl EventRecorder {
@@ -28,6 +32,7 @@ impl EventRecorder {
         Self {
             event_dispatcher,
             docker_watcher,
+            logged_trace_ids: Arc::new(RwLock::new(HashSet::new())),
         }
     }
 
@@ -70,6 +75,14 @@ impl EventRecorder {
                 self.docker_watcher.get_container_event(container_id).await
             {
                 full.container_event = Some(container_event);
+            }
+        }
+
+        // If we have a new trace ID, create a new run in the database
+        if let Some(trace_id) = &full.trace_id {
+            if !self.logged_trace_ids.read().await.contains(trace_id) {
+                self.logged_trace_ids.write().await.insert(trace_id.clone());
+                self.event_dispatcher.log_new_run(trace_id).await?;
             }
         }
 

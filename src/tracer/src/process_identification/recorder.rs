@@ -23,6 +23,17 @@ impl EventDispatcher {
         EventDispatcher { pipeline, run, tx }
     }
 
+    pub async fn log(
+        &self,
+        process_status: ProcessStatus,
+        message: String,
+        attributes: Option<EventAttributes>,
+        timestamp: Option<DateTime<Utc>>,
+    ) -> anyhow::Result<()> {
+        self.log_with_metadata(process_status, message, attributes, timestamp)
+            .await
+    }
+
     pub async fn log_with_metadata(
         &self,
         process_status: ProcessStatus,
@@ -30,8 +41,33 @@ impl EventDispatcher {
         attributes: Option<EventAttributes>,
         timestamp: Option<DateTime<Utc>>,
     ) -> anyhow::Result<()> {
-        let pipeline = &self.pipeline.lock().await;
         let run = &self.run;
+        self.log_event(run, process_status, body, attributes, timestamp)
+            .await
+    }
+
+    pub async fn log_new_run(&self, trace_id: &str) -> anyhow::Result<()> {
+        let mut run = self.run.clone();
+        run.trace_id = Some(trace_id.to_string());
+        self.log_event(
+            &run,
+            ProcessStatus::NewRun,
+            "[CLI] Starting new pipeline run for trace_id {trace_id}".to_owned(),
+            None,
+            None,
+        )
+        .await
+    }
+
+    async fn log_event(
+        &self,
+        run: &RunMetadata,
+        process_status: ProcessStatus,
+        body: String,
+        attributes: Option<EventAttributes>,
+        timestamp: Option<DateTime<Utc>>,
+    ) -> anyhow::Result<()> {
+        let pipeline = &self.pipeline.lock().await;
         let event = Event::builder()
             .body(body)
             .timestamp(timestamp.unwrap_or_else(Utc::now))
@@ -46,17 +82,6 @@ impl EventDispatcher {
 
         self.tx.send(event).await?;
         Ok(())
-    }
-
-    pub async fn log(
-        &self,
-        process_status: ProcessStatus,
-        message: String,
-        attributes: Option<EventAttributes>,
-        timestamp: Option<DateTime<Utc>>,
-    ) -> anyhow::Result<()> {
-        self.log_with_metadata(process_status, message, attributes, timestamp)
-            .await
     }
 }
 
