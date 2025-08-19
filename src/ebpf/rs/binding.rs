@@ -213,8 +213,13 @@ mod linux {
                         Trigger::ProcessStart(trigger) if trigger.comm == "bash" => {
                             bash_exec_trigger = Some(trigger)
                         }
-                        Trigger::ProcessStart(trigger) if trigger.comm == "cat" => {
-                            cat_exec_trigger = Some(trigger)
+                        Trigger::ProcessEnd(trigger)
+                            if bash_exec_trigger
+                                .as_ref()
+                                .map(|t| t.pid == trigger.pid)
+                                .unwrap_or(false) =>
+                        {
+                            bash_exit_trigger = Some(trigger);
                         }
                         _ => {}
                     },
