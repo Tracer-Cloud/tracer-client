@@ -95,18 +95,17 @@ impl TracerPipelinesRepo {
 mod tests {
     use super::*;
     use crate::cli::handlers::demo::arguments::TracerCliDemoArgs;
-    use crate::cli::handlers::init::arguments::{PromptMode, TracerCliInitArgs};
+    use crate::cli::handlers::init::arguments::PromptMode;
 
     #[test]
     fn test_fastquorum_pipeline_resolution() {
         let args = TracerCliDemoArgs {
-            command: crate::cli::handlers::demo::arguments::DemoCommand::Fastquorum {
-                init_args: TracerCliInitArgs {
-                    interactive_prompts: PromptMode::Minimal,
-                    log_level: "info".into(),
-                    ..Default::default()
-                },
+            demo_pipeline_id: Some("fastquorum".to_string()),
+            init_args: crate::cli::handlers::demo::arguments::DemoInitArgs {
+                interactive: PromptMode::Minimal,
+                ..Default::default()
             },
+            help_advanced: false,
         };
 
         let (_, pipeline) = args
