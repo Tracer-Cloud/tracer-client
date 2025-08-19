@@ -3,7 +3,7 @@ use crate::cli::handlers::init::arguments::TracerCliInitArgs;
 use anyhow::Result;
 use clap::Args;
 
-/// Run a demo pipeline with automatic tracing
+/// Run demo pipelines with automatic tracing
 #[derive(Default, Args, Debug, Clone)]
 pub struct TracerCliDemoArgs {
     /// Pipeline to demo (defaults to interactive selection)

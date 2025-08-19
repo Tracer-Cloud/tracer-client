@@ -52,11 +52,19 @@ pub async fn process_daemon_command(command: Command, config: Config) {
                 std::process::exit(1);
             }
         }
-        Command::Test(_args) => {
+        Command::Test => {
             // Redirect users to the new demo command
-            eprintln!("The 'test' command has been renamed to 'demo'.");
-            eprintln!("Please use 'tracer demo' instead of 'tracer test'.");
-            eprintln!("Run 'tracer demo --help' for more information.");
+            eprintln!();
+            eprintln!("The 'test' command has been renamed to 'demo' to match usage in our sandbox application.");
+            eprintln!(
+                "Use {} instead of {}.",
+                "tracer demo".green(),
+                "tracer test".red()
+            );
+            eprintln!();
+            eprintln!("Run {} for more info.", "tracer demo --help".cyan());
+            eprintln!();
+
             std::process::exit(1);
         }
         Command::Info { json } => handlers::info(&api_client, json).await,
