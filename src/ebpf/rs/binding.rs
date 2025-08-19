@@ -3,7 +3,7 @@ pub use linux::start_processing_events;
 #[cfg(not(target_os = "linux"))]
 pub use non_linux::start_processing_events;
 
-//#[cfg(target_os = "linux")]
+#[cfg(target_os = "linux")]
 mod linux {
     use crate::ebpf_trigger::Trigger;
     use anyhow::Result;
@@ -184,7 +184,7 @@ mod linux {
 
             // wait for eBPF to start up
             time::sleep(Duration::from_secs(1)).await;
-            
+
             // run a process that exits with an error
             let status = Command::new("bash")
                 .arg("-c")
