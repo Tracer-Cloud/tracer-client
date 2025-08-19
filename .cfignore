@@ -1,0 +1,6 @@
+# Ignore all folders
+*/
+
+# But do not ignore files in the root directory
+!*/
+!.*
