@@ -1,6 +1,6 @@
+mod config;
 mod resolver;
-mod types;
 pub mod user_id_resolver;
 
+pub use config::*;
 pub use resolver::*;
-pub use types::*;

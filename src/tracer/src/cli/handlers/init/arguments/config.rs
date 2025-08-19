@@ -1,8 +1,12 @@
 use crate::process_identification::types::pipeline_tags::PipelineTags;
 use crate::utils::input_validation::StringValueParser;
+use crate::utils::workdir::TRACER_WORK_DIR;
+use crate::utils::Sentry;
 use clap::{Args, ValueEnum};
 use serde::Serialize;
 use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
 
 use super::resolver::ArgumentResolver;
 
@@ -116,12 +120,50 @@ impl TracerCliInitArgs {
 
     /// Configure init args for test scenarios with appropriate defaults
     pub fn configure_for_test(&mut self) {
-        // Set test-specific watch directory
+        // Set test-specific watch directory with conflict handling
         if self.watch_dir.is_none() {
-            self.watch_dir = Some("/tmp/tracer".to_string());
+            let base_dir = TRACER_WORK_DIR.path.to_string_lossy();
+            let watch_dir = self.get_available_test_directory(&base_dir);
+            self.watch_dir = Some(watch_dir);
         }
 
         // Force non-interactive mode for tests
         self.set_non_interactive();
+    }
+
+    /// Get an available test directory, handling conflicts by creating unique directories
+    fn get_available_test_directory(&self, base_dir: &str) -> String {
+        let base_path = Path::new(base_dir);
+
+        // If the base directory doesn't exist or is empty, use it
+        if !base_path.exists() || self.is_directory_empty(base_path) {
+            return base_dir.to_string();
+        }
+
+        // Directory exists and is not empty - report to Sentry and create unique directory
+        let warning_msg = format!(
+            "Test directory '{}' already exists and is not empty. Creating unique directory to avoid conflicts.",
+            base_dir
+        );
+
+        Sentry::capture_message(&warning_msg, sentry::Level::Warning);
+
+        // Create a unique directory with timestamp
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        format!("{}-{}", base_dir, timestamp)
+    }
+
+    /// Check if a directory is empty
+    fn is_directory_empty(&self, path: &Path) -> bool {
+        if let Ok(mut entries) = fs::read_dir(path) {
+            entries.next().is_none()
+        } else {
+            // If we can't read the directory, assume it's not empty to be safe
+            false
+        }
     }
 }
