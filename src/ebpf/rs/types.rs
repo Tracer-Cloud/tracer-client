@@ -4,6 +4,8 @@ use crate::ebpf_trigger;
 pub const TASK_COMM_LEN: usize = 16;
 pub const MAX_ARR_LEN: usize = 16;
 pub const MAX_STR_LEN: usize = 128;
+pub const MAX_ENV_LEN: usize = 1;
+pub const ENV_KEYS: [&str; MAX_ENV_LEN] = ["TRACER_TRACE_ID"];
 
 // Event type constants matching enum event_type
 pub const EVENT__SCHED__SCHED_PROCESS_EXEC: u32 = 0;
@@ -24,10 +26,12 @@ pub struct SchedProcessExecPayload {
     pub comm: [u8; TASK_COMM_LEN],
     pub argc: u32,
     pub argv: [[u8; MAX_STR_LEN]; MAX_ARR_LEN],
+    pub env_found_mask: u32,
+    pub env_values: [[u8; MAX_STR_LEN]; MAX_ENV_LEN],
 }
 
 pub struct SchedProcessExitPayload {
-    pub exit_code: u8,
+    pub status: u16,
 }
 
 // Define the CEvent struct to match the memory layout of the C struct
@@ -79,12 +83,27 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                     args.push(from_bpf_str(&payload.argv[i])?.to_string());
                 }
 
+                let mut env = Vec::new();
+                ENV_KEYS
+                    .iter()
+                    .enumerate()
+                    .take(MAX_ENV_LEN)
+                    .try_for_each(|(i, key)| {
+                        if payload.env_found_mask & (1 << i) != 0 {
+                            let key = key.to_string();
+                            let value = from_bpf_str(&payload.env_values[i])?.to_string();
+                            env.push((key, value));
+                        }
+                        Ok::<_, anyhow::Error>(())
+                    })?;
+
                 Ok(ebpf_trigger::Trigger::ProcessStart(
                     ebpf_trigger::ProcessStartTrigger::from_bpf_event(
                         self.pid,
                         self.ppid,
                         comm,
                         args,
+                        env,
                         self.timestamp_ns,
                     ),
                 ))
@@ -93,7 +112,6 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                 // Access the exec payload by casting
                 let payload_ptr = self.payload.as_ptr() as *const SchedProcessExitPayload;
                 let payload = unsafe { &*payload_ptr };
-                let exit_code = payload.exit_code as i64;
 
                 Ok(ebpf_trigger::Trigger::ProcessEnd(
                     ebpf_trigger::ProcessEndTrigger {
@@ -103,7 +121,7 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                             (self.timestamp_ns % 1_000_000_000) as u32,
                         )
                         .unwrap(),
-                        exit_reason: Some(exit_code.into()),
+                        exit_reason: Some((payload.status as i64).into()),
                     },
                 ))
             }

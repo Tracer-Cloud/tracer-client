@@ -19,10 +19,11 @@ pub struct ProcessStartTrigger {
     pub ppid: usize,
     /// Command name (without path)
     pub comm: String,
-    /// Command file name (with path)
-    pub file_name: String,
     /// Command arguments (the first element is the command)
     pub argv: Vec<String>,
+    /// Selected environment variables (key-value pairs)
+    /// Currently, only TRACER_TRACE_ID is supported
+    pub env: Vec<(String, String)>,
     /// Command string (from concatenating argv)
     pub command_string: String,
     /// Command start time
@@ -45,6 +46,7 @@ impl ProcessStartTrigger {
         ppid: u32,
         comm: &str,
         argv: Vec<String>,
+        env: Vec<(String, String)>,
         timestamp_ns: u64,
     ) -> Self {
         const NS_PER_SEC: u64 = 1_000_000_000;
@@ -52,9 +54,9 @@ impl ProcessStartTrigger {
             pid: pid as usize,
             ppid: ppid as usize,
             comm: comm.to_string(),
-            file_name: argv.first().cloned().unwrap_or_default(),
             command_string: join_args(&argv),
             argv: unquote(argv),
+            env,
             started_at: DateTime::from_timestamp(
                 (timestamp_ns / NS_PER_SEC) as i64,
                 (timestamp_ns % NS_PER_SEC) as u32,
@@ -76,7 +78,7 @@ impl ProcessStartTrigger {
             comm: name.to_string(),
             command_string: join_args(&argv),
             argv: unquote(argv),
-            file_name: "".to_string(),
+            env: Vec::new(),
             started_at: Utc::now(),
         }
     }
@@ -84,16 +86,23 @@ impl ProcessStartTrigger {
     pub fn from_command_string(pid: usize, ppid: usize, command_string: &str) -> Self {
         let argv = split_args(command_string);
         let comm = argv.first().cloned().unwrap_or_default();
-        let file_name = comm.clone();
         Self {
             pid,
             ppid,
             comm,
             argv: unquote(argv),
+            env: Vec::new(),
             command_string: command_string.to_string(),
-            file_name,
             started_at: Utc::now(),
         }
+    }
+
+    /// Returns the value of the specified variable from the process' environment, if present
+    pub fn get_env_var(&self, key: &str) -> Option<&str> {
+        self.env
+            .iter()
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| v.as_str())
     }
 }
 
@@ -121,6 +130,16 @@ pub enum Trigger {
     OutOfMemory(OutOfMemoryTrigger),
 }
 
+//                 let signaled = (status & 0x7f) != 0;   // nonzero => terminated by signal
+//                 let dumped   = signaled && (code & 0x80);
+
+//   if (signaled) {
+
+//     ;
+//   } else {
+//     e->sched__sched_process_exit__payload.exit_code =
+//   }
+
 /// Exit code along with short reason and longer explanation.
 ///
 /// We always create the reason and explanation when creating the struct (rather than on-demand
@@ -129,6 +148,9 @@ pub enum Trigger {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ExitReason {
     pub code: i64,
+    /// If the process was terminated by a signal, the signal number and whether a core dump was
+    /// generated
+    pub term_signal: Option<(u16, bool)>,
     pub reason: String,
     pub explanation: String,
 }
@@ -149,10 +171,22 @@ impl fmt::Display for ExitReason {
     }
 }
 
+/// Convert an exit status to an ExitReason.
+/// For now, only POSIX wait statuses are supported. A POSIX wait status is a 16-bit integer
+/// with the high 8 bits being the exit code and the low 7 bits being the termination signal.
 impl From<i64> for ExitReason {
-    fn from(code: i64) -> Self {
+    fn from(value: i64) -> Self {
+        let status = value as u16;
+        let code = ((status >> 8) & 0xff) as i64;
+        let signaled = (status & 0x7f) != 0;
+        let term_signal = if signaled {
+            Some((status & 0x7f, status & 0x80 != 0))
+        } else {
+            None
+        };
         Self {
             code,
+            term_signal,
             reason: exit_code_reason(code),
             explanation: exit_code_explanation(code),
         }
