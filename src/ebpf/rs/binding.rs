@@ -3,7 +3,7 @@ pub use linux::start_processing_events;
 #[cfg(not(target_os = "linux"))]
 pub use non_linux::start_processing_events;
 
-//#[cfg(target_os = "linux")]
+#[cfg(target_os = "linux")]
 mod linux {
     use crate::ebpf_trigger::Trigger;
     use anyhow::Result;
