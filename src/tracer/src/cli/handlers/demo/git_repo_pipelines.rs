@@ -1,4 +1,4 @@
-use crate::cli::handlers::test::pipeline::Pipeline;
+use crate::cli::handlers::demo::pipeline::Pipeline;
 use crate::utils::workdir::TRACER_WORK_DIR;
 use anyhow::Result;
 use git2::{AutotagOption, FetchOptions, Repository};
@@ -85,36 +85,37 @@ impl TracerPipelinesRepo {
         // if path.file_name().unwrap() == ".git" {
         //     path = path.parent().unwrap();
         // }
-        let pipeline = Pipeline::tracer(get_tracer_pipeline_path("fastquorum")).unwrap();
-        vec![pipeline]
+        let fastquorum_pipeline = Pipeline::tracer(get_tracer_pipeline_path("fastquorum")).unwrap();
+        let wdl_pipeline = Pipeline::tracer(get_tracer_pipeline_path("wdl")).unwrap();
+        vec![fastquorum_pipeline, wdl_pipeline]
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cli::handlers::init::arguments::{PromptMode, TracerCliInitArgs};
-    use crate::cli::handlers::test::arguments::TracerCliTestArgs;
+    use crate::cli::handlers::demo::arguments::TracerCliDemoArgs;
+    use crate::cli::handlers::init::arguments::PromptMode;
 
     #[test]
     fn test_fastquorum_pipeline_resolution() {
-        let args = TracerCliTestArgs {
+        let args = TracerCliDemoArgs {
             demo_pipeline_id: Some("fastquorum".to_string()),
-            init_args: TracerCliInitArgs {
-                interactive_prompts: PromptMode::Minimal,
-                log_level: "info".into(),
+            init_args: crate::cli::handlers::demo::arguments::DemoInitArgs {
+                interactive: PromptMode::Minimal,
                 ..Default::default()
             },
+            help_advanced: false,
         };
 
         let (_, pipeline) = args
-            .resolve_test_arguments()
+            .resolve_demo_arguments()
             .expect("failed to resolve pipeline");
 
         assert_eq!(pipeline.name(), "fastquorum");
 
         if let Pipeline::LocalPixi { path, .. } = &pipeline {
-            assert_eq!(path, &get_tracer_pipeline_path("fastquorum"));
+            assert_eq!(*path, get_tracer_pipeline_path("fastquorum"));
         } else {
             panic!("expected LocalPixi pipeline");
         }

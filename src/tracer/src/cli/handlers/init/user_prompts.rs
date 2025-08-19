@@ -22,7 +22,7 @@ pub const CUSTOM_INDEX: usize = 9;
 pub struct UserPrompts;
 
 impl UserPrompts {
-    pub fn prompt_for_pipeline_name<S: AsRef<str>>(default: S) -> String {
+    pub fn prompt_for_pipeline_name<S: AsRef<str>>(default: S) -> Option<String> {
         get_validated_input(
             &INTERACTIVE_THEME,
             "Enter pipeline name (e.g., RNA-seq_analysis_v1, scRNA-seq_2024)",
@@ -47,6 +47,7 @@ impl UserPrompts {
                 None,
                 "environment name",
             )
+            .unwrap_or_else(|| "custom".to_string())
         } else {
             environment.to_string()
         }
@@ -76,12 +77,13 @@ impl UserPrompts {
                 default,
                 "pipeline type",
             )
+            .unwrap_or_else(|| "Custom".to_string())
         } else {
             pipeline_type.to_string()
         }
     }
 
-    pub fn prompt_for_user_id(default: Option<&str>) -> String {
+    pub fn prompt_for_user_id(default: Option<&str>) -> Option<String> {
         get_validated_input(&INTERACTIVE_THEME, "Enter your User ID", default, "User ID")
     }
 }

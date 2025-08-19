@@ -1,12 +1,12 @@
 use super::prompts::{get_default_or_first_pipeline, prompt_for_pipeline_selection};
 use super::Pipeline;
+use crate::cli::handlers::demo::git_repo_pipelines::TracerPipelinesRepo;
 use crate::cli::handlers::init::arguments::PromptMode;
-use crate::cli::handlers::test::git_repo_pipelines::TracerPipelinesRepo;
 use anyhow::{anyhow, Result};
 
 impl Pipeline {
     /// Pure function for pipeline selection
-    pub fn select_test_pipeline(
+    pub fn select_demo_pipeline(
         demo_pipeline_id: Option<String>,
         interactive_prompts: PromptMode,
     ) -> Result<Pipeline> {
