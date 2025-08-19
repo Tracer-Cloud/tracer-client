@@ -3,7 +3,7 @@ pub use linux::start_processing_events;
 #[cfg(not(target_os = "linux"))]
 pub use non_linux::start_processing_events;
 
-#[cfg(target_os = "linux")]
+//#[cfg(target_os = "linux")]
 mod linux {
     use crate::ebpf_trigger::Trigger;
     use anyhow::Result;
@@ -193,6 +193,7 @@ mod linux {
             let status = Command::new("bash")
                 .arg("-c")
                 .arg("sleep 2; exit 1")
+                .env("TRACER_TRACE_ID", "foobar")
                 .status()
                 .unwrap();
             assert!(!status.success());
@@ -226,8 +227,13 @@ mod linux {
                 if tries > MAX_TRIES {
                     break;
                 }
+                time::sleep(Duration::from_millis(100)).await;
             }
             assert!(exec_trigger.is_some());
+            assert_eq!(
+                exec_trigger.unwrap().env,
+                vec![("TRACER_TRACE_ID".to_string(), "foobar".to_string())]
+            );
             assert!(exit_trigger.is_some());
             assert_eq!(exit_trigger.unwrap().exit_reason.unwrap().code, 1);
         }
