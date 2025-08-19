@@ -1,4 +1,5 @@
 use crate::cli::handlers::demo::arguments::TracerCliDemoArgs;
+use crate::cli::handlers::demo::command_handlers::DemoCommandHandlers;
 use crate::cli::handlers::demo::daemon_execution::{
     run_demo_with_existing_daemon, run_demo_with_new_daemon,
 };
@@ -15,19 +16,13 @@ use anyhow::Result;
 pub async fn demo(args: TracerCliDemoArgs, config: Config, api_client: DaemonClient) -> Result<()> {
     // Handle help-advanced flag
     if args.help_advanced {
-        print_advanced_help();
-        return Ok(());
+        return DemoCommandHandlers::handle_help_advanced();
     }
 
     // Handle list command
     if args.is_list_command() {
-        let repo = TracerPipelinesRepo::new()?;
-        let pipelines = repo.list_pipelines();
-        println!("Available demo pipelines:");
-        for pipeline in pipelines {
-            println!("  {}", pipeline.name());
-        }
-        return Ok(());
+        return DemoCommandHandlers::handle_list_command();
+
     }
 
     // Handle pipeline execution (including default case)

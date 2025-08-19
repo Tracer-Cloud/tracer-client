@@ -1,4 +1,5 @@
 pub mod arguments;
+pub mod command_handlers;
 pub mod daemon_execution;
 pub mod git_repo_pipelines;
 mod handler;

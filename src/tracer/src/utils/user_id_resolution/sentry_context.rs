@@ -111,16 +111,11 @@ impl UserIdSentryReporter {
     }
 
     /// Report successful resolution with strategy used
-    pub fn report_success(&self, strategy: &str, user_id: &str) {
-        let success_context = json!({
-            "resolution_type": "user_id_resolution_success",
-            "strategy": strategy,
-            "user_id": user_id,
-            "resolution_context": self.context,
-            "message": format!("Successfully resolved user_id using strategy: {}", strategy)
-        });
-
-        Sentry::add_context("user_id_resolution_success", success_context);
+    /// Note: This method intentionally does NOT send Sentry alerts for successful user ID resolution
+    /// as success cases should not generate monitoring alerts
+    pub fn report_success(&self, _strategy: &str, _user_id: &str) {
+        // Intentionally empty - we don't want to send Sentry alerts for successful user ID resolution
+        // Success is the expected behavior and should not generate monitoring noise
     }
 
     /// Report when home directory cannot be found

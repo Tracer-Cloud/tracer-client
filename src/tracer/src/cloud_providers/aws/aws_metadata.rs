@@ -1,3 +1,4 @@
+use crate::utils::Sentry;
 use ec2_instance_metadata::InstanceMetadata;
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
@@ -34,7 +35,9 @@ pub async fn get_aws_instance_metadata() -> Option<AwsInstanceMetaData> {
     match client.get() {
         Ok(metadata) => Some(metadata.into()),
         Err(err) => {
-            println!("error getting metadata: {err}");
+            let msg = format!("error getting metadata: {err}");
+            Sentry::capture_message(&msg, sentry::Level::Error);
+            println!("{}", msg);
             None
         }
     }
