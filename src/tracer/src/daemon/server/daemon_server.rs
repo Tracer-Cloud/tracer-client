@@ -26,10 +26,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::info;
 
 /// Get database client based on dev/prod configuration
-pub async fn get_db_client(
-    init_args: &FinalizedInitArgs,
-    config: &Config,
-) -> LogWriterEnum {
+pub async fn get_db_client(init_args: &FinalizedInitArgs, config: &Config) -> LogWriterEnum {
     // if we pass --is-dev=false, we use the prod endpoint
     // if we don't pass any value, we use the prod endpoint
     // if we pass --is-dev=true, we use the dev endpoint
