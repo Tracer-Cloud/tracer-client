@@ -128,12 +128,6 @@ static __always_inline int store_env_val(struct event *e, int idx, char *str, in
 /*                    2.  Variant‑specific payload helpers                    */
 /* -------------------------------------------------------------------------- */
 
-struct env_pos
-{
-  unsigned long start;
-  unsigned long end;
-};
-
 // Process launched successfully
 static __always_inline void
 fill_sched_process_exec(struct event *e,
@@ -169,7 +163,11 @@ fill_sched_process_exec(struct event *e,
 
   // TODO: try this if env values are still getting corrupted:
   // Read env_start and env_end atomically to ensure consistency
-  // struct env_pos env = {};
+  // struct env
+  // {
+  //  unsigned long start;
+  //  unsigned long end;
+  // };
   // // CO-RE relocate the offset of env_start within mm_struct.
   // long off = bpf_core_field_offset(struct mm_struct, env_start);
   // if (off < 0)
