@@ -51,13 +51,13 @@ impl EventDispatcher {
     }
 
     pub async fn log_new_run(&self, trace_id: &str) -> anyhow::Result<()> {
-        let mut run = self.run.clone();
-        run.trace_id = Some(trace_id.to_string());
         self.log_event(
-            &run,
+            &self.run,
             ProcessStatus::NewRun,
             format!("[CLI] Starting new pipeline run for trace_id {}", trace_id),
-            None,
+            Some(EventAttributes::NewRun {
+                trace_id: trace_id.to_string(),
+            }),
             None,
         )
         .await
@@ -79,6 +79,7 @@ impl EventDispatcher {
             .pipeline_name(Some(pipeline.name.clone()))
             .run_name(Some(run.name.clone()))
             .run_id(Some(run.id.clone()))
+            .span_id(Some(run.id.clone()))
             .tags(Some(pipeline.tags.clone()))
             .attributes(attributes)
             .trace_id(run.trace_id.clone())

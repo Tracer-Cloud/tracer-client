@@ -32,6 +32,9 @@ pub fn flatten_event_attributes(event: &Event) -> Result<Value> {
 
         EventAttributes::ContainerEvents(p) => ("containers", serde_json::to_value(p)?),
         EventAttributes::TaskMatch(p) => ("task_match", serde_json::to_value(p)?),
+        EventAttributes::NewRun { trace_id } => {
+            ("new_run", serde_json::json!({ "trace_id": trace_id }))
+        }
     };
 
     flatten_with_prefix(prefix, &json, &mut map);

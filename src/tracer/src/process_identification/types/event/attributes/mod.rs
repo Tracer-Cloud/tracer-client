@@ -20,4 +20,5 @@ pub enum EventAttributes {
     ProcessDatasetStats(DataSetsProcessed),
     ContainerEvents(ContainerProperties),
     TaskMatch(TaskMatch),
+    NewRun { trace_id: String },
 }

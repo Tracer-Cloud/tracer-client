@@ -4,7 +4,8 @@ use crate::{
 use chrono::{DateTime, Utc};
 
 #[derive(Clone)]
-pub struct RunMetadata {
+pub struct
+RunMetadata {
     pub name: String,
     pub id: String,
     pub start_time: DateTime<Utc>,

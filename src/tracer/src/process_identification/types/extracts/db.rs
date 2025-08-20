@@ -92,6 +92,9 @@ impl TryFrom<Event> for EventInsert {
                     processed_dataset = Some(d.total as i32);
                     trace_id = d.trace_id.clone();
                 }
+                EventAttributes::NewRun { trace_id: t } => {
+                    trace_id = Some(t.clone());
+                }
                 _ => {}
             }
 
