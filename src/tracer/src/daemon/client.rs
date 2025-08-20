@@ -9,6 +9,7 @@ use crate::daemon::handlers::update_run_name::{
 };
 use crate::daemon::server::DaemonServer;
 use crate::error_message;
+use crate::utils::telemetry::presets;
 use colored::Colorize;
 use reqwest::Response;
 pub struct DaemonClient {
@@ -80,8 +81,8 @@ impl DaemonClient {
             Method::Get => self.client.get(self.get_url(endpoint)).send().await,
             Method::Post => self.client.post(self.get_url(endpoint)).send().await,
         };
-        match self.unpack_response(response) {
-            Some(response) => self.extract_json(response).await,
+        match self.unpack_response(response, endpoint) {
+            Some(response) => self.extract_json(response, endpoint).await,
             None => {
                 error_message!("Failed to send request to {}", endpoint);
                 Err("Failed to send request")
@@ -115,8 +116,8 @@ impl DaemonClient {
                     .await
             }
         };
-        match self.unpack_response(response) {
-            Some(response) => self.extract_json(response).await,
+        match self.unpack_response(response, endpoint) {
+            Some(response) => self.extract_json(response, endpoint).await,
             None => {
                 error_message!("Failed to send request to {}", endpoint);
                 Err("Failed to send request")
@@ -126,20 +127,61 @@ impl DaemonClient {
     async fn extract_json<T: serde::de::DeserializeOwned>(
         &self,
         response: Response,
+        endpoint: &str,
     ) -> Result<T, &str> {
+        let status = response.status();
         match response.json::<T>().await {
             Ok(json) => Ok(json),
             Err(e) => {
-                error_message!("Failed to parse JSON response: {}", e);
+                let error_msg = format!("Failed to parse JSON response: {}", e);
+
+                // Report JSON parsing failures to Sentry with full context
+                presets::report_json_parse_failure(
+                    "daemon_client",
+                    endpoint,
+                    status.as_u16(),
+                    &e,
+                    &error_msg,
+                );
+
+                error_message!("{}", error_msg);
                 Err("Failed to parse JSON response")
             }
         }
     }
-    fn unpack_response(&self, response: reqwest::Result<Response>) -> Option<Response> {
+    fn unpack_response(
+        &self,
+        response: reqwest::Result<Response>,
+        endpoint: &str,
+    ) -> Option<Response> {
         match response {
-            Ok(resp) => Some(resp),
+            Ok(resp) => {
+                // Check if response status is not 2XX
+                if !resp.status().is_success() {
+                    let status = resp.status();
+                    let error_msg = format!("Daemon request failed with status: {}", status);
+
+                    // Report non-2XX responses to Sentry with full context
+                    presets::report_http_error(
+                        "daemon_client",
+                        endpoint,
+                        status.as_u16(),
+                        status.canonical_reason(),
+                        None, // No response body available here
+                        &error_msg,
+                    );
+
+                    error_message!("{}", error_msg);
+                }
+                Some(resp)
+            }
             Err(e) => {
-                error_message!("Request to the daemon failed: {}", e);
+                let error_msg = format!("Request to the daemon failed: {}", e);
+
+                // Report network failures to Sentry with full context
+                presets::report_network_failure("daemon_client", endpoint, &e, &error_msg);
+
+                error_message!("{}", error_msg);
                 error_message!("Daemon may be unresponsive, please run `tracer cleanup-port` to resolve the issue.");
                 None
             }
