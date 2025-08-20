@@ -3,10 +3,10 @@ use crate::extracts::process::extract_process_data::get_process_argv;
 use crate::extracts::process::process_manager::ProcessManager;
 use crate::extracts::process_watcher::handler::trigger::trigger_processor::TriggerProcessor;
 use crate::process_identification::recorder::EventDispatcher;
+use crate::utils::workdir::TRACER_WORK_DIR;
 use anyhow::{Error, Result};
 use std::collections::{HashMap, HashSet};
 use std::fs::{self};
-use std::path::Path;
 use std::sync::Arc;
 use sysinfo::ProcessesToUpdate;
 use tokio::sync::{mpsc, Mutex, RwLock};
@@ -230,7 +230,7 @@ impl ProcessWatcher {
         debug!("ProcessWatcher: processing {} triggers", triggers.len());
 
         // Create the directory if it doesn't exist
-        let log_dir = Path::new("/tmp/tracer");
+        let log_dir = &TRACER_WORK_DIR.path;
         if !log_dir.exists() {
             if let Err(e) = fs::create_dir_all(log_dir) {
                 error!("Failed to create log directory: {}", e);
