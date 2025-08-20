@@ -1,6 +1,6 @@
-# Ignore all folders
+
+# Ignore all subdirectories
 */
 
-# But do not ignore files in the root directory
-!*/
-!.*
+# Keep all files in the root directory
+!*
