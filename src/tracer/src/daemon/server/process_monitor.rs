@@ -43,7 +43,8 @@ where
                             // Work completed within 50 seconds
                         }
                         Err(_) => {
-                            panic!("Thread took too long to complete, shutting down daemon");
+                            error!("Thread took too long to complete, shutting down daemon");
+                            break;
                         }
                     }
                 }

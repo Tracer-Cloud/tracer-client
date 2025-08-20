@@ -79,10 +79,14 @@ async fn create_listener(server_url: String) -> TcpListener {
     match TcpListener::bind(addr).await {
         Ok(listener) => listener,
         Err(e) if e.kind() == io::ErrorKind::AddrInUse => {
-            panic!("Failed to start Tracer daemon: Port {} is still in use.\n\nPlease run 'tracer cleanup-port' to resolve the port conflict before starting the daemon.",
-                   addr.port())
+            eprintln!("Failed to start Tracer daemon: Port {} is still in use.", addr.port());
+            eprintln!("Please run 'tracer cleanup-port' to resolve the port conflict before starting the daemon.");
+            std::process::exit(1);
         }
-        Err(e) => panic!("Failed to bind to address {}: {}", addr, e),
+        Err(e) => {
+            eprintln!("Failed to bind to address {}: {}", addr, e);
+            std::process::exit(1);
+        }
     }
 }
 

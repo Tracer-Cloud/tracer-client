@@ -71,11 +71,11 @@ impl DaemonClient {
 
     // API methods
     pub async fn send_start_request(&self) -> Result<Option<PipelineMetadata>> {
-        self.request(START_ENDPOINT, Option::<()>::None).await
+        self.request(START_ENDPOINT, Some(())).await
     }
 
     pub async fn send_stop_request(&self) -> Result<bool> {
-        self.request(STOP_ENDPOINT, Option::<()>::None).await
+        self.request(STOP_ENDPOINT, Some(())).await
     }
 
     pub async fn send_terminate_request(&self) -> Result<String> {
