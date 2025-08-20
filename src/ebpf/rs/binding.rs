@@ -174,6 +174,7 @@ mod linux {
         use crate::ebpf_trigger::{ProcessEndTrigger, ProcessStartTrigger, Trigger};
         use std::process::Command;
         use std::time::Duration;
+        use tempfile::TempDir;
         use tokio::sync::mpsc;
         use tokio::time;
 
@@ -189,10 +190,17 @@ mod linux {
             // wait for eBPF to start up
             time::sleep(Duration::from_secs(1)).await;
 
+            let tempdir = TempDir::new().unwrap();
+            let script = tempdir.path().join("test.sh");
+            std::fs::write(
+                &script,
+                "TRACER_TRACE_ID=foobar cat file1 file2 || exit 1\n",
+            )
+            .unwrap();
+
             // run a process that exits with an error
             let status = Command::new("bash")
-                .arg("-c")
-                .arg("sleep 2; exit 1")
+                .arg(format!("{}", script.display()))
                 .status()
                 .unwrap();
             assert!(!status.success());
@@ -205,7 +213,7 @@ mod linux {
             loop {
                 match tokio::time::timeout(std::time::Duration::from_secs(1), rx.recv()).await {
                     Ok(Some(event)) => match event {
-                        Trigger::ProcessStart(trigger) if trigger.comm == "bash" => {
+                        Trigger::ProcessStart(trigger) if trigger.comm == "cat" => {
                             exec_trigger = Some(trigger)
                         }
                         Trigger::ProcessEnd(trigger)
@@ -215,21 +223,29 @@ mod linux {
                                 .unwrap_or(false) =>
                         {
                             exit_trigger = Some(trigger);
-                            break;
                         }
                         _ => {}
                     },
                     Ok(None) => break,
                     _ => (),
                 }
+                if exec_trigger.is_some() && exit_trigger.is_some() {
+                    break;
+                }
                 tries += 1;
                 if tries > MAX_TRIES {
                     break;
                 }
+                time::sleep(Duration::from_millis(100)).await;
             }
+
             assert!(exec_trigger.is_some());
             assert!(exit_trigger.is_some());
             assert_eq!(exit_trigger.unwrap().exit_reason.unwrap().code, 1);
+            assert_eq!(
+                exec_trigger.unwrap().env,
+                vec![("TRACER_TRACE_ID".to_string(), "foobar".to_string())]
+            );
         }
 
         fn is_root_user() -> bool {

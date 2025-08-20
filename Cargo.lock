@@ -4808,6 +4808,7 @@ dependencies = [
  "enquote",
  "serde",
  "shlex",
+ "tempfile",
  "tokio",
 ]
 

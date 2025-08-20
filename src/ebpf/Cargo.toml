@@ -19,5 +19,8 @@ serde.workspace = true
 shlex.workspace = true
 tokio.workspace = true
 
+[dev-dependencies]
+tempfile.workspace = true
+
 [build-dependencies]
 anyhow.workspace = true

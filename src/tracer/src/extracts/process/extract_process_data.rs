@@ -105,6 +105,7 @@ pub async fn gather_process_data<P: ProcessTrait>(
     // get the process environment variables
     let (container_id, job_id, proc_trace_id) = get_process_environment_variables(proc);
 
+    // resolve trace_id - prefer the eBPF value if we have it, warn if the values differ
     let trace_id = match (bpf_trace_id, proc_trace_id) {
         (Some(bpf_trace_id), Some(proc_trace_id)) if bpf_trace_id == proc_trace_id => {
             Some(bpf_trace_id)
@@ -171,6 +172,12 @@ pub fn create_short_lived_process_object(
     process: &ProcessStartTrigger,
     display_name: String,
 ) -> ProcessProperties {
+    let trace_id = process
+        .env
+        .iter()
+        .find(|(k, _)| k == env::TRACE_ID_ENV_VAR)
+        .map(|(_, v)| v.to_owned());
+
     ProcessProperties::Full(Box::new(FullProcessProperties {
         tool_name: display_name,
         tool_pid: process.pid.to_string(),
@@ -191,7 +198,7 @@ pub fn create_short_lived_process_object(
         container_id: None,
         job_id: None,
         working_directory: None,
-        trace_id: None,
+        trace_id,
         container_event: None,
         tool_id: construct_tool_id(&process.pid.to_string(), process.started_at),
     }))
