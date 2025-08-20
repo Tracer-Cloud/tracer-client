@@ -3,18 +3,62 @@ use std::io;
 use tokio::net::TcpListener;
 
 use crate::cli::handlers::init_arguments::FinalizedInitArgs;
+use crate::client::exporters::event_forward::EventForward;
+use crate::client::exporters::event_writer::LogWriterEnum;
 use crate::config::Config;
-use crate::daemon::routes::ROUTES;
+use crate::daemon::handlers::get_user_id::{get_user_id, GET_USER_ID_ENDPOINT};
+use crate::daemon::handlers::info::{info, INFO_ENDPOINT};
+use crate::daemon::handlers::start::{start, START_ENDPOINT};
+use crate::daemon::handlers::stop::{stop, STOP_ENDPOINT};
+use crate::daemon::handlers::terminate::{terminate, TERMINATE_ENDPOINT};
+use crate::daemon::handlers::update_run_name::{update_run_name, UPDATE_RUN_NAME_ENDPOINT};
 use crate::daemon::state::DaemonState;
 use crate::process_identification::constants::DEFAULT_DAEMON_PORT;
 use crate::utils::analytics;
 use crate::utils::analytics::types::AnalyticsEventType;
 use crate::utils::workdir::TRACER_WORK_DIR;
+use axum::routing::{get, post, MethodRouter};
 use axum::Router;
 use std::net::SocketAddr;
+use std::sync::LazyLock;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
+
+/// Get database client based on dev/prod configuration
+pub async fn get_db_client(init_args: &FinalizedInitArgs, config: &Config) -> LogWriterEnum {
+    // if we pass --is-dev=false, we use the prod endpoint
+    // if we don't pass any value, we use the prod endpoint
+    // if we pass --is-dev=true, we use the dev endpoint
+    // dev endpoint points to clickhouse, prod endpoint points to postgres
+    let event_forward_endpoint = if init_args.dev {
+        println!(
+            "Using dev endpoint: {}",
+            &config.event_forward_endpoint_dev.as_ref().unwrap()
+        );
+        &config.event_forward_endpoint_dev.as_ref().unwrap()
+    } else {
+        println!(
+            "Using prod endpoint: {}",
+            &config.event_forward_endpoint_prod.as_ref().unwrap()
+        );
+        &config.event_forward_endpoint_prod.as_ref().unwrap()
+    };
+
+    LogWriterEnum::Forward(EventForward::try_new(event_forward_endpoint).await.unwrap())
+}
+
+// Route definitions consolidated from routes.rs
+static ROUTES: LazyLock<Vec<(&'static str, MethodRouter<DaemonState>)>> = LazyLock::new(|| {
+    vec![
+        (TERMINATE_ENDPOINT, post(terminate)),
+        (START_ENDPOINT, post(start)),
+        (STOP_ENDPOINT, post(stop)),
+        (INFO_ENDPOINT, get(info)),
+        (UPDATE_RUN_NAME_ENDPOINT, post(update_run_name)),
+        (GET_USER_ID_ENDPOINT, get(get_user_id)),
+    ]
+});
 
 pub struct DaemonServer {
     server: Option<JoinHandle<io::Result<()>>>,
