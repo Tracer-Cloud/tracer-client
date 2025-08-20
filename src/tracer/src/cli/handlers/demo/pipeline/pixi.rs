@@ -14,7 +14,8 @@ pub fn install_pixi() -> Result<PathBuf> {
     }
 
     // Ensure the tracer work directory exists
-    TRACER_WORK_DIR.init()
+    TRACER_WORK_DIR
+        .init()
         .map_err(|e| anyhow::anyhow!("Failed to create tracer work directory: {}", e))?;
 
     let install_cmd = "curl -fsSL https://pixi.sh/install.sh | bash";

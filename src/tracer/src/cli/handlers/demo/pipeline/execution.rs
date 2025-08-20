@@ -86,7 +86,11 @@ fn run_pixi_task(manifest: PathBuf, task: String) -> Result<()> {
         }
     };
 
-    info_message!("Running pixi task '{}' with manifest: {}", task, manifest.display());
+    info_message!(
+        "Running pixi task '{}' with manifest: {}",
+        task,
+        manifest.display()
+    );
     exec(
         Command::new(pixi_path)
             .arg("run")
