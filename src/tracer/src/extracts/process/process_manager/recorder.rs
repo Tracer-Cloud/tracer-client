@@ -14,8 +14,7 @@ use std::sync::Arc;
 use sysinfo::Process;
 use tokio::sync::RwLock;
 use tracer_ebpf::ebpf_trigger::{ProcessEndTrigger, ProcessStartTrigger};
-use tracing::debug;
-use tracing::error;
+use tracing::{debug, error, info};
 
 /// Handles recording of process-related events
 pub struct EventRecorder {
@@ -86,6 +85,7 @@ impl EventRecorder {
         if let Some(trace_id) = &full.trace_id {
             let mut logged_trace_ids = self.logged_trace_ids.write().await;
             if !logged_trace_ids.contains(trace_id) {
+                info!("Detected new trace ID: {}", trace_id);
                 logged_trace_ids.insert(trace_id.clone());
                 self.event_dispatcher.log_new_run(trace_id).await?;
             }
