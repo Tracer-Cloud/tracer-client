@@ -77,9 +77,7 @@ impl ProcessManager {
 
         // Use async runtime to call the terminate API
         let rt = tokio::runtime::Runtime::new()?;
-        rt.block_on(async {
-            api_client.send_terminate_request().await
-        })?;
+        rt.block_on(async { api_client.send_terminate_request().await })?;
 
         Ok(())
     }
