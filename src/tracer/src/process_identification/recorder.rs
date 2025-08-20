@@ -52,7 +52,7 @@ impl EventDispatcher {
         self.log_event(
             &run,
             ProcessStatus::NewRun,
-            format!("[CLI] Starting new pipeline run for trace_id {}", trace_id),,
+            format!("[CLI] Starting new pipeline run for trace_id {}", trace_id),
             None,
             None,
         )

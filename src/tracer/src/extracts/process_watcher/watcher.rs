@@ -77,7 +77,6 @@ impl ProcessWatcher {
 
                 // Check for new processes (started)
                 for (pid, process) in system.processes() {
-                    
                     let pid_u32 = pid.as_u32();
                     current_processes.insert(pid_u32);
 
