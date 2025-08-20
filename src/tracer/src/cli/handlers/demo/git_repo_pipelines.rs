@@ -26,17 +26,39 @@ pub struct TracerPipelinesRepo {
 
 impl TracerPipelinesRepo {
     pub fn new() -> Result<Self> {
-        if let Ok(repo) = Repository::discover(get_tracer_pipelines_repo_path()) {
+        let repo_path = get_tracer_pipelines_repo_path();
+
+        // Try to discover existing repository
+        if let Ok(repo) = Repository::discover(&repo_path) {
             let pipelines_repo = TracerPipelinesRepo { repo };
-            pipelines_repo.fetch()?;
-            Ok(pipelines_repo)
-        } else {
-            let repo =
-                Repository::clone(TRACER_PIPELINES_REPO_URL, get_tracer_pipelines_repo_path())?;
-            let pipelines_repo = TracerPipelinesRepo { repo };
-            pipelines_repo.checkout()?;
-            Ok(pipelines_repo)
+            match pipelines_repo.fetch() {
+                Ok(_) => return Ok(pipelines_repo),
+                Err(e) => {
+                    tracing::warn!("Failed to fetch existing repository: {}, will re-clone", e);
+                    // Fall through to cleanup and re-clone
+                }
+            }
         }
+
+        // Clean up existing directory if it exists and is problematic
+        if repo_path.exists() {
+            tracing::info!("Cleaning up existing repository directory: {}", repo_path.display());
+            std::fs::remove_dir_all(&repo_path)
+                .map_err(|e| anyhow::anyhow!("Failed to remove existing directory: {}", e))?;
+        }
+
+        // Ensure parent directory exists
+        if let Some(parent) = repo_path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| anyhow::anyhow!("Failed to create parent directory: {}", e))?;
+        }
+
+        // Clone fresh repository
+        tracing::info!("Cloning repository to: {}", repo_path.display());
+        let repo = Repository::clone(TRACER_PIPELINES_REPO_URL, &repo_path)?;
+        let pipelines_repo = TracerPipelinesRepo { repo };
+        pipelines_repo.checkout()?;
+        Ok(pipelines_repo)
     }
 
     fn fetch(&self) -> Result<()> {
