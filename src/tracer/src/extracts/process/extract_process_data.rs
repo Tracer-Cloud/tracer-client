@@ -97,6 +97,7 @@ pub async fn gather_process_data<P: ProcessTrait>(
     // might also be able to get it from the proc file system - prefer the eBPF value if we have it
     // warn if the values differ
 
+    // TODO: filter trace id by the expected format (a UUID)
     let bpf_trace_id = process_env
         .iter()
         .find(|(k, _)| k == env::TRACE_ID_ENV_VAR)
@@ -105,10 +106,11 @@ pub async fn gather_process_data<P: ProcessTrait>(
     // get the process environment variables
     let (container_id, job_id, proc_trace_id) = get_process_environment_variables(proc);
 
-    // resolve trace_id - prefer the eBPF value if we have it, warn if the values differ
+    // resolve trace_id - prefer the proc value if we have it as sometimes the eBPF value
+    // gets corrupted, warn if the values differ
     let trace_id = match (bpf_trace_id, proc_trace_id) {
         (Some(bpf_trace_id), Some(proc_trace_id)) if bpf_trace_id == proc_trace_id => {
-            Some(bpf_trace_id)
+            Some(proc_trace_id)
         }
         (Some(bpf_trace_id), Some(proc_trace_id))
             if !bpf_trace_id.trim().is_empty() && proc_trace_id.trim().is_empty() =>
@@ -119,7 +121,7 @@ pub async fn gather_process_data<P: ProcessTrait>(
                 bpf_trace_id,
                 proc_trace_id
             );
-            Some(bpf_trace_id)
+            Some(proc_trace_id)
         }
         (_, Some(proc_trace_id)) => Some(proc_trace_id),
         (Some(bpf_trace_id), _) => Some(bpf_trace_id),
