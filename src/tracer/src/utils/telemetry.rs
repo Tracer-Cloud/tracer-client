@@ -145,14 +145,16 @@ impl TelemetryContext {
 fn detect_environment_sync() -> String {
     use crate::utils::env::*;
     use std::fs;
-    use std::path::Path;
 
     // Check for Docker
     #[cfg(target_os = "linux")]
-    let is_docker = Path::new("/.dockerenv").exists()
-        || fs::read_to_string("/proc/1/cgroup")
-            .map(|content| content.contains("docker") || content.contains("containerd"))
-            .unwrap_or(false);
+    let is_docker = {
+        use std::path::Path;
+        Path::new("/.dockerenv").exists()
+            || fs::read_to_string("/proc/1/cgroup")
+                .map(|content| content.contains("docker") || content.contains("containerd"))
+                .unwrap_or(false)
+    };
 
     #[cfg(not(target_os = "linux"))]
     let is_docker = false; // Docker detection not implemented for non-Linux platforms
