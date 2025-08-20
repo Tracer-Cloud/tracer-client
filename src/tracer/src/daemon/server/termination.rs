@@ -13,7 +13,10 @@ pub struct TerminationConfig {
 
 impl Default for TerminationConfig {
     fn default() -> Self {
-        Self { graceful_wait_ms: 500, shutdown_timeout_secs: 5 }
+        Self {
+            graceful_wait_ms: 500,
+            shutdown_timeout_secs: 5,
+        }
     }
 }
 
@@ -50,9 +53,12 @@ pub async fn terminate_server(
 }
 
 /// Shutdown server handle with timeout
-async fn shutdown_handle(handle: JoinHandle<std::io::Result<()>>, timeout_secs: u64) -> TerminationResult {
+async fn shutdown_handle(
+    handle: JoinHandle<std::io::Result<()>>,
+    timeout_secs: u64,
+) -> TerminationResult {
     handle.abort();
-    
+
     match tokio::time::timeout(Duration::from_secs(timeout_secs), handle).await {
         Ok(Ok(_)) => TerminationResult::Success,
         Ok(Err(e)) if e.is_cancelled() => TerminationResult::Success,
@@ -88,10 +94,12 @@ mod tests {
     async fn test_terminate_server_not_running() {
         let cleanup_called = Arc::new(AtomicBool::new(false));
         let cleanup_called_clone = cleanup_called.clone();
-        
+
         let result = terminate_server(None, TerminationConfig::default(), move || {
             cleanup_called_clone.store(true, Ordering::SeqCst);
-        }).await.unwrap();
+        })
+        .await
+        .unwrap();
 
         assert_eq!(result, TerminationResult::NotRunning);
         assert!(cleanup_called.load(Ordering::SeqCst));
@@ -101,16 +109,21 @@ mod tests {
     async fn test_terminate_server_with_handle() {
         let cleanup_called = Arc::new(AtomicBool::new(false));
         let cleanup_called_clone = cleanup_called.clone();
-        
+
         let handle = tokio::spawn(async {
             tokio::time::sleep(Duration::from_millis(10)).await;
             Ok(())
         });
 
-        let config = TerminationConfig { graceful_wait_ms: 10, shutdown_timeout_secs: 1 };
+        let config = TerminationConfig {
+            graceful_wait_ms: 10,
+            shutdown_timeout_secs: 1,
+        };
         let result = terminate_server(Some(handle), config, move || {
             cleanup_called_clone.store(true, Ordering::SeqCst);
-        }).await.unwrap();
+        })
+        .await
+        .unwrap();
 
         assert_eq!(result, TerminationResult::Success);
         assert!(cleanup_called.load(Ordering::SeqCst));

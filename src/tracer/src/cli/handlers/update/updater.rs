@@ -1,9 +1,7 @@
 use crate::utils::Sentry;
-use crate::{error_message, info_message, success_message, warning_message};
+use crate::{error_message, info_message, success_message};
 use anyhow::{Context, Result};
 use colored::Colorize;
-
-use super::process_manager::ProcessManager;
 
 /// Main entry point for the tracer update command
 pub fn update() {
@@ -17,47 +15,25 @@ pub fn update() {
     }
 }
 
-/// Core update implementation with proper error handling
+/// Core update implementation - delegate everything to tracer-installer
 fn update_impl() -> Result<()> {
-    info_message!("Starting Tracer update process...");
+    info_message!("🚀 Starting Tracer update process...");
+    info_message!("📋 Delegating to tracer-installer for complete update management...");
+    info_message!("💡 The installer will handle process termination, cleanup, and installation");
 
-    let process_manager = ProcessManager::new();
-
-    // Step 1: Stop any running tracer processes
-    process_manager.stop_tracer_processes()?;
-
-    // Step 2: Clean up any leftover resources
-    cleanup_daemon_resources()?;
-
-    // Step 3: Run the installer script directly (it handles everything)
+    // Let tracer-installer handle everything:
+    // - Process termination (including this update process)
+    // - Daemon cleanup
+    // - Binary download and replacement
+    // - All error handling and recovery
     run_installer_script()?;
 
-    info_message!("Update completed successfully");
+    // Note: This line may never be reached if installer terminates this process
+    info_message!("🎉 Update completed successfully - tracer is now up to date!");
     Ok(())
 }
 
-/// Clean up daemon resources after stopping processes
-fn cleanup_daemon_resources() -> Result<()> {
-    use crate::daemon::server::DaemonServer;
-    use crate::utils::workdir::TRACER_WORK_DIR;
-
-    info_message!("Cleaning up daemon resources...");
-
-    // Clean up daemon work directory files
-    DaemonServer::cleanup();
-
-    // Additional cleanup - remove any stale PID files
-    if TRACER_WORK_DIR.pid_file.exists() {
-        if let Err(e) = std::fs::remove_file(&TRACER_WORK_DIR.pid_file) {
-            warning_message!("Failed to remove PID file: {}", e);
-        }
-    }
-
-    // Give the system a moment to clean up
-    std::thread::sleep(std::time::Duration::from_millis(500));
-
-    Ok(())
-}
+// Cleanup function removed - tracer-installer handles all cleanup
 
 /// Run the tracer installer script directly
 fn run_installer_script() -> Result<()> {

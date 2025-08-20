@@ -22,7 +22,8 @@ pub fn install_pixi() -> Result<PathBuf> {
     let status = Command::new("sh")
         .arg("-c")
         .arg(install_cmd)
-        .env("PIXI_HOME", &pixi_dir)
+        // Install pixi to our local directory --> I believe it is causing issues so commenting out
+        // .env("PIXI_HOME", &pixi_dir)
         .env("PIXI_NO_PATH_UPDATE", "1")
         .status();
 
