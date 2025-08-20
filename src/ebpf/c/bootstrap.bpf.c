@@ -196,7 +196,6 @@ fill_sched_process_exec(struct event *e,
       break;
     if (scanned_bytes >= MAX_SCAN_BYTES)
       break;
-    const int MAX_ENV_STR_LEN = KEY_MAX_LEN + VAL_MAX_LEN;
     // Prevent buffer overrun at end of env block
     if (p + MAX_ENV_STR_LEN > env_end)
       break;
