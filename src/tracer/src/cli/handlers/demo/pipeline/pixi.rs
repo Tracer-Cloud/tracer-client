@@ -77,7 +77,11 @@ mod tests {
         let pixi_path = result.unwrap();
 
         // Verify that the returned path exists and is executable
-        assert!(pixi_path.exists(), "Pixi binary should exist at: {}", pixi_path.display());
+        assert!(
+            pixi_path.exists(),
+            "Pixi binary should exist at: {}",
+            pixi_path.display()
+        );
         assert!(pixi_path.is_file(), "Pixi path should be a file");
 
         // Verify it's one of the expected paths
@@ -99,12 +103,18 @@ mod tests {
 
         // First path should be in tracer work directory
         let tracer_path = &paths[0];
-        assert!(tracer_path.to_string_lossy().contains(".tracer"),
-                "First path should be in tracer work directory: {}", tracer_path.display());
+        assert!(
+            tracer_path.to_string_lossy().contains(".tracer"),
+            "First path should be in tracer work directory: {}",
+            tracer_path.display()
+        );
 
         // Should contain home directory path if HOME is set
         if std::env::var("HOME").is_ok() {
-            assert!(paths.len() >= 2, "Should have home directory path when HOME is set");
+            assert!(
+                paths.len() >= 2,
+                "Should have home directory path when HOME is set"
+            );
         }
     }
 }
