@@ -79,7 +79,7 @@ impl DaemonClient {
     }
 
     pub async fn send_terminate_request(&self) -> Result<String> {
-        self.request(TERMINATE_ENDPOINT, Option::<()>::None).await
+        self.request(TERMINATE_ENDPOINT, Some(())).await
     }
 
     pub async fn send_info_request(&self) -> Result<PipelineMetadata> {

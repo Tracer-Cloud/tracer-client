@@ -38,7 +38,8 @@ pub(super) async fn wait(api_client: &DaemonClient) -> bool {
                     }
                     #[cfg(not(target_os = "macos"))]
                     {
-                        panic!("Error trying to reach daemon server: {:?}", e);
+                        tracing::error!("Error trying to reach daemon server: {:?}", e);
+                        // Continue retrying instead of panicking
                     }
                 }
             }
