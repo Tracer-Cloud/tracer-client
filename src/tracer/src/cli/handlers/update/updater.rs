@@ -69,11 +69,8 @@ fn download_and_replace_binary() -> Result<()> {
         std::fs::set_permissions(&temp_binary, perms)?;
     }
 
-    // Create backup of current binary
-    let backup_path = format!("{}.backup", current_binary);
-    info_message!("Creating backup at: {}", backup_path);
-    std::fs::copy(&current_binary, &backup_path)
-        .with_context(|| format!("Failed to create backup at {}", backup_path))?;
+    // Skip backup creation to avoid permission issues
+    info_message!("Skipping backup creation to avoid permission issues");
 
     // Replace the binary atomically
     info_message!("Replacing tracer binary...");
@@ -83,10 +80,6 @@ fn download_and_replace_binary() -> Result<()> {
     // Clean up
     std::fs::remove_dir_all(&temp_dir)
         .with_context(|| format!("Failed to clean up temp directory: {}", temp_dir.display()))?;
-
-    // Remove backup on success
-    std::fs::remove_file(&backup_path)
-        .with_context(|| format!("Failed to remove backup file: {}", backup_path))?;
 
     info_message!("Binary replacement completed successfully");
     Ok(())

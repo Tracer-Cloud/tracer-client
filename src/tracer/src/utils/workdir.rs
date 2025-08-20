@@ -20,8 +20,11 @@ const OTEL_STDOUT_FILE: &str = "otelcol.out";
 const OTEL_STDERR_FILE: &str = "otelcol.err";
 
 pub static TRACER_WORK_DIR: LazyLock<TracerWorkDir> = LazyLock::new(|| {
-    let tmpdir = PathBuf::from("/tmp");
-    let path = tmpdir.join("tracer");
+    // Use user's home directory instead of /tmp to avoid conflicts
+    let base_dir = std::env::var("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("/tmp"));
+    let path = base_dir.join(".tracer");
     TracerWorkDir {
         pid_file: path.join(PID_FILE),
         stdout_file: path.join(STDOUT_FILE),
@@ -35,7 +38,7 @@ pub static TRACER_WORK_DIR: LazyLock<TracerWorkDir> = LazyLock::new(|| {
         otel_stdout_file: path.join(OTEL_STDOUT_FILE),
         otel_stderr_file: path.join(OTEL_STDERR_FILE),
         path,
-        canonical_path: tmpdir.canonicalize().map(|path| path.join("tracer")),
+        canonical_path: base_dir.canonicalize().map(|path| path.join(".tracer")),
     }
 });
 
@@ -150,4 +153,38 @@ fn ensure_dir_with_permissions(path: &Path) -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_tracer_work_dir_uses_home_directory() {
+        let work_dir = &TRACER_WORK_DIR;
+
+        // Check that the work directory is not in /tmp
+        assert!(!work_dir.path.starts_with("/tmp"));
+
+        // Check that it uses .tracer in the home directory (or fallback to /tmp if no HOME)
+        if let Ok(home) = std::env::var("HOME") {
+            let expected_path = PathBuf::from(home).join(".tracer");
+            assert_eq!(work_dir.path, expected_path);
+        } else {
+            // Fallback case - should be /tmp/.tracer
+            assert_eq!(work_dir.path, PathBuf::from("/tmp/.tracer"));
+        }
+    }
+
+    #[test]
+    fn test_tracer_work_dir_canonical_path() {
+        let work_dir = &TRACER_WORK_DIR;
+
+        // The canonical path should be resolvable
+        assert!(work_dir.canonical_path.is_ok());
+
+        if let Ok(canonical) = &work_dir.canonical_path {
+            assert!(canonical.ends_with(".tracer"));
+        }
+    }
 }
