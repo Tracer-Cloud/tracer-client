@@ -18,7 +18,8 @@ pub mod presets {
 
     /// Report network failure errors
     pub fn report_network_failure<E>(component: &str, endpoint: &str, error: &E, message: &str)
-    where E: std::fmt::Display + std::fmt::Debug
+    where
+        E: std::fmt::Display + std::fmt::Debug,
     {
         ErrorReporter::new(component)
             .network_error(endpoint, error)
@@ -32,7 +33,7 @@ pub mod presets {
         status_code: u16,
         _status_text: Option<&str>,
         response_body: Option<&str>,
-        message: &str
+        message: &str,
     ) {
         ErrorReporter::new(component)
             .http_error(endpoint, status_code, response_body)
@@ -45,8 +46,9 @@ pub mod presets {
         endpoint: &str,
         status_code: u16,
         error: &E,
-        message: &str
-    ) where E: std::fmt::Display + std::fmt::Debug
+        message: &str,
+    ) where
+        E: std::fmt::Display + std::fmt::Debug,
     {
         ErrorReporter::new(component)
             .json_error(endpoint, status_code, error)
@@ -58,8 +60,9 @@ pub mod presets {
         component: &str,
         error: &E,
         event_count: Option<usize>,
-        message: &str
-    ) where E: std::fmt::Display + std::fmt::Debug
+        message: &str,
+    ) where
+        E: std::fmt::Display + std::fmt::Debug,
     {
         ErrorReporter::new(component)
             .serialization_error("serialization", error, event_count)

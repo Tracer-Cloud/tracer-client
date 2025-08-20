@@ -79,7 +79,12 @@ pub fn detect_environment() -> String {
     #[cfg(target_os = "linux")]
     if let Ok(uuid) = std::fs::read_to_string("/sys/devices/virtual/dmi/id/product_uuid") {
         if uuid.to_lowercase().starts_with("ec2") {
-            return if is_docker { "AWS EC2 (Docker)" } else { "AWS EC2" }.to_string();
+            return if is_docker {
+                "AWS EC2 (Docker)"
+            } else {
+                "AWS EC2"
+            }
+            .to_string();
         }
     }
 

@@ -1,44 +1,106 @@
 use aws_sdk_pricing::types::{Filter as PricingFilters, FilterType as PricingFilterType};
 
+use serde_json::Value;
 use std::collections::HashMap;
 
-#[derive(Debug, serde_query::DeserializeQuery)]
+#[derive(Debug)]
 pub struct PricingData {
-    #[query(".product.attributes.instanceType")]
     pub instance_type: String,
-
-    #[query(".product.attributes.regionCode")]
     pub region_code: String,
-
-    #[query(".product.attributes.vcpu")]
     pub vcpu: String,
-
-    #[query(".product.attributes.memory")]
     pub memory: String,
-
-    #[query(".product.attributes.operatingSystem")]
     pub operating_system: Option<String>,
-
-    #[query(".product.attributes.tenancy")]
     pub tenancy: Option<String>,
-
-    #[query(".product.attributes.capacitystatus")]
     pub capacity_status: Option<String>,
-
-    #[query(".terms.OnDemand")]
     pub on_demand: HashMap<String, serde_json::Value>,
 }
 
-#[derive(Debug, serde_query::DeserializeQuery)]
+impl PricingData {
+    /// Extract PricingData from AWS Pricing API JSON
+    pub fn from_json(value: &Value) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        let product = value
+            .get("product")
+            .and_then(|p| p.get("attributes"))
+            .ok_or("Missing product.attributes")?;
+
+        let instance_type = extract_string_field(product, "instanceType")?;
+        let region_code = extract_string_field(product, "regionCode")?;
+        let vcpu = extract_string_field(product, "vcpu")?;
+        let memory = extract_string_field(product, "memory")?;
+
+        let operating_system = extract_optional_string_field(product, "operatingSystem");
+        let tenancy = extract_optional_string_field(product, "tenancy");
+        let capacity_status = extract_optional_string_field(product, "capacitystatus");
+
+        let on_demand = value
+            .get("terms")
+            .and_then(|t| t.get("OnDemand"))
+            .and_then(|od| od.as_object())
+            .map(|obj| obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+            .unwrap_or_default();
+
+        Ok(PricingData {
+            instance_type,
+            region_code,
+            vcpu,
+            memory,
+            operating_system,
+            tenancy,
+            capacity_status,
+            on_demand,
+        })
+    }
+}
+
+#[derive(Debug)]
 pub struct EbsPricingData {
-    #[query(".product.attributes.regionCode")]
     pub region_code: String,
-
-    #[query(".product.attributes.volumeApiName")]
     pub instance_type: String, // using same field for compatibility
-
-    #[query(".terms.OnDemand")]
     pub on_demand: HashMap<String, serde_json::Value>,
+}
+
+impl EbsPricingData {
+    /// Extract EbsPricingData from AWS Pricing API JSON
+    pub fn from_json(value: &Value) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        let product = value
+            .get("product")
+            .and_then(|p| p.get("attributes"))
+            .ok_or("Missing product.attributes")?;
+
+        let region_code = extract_string_field(product, "regionCode")?;
+        let instance_type = extract_string_field(product, "volumeApiName")?;
+
+        let on_demand = value
+            .get("terms")
+            .and_then(|t| t.get("OnDemand"))
+            .and_then(|od| od.as_object())
+            .map(|obj| obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+            .unwrap_or_default();
+
+        Ok(EbsPricingData {
+            region_code,
+            instance_type,
+            on_demand,
+        })
+    }
+}
+
+/// Helper function to extract required string fields from JSON
+fn extract_string_field(
+    obj: &Value,
+    field: &str,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    obj.get(field)
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .ok_or_else(|| format!("Missing or invalid field: {}", field).into())
+}
+
+/// Helper function to extract optional string fields from JSON
+fn extract_optional_string_field(obj: &Value, field: &str) -> Option<String> {
+    obj.get(field)
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
 }
 
 #[derive(Debug, serde::Deserialize)]
