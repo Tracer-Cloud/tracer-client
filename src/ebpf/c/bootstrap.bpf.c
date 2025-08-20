@@ -192,10 +192,9 @@ fill_sched_process_exec(struct event *e,
 #pragma clang loop unroll(disable)
   for (int i = 0; i < MAX_ENV_STRS && p < env_end && scanned_bytes < MAX_SCAN_BYTES; i++)
   {
+    // Prevent buffer overrun at end of env block
     if (p + KEY_MAX_LEN + VAL_MAX_LEN > env_end)
-    {
-      break; // Prevent buffer overrun at end of env block
-    }
+      break;
     char str[KEY_MAX_LEN + VAL_MAX_LEN]; /* room for key+value */
     long n = bpf_probe_read_user_str(str, sizeof(str), (void *)p);
     p += (unsigned long)n;
