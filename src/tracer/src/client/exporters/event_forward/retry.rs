@@ -27,11 +27,7 @@ pub async fn send_events_with_retry(
 
     let payload = EventPayload { events };
 
-    info!(
-        "Sending {} events to {}",
-        payload.events.len(),
-        endpoint
-    );
+    info!("Sending {} events to {}", payload.events.len(), endpoint);
 
     for attempt in 1..=MAX_RETRIES {
         let start_time = Instant::now();
@@ -56,10 +52,7 @@ pub async fn send_events_with_retry(
                     );
                     tokio::time::sleep(RETRY_DELAY).await;
                 } else {
-                    error!(
-                        "Attempt {} failed: {}, elapsed: {:?}",
-                        attempt, e, elapsed
-                    );
+                    error!("Attempt {} failed: {}, elapsed: {:?}", attempt, e, elapsed);
 
                     // Report final failure to Sentry
                     telemetry::report_network_failure_to_sentry(

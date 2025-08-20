@@ -21,8 +21,16 @@ pub(super) async fn wait(api_client: &DaemonClient) -> bool {
             Err(e) => {
                 info!("Connection attempt {} failed: {:?}", attempt + 1, e);
 
-                // If it's not a timeout or connection error, it might be a real error
-                if !(e.is_timeout() || e.is_connect()) {
+                // Check if it's a timeout or connection error by examining the error chain
+                let is_network_error = e.chain().any(|err| {
+                    if let Some(reqwest_err) = err.downcast_ref::<reqwest::Error>() {
+                        reqwest_err.is_timeout() || reqwest_err.is_connect()
+                    } else {
+                        false
+                    }
+                });
+
+                if !is_network_error {
                     // On macOS, connection errors are common during startup, so we'll be more lenient
                     #[cfg(target_os = "macos")]
                     {
