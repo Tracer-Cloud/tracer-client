@@ -1,7 +1,4 @@
-use super::binary_replacement::BinaryReplacer;
-use super::download::Downloader;
 use super::process_manager::ProcessManager;
-use tempfile::TempDir;
 
 #[cfg(test)]
 mod integration_tests {
@@ -17,45 +14,11 @@ mod integration_tests {
     }
 
     #[test]
-    fn test_downloader_integration() {
-        let downloader = Downloader::new();
-
-        // Test command building
-        let temp_dir = "/tmp/test";
-        let cmd = downloader.build_install_command(temp_dir);
-
-        assert!(cmd.contains("cd /tmp/test"));
-        assert!(cmd.contains("curl -fsSL https://install.tracer.cloud"));
-        assert!(cmd.contains("INSTALL_DIR=/tmp/test"));
-    }
-
-    #[test]
-    fn test_binary_replacer_integration() {
-        let _replacer = BinaryReplacer::new();
-
-        // Test that binary replacer can be created successfully
-        // The actual field values are tested in the unit tests within binary_replacement.rs
-        assert!(true); // If we get here, creation was successful
-    }
-
-    #[test]
-    fn test_binary_replacer_permission_check() {
-        let replacer = BinaryReplacer::new();
-        let temp_dir = TempDir::new().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-
-        // Should be able to write to temp directory
-        assert!(replacer.is_directory_writable(temp_path).unwrap());
-    }
-
-    #[test]
     fn test_update_workflow_components() {
-        // Test that all components can be instantiated together
+        // Test that process manager can be instantiated
         let _process_manager = ProcessManager::new();
-        let _downloader = Downloader::new();
-        let _binary_replacer = BinaryReplacer::new();
 
-        // If we get here, all components are compatible
+        // If we get here, component creation was successful
         assert!(true);
     }
 }
@@ -94,10 +57,8 @@ mod unit_tests {
 
     #[test]
     fn test_module_structure() {
-        // Verify that all expected modules are accessible
+        // Verify that process manager module is accessible
         let _pm = ProcessManager::new();
-        let _dl = Downloader::new();
-        let _br = BinaryReplacer::new();
 
         assert!(true);
     }

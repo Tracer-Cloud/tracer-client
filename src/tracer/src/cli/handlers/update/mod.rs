@@ -1,5 +1,3 @@
-mod binary_replacement;
-mod download;
 mod process_manager;
 mod updater;
 

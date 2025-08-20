@@ -57,7 +57,7 @@ impl ProcessManager {
 
     fn try_graceful_termination(&self) -> Result<()> {
         let output = Command::new("pkill")
-            .args(&["-TERM", "tracer"])
+            .args(["-TERM", "tracer"])
             .output()
             .context("Failed to execute pkill command for graceful termination")?;
 
@@ -74,7 +74,7 @@ impl ProcessManager {
 
     fn try_force_termination(&self) -> Result<()> {
         let output = Command::new("pkill")
-            .args(&["-KILL", "tracer"])
+            .args(["-KILL", "tracer"])
             .output()
             .context("Failed to execute pkill command for force termination")?;
 
@@ -91,7 +91,7 @@ impl ProcessManager {
 
     fn are_tracer_processes_running(&self) -> Result<bool> {
         let output = Command::new("pgrep")
-            .args(&["tracer"])
+            .args(["tracer"])
             .output()
             .context("Failed to check for running tracer processes")?;
 
