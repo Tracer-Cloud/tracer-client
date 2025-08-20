@@ -66,7 +66,7 @@ Depending on the tech stack, this line can be preceded by sudo as shown in the S
 You can now choose to run any pipeline you want or use 'tracer test' to launch a prepared pipeline.
 Run your own pipeline by following your usual workflow or try with one of our test examples first (https://github.com/Tracer-Cloud/nextflow-test-pipelines):
 ```bash
-sudo -E tracer test
+sudo -E tracer demo
 ```
 
 ### 5. Monitor Your Pipeline With Our Dashboard
