@@ -20,11 +20,9 @@ const OTEL_STDOUT_FILE: &str = "otelcol.out";
 const OTEL_STDERR_FILE: &str = "otelcol.err";
 
 pub static TRACER_WORK_DIR: LazyLock<TracerWorkDir> = LazyLock::new(|| {
-    // Use user's home directory instead of /tmp to avoid conflicts
-    let base_dir = std::env::var("HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("/tmp"));
-    let path = base_dir.join(".tracer");
+    // Use /tmp/tracer as the working directory for demo runs
+    let base_dir = PathBuf::from("/tmp");
+    let path = base_dir.join("tracer");
     TracerWorkDir {
         pid_file: path.join(PID_FILE),
         stdout_file: path.join(STDOUT_FILE),
@@ -38,7 +36,8 @@ pub static TRACER_WORK_DIR: LazyLock<TracerWorkDir> = LazyLock::new(|| {
         otel_stdout_file: path.join(OTEL_STDOUT_FILE),
         otel_stderr_file: path.join(OTEL_STDERR_FILE),
         path,
-        canonical_path: base_dir.canonicalize().map(|path| path.join(".tracer")),
+        // Avoid canonicalizing /tmp on macOS which resolves to /private/tmp
+        canonical_path: Ok(base_dir.join("tracer")),
     }
 });
 
@@ -160,20 +159,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_tracer_work_dir_uses_home_directory() {
+    fn test_tracer_work_dir_uses_tmp_tracer() {
         let work_dir = &TRACER_WORK_DIR;
 
-        // Check that the work directory is not in /tmp
-        assert!(!work_dir.path.starts_with("/tmp"));
-
-        // Check that it uses .tracer in the home directory (or fallback to /tmp if no HOME)
-        if let Ok(home) = std::env::var("HOME") {
-            let expected_path = PathBuf::from(home).join(".tracer");
-            assert_eq!(work_dir.path, expected_path);
-        } else {
-            // Fallback case - should be /tmp/.tracer
-            assert_eq!(work_dir.path, PathBuf::from("/tmp/.tracer"));
-        }
+        // Check that the work directory is /tmp/tracer
+        assert!(work_dir.path.starts_with("/tmp/tracer"));
+        assert_eq!(work_dir.path, PathBuf::from("/tmp/tracer"));
     }
 
     #[test]
@@ -184,7 +175,7 @@ mod tests {
         assert!(work_dir.canonical_path.is_ok());
 
         if let Ok(canonical) = &work_dir.canonical_path {
-            assert!(canonical.ends_with(".tracer"));
+            assert_eq!(canonical, &PathBuf::from("/tmp/tracer"));
         }
     }
 }

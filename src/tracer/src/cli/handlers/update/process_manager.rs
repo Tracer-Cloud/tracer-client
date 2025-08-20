@@ -23,49 +23,49 @@ impl ProcessManager {
 
     /// Stops all running tracer processes before update
     pub fn stop_tracer_processes(&self) -> Result<()> {
-        info_message!("🔍 Checking for running tracer processes...");
+        info_message!("Checking for running tracer processes...");
 
         if !DaemonServer::is_running() {
-            info_message!("✅ No tracer daemon running - proceeding with update");
+            info_message!("No tracer daemon running - proceeding with update");
             return Ok(());
         }
 
-        info_message!("🛑 Tracer daemon detected - initiating graceful shutdown...");
+        info_message!("Tracer daemon detected - initiating graceful shutdown...");
 
         // Try HTTP API termination first (more graceful)
         if self.try_http_termination().is_ok() {
-            info_message!("✅ Daemon terminated via HTTP API - waiting for cleanup...");
+            info_message!("Daemon terminated via HTTP API - waiting for cleanup...");
             std::thread::sleep(self.graceful_timeout);
         }
 
         // If still running, try graceful termination with signals
         if self.are_tracer_processes_running()? {
-            info_message!("🔄 Using signal-based termination for remaining processes...");
+            info_message!("Using signal-based termination for remaining processes...");
             self.try_graceful_termination()?;
             std::thread::sleep(self.graceful_timeout);
         }
 
         // Force kill if processes are still running
         if self.are_tracer_processes_running()? {
-            info_message!("⚡ Some processes need force termination...");
+            info_message!("Some processes need force termination...");
             self.try_force_termination()?;
             std::thread::sleep(self.force_timeout);
         }
 
         // Final check with extended wait
         if self.are_tracer_processes_running()? {
-            info_message!("⏳ Waiting for final process cleanup...");
+            info_message!("Waiting for final process cleanup...");
             std::thread::sleep(Duration::from_secs(3));
 
             if self.are_tracer_processes_running()? {
                 warning_message!(
-                    "⚠️  Some tracer processes may still be running. Update will continue but may fail if binary is in use."
+                    "Some tracer processes may still be running. Update will continue but may fail if binary is in use."
                 );
             } else {
-                info_message!("✅ All tracer processes stopped successfully");
+                info_message!("All tracer processes stopped successfully");
             }
         } else {
-            info_message!("✅ All tracer processes stopped successfully");
+            info_message!("All tracer processes stopped successfully");
         }
 
         Ok(())

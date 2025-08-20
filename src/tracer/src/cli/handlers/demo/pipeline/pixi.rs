@@ -20,19 +20,26 @@ pub fn install_pixi() -> Result<PathBuf> {
         .init()
         .map_err(|e| anyhow::anyhow!("Failed to create tracer work directory: {}", e))?;
 
+    // Prefer installation into the tracer workdir bin
+    let pixi_home = TRACER_WORK_DIR.path.clone();
+    let desired_binary_path = pixi_home.join("bin/pixi");
+
     let install_cmd = "curl -fsSL https://pixi.sh/install.sh | bash";
     let status = Command::new("sh")
         .arg("-c")
         .arg(install_cmd)
-        // Install pixi to our local directory --> I believe it is causing issues so commenting out
-        // .env("PIXI_HOME", &pixi_dir)
+        .env("PIXI_HOME", &pixi_home)
         .env("PIXI_NO_PATH_UPDATE", "1")
         .status();
 
     check_status(status, "Failed to install pixi")?;
 
     // Verify the installation was successful by checking all possible locations
-    for path in &possible_paths {
+    // Check desired workdir bin path first
+    let mut all_paths = Vec::with_capacity(possible_paths.len() + 1);
+    all_paths.push(desired_binary_path);
+    all_paths.extend(possible_paths);
+    for path in &all_paths {
         if path.exists() {
             return Ok(path.clone());
         }
@@ -40,24 +47,16 @@ pub fn install_pixi() -> Result<PathBuf> {
 
     Err(anyhow::anyhow!(
         "Pixi installation completed but binary not found in any expected location: {:?}",
-        possible_paths
+        all_paths
     ))
 }
 
 fn get_possible_pixi_paths() -> Vec<PathBuf> {
     let mut paths = Vec::new();
 
-    // 1. Tracer work directory location
-    let tracer_pixi_path = TRACER_WORK_DIR.path.join(".pixi/bin/pixi");
-    paths.push(tracer_pixi_path);
+    paths.push(TRACER_WORK_DIR.path.join("bin/pixi"));
 
-    // 2. User home directory location (default pixi installation)
-    if let Ok(home) = std::env::var("HOME") {
-        let home_pixi_path = PathBuf::from(home).join(".pixi/bin/pixi");
-        paths.push(home_pixi_path);
-    }
-
-    // 3. System-wide installation
+    // 1. System-wide installation
     paths.push(PathBuf::from("/usr/local/bin/pixi"));
     paths.push(PathBuf::from("/usr/bin/pixi"));
 
@@ -101,20 +100,17 @@ mod tests {
         // Should have at least the tracer work dir path
         assert!(!paths.is_empty(), "Should have at least one possible path");
 
-        // First path should be in tracer work directory
-        let tracer_path = &paths[0];
-        assert!(
-            tracer_path.to_string_lossy().contains(".tracer"),
-            "First path should be in tracer work directory: {}",
-            tracer_path.display()
+        // First path should be tracer workdir bin path
+        let expected = TRACER_WORK_DIR.path.join("bin/pixi");
+        assert_eq!(
+            paths[0], expected,
+            "First path should be /tmp/tracer/bin/pixi"
         );
 
-        // Should contain home directory path if HOME is set
-        if std::env::var("HOME").is_ok() {
-            assert!(
-                paths.len() >= 2,
-                "Should have home directory path when HOME is set"
-            );
-        }
+        // System paths should be included after workdir
+        assert!(paths
+            .iter()
+            .any(|p| p == &PathBuf::from("/usr/local/bin/pixi")
+                || p == &PathBuf::from("/usr/bin/pixi")));
     }
 }
