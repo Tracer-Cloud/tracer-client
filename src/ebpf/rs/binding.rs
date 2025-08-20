@@ -3,7 +3,7 @@ pub use linux::start_processing_events;
 #[cfg(not(target_os = "linux"))]
 pub use non_linux::start_processing_events;
 
-#[cfg(target_os = "linux")]
+//#[cfg(target_os = "linux")]
 mod linux {
     use crate::ebpf_trigger::Trigger;
     use anyhow::Result;
@@ -174,6 +174,7 @@ mod linux {
         use crate::ebpf_trigger::{ProcessEndTrigger, ProcessStartTrigger, Trigger};
         use std::process::Command;
         use std::time::Duration;
+        use tempfile::TempDir;
         use tokio::sync::mpsc;
         use tokio::time;
 
@@ -194,10 +195,17 @@ mod linux {
             // not propagated to the child process.
             std::env::set_var("TRACER_TRACE_ID", "foobar");
 
+            let tempdir = TempDir::new().unwrap();
+            let script = tempdir.path().join("test.sh");
+            std::fs::write(
+                &script,
+                "export TRACER_TRACE_ID=foobar\nTRACER_TRACE_ID=foobar cat file1 file2\n",
+            )
+            .unwrap();
+
             // run a process that exits with an error
-            let status = Command::new("cat")
-                .arg("file1")
-                .arg("file2")
+            let status = Command::new("bash")
+                .arg(format!("{}", script.display()))
                 // TODO: this doesn't work in CI - eBPF doesn't seem to
                 // see the env var in the child process
                 .env("TRACER_TRACE_ID", "foobar")
@@ -243,7 +251,7 @@ mod linux {
             assert!(exit_trigger.is_some());
             assert_eq!(exit_trigger.unwrap().exit_reason.unwrap().code, 1);
             // assert_eq!(
-            //     bash_exec_trigger.unwrap().env,
+            //     exec_trigger.unwrap().env,
             //     vec![("TRACER_TRACE_ID".to_string(), "foobar".to_string())]
             // );
         }
