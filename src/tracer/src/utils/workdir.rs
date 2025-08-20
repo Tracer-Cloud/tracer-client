@@ -144,8 +144,8 @@ fn ensure_dir_with_permissions(path: &Path) -> Result<()> {
         builder.recursive(true);
         builder.create(path)
         .with_context(|| format!(
-            "Failed to create working directory: {:?}. Please run: sudo mkdir -p {:?} && sudo chmod 777 {:?}",
-            path, path, path
+            "Failed to create working directory: {:?}. This command requires root privileges. Please run: sudo tracer demo <pipeline>",
+            path
         ))?;
     }
 

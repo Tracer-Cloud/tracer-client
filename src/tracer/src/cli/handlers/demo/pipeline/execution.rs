@@ -72,12 +72,25 @@ impl Pipeline {
 
 /// Install pixi if necessary, then run task in manifest.
 fn run_pixi_task(manifest: PathBuf, task: String) -> Result<()> {
-    let pixi_path = which::which("pixi").unwrap_or_else(|_| {
-        info_message!("Installing pixi...");
-        // install() returns a PathBuf
-        pixi::install_pixi().expect("pixi installation failed")
-    });
+    let pixi_path = match which::which("pixi") {
+        Ok(path) => {
+            info_message!("Using system pixi: {}", path.display());
+            path
+        }
+        Err(_) => {
+            info_message!("Pixi not found in PATH, installing to local directory...");
+            let installed_path = pixi::install_pixi()
+                .map_err(|e| anyhow::anyhow!("Failed to install pixi: {}", e))?;
+            info_message!("Pixi installed to: {}", installed_path.display());
+            installed_path
+        }
+    };
 
+    info_message!(
+        "Running pixi task '{}' with manifest: {}",
+        task,
+        manifest.display()
+    );
     exec(
         Command::new(pixi_path)
             .arg("run")
