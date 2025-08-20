@@ -25,7 +25,7 @@ impl DockerWatcher {
         let docker = Docker::connect_with_unix_defaults().ok(); // returns Option<Docker>
 
         if docker.is_none() {
-            tracing::warn!("Docker not available — container events will not be captured.");
+            tracing::warn!("Docker not available - container events will not be captured.");
         }
         let container_state = Arc::new(RwLock::new(HashMap::new()));
 
@@ -50,7 +50,7 @@ impl DockerWatcher {
         let docker = if self.docker.is_none() {
             let docker = Docker::connect_with_unix_defaults().ok();
             if docker.is_none() {
-                tracing::warn!("Docker not available — container events will not be captured.");
+                tracing::warn!("Docker not available - container events will not be captured.");
             }
             docker
         } else {

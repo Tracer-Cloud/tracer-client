@@ -72,18 +72,19 @@ impl Pipeline {
 
 /// Install pixi if necessary, then run task in manifest.
 fn run_pixi_task(manifest: PathBuf, task: String) -> Result<()> {
-    let pixi_path = match which::which("pixi") {
-        Ok(path) => {
-            info_message!("Using system pixi: {}", path.display());
-            path
-        }
-        Err(_) => {
-            info_message!("Pixi not found in PATH, installing to local directory...");
-            let installed_path = pixi::install_pixi()
-                .map_err(|e| anyhow::anyhow!("Failed to install pixi: {}", e))?;
-            info_message!("Pixi installed to: {}", installed_path.display());
-            installed_path
-        }
+    let workdir_pixi = crate::utils::workdir::TRACER_WORK_DIR.path.join("bin/pixi");
+    let pixi_path = if workdir_pixi.exists() {
+        info_message!("Using workdir pixi: {}", workdir_pixi.display());
+        workdir_pixi
+    } else if let Ok(path) = which::which("pixi") {
+        info_message!("Using system pixi: {}", path.display());
+        path
+    } else {
+        info_message!("Pixi not found, installing to workdir...");
+        let installed_path =
+            pixi::install_pixi().map_err(|e| anyhow::anyhow!("Failed to install pixi: {}", e))?;
+        info_message!("Pixi installed to: {}", installed_path.display());
+        installed_path
     };
 
     info_message!(

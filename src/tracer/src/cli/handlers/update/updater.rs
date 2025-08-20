@@ -17,9 +17,9 @@ pub fn update() {
 
 /// Core update implementation - delegate everything to tracer-installer
 fn update_impl() -> Result<()> {
-    info_message!("🚀 Starting Tracer update process...");
-    info_message!("📋 Delegating to tracer-installer for complete update management...");
-    info_message!("💡 The installer will handle process termination, cleanup, and installation");
+    info_message!("Starting Tracer update process...");
+    info_message!("Delegating to tracer-installer for complete update management...");
+    info_message!("The installer will handle process termination, cleanup, and installation");
 
     // Let tracer-installer handle everything:
     // - Process termination (including this update process)
@@ -29,7 +29,7 @@ fn update_impl() -> Result<()> {
     run_installer_script()?;
 
     // Note: This line may never be reached if installer terminates this process
-    info_message!("🎉 Update completed successfully - tracer is now up to date!");
+    info_message!("Update completed successfully - tracer is now up to date!");
     Ok(())
 }
 

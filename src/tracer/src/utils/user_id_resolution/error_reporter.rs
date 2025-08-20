@@ -7,7 +7,7 @@ use super::sentry_context::UserIdSentryReporter;
 pub fn report_user_id_resolution_failure(
     sentry_reporter: &mut UserIdSentryReporter,
 ) -> Result<String> {
-    println!("\n{}", "❌ USER ID RESOLUTION FAILED".red().bold());
+    println!("\n{}", "USER ID RESOLUTION FAILED".red().bold());
     println!(
         "{}",
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".red()
@@ -21,7 +21,7 @@ pub fn report_user_id_resolution_failure(
     println!("  • Environment variable (TRACER_USER_ID)");
     println!("  • Shell configuration files (.zshrc, .bashrc, .zprofile, .bash_profile, .profile)");
 
-    println!("\n{}", "🔧 HOW TO FIX THIS:".yellow().bold());
+    println!("\n{}", "HOW TO FIX THIS:".yellow().bold());
 
     println!(
         "\n{}",

@@ -179,6 +179,10 @@ mod linux {
 
         #[tokio::test]
         async fn test_exit_code() {
+            if !is_root_user() {
+                eprintln!("Skipping eBPF test_exit_code: requires root privileges");
+                return;
+            }
             let (tx, mut rx) = mpsc::unbounded_channel::<Trigger>();
             super::start_processing_events(tx).unwrap();
 
@@ -226,6 +230,16 @@ mod linux {
             assert!(exec_trigger.is_some());
             assert!(exit_trigger.is_some());
             assert_eq!(exit_trigger.unwrap().exit_reason.unwrap().code, 1);
+        }
+
+        fn is_root_user() -> bool {
+            use std::process::Command;
+            if let Ok(output) = Command::new("id").arg("-u").output() {
+                if let Ok(stdout) = String::from_utf8(output.stdout) {
+                    return stdout.trim() == "0";
+                }
+            }
+            false
         }
     }
 }

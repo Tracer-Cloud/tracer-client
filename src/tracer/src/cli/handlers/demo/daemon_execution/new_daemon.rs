@@ -35,6 +35,7 @@ fn prepare_demo_environment(
         .init()
         .map_err(|_| anyhow::anyhow!("Failed to create tracer work directory"))?;
 
+    init_args.watch_dir = Some(TRACER_WORK_DIR.path.to_string_lossy().to_string());
     init_args.configure_for_test();
 
     // For demo scenarios, we want the pipeline name to be "{environment}-demo-{pipeline_id}-{user_id}"
