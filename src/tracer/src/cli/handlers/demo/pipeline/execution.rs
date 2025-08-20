@@ -91,14 +91,25 @@ fn run_pixi_task(manifest: PathBuf, task: String) -> Result<()> {
         task,
         manifest.display()
     );
-    exec(
-        Command::new(pixi_path)
-            .arg("run")
-            .arg("--manifest-path")
-            .arg(manifest)
-            .arg(task),
-        "Pipeline run failed",
-    )
+
+    // Prepare the command with proper environment
+    let mut cmd = Command::new(&pixi_path);
+    cmd.arg("run")
+        .arg("--manifest-path")
+        .arg(manifest)
+        .arg(task);
+
+    // If we installed pixi locally, add its directory to PATH so that
+    // any scripts executed by pixi can also find pixi
+    if let Some(pixi_dir) = pixi_path.parent() {
+        if let Ok(current_path) = std::env::var("PATH") {
+            let new_path = format!("{}:{}", pixi_dir.display(), current_path);
+            cmd.env("PATH", new_path);
+            info_message!("Added pixi directory to PATH: {}", pixi_dir.display());
+        }
+    }
+
+    exec(&mut cmd, "Pipeline run failed")
 }
 
 /// Run a Nextflow pipeline (ensures nextflow exists first).
