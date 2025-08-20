@@ -62,17 +62,18 @@ static __always_inline int startswith(const char *s, const char *p, int plen)
  */
 static __always_inline int store_env_val(struct event *e, int idx, char *str, int str_len)
 {
+  // check if we've already found the key
   if (e->sched__sched_process_exec__payload.env_found_mask & (1u << idx))
     return 0;
-  /* Ensure candidate string is at least key_len and matches prefix */
+  // Ensure candidate string is at least key_len and matches prefix
   const int key_len = key_lens[idx];
   if (str_len < key_len)
     return 0;
   if (!startswith(str, keys[idx], key_len))
     return 0;
-  /* Copy value (portion after key) */
+  // Copy value (portion after key)
   const char *val = str + key_len;
-  /* strncpy is not allowed; do bounded byte-wise copy */
+  // strncpy is not allowed; do bounded byte-wise copy
 #pragma clang loop unroll(disable)
   for (int b = 0; b < VAL_MAX_LEN - 1; b++)
   {
@@ -81,7 +82,9 @@ static __always_inline int store_env_val(struct event *e, int idx, char *str, in
     if (c == '\0')
       break;
   }
+  // make sure the value is null terminated
   e->sched__sched_process_exec__payload.env_values[idx][VAL_MAX_LEN - 1] = '\0';
+  // mark the key as found
   e->sched__sched_process_exec__payload.env_found_mask |= (1u << idx);
   return 1;
 }
@@ -169,13 +172,12 @@ fill_sched_process_exec(struct event *e,
   int found = 0;
 
 #pragma clang loop unroll(disable)
-  for (int i = 0; i < MAX_ENV_STRS; i++)
+  for (int i = 0; i < MAX_ENV_STRS && p < env_end && scanned_bytes < MAX_SCAN_BYTES; i++)
   {
-    if (p >= env_end)
-      break;
-    if (scanned_bytes >= MAX_SCAN_BYTES)
-      break;
-
+    if (p + KEY_MAX_LEN + VAL_MAX_LEN > env_end)
+    {
+      break; // Prevent buffer overrun at end of env block
+    }
     char str[KEY_MAX_LEN + VAL_MAX_LEN]; /* room for key+value */
     long n = bpf_probe_read_user_str(str, sizeof(str), (void *)p);
     p += (unsigned long)n;

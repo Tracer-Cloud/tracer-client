@@ -7,6 +7,7 @@ use crate::process_identification::target_pipeline::pipeline_manager::TaskMatch;
 use crate::process_identification::types::event::attributes::process::ProcessProperties;
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::ProcessStatus as TracerProcessStatus;
+use crate::utils::env;
 use anyhow::Result;
 use chrono::Utc;
 use std::collections::HashSet;
@@ -166,6 +167,12 @@ impl EventRecorder {
             finish_trigger
         );
 
+        let trace_id = start_trigger
+            .env
+            .iter()
+            .find(|(k, _)| k == env::TRACE_ID_ENV_VAR)
+            .map(|(_, v)| v.to_owned());
+
         // CompletedProcess contains the exit reason, the tool_id, the tool_name, and started and ended at
         // started and ended at might not seem very useful, but might help in the future with duration calculations
         let properties =
@@ -180,6 +187,7 @@ impl EventRecorder {
                 exit_reason: finish_trigger.exit_reason.clone(),
                 started_at: start_trigger.started_at,
                 ended_at: finish_trigger.finished_at,
+                trace_id,
             };
 
         self.event_dispatcher
