@@ -189,16 +189,16 @@ mod linux {
             // wait for eBPF to start up
             time::sleep(Duration::from_secs(1)).await;
 
-            // set the env var
+            // set the env var globally
             // TODO: this doesn't work in CI - the environment variable is
             // not propagated to the child process.
-            //std::env::set_var("TRACER_TRACE_ID", "foobar");
+            std::env::set_var("TRACER_TRACE_ID", "foobar");
 
             // run a process that exits with an error
             let status = Command::new("cat")
                 .arg("file1")
                 .arg("file2")
-                // TODO: this doesn't work in CI, and eBPF doesn't seem to
+                // TODO: this doesn't work in CI - eBPF doesn't seem to
                 // see the env var in the child process
                 .env("TRACER_TRACE_ID", "foobar")
                 .status()

@@ -23,6 +23,10 @@ impl EventDispatcher {
         EventDispatcher { pipeline, run, tx }
     }
 
+    pub fn trace_id(&self) -> Option<String> {
+        self.run.trace_id.clone()
+    }
+
     pub async fn log(
         &self,
         process_status: ProcessStatus,

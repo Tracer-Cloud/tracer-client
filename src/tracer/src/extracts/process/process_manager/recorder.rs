@@ -29,10 +29,14 @@ pub struct EventRecorder {
 
 impl EventRecorder {
     pub fn new(event_dispatcher: EventDispatcher, docker_watcher: Arc<DockerWatcher>) -> Self {
+        let mut trace_ids = HashSet::new();
+        if let Some(trace_id) = event_dispatcher.trace_id() {
+            trace_ids.insert(trace_id);
+        }
         Self {
             event_dispatcher,
             docker_watcher,
-            logged_trace_ids: Arc::new(RwLock::new(HashSet::new())),
+            logged_trace_ids: Arc::new(RwLock::new(trace_ids)),
         }
     }
 
