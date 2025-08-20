@@ -30,11 +30,18 @@ impl ProcessManager {
 
         warning_message!("Tracer daemon is running. Attempting to terminate...");
 
-        // Try graceful termination first
-        self.try_graceful_termination()?;
+        // Try HTTP API termination first (more graceful)
+        if self.try_http_termination().is_ok() {
+            info_message!("Daemon terminated via HTTP API");
+            std::thread::sleep(self.graceful_timeout);
+        }
 
-        // Give processes time to exit gracefully
-        std::thread::sleep(self.graceful_timeout);
+        // If still running, try graceful termination with signals
+        if self.are_tracer_processes_running()? {
+            info_message!("Using signal-based termination...");
+            self.try_graceful_termination()?;
+            std::thread::sleep(self.graceful_timeout);
+        }
 
         // Force kill if processes are still running
         if self.are_tracer_processes_running()? {
@@ -43,14 +50,36 @@ impl ProcessManager {
             std::thread::sleep(self.force_timeout);
         }
 
-        // Final check
+        // Final check with extended wait
         if self.are_tracer_processes_running()? {
-            warning_message!(
-                "Some tracer processes may still be running. Update may fail if binary is in use."
-            );
+            warning_message!("Waiting additional time for processes to exit...");
+            std::thread::sleep(Duration::from_secs(3));
+
+            if self.are_tracer_processes_running()? {
+                warning_message!(
+                    "Some tracer processes may still be running. Update may fail if binary is in use."
+                );
+            } else {
+                info_message!("Tracer processes stopped successfully after extended wait");
+            }
         } else {
             info_message!("Tracer processes stopped successfully");
         }
+
+        Ok(())
+    }
+
+    fn try_http_termination(&self) -> Result<()> {
+        use crate::daemon::client::DaemonClient;
+        use crate::process_identification::constants::DEFAULT_DAEMON_PORT;
+
+        let api_client = DaemonClient::new(format!("http://127.0.0.1:{}", DEFAULT_DAEMON_PORT));
+
+        // Use async runtime to call the terminate API
+        let rt = tokio::runtime::Runtime::new()?;
+        rt.block_on(async {
+            api_client.send_terminate_request().await
+        })?;
 
         Ok(())
     }

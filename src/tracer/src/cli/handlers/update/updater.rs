@@ -1,5 +1,5 @@
 use crate::utils::Sentry;
-use crate::{error_message, info_message, success_message};
+use crate::{error_message, info_message, success_message, warning_message};
 use anyhow::{Context, Result};
 use colored::Colorize;
 
@@ -26,10 +26,36 @@ fn update_impl() -> Result<()> {
     // Step 1: Stop any running tracer processes
     process_manager.stop_tracer_processes()?;
 
-    // Step 2: Run the installer script directly (it handles everything)
+    // Step 2: Clean up any leftover resources
+    cleanup_daemon_resources()?;
+
+    // Step 3: Run the installer script directly (it handles everything)
     run_installer_script()?;
 
     info_message!("Update completed successfully");
+    Ok(())
+}
+
+/// Clean up daemon resources after stopping processes
+fn cleanup_daemon_resources() -> Result<()> {
+    use crate::daemon::server::DaemonServer;
+    use crate::utils::workdir::TRACER_WORK_DIR;
+
+    info_message!("Cleaning up daemon resources...");
+
+    // Clean up daemon work directory files
+    DaemonServer::cleanup();
+
+    // Additional cleanup - remove any stale PID files
+    if TRACER_WORK_DIR.pid_file.exists() {
+        if let Err(e) = std::fs::remove_file(&TRACER_WORK_DIR.pid_file) {
+            warning_message!("Failed to remove PID file: {}", e);
+        }
+    }
+
+    // Give the system a moment to clean up
+    std::thread::sleep(std::time::Duration::from_millis(500));
+
     Ok(())
 }
 
