@@ -190,25 +190,13 @@ mod linux {
             // wait for eBPF to start up
             time::sleep(Duration::from_secs(1)).await;
 
-            // set the env var globally
-            // TODO: this doesn't work in CI - the environment variable is
-            // not propagated to the child process.
-            std::env::set_var("TRACER_TRACE_ID", "foobar");
-
             let tempdir = TempDir::new().unwrap();
             let script = tempdir.path().join("test.sh");
-            std::fs::write(
-                &script,
-                "export TRACER_TRACE_ID=foobar\nTRACER_TRACE_ID=foobar cat file1 file2\n",
-            )
-            .unwrap();
+            std::fs::write(&script, "TRACER_TRACE_ID=foobar cat file1 file2\n").unwrap();
 
             // run a process that exits with an error
             let status = Command::new("bash")
                 .arg(format!("{}", script.display()))
-                // TODO: this doesn't work in CI - eBPF doesn't seem to
-                // see the env var in the child process
-                .env("TRACER_TRACE_ID", "foobar")
                 .status()
                 .unwrap();
             assert!(!status.success());
@@ -250,10 +238,10 @@ mod linux {
             assert!(exec_trigger.is_some());
             assert!(exit_trigger.is_some());
             assert_eq!(exit_trigger.unwrap().exit_reason.unwrap().code, 1);
-            // assert_eq!(
-            //     exec_trigger.unwrap().env,
-            //     vec![("TRACER_TRACE_ID".to_string(), "foobar".to_string())]
-            // );
+            assert_eq!(
+                exec_trigger.unwrap().env,
+                vec![("TRACER_TRACE_ID".to_string(), "foobar".to_string())]
+            );
         }
 
         fn is_root_user() -> bool {
