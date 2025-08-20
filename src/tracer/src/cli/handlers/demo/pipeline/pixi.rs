@@ -52,15 +52,11 @@ pub fn install_pixi() -> Result<PathBuf> {
 }
 
 fn get_possible_pixi_paths() -> Vec<PathBuf> {
-    let mut paths = Vec::new();
-
-    paths.push(TRACER_WORK_DIR.path.join("bin/pixi"));
-
-    // 1. System-wide installation
-    paths.push(PathBuf::from("/usr/local/bin/pixi"));
-    paths.push(PathBuf::from("/usr/bin/pixi"));
-
-    paths
+    vec![
+        TRACER_WORK_DIR.path.join("bin/pixi"),
+        PathBuf::from("/usr/local/bin/pixi"),
+        PathBuf::from("/usr/bin/pixi"),
+    ]
 }
 
 #[cfg(test)]
