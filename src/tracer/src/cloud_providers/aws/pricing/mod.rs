@@ -1,9 +1,17 @@
 mod api;
-mod aws;
 pub mod filtering;
 
+// New functional modules
+pub mod client;
+pub mod context_builder;
+pub mod ebs_pricing;
+pub mod ec2_client_manager;
+pub mod ec2_pricing;
+pub mod filter_builder;
+pub mod tests;
+
 pub use api::ApiPricingClient;
-pub use aws::PricingClient;
+pub use client::PricingClient;
 
 use crate::cloud_providers::aws::aws_metadata::AwsInstanceMetaData;
 use crate::cloud_providers::aws::config::AwsConfig;

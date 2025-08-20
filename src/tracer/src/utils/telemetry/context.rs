@@ -10,12 +10,18 @@ impl TelemetryContext {
     /// Create a new telemetry context with base information
     pub fn new(component: &str) -> Self {
         let mut context = HashMap::new();
-        
+
         // Add base context
         context.insert("component".to_string(), json!(component));
         context.insert("timestamp".to_string(), json!(now_secs()));
-        context.insert("environment".to_string(), json!(super::detect_environment()));
-        context.insert("platform".to_string(), json!(crate::utils::system_info::get_platform_information()));
+        context.insert(
+            "environment".to_string(),
+            json!(super::detect_environment()),
+        );
+        context.insert(
+            "platform".to_string(),
+            json!(crate::utils::system_info::get_platform_information()),
+        );
         context.insert("process_id".to_string(), json!(std::process::id()));
 
         // Add optional context
@@ -26,11 +32,17 @@ impl TelemetryContext {
         }
 
         if let Some((major, minor)) = crate::utils::system_info::get_kernel_version() {
-            context.insert("kernel_version".to_string(), json!(format!("{}.{}", major, minor)));
+            context.insert(
+                "kernel_version".to_string(),
+                json!(format!("{}.{}", major, minor)),
+            );
         }
 
         if let Ok(cwd) = std::env::current_dir() {
-            context.insert("working_directory".to_string(), json!(cwd.to_string_lossy()));
+            context.insert(
+                "working_directory".to_string(),
+                json!(cwd.to_string_lossy()),
+            );
         }
 
         Self { context }
