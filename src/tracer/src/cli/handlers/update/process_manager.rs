@@ -6,11 +6,13 @@ use std::process::Command;
 use std::time::Duration;
 
 /// Manages tracer processes during update operations
+#[allow(dead_code)] // Suppress warnings for unused fields
 pub struct ProcessManager {
     pub graceful_timeout: Duration,
     pub force_timeout: Duration,
 }
 
+#[allow(dead_code)] // Suppress warnings for unused methods
 impl ProcessManager {
     pub fn new() -> Self {
         Self {
@@ -21,49 +23,49 @@ impl ProcessManager {
 
     /// Stops all running tracer processes before update
     pub fn stop_tracer_processes(&self) -> Result<()> {
-        info_message!("Stopping tracer daemon...");
+        info_message!("🔍 Checking for running tracer processes...");
 
         if !DaemonServer::is_running() {
-            info_message!("No tracer daemon running");
+            info_message!("✅ No tracer daemon running - proceeding with update");
             return Ok(());
         }
 
-        warning_message!("Tracer daemon is running. Attempting to terminate...");
+        info_message!("🛑 Tracer daemon detected - initiating graceful shutdown...");
 
         // Try HTTP API termination first (more graceful)
         if self.try_http_termination().is_ok() {
-            info_message!("Daemon terminated via HTTP API");
+            info_message!("✅ Daemon terminated via HTTP API - waiting for cleanup...");
             std::thread::sleep(self.graceful_timeout);
         }
 
         // If still running, try graceful termination with signals
         if self.are_tracer_processes_running()? {
-            info_message!("Using signal-based termination...");
+            info_message!("🔄 Using signal-based termination for remaining processes...");
             self.try_graceful_termination()?;
             std::thread::sleep(self.graceful_timeout);
         }
 
         // Force kill if processes are still running
         if self.are_tracer_processes_running()? {
-            info_message!("Graceful termination incomplete, trying force kill...");
+            info_message!("⚡ Some processes need force termination...");
             self.try_force_termination()?;
             std::thread::sleep(self.force_timeout);
         }
 
         // Final check with extended wait
         if self.are_tracer_processes_running()? {
-            warning_message!("Waiting additional time for processes to exit...");
+            info_message!("⏳ Waiting for final process cleanup...");
             std::thread::sleep(Duration::from_secs(3));
 
             if self.are_tracer_processes_running()? {
                 warning_message!(
-                    "Some tracer processes may still be running. Update may fail if binary is in use."
+                    "⚠️  Some tracer processes may still be running. Update will continue but may fail if binary is in use."
                 );
             } else {
-                info_message!("Tracer processes stopped successfully after extended wait");
+                info_message!("✅ All tracer processes stopped successfully");
             }
         } else {
-            info_message!("Tracer processes stopped successfully");
+            info_message!("✅ All tracer processes stopped successfully");
         }
 
         Ok(())
@@ -83,34 +85,82 @@ impl ProcessManager {
     }
 
     fn try_graceful_termination(&self) -> Result<()> {
-        let output = Command::new("pkill")
-            .args(["-TERM", "tracer"])
-            .output()
-            .context("Failed to execute pkill command for graceful termination")?;
+        // Get current process PID to avoid killing ourselves
+        let current_pid = std::process::id();
 
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            info_message!("Graceful termination command completed with status: {} (this may be normal if no processes found)", output.status);
-            if !stderr.is_empty() {
-                info_message!("pkill stderr: {}", stderr);
+        // Use pgrep to find tracer processes, then filter out current process
+        let pgrep_output = Command::new("pgrep")
+            .arg("tracer")
+            .output()
+            .context("Failed to execute pgrep command")?;
+
+        if pgrep_output.status.success() {
+            let pids_str = String::from_utf8_lossy(&pgrep_output.stdout);
+            let target_pids: Vec<u32> = pids_str
+                .lines()
+                .filter_map(|line| line.trim().parse::<u32>().ok())
+                .filter(|&pid| pid != current_pid) // Don't kill ourselves!
+                .collect();
+
+            if target_pids.is_empty() {
+                info_message!("No other tracer processes found to terminate");
+                return Ok(());
             }
+
+            info_message!(
+                "Sending SIGTERM to {} tracer process(es) (excluding current update process)",
+                target_pids.len()
+            );
+
+            // Send SIGTERM to each target process individually
+            for pid in target_pids {
+                let _ = Command::new("kill")
+                    .args(["-TERM", &pid.to_string()])
+                    .output();
+            }
+        } else {
+            info_message!("No tracer processes found to terminate");
         }
 
         Ok(())
     }
 
     fn try_force_termination(&self) -> Result<()> {
-        let output = Command::new("pkill")
-            .args(["-KILL", "tracer"])
-            .output()
-            .context("Failed to execute pkill command for force termination")?;
+        // Get current process PID to avoid killing ourselves
+        let current_pid = std::process::id();
 
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            warning_message!("Force termination failed with status: {}", output.status);
-            if !stderr.is_empty() {
-                warning_message!("pkill stderr: {}", stderr);
+        // Use pgrep to find tracer processes, then filter out current process
+        let pgrep_output = Command::new("pgrep")
+            .arg("tracer")
+            .output()
+            .context("Failed to execute pgrep command")?;
+
+        if pgrep_output.status.success() {
+            let pids_str = String::from_utf8_lossy(&pgrep_output.stdout);
+            let target_pids: Vec<u32> = pids_str
+                .lines()
+                .filter_map(|line| line.trim().parse::<u32>().ok())
+                .filter(|&pid| pid != current_pid) // Don't kill ourselves!
+                .collect();
+
+            if target_pids.is_empty() {
+                info_message!("No other tracer processes found for force termination");
+                return Ok(());
             }
+
+            warning_message!(
+                "Force killing {} stubborn tracer process(es) (excluding current update process)",
+                target_pids.len()
+            );
+
+            // Send SIGKILL to each target process individually
+            for pid in target_pids {
+                let _ = Command::new("kill")
+                    .args(["-KILL", &pid.to_string()])
+                    .output();
+            }
+        } else {
+            info_message!("No tracer processes found for force termination");
         }
 
         Ok(())

@@ -42,7 +42,10 @@ impl TracerPipelinesRepo {
 
         // Clean up existing directory if it exists and is problematic
         if repo_path.exists() {
-            tracing::info!("Cleaning up existing repository directory: {}", repo_path.display());
+            tracing::info!(
+                "Cleaning up existing repository directory: {}",
+                repo_path.display()
+            );
             std::fs::remove_dir_all(&repo_path)
                 .map_err(|e| anyhow::anyhow!("Failed to remove existing directory: {}", e))?;
         }
