@@ -3,11 +3,7 @@ use crate::extracts::process::extract_process_data::get_process_argv;
 use crate::extracts::process::process_manager::ProcessManager;
 use crate::extracts::process_watcher::handler::trigger::trigger_processor::TriggerProcessor;
 use crate::process_identification::recorder::EventDispatcher;
-<<<<<<< HEAD
-use crate::utils::env::TRACE_ID_ENV_VAR;
 use crate::utils::workdir::TRACER_WORK_DIR;
-=======
->>>>>>> 6d992daf (revert)
 use anyhow::{Error, Result};
 use std::collections::{HashMap, HashSet};
 use std::fs::{self};
