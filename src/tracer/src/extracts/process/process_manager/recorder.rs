@@ -84,8 +84,9 @@ impl EventRecorder {
 
         // If we have a new trace ID, create a new run in the database
         if let Some(trace_id) = &full.trace_id {
-            if !self.logged_trace_ids.read().await.contains(trace_id) {
-                self.logged_trace_ids.write().await.insert(trace_id.clone());
+            let mut logged_trace_ids = self.logged_trace_ids.write().await;
+            if !logged_trace_ids.contains(trace_id) {
+                logged_trace_ids.insert(trace_id.clone());
                 self.event_dispatcher.log_new_run(trace_id).await?;
             }
         }

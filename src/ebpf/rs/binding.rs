@@ -192,7 +192,7 @@ mod linux {
 
             let tempdir = TempDir::new().unwrap();
             let script = tempdir.path().join("test.sh");
-            std::fs::write(&script, "TRACER_TRACE_ID=foobar cat file1 file2\n").unwrap();
+            std::fs::write(&script, "TRACER_TRACE_ID=foobar cat file1 file2 || exit 1\n").unwrap();
 
             // run a process that exits with an error
             let status = Command::new("bash")

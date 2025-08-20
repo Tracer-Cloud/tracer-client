@@ -30,11 +30,11 @@ impl EventDispatcher {
     pub async fn log(
         &self,
         process_status: ProcessStatus,
-        message: String,
+        body: String,
         attributes: Option<EventAttributes>,
         timestamp: Option<DateTime<Utc>>,
     ) -> anyhow::Result<()> {
-        self.log_with_metadata(process_status, message, attributes, timestamp)
+        self.log_with_metadata(process_status, body, attributes, timestamp)
             .await
     }
 
