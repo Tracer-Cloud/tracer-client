@@ -2,5 +2,5 @@
 # Ignore all subdirectories
 */
 
-# Keep all files in the root directory
-!*
+# Keep only files in the root directory (not directories)
+!*.*
