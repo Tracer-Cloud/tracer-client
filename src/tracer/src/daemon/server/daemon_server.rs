@@ -130,11 +130,39 @@ impl DaemonServer {
 
     pub async fn terminate(mut self) -> anyhow::Result<()> {
         if self.server.is_none() {
-            eprint!("Server not running");
+            tracing::warn!("Daemon server is not running");
             return Ok(());
         }
-        self.server.unwrap().abort();
-        self.server = None;
+
+        tracing::info!("Initiating graceful daemon server shutdown...");
+
+        // Step 1: Give any ongoing operations time to complete
+        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+
+        // Step 2: Attempt graceful shutdown of the server task
+        if let Some(server_handle) = self.server.take() {
+            // First try to abort the server task gracefully
+            server_handle.abort();
+
+            // Wait for the task to complete or timeout
+            match tokio::time::timeout(tokio::time::Duration::from_secs(5), server_handle).await {
+                Ok(result) => match result {
+                    Ok(_) => tracing::info!("Server task completed successfully"),
+                    Err(e) if e.is_cancelled() => {
+                        tracing::info!("Server task cancelled gracefully")
+                    }
+                    Err(e) => tracing::warn!("Server task ended with error: {}", e),
+                },
+                Err(_) => {
+                    tracing::warn!("Server shutdown timed out, but task was aborted");
+                }
+            }
+        }
+
+        // Step 3: Cleanup daemon resources
+        Self::cleanup();
+
+        tracing::info!("Daemon server terminated successfully");
         Ok(())
     }
 

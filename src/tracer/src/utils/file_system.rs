@@ -240,7 +240,7 @@ impl TrustedFile {
         }
     }
 
-    pub fn as_path(&self) -> Result<Cow<Path>> {
+    pub fn as_path(&self) -> Result<Cow<'_, Path>> {
         match self {
             Self::Embedded(_) => bail!(io::Error::new(
                 io::ErrorKind::PermissionDenied,
