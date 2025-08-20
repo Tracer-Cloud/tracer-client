@@ -172,6 +172,12 @@ pub fn create_short_lived_process_object(
     process: &ProcessStartTrigger,
     display_name: String,
 ) -> ProcessProperties {
+    let trace_id = process
+        .env
+        .iter()
+        .find(|(k, _)| k == env::TRACE_ID_ENV_VAR)
+        .map(|(_, v)| v.to_owned());
+
     ProcessProperties::Full(Box::new(FullProcessProperties {
         tool_name: display_name,
         tool_pid: process.pid.to_string(),
@@ -192,7 +198,7 @@ pub fn create_short_lived_process_object(
         container_id: None,
         job_id: None,
         working_directory: None,
-        trace_id: None,
+        trace_id,
         container_event: None,
         tool_id: construct_tool_id(&process.pid.to_string(), process.started_at),
     }))
