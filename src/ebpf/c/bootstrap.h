@@ -9,7 +9,6 @@
 #define MAX_KEYS 1          /* how many env vars to capture */
 #define KEY_MAX_LEN 16      /* max key name length incl '=' */
 #define VAL_MAX_LEN 128     /* max captured value length (bytes) */
-#define MAX_ENV_STR_LEN 144
 #define MAX_ENV_STRS 128    /* max env strings to scan */
 #define MAX_SCAN_BYTES 4096 /* hard cap on bytes scanned */
 
