@@ -196,9 +196,9 @@ fill_sched_process_exec(struct event *e,
       break;
     if (scanned_bytes >= MAX_SCAN_BYTES)
       break;
+    char str[MAX_ENV_STR_LEN]; /* room for key+value */
     long bytes_remaining = env_end - p;
     long read_len = bytes_remaining < MAX_ENV_STR_LEN ? bytes_remaining : MAX_ENV_STR_LEN;
-    char str[read_len]; /* room for key+value */
     long n = bpf_probe_read_user_str(str, read_len, (void *)p);
     p += (unsigned long)n;
     scanned_bytes += (int)n;
