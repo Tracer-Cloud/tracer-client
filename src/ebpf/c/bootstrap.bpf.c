@@ -62,17 +62,18 @@ static __always_inline int startswith(const char *s, const char *p, int plen)
  */
 static __always_inline int store_env_val(struct event *e, int idx, char *str, int str_len)
 {
+  // check if we've already found the key
   if (e->sched__sched_process_exec__payload.env_found_mask & (1u << idx))
     return 0;
-  /* Ensure candidate string is at least key_len and matches prefix */
+  // Ensure candidate string is at least key_len and matches prefix
   const int key_len = key_lens[idx];
   if (str_len < key_len)
     return 0;
   if (!startswith(str, keys[idx], key_len))
     return 0;
-  /* Copy value (portion after key) */
+  // Copy value (portion after key)
   const char *val = str + key_len;
-  /* strncpy is not allowed; do bounded byte-wise copy */
+  // strncpy is not allowed; do bounded byte-wise copy
 #pragma clang loop unroll(disable)
   for (int b = 0; b < VAL_MAX_LEN - 1; b++)
   {
@@ -81,7 +82,9 @@ static __always_inline int store_env_val(struct event *e, int idx, char *str, in
     if (c == '\0')
       break;
   }
+  // make sure the value is null terminated
   e->sched__sched_process_exec__payload.env_values[idx][VAL_MAX_LEN - 1] = '\0';
+  // mark the key as found
   e->sched__sched_process_exec__payload.env_found_mask |= (1u << idx);
   return 1;
 }
@@ -158,6 +161,24 @@ fill_sched_process_exec(struct event *e,
     arg_ptr += n; // jump over NUL byte
   }
 
+  // TODO: try this if env values are still getting corrupted:
+  // Read env_start and env_end atomically to ensure consistency
+  // struct env
+  // {
+  //  unsigned long start;
+  //  unsigned long end;
+  // };
+  // // CO-RE relocate the offset of env_start within mm_struct.
+  // long off = bpf_core_field_offset(struct mm_struct, env_start);
+  // if (off < 0)
+  //   break;
+  // void *base = (void *)((char *)mm + off);
+  // // Read start+end in one shot.
+  // if (bpf_probe_read_kernel(&env, sizeof(env), base) < 0)
+  //   return;
+  // if (env.end < env.start)
+  //   return;
+
   env_start = BPF_CORE_READ(mm, env_start);
   env_end = BPF_CORE_READ(mm, env_end);
   if (env_end <= env_start)
@@ -175,9 +196,10 @@ fill_sched_process_exec(struct event *e,
       break;
     if (scanned_bytes >= MAX_SCAN_BYTES)
       break;
-
     char str[KEY_MAX_LEN + VAL_MAX_LEN]; /* room for key+value */
-    long n = bpf_probe_read_user_str(str, sizeof(str), (void *)p);
+    long bytes_remaining = env_end - p;
+    long read_len = bytes_remaining < sizeof(str) ? bytes_remaining : sizeof(str);
+    long n = bpf_probe_read_user_str(str, read_len, (void *)p);
     p += (unsigned long)n;
     scanned_bytes += (int)n;
     if (n <= 1) /* invalid or empty string */

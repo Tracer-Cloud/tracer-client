@@ -60,6 +60,14 @@ pub fn from_bpf_str(s: &[u8]) -> anyhow::Result<&str> {
     Ok(std::str::from_utf8(s)?)
 }
 
+pub fn env_val(s: &[u8]) -> Option<String> {
+    from_bpf_str(s)
+        .ok()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+}
+
 // Implement TryInto for CEvent to convert directly to Trigger
 impl TryInto<ebpf_trigger::Trigger> for &CEvent {
     type Error = anyhow::Error;
@@ -83,19 +91,20 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                     args.push(from_bpf_str(&payload.argv[i])?.to_string());
                 }
 
-                let mut env = Vec::new();
-                ENV_KEYS
+                let env = ENV_KEYS
                     .iter()
                     .enumerate()
                     .take(MAX_ENV_LEN)
-                    .try_for_each(|(i, key)| {
+                    .filter_map(|(i, key)| {
                         if payload.env_found_mask & (1 << i) != 0 {
                             let key = key.to_string();
-                            let value = from_bpf_str(&payload.env_values[i])?.to_string();
-                            env.push((key, value));
+                            if let Some(value) = env_val(&payload.env_values[i]) {
+                                return Some((key, value));
+                            }
                         }
-                        Ok::<_, anyhow::Error>(())
-                    })?;
+                        None
+                    })
+                    .collect();
 
                 Ok(ebpf_trigger::Trigger::ProcessStart(
                     ebpf_trigger::ProcessStartTrigger::from_bpf_event(

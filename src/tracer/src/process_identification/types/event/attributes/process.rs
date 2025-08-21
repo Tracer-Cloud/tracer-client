@@ -52,6 +52,7 @@ pub struct CompletedProcess {
     pub exit_reason: Option<ExitReason>,
     pub started_at: DateTime<Utc>,
     pub ended_at: DateTime<Utc>,
+    pub trace_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
