@@ -45,6 +45,7 @@ static __always_inline u64 make_upid(u32 pid, u64 start_ns)
 
 static __always_inline int startswith(const char *s, const char *p, int plen)
 {
+#pragma clang loop unroll(disable)
   for (int i = 0; i < plen; i++)
   {
     if (s[i] != p[i])
@@ -55,9 +56,13 @@ static __always_inline int startswith(const char *s, const char *p, int plen)
   return 1;
 }
 
-/* Store value of env variable if match found */
+/* Tries to match the key with index `idx` against `str` - if they match, the value of the
+ * environment variable is stored in the event payload. Returns `1` if a match was found,
+ * `0` otherwise.
+ */
 static __always_inline int store_env_val(struct event *e, int idx, char *str, int str_len)
 {
+  // already found?
   if (e->sched__sched_process_exec__payload.env_found_mask & (1u << idx))
     return 0;
 
@@ -77,7 +82,9 @@ static __always_inline int store_env_val(struct event *e, int idx, char *str, in
     if (c == '\0')
       break;
   }
+  // ensure NUL
   e->sched__sched_process_exec__payload.env_values[idx][VAL_MAX_LEN - 1] = '\0';
+
   e->sched__sched_process_exec__payload.env_found_mask |= (1u << idx);
   return 1;
 }
@@ -91,6 +98,7 @@ static __always_inline int store_env_val(struct event *e, int idx, char *str, in
     "tracepoint/sched/sched_process_exec", fill_sched_process_exec)                                            \
   X(SCHED__SCHED_PROCESS_EXIT, trace_event_raw_sched_process_template,                                         \
     "tracepoint/sched/sched_process_exit", fill_sched_process_exit)                                            \
+  /* keep syscalls commented to avoid self-trigger loops */                                                    \
   X(VMSCAN__MM_VMSCAN_DIRECT_RECLAIM_BEGIN, trace_event_raw_vmscan_direct_reclaim_begin,                       \
     "tracepoint/vmscan/mm_vmscan_direct_reclaim_begin", fill_vmscan_mm_vmscan_direct_reclaim_begin)            \
   X(OOM__MARK_VICTIM, trace_event_raw_mark_victim,                                                             \
@@ -107,33 +115,18 @@ fill_sched_process_exec(struct event *e,
 {
   struct task_struct *task = (struct task_struct *)bpf_get_current_task();
   struct mm_struct *mm;
-  unsigned long arg_start, arg_end, arg_ptr;
-  u32 i;
 
+  // comm
   BPF_CORE_READ_STR_INTO(&e->sched__sched_process_exec__payload.comm, task, comm);
 
+  // IMPORTANT: Keep argv empty to reduce insn count & avoid -E2BIG.
   e->sched__sched_process_exec__payload.argc = 0;
+
   mm = BPF_CORE_READ(task, mm);
   if (!mm)
     return;
 
-  arg_start = BPF_CORE_READ(mm, arg_start);
-  arg_end = BPF_CORE_READ(mm, arg_end);
-  arg_ptr = arg_start;
-
-  for (i = 0; i < MAX_ARR_LEN; i++)
-  {
-    if (unlikely(arg_ptr >= arg_end))
-      break;
-    long n = bpf_probe_read_user_str(&e->sched__sched_process_exec__payload.argv[i],
-                                     MAX_STR_LEN, (void *)arg_ptr);
-    if (n <= 0)
-      break;
-    e->sched__sched_process_exec__payload.argc++;
-    arg_ptr += n; // jump over NUL byte
-  }
-
-  // Atomically read env_start/env_end
+  // ---- Atomically read env_start/env_end
   struct {
     unsigned long start;
     unsigned long end;
@@ -144,6 +137,7 @@ fill_sched_process_exec(struct event *e,
   if (env.end <= env.start)
     return;
 
+  // ---- Walk env block: NUL-terminated strings
   unsigned long p = env.start;
   int scanned_bytes = 0;
   int found = 0;
@@ -156,24 +150,28 @@ fill_sched_process_exec(struct event *e,
     if (scanned_bytes >= MAX_SCAN_BYTES)
       break;
 
-    char str[MAX_STR_LEN]; // bigger buffer
+    // Use a reasonably large scratch buffer; MAX_STR_LEN typically ~256/512+
+    char str[MAX_STR_LEN];
     long bytes_remaining = env.end - p;
-    long read_len = bytes_remaining < sizeof(str) ? bytes_remaining : sizeof(str);
+    long read_len = bytes_remaining < (long)sizeof(str) ? bytes_remaining : (long)sizeof(str);
 
     long n = bpf_probe_read_user_str(str, read_len, (void *)p);
-    if (n <= 1) { // invalid/empty
+    if (n <= 1) {
+      // invalid/empty → advance by 1 to avoid stalling
       p += 1;
       continue;
     }
-    if (n == read_len) { // truncated → skip
+    if (n == read_len) {
+      // truncated → we can’t trust content nor alignment of next string; advance by n
       p += n;
       continue;
     }
 
-    p += n;
+    p += n;              // includes '\0'
     scanned_bytes += (int)n;
 
-    if (store_env_val(e, 0, str, n))
+    // Only one key (index 0). If you add more, add more branches (don’t loop over MAX_KEYS).
+    if (store_env_val(e, 0, str, (int)n))
       found++;
 
     if (found >= MAX_KEYS)
@@ -260,30 +258,42 @@ fill_oom_mark_victim(struct event *e,
   SEC(sec)                                                                        \
   int handle__##name(struct ctx_t *ctx)                                           \
   {                                                                               \
+    /* --------------------------- common prologue --------------------------- */ \
     u64 id = bpf_get_current_pid_tgid();                                          \
     u32 pid = id >> 32;                                                           \
     u32 tid = (u32)id;                                                            \
+                                                                                  \
+    /* Ignore threads, only report the main thread */                             \
     if (pid != tid)                                                               \
       return 0;                                                                   \
+                                                                                  \
     struct event *e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);                    \
     if (!e)                                                                       \
       return 0;                                                                   \
+                                                                                  \
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();      \
     struct task_struct *parent = BPF_CORE_READ(task, parent);                     \
+                                                                                  \
     e->event_type = EVENT__##name;                                                \
     e->timestamp_ns = bpf_ktime_get_ns() + system_boot_ns;                        \
     e->pid = pid;                                                                 \
     e->ppid = BPF_CORE_READ(parent, tgid);                                        \
+                                                                                  \
     u64 start_ns = BPF_CORE_READ(task, start_time);                               \
     u64 pstart_ns = BPF_CORE_READ(parent, start_time);                            \
     e->upid = make_upid(e->pid, start_ns);                                        \
     e->uppid = make_upid(e->ppid, pstart_ns);                                     \
+                                                                                  \
+    /* ---------------------- variant-specific section ----------------------- */ \
     fill_fn(e, ctx);                                                              \
+                                                                                  \
     bpf_ringbuf_submit(e, 0);                                                     \
     return 0;                                                                     \
   }
 
+/* Instantiate one handler per EVENT_LIST entry */
 EVENT_LIST(HANDLER_DECL)
 #undef HANDLER_DECL
 
+// Licence, required to invoke GPL-restricted BPF functions
 char LICENSE[] SEC("license") = "GPL";
