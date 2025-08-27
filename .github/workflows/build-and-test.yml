@@ -51,17 +51,29 @@ jobs:
           rustup component add rustfmt
 
       - name: Cache Rust dependencies
-        uses: actions/cache@v3
+        id: cache-deps
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/bin/
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-${{ runner.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+            ~/.rustup/
+          key: cargo-deps-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-cargo-
+            cargo-deps-${{ runner.os }}-
+
+      - name: Cache build artifacts
+        id: cache-build
+        uses: actions/cache@v4
+        with:
+          path: |
+            target/
+          key: cargo-build-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            cargo-build-${{ runner.os }}-
+
 
       - name: Install build dependencies
         run: |
@@ -79,5 +91,4 @@ jobs:
 
       - name: Run tests
         run: |
-          cargo_bin=$(which cargo)
-          sudo -E $cargo_bin test --features test-bins
+          cargo test --features test-bins
