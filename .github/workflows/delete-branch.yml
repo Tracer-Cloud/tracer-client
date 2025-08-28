@@ -9,6 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      BRANCH_NAME: ${{ github.event.ref }}
       
     steps:
       - name: Configure AWS credentials
@@ -19,23 +21,11 @@ jobs:
           aws-region: us-east-1
 
       - name: Delete tracer releases s3
-        env:
-          S3_BUCKET: tracer-releases
-          BRANCH_NAME: ${{ github.event.ref }}
         run: |
-          FOLDER="s3://${S3_BUCKET}/${BRANCH_NAME}/"
-
+          FOLDER="s3://tracer-releases/${BRANCH_NAME}/"
           aws s3 rm "$FOLDER" --recursive --quiet || true
-
-          echo "✅ Finished deleting $FOLDER"
 
       - name: Delete tracer installer releases s3
-        env:
-          S3_BUCKET: tracer-installer-releases
-          BRANCH_NAME: ${{ github.event.ref }}
         run: |
-          FOLDER="s3://${S3_BUCKET}/${BRANCH_NAME}/"
-
+          FOLDER="s3://tracer-installer-releases/${BRANCH_NAME}/"
           aws s3 rm "$FOLDER" --recursive --quiet || true
-
-          echo "✅ Finished deleting $FOLDER"

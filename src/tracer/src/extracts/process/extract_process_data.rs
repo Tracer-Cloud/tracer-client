@@ -2,9 +2,8 @@ use crate::process_identification::types::event::attributes::process::{
     FullProcessProperties, ProcessProperties,
 };
 use crate::utils::env;
-use crate::warning_message;
+use crate::utils::string_validation::is_valid_uuid;
 use chrono::{DateTime, Utc};
-use colored::Colorize;
 use itertools::Itertools;
 use mockall::automock;
 use std::path::PathBuf;
@@ -101,31 +100,21 @@ pub async fn gather_process_data<P: ProcessTrait>(
     let bpf_trace_id = process_env
         .iter()
         .find(|(k, _)| k == env::TRACE_ID_ENV_VAR)
-        .map(|(_, v)| v.to_owned());
+        .map(|(_, v)| v.to_owned())
+        .unwrap_or_default();
 
     // get the process environment variables
-    let (container_id, job_id, proc_trace_id) = get_process_environment_variables(proc);
+    let (container_id, job_id, process_trace_id) = get_process_environment_variables(proc);
 
-    // resolve trace_id - prefer the proc value if we have it as sometimes the eBPF value
+    // if we have both a bpf_trace_id and a process_trace_id, we use the process_trace_id as it is more attendible
+    // to resolve trace_id - prefer the proc value if we have it as sometimes the eBPF value
     // gets corrupted, warn if the values differ
-    let trace_id = match (bpf_trace_id, proc_trace_id) {
-        (Some(bpf_trace_id), Some(proc_trace_id)) if bpf_trace_id == proc_trace_id => {
-            Some(proc_trace_id)
-        }
-        (Some(bpf_trace_id), Some(proc_trace_id))
-            if !bpf_trace_id.trim().is_empty() && proc_trace_id.trim().is_empty() =>
-        {
-            warning_message!(
-                "Mismatched trace IDs for process {}: {} vs {}",
-                proc.pid(),
-                bpf_trace_id,
-                proc_trace_id
-            );
-            Some(proc_trace_id)
-        }
-        (_, Some(proc_trace_id)) => Some(proc_trace_id),
-        (Some(bpf_trace_id), _) => Some(bpf_trace_id),
-        (None, None) => None,
+    let trace_id = if process_trace_id.is_some() {
+        process_trace_id
+    } else if is_valid_uuid(&bpf_trace_id) {
+        Some(bpf_trace_id)
+    } else {
+        None
     };
 
     // get the process working directory
