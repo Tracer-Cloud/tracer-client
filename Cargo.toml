@@ -16,19 +16,19 @@ tracer_ebpf = { path = "src/ebpf" }
 anyhow = "1.0.99"
 assert_cmd = "2.0.17"
 async-trait = "0.1.89"
-aws-config = { version = "1.8.5", features = ["behavior-version-latest"] }
+aws-config = { version = "1.8.6", features = ["behavior-version-latest"] }
 aws-credential-types = "1.2.4"
-aws-sdk-ec2 = "1.159.0"
-aws-sdk-pricing = "1.85.0"
-aws-sdk-s3 = "1.103.0"
-aws-sdk-secretsmanager = "1.85.0"
+aws-sdk-ec2 = "1.164.0"
+aws-sdk-pricing = "1.86.0"
+aws-sdk-s3 = "1.104.0"
+aws-sdk-secretsmanager = "1.87.0"
 axum = "0.8.4"
 bollard = "0.19.2"
 built = { version = "0.8.0", features = ["chrono", "git2"] }
 chrono = { version = "0.4.41", features = ["serde"] }
-clap = { version = "4.5.45", features = ["derive", "env"] }
+clap = { version = "4.5.46", features = ["derive", "env"] }
 colored = "3.0.0"
-config = { version = "0.15.14", default-features = false, features = [
+config = { version = "0.15.15", default-features = false, features = [
     "toml",
     "convert-case",
 ] }
@@ -91,7 +91,7 @@ tokio-util = "0.7.16"
 toml = "0.9.5"
 tracing = { version = "0.1.41" }
 tracing-appender = "0.2.3"
-tracing-subscriber = { version = "0.3.19", features = [
+tracing-subscriber = { version = "0.3.20", features = [
     "env-filter",
     "json",
     "time",
