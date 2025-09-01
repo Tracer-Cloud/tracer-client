@@ -34,6 +34,12 @@ pub fn process_command() {
         }
         Command::Update => handlers::update(),
         Command::Uninstall => handlers::uninstall(),
+        Command::Login => {
+            match handlers::login() {
+                Ok(message) => success_message!("{}", message),
+                Err(e) => eprintln!("Error during login: {}", e),
+            }
+        },
         command => tokio::runtime::Runtime::new()
             .unwrap()
             .block_on(super::process_daemon_command(command, config)),

@@ -15,3 +15,4 @@ pub mod telemetry;
 pub mod user_id_resolution;
 pub mod workdir;
 pub mod yaml;
+pub mod browser;

@@ -10,6 +10,7 @@ mod terminate;
 mod theme;
 mod uninstall;
 mod update;
+mod login;
 
 pub(super) use cleanup_port::cleanup_port;
 pub use demo::arguments as demo_arguments;
@@ -25,3 +26,4 @@ pub(super) use terminate::terminate;
 pub use theme::INTERACTIVE_THEME;
 pub(super) use uninstall::uninstall;
 pub(super) use update::update;
+pub(super) use login::login;
