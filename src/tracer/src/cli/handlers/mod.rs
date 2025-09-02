@@ -18,7 +18,7 @@ pub(super) use demo::demo;
 pub(super) use info::info;
 pub use init::arguments as init_arguments;
 pub(super) use init::init;
-pub(super) use login::login;
+pub(super) use login::cli_login::login;
 pub(super) use logs::{logs, otel_start_with_auto_install};
 pub(super) use otel::handle_otel_command;
 pub(super) use start::start;

@@ -95,7 +95,7 @@ pub enum Command {
         command: OtelCommand,
     },
 
-    /// Login to tracer and saves a jwt token
+    /// Login to tracer and saves a jwt_utils token
     Login,
 }
 

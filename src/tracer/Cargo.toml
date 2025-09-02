@@ -60,6 +60,8 @@ url.workspace = true
 uuid.workspace = true
 which.workspace = true
 yaml-rust2.workspace = true
+jsonwebtoken.workspace = true
+once_cell.workspace = true
 
 tempfile = { workspace = true, optional = true }
 

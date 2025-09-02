@@ -9,6 +9,7 @@ pub mod command;
 pub mod env;
 pub mod file_system;
 pub mod input_validation;
+pub mod jwt_utils;
 pub mod spawn;
 pub mod string_validation;
 pub mod system_info;
