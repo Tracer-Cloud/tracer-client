@@ -34,13 +34,13 @@ pub async fn login() -> Result<String, Box<dyn std::error::Error>> {
 
 /// wait for the token to be available in a specific folder, wait for 2 minutes max
 fn wait_for_token(date: SystemTime) -> Option<String> {
-
     sleep(Duration::from_secs(5));
 
     let token_file_path = JWT_TOKEN_FOLDER_PATH.to_string() + "/" + JWT_TOKEN_FILE_NAME;
 
     let token: String;
 
+    // running this loop every 2 seconds for 60 times, so 2 minutes max
     for _ in 0..60 {
         // check if the folder path exists
         let file_metadata = std::fs::metadata(&token_file_path);

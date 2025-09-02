@@ -44,7 +44,7 @@ pub fn process_command() {
                 Ok(message) => success_message!("{}", message),
                 Err(e) => eprintln!("Error during login: {}", e),
             }
-        },
+        }
         command => tokio::runtime::Runtime::new()
             .unwrap()
             .block_on(super::process_daemon_command(command, config)),
