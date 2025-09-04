@@ -14,9 +14,9 @@ impl KernelCheck {
         cfg!(target_os = "linux")
     }
 
-    // COPY (robust): src/tracer/src/utils/system_info.rs
+    // COPY: src/tracer/src/utils/system_info.rs
     pub fn get_kernel_version() -> Option<(u32, u32)> {
-        // Collect potential sources for kernel version string, in order of preference.
+        // Collect potential sources for kernel version string.
         let candidates: [Option<String>; 3] = [
             fs::read_to_string("/proc/sys/kernel/osrelease").ok(),
             fs::read_to_string("/proc/version").ok(),
@@ -27,7 +27,6 @@ impl KernelCheck {
                 .and_then(|output| String::from_utf8(output.stdout).ok()),
         ];
 
-        // Find the first non-empty candidate string
         let version_str = candidates
             .into_iter()
             .flatten()
