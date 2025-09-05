@@ -19,6 +19,7 @@ aws-sdk-pricing.workspace = true
 aws-sdk-s3.workspace = true
 aws-sdk-secretsmanager.workspace = true
 axum.workspace = true
+tower-http = { version = "0.6.2", features = ["cors"] }
 bollard.workspace = true
 chrono.workspace = true
 clap.workspace = true
@@ -62,6 +63,7 @@ which.workspace = true
 yaml-rust2.workspace = true
 jsonwebtoken.workspace = true
 once_cell.workspace = true
+hyper.workspace = true
 
 tempfile = { workspace = true, optional = true }
 

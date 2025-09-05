@@ -65,6 +65,10 @@ pub struct TracerCliInitArgs {
     /// force termination of existing daemon before starting new one
     #[clap(long)]
     pub force: bool,
+
+    /// set a jwt token for authentication
+    #[clap(long)]
+    pub token: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, ValueEnum)]

@@ -1,10 +1,13 @@
 // src/tracer/src/cli/handlers/init/arguments/resolver.rs
-use crate::utils::env;
-use std::collections::HashMap;
-
 use super::super::user_prompts::{print_help, UserPrompts};
 use super::user_id_resolver::resolve_user_id;
 use super::{FinalizedInitArgs, PromptMode, TracerCliInitArgs};
+use crate::constants::JWT_TOKEN_FILE_PATH;
+use crate::utils::env;
+use crate::utils::jwt_utils::claims::Claims;
+use crate::utils::jwt_utils::jwt;
+use crate::utils::jwt_utils::jwt::is_jwt_valid;
+use std::collections::HashMap;
 
 /// Constants for argument resolution
 pub const DEFAULT_PIPELINE_TYPE: &str = "Preprocessing";
@@ -23,7 +26,7 @@ impl ArgumentResolver {
     pub async fn resolve(mut self) -> FinalizedInitArgs {
         let prompt_mode = self.args.interactive_prompts.clone();
 
-        let user_id = self.resolve_user_id(&prompt_mode);
+        let user_id = self.resolve_user_id(&prompt_mode).await;
 
         // Resolve environment type first so it can be used in pipeline name generation
         self.resolve_environment_type().await;
@@ -50,10 +53,22 @@ impl ArgumentResolver {
         }
     }
 
-    fn resolve_user_id(&mut self, prompt_mode: &PromptMode) -> String {
-        let user_id = resolve_user_id(self.args.tags.user_id.clone(), prompt_mode);
-        self.args.tags.user_id = Some(user_id.clone());
-        user_id
+    async fn resolve_user_id(&mut self, prompt_mode: &PromptMode) -> String {
+        // let user_id = resolve_user_id(self.args.tags.user_id.clone(), prompt_mode);
+        let token_claims = self.get_token_claims().await;
+
+        if token_claims.is_some() {
+            let token_claims = token_claims.unwrap();
+            let user_id = token_claims.sub;
+
+            self.args.tags.user_id = Some(user_id.to_string());
+
+            println!("User ID detected: {}", user_id);
+
+            return user_id;
+        }
+
+        "".to_string()
     }
 
     fn resolve_pipeline_name(&self, prompt_mode: &PromptMode, user_id: &str) -> String {
@@ -197,5 +212,26 @@ impl ArgumentResolver {
             }
         }
         environment_variables
+    }
+
+    async fn get_token_claims(&self) -> Option<Claims> {
+        // read the token.txt file
+        let token = if let Ok(token) = std::fs::read_to_string(JWT_TOKEN_FILE_PATH.to_string()) {
+            Some(token)
+        } else {
+            None
+        };
+
+        if token.is_none() {
+            return None;
+        }
+
+        let is_token_valid_with_claims = is_jwt_valid(token.unwrap().as_str()).await;
+
+        if is_token_valid_with_claims.0 {
+            Some(is_token_valid_with_claims.1.unwrap())
+        } else {
+            None
+        }
     }
 }
