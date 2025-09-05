@@ -19,62 +19,62 @@ use tokio::time::timeout;
 pub async fn login() -> Result<String, Box<dyn std::error::Error>> {
     let login_url = CLI_LOGIN_URL_DEV;
 
-
     let now_system_date = SystemTime::now();
-    // 1. open the browser window to login
+
+    // open the browser window to login
     browser_utils::open_url(login_url);
 
-    // 2. start login server with cancellation support
-    let cancel_token = CancellationToken::new();
+    // start a server with cancellation support
+    // the cancellation token is used to shut down the server when the token is received
+    let cancellation_token = CancellationToken::new();
 
-    // we should put some kind of check of the port
-    let server_future = start_login_server("127.0.0.1:8085".to_string(), cancel_token.clone());
+    // TODO we should put some kind of check of the port if it's already in use
+    // Google Cloud CLI use this for the login functionality
+    let server_future = start_login_server("127.0.0.1:8085".to_string(), cancellation_token.clone());
 
-    // run server in background
+    // run server in the background
     tokio::spawn(server_future);
 
-    // 3. wait up to 2 minutes for the token file to appear
+    // wait up to 2 minutes for the token file to appear
     let token = match timeout(Duration::from_secs(120), wait_for_token(now_system_date)).await {
-        Ok(token_opt) => token_opt,
+        Ok(token) => token,
         Err(_) => {
             // timeout elapsed, shutdown server and return error
-            cancel_token.cancel();
-            return Err("Login timed out waiting for token".into());
+            cancellation_token.cancel();
+            return Err("Login timed out waiting for token, 2 minutes passed, please try `tracer login` again".into());
         }
     };
 
     if token.is_none() {
         // ensure server shuts down
-        cancel_token.cancel();
+        cancellation_token.cancel();
         return Err("No token found".into());
     }
 
     let token_value = token.unwrap();
     if !is_jwt_valid(&token_value).await.0 {
-        cancel_token.cancel();
+        cancellation_token.cancel();
         return Err("Invalid token".into());
     }
 
     // cancel the server now that we have the token
-    cancel_token.cancel();
+    cancellation_token.cancel();
 
     // 5. return success
-    Ok("Login successful! Token stored.".to_string())
-
+    Ok("Login successful! Run `tracer init` to start a new run.".to_string())
 }
 
 
 pub async fn start_login_server(server_url: String, cancel_token: CancellationToken) -> anyhow::Result<()> {
-    println!("[DEBUG] Starting login server...");
 
     let listener = create_listener(server_url.clone()).await;
-    println!("[DEBUG] Listener created");
 
     // clone token for shutdown task
     let shutdown_token = cancel_token.clone();
 
     let tx = Arc::new(Mutex::new(Some(cancel_token.clone())));
 
+    // create a CORS layer to allow all GET requests
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods([Method::GET, Method::OPTIONS])
@@ -92,13 +92,9 @@ pub async fn start_login_server(server_url: String, cancel_token: CancellationTo
                             let _ = fs::create_dir_all(JWT_TOKEN_FOLDER_PATH);
                             let _ = fs::write(JWT_TOKEN_FILE_PATH, token);
 
-                            if let Some(ct) = tx.lock().unwrap().take() {
-                                ct.cancel();
+                            if let Some(cancellation_token) = tx.lock().unwrap().take() {
+                                cancellation_token.cancel();
                             }
-
-                            "Login successful! You can close this tab."
-                        } else {
-                            "No token provided"
                         }
                     }
                 }
@@ -110,9 +106,7 @@ pub async fn start_login_server(server_url: String, cancel_token: CancellationTo
     let _keep_alive = cancel_token.clone();
 
     let shutdown_future = async move {
-        println!("[DEBUG] Waiting for cancel...");
         shutdown_token.cancelled().await;
-        println!("[DEBUG] Cancel received, shutting down");
     };
 
     axum::serve(listener, app)
@@ -126,18 +120,26 @@ pub async fn start_login_server(server_url: String, cancel_token: CancellationTo
 async fn wait_for_token(date: SystemTime) -> Option<String> {
     let token_file_path = JWT_TOKEN_FILE_PATH;
 
+    // every 1 second we check if the token file has been created
+    // if it was created, we check that the modified date is after the date we started waiting
+    // because the file could have been created before the date we started waiting for a previous login
+    // checking the modified date allows us to get the latest token created after the login command has started
     loop {
-        if let Ok(metadata) = std::fs::metadata(&token_file_path) {
+        if let Ok(metadata) = fs::metadata(&token_file_path) {
             if let Ok(file_modified_at) = metadata.modified() {
                 if file_modified_at > date {
-                    if let Ok(token) = std::fs::read_to_string(token_file_path) {
-                        return Some(token);
+                    let token_result = fs::read_to_string(token_file_path);
+
+                    if token_result.is_ok() {
+                        return Some(token_result.unwrap());
+                    } else {
+                        return None;
                     }
                 }
             }
         }
 
-        // poll every 200ms
-        sleep(Duration::from_millis(200)).await;
+        // poll every 1 second
+        sleep(Duration::from_secs(1)).await;
     }
 }

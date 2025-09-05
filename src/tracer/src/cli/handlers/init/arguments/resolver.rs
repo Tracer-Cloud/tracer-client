@@ -1,11 +1,8 @@
-// src/tracer/src/cli/handlers/init/arguments/resolver.rs
 use super::super::user_prompts::{print_help, UserPrompts};
-use super::user_id_resolver::resolve_user_id;
 use super::{FinalizedInitArgs, PromptMode, TracerCliInitArgs};
 use crate::constants::JWT_TOKEN_FILE_PATH;
 use crate::utils::env;
 use crate::utils::jwt_utils::claims::Claims;
-use crate::utils::jwt_utils::jwt;
 use crate::utils::jwt_utils::jwt::is_jwt_valid;
 use std::collections::HashMap;
 
@@ -59,6 +56,8 @@ impl ArgumentResolver {
 
         if token_claims.is_some() {
             let token_claims = token_claims.unwrap();
+
+            println!("Token claims: {:?}", token_claims);
             let user_id = token_claims.sub;
 
             self.args.tags.user_id = Some(user_id.to_string());
