@@ -94,6 +94,9 @@ pub enum Command {
         #[clap(subcommand)]
         command: OtelCommand,
     },
+
+    /// Login to tracer and saves a jwt_utils token
+    Login,
 }
 
 #[derive(Subcommand, Debug, Clone)]

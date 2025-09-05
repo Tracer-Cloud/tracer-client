@@ -73,7 +73,7 @@ fn get_router(state: DaemonState) -> Router {
     router.with_state(state)
 }
 
-async fn create_listener(server_url: String) -> TcpListener {
+pub async fn create_listener(server_url: String) -> TcpListener {
     let addr: SocketAddr = server_url.parse().unwrap();
 
     match TcpListener::bind(addr).await {
