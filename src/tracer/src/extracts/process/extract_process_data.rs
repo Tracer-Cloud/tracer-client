@@ -108,7 +108,12 @@ pub async fn gather_process_data<P: ProcessTrait>(
     // to resolve trace_id - prefer the proc value if we have it as sometimes the eBPF value
     // gets corrupted, warn if the values differ
     let trace_id = if process_trace_id.is_some() {
-        process_trace_id
+        let process_trace_id_unrwapped = process_trace_id.unwrap();
+        if is_valid_uuid(&process_trace_id_unrwapped) {
+            Some(process_trace_id_unrwapped)
+        } else {
+            None
+        }
     } else if is_valid_uuid(&bpf_trace_id) {
         // if we don't have a process_trace_id, we use the bpf_trace_id if it's in a valid uuid format
         Some(bpf_trace_id)
