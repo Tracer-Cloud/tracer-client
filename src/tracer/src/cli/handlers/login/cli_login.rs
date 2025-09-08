@@ -14,6 +14,7 @@ use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 use tower_http::cors::{Any, CorsLayer};
 
+use crate::utils::jwt_utils::claims::Claims;
 /// open a browser window when the user types 'tracer login' to login and get the token
 /// It also waits for 2 minutes max for the token to be available in a specific folder
 use std::time::Duration;
@@ -56,16 +57,38 @@ pub async fn login() -> Result<String, Box<dyn std::error::Error>> {
     }
 
     let token_value = token.unwrap();
-    if !is_jwt_valid(&token_value).await.0 {
+
+    // the first boolean in the tuple is whether the token is valid
+    // the second are the claims if the token is valid
+    let jwt_validation_result: (bool, Option<Claims>) = is_jwt_valid(&token_value).await;
+
+    if !jwt_validation_result.0 {
+        // this means the token is not valid
         cancellation_token.cancel();
         return Err("Invalid token".into());
     }
+
+    if jwt_validation_result.1.is_none() {
+        cancellation_token.cancel();
+        return Err("Invalid token, no claims found".into());
+    }
+
+    let claims = jwt_validation_result.1.unwrap();
+
+    let user_full_name = if claims.full_name.is_none() {
+        ""
+    } else {
+        &claims.full_name.unwrap()
+    };
 
     // cancel the server now that we have the token
     cancellation_token.cancel();
 
     // 5. return success
-    Ok("Login successful! Run `tracer init` to start a new run.".to_string())
+    Ok(format!(
+        "Welcome back {} ! Run `tracer init` to start a new run.",
+        user_full_name
+    ))
 }
 
 pub async fn start_login_server(

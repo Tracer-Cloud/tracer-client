@@ -13,15 +13,17 @@ pub async fn is_jwt_valid(token: &str) -> (bool, Option<Claims>) {
     match verification_result {
         Ok(claims) => {
             if claims.sub.is_empty() {
-                eprintln!("Error validating jwt token from clerk: user ID not found");
+                eprintln!("Error validating jwt token from clerk: user ID not found. Try 'tracer login' again");
                 (false, None)
             } else {
-                println!("Logged In successfully! Run `tracer init` to start collecting data");
                 (true, Some(claims))
             }
         }
         Err(err) => {
-            eprintln!("Error validating jwt token from clerk: {}", err);
+            eprintln!(
+                "Error validating jwt token from clerk: {}, try 'tracer login' again",
+                err
+            );
             (false, None)
         }
     }
