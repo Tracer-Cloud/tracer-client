@@ -86,7 +86,7 @@ pub async fn login() -> Result<String, Box<dyn std::error::Error>> {
 
     // 5. return success
     Ok(format!(
-        "Welcome back {} ! Run `tracer init` to start a new run.",
+        "Welcome back {}! Run `tracer init` to start a new run.",
         user_full_name
     ))
 }
@@ -97,7 +97,7 @@ pub async fn start_login_server(
 ) -> anyhow::Result<()> {
     let listener = create_listener(server_url.clone()).await;
 
-    // clone token for shutdown task
+    // clone token for the shutdown task
     let shutdown_token = cancel_token.clone();
 
     let tx = Arc::new(Mutex::new(Some(cancel_token.clone())));
