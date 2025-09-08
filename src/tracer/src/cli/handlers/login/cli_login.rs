@@ -108,7 +108,8 @@ pub async fn start_login_server(
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods([Method::GET, Method::OPTIONS])
-        .allow_headers(Any);
+        .allow_headers(Any)
+        .allow_private_network(true);
 
     println!("2 Starting login server on {}", server_url);
     let app = Router::new()
