@@ -3,7 +3,7 @@ use crate::daemon::server::daemon_server::create_listener;
 use crate::utils::browser::browser_utils;
 use crate::utils::jwt_utils::jwt::is_jwt_valid;
 use axum::http::Method;
-use axum::{extract::Query, routing::get, Router};
+use axum::{extract::Query, http::StatusCode, routing::get, Router};
 use std::collections::HashMap;
 use std::time::SystemTime;
 use std::{
@@ -19,6 +19,7 @@ use crate::utils::jwt_utils::claims::Claims;
 /// It also waits for 2 minutes max for the token to be available in a specific folder
 use std::time::Duration;
 use tokio::time::timeout;
+use tracing::log::debug;
 
 pub async fn login() -> Result<String, Box<dyn std::error::Error>> {
     let login_url = CLI_LOGIN_URL_DEV;
@@ -95,13 +96,12 @@ pub async fn start_login_server(
     server_url: String,
     cancel_token: CancellationToken,
 ) -> anyhow::Result<()> {
-    println!("Starting login server on {}", server_url);
+    debug!("Starting login server on: {}", server_url);
     let listener = create_listener(server_url.clone()).await;
 
     // clone token for the shutdown task
     let shutdown_token = cancel_token.clone();
 
-    println!("Login server started");
     let tx = Arc::new(Mutex::new(Some(cancel_token.clone())));
 
     // create a CORS layer to allow all GET requests
@@ -111,19 +111,17 @@ pub async fn start_login_server(
         .allow_headers(Any)
         .allow_private_network(true);
 
-    println!("2 Starting login server on {}", server_url);
     let app = Router::new()
         .route(
             "/callback",
+            // Handle GET for the actual callback
             get({
                 let tx = tx.clone();
                 println!("get on {}", server_url);
                 move |Query(params): Query<HashMap<String, String>>| {
                     let tx = tx.clone();
                     async move {
-                        println!("get token {}", server_url);
                         if let Some(token) = params.get("token") {
-                            println!("token {}", token);
                             let _ = fs::create_dir_all(JWT_TOKEN_FOLDER_PATH);
                             let _ = fs::write(JWT_TOKEN_FILE_PATH, token);
 
@@ -133,7 +131,9 @@ pub async fn start_login_server(
                         }
                     }
                 }
-            }),
+            })
+            // Explicitly handle CORS/PNA preflight from HTTPS origins
+            .options(|| async { StatusCode::NO_CONTENT }),
         )
         .layer(cors);
 
@@ -148,7 +148,8 @@ pub async fn start_login_server(
         .with_graceful_shutdown(shutdown_future)
         .await?;
 
-    println!("Login server stopped");
+    debug!("Login server stopped on: {}", server_url);
+
     Ok(())
 }
 
