@@ -3,7 +3,7 @@ use crate::daemon::server::daemon_server::create_listener;
 use crate::utils::browser::browser_utils;
 use crate::utils::jwt_utils::jwt::is_jwt_valid;
 use axum::http::Method;
-use axum::{extract::Query, http::StatusCode, routing::get, Router};
+use axum::{extract::Query, routing::get, Router};
 use std::collections::HashMap;
 use std::time::SystemTime;
 use std::{
@@ -76,10 +76,14 @@ pub async fn login() -> Result<String, Box<dyn std::error::Error>> {
 
     let claims = jwt_validation_result.1.unwrap();
 
-    let user_full_name = if claims.full_name.is_none() {
-        ""
+    let user_name = if claims.full_name.is_none() {
+        "".to_string()
     } else {
-        &claims.full_name.unwrap()
+        format!(
+            " {}",
+            &claims.full_name.unwrap().split(" ").collect::<Vec<&str>>()[0]
+        )
+        // getting only the first name
     };
 
     // cancel the server now that we have the token
@@ -87,8 +91,8 @@ pub async fn login() -> Result<String, Box<dyn std::error::Error>> {
 
     // 5. return success
     Ok(format!(
-        "Welcome back {}! Run `tracer init` to start a new run.",
-        user_full_name
+        "Welcome back{}! Run `tracer init` to start a new run.",
+        user_name
     ))
 }
 
@@ -117,7 +121,6 @@ pub async fn start_login_server(
             // Handle GET for the actual callback
             get({
                 let tx = tx.clone();
-                println!("get on {}", server_url);
                 move |Query(params): Query<HashMap<String, String>>| {
                     let tx = tx.clone();
                     async move {
@@ -131,9 +134,7 @@ pub async fn start_login_server(
                         }
                     }
                 }
-            })
-            // Explicitly handle CORS/PNA preflight from HTTPS origins
-            .options(|| async { StatusCode::NO_CONTENT }),
+            }),
         )
         .layer(cors);
 
