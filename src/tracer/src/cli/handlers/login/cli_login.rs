@@ -116,10 +116,13 @@ pub async fn start_login_server(
             "/callback",
             get({
                 let tx = tx.clone();
+                println!("get on {}", server_url);
                 move |Query(params): Query<HashMap<String, String>>| {
                     let tx = tx.clone();
                     async move {
+                        println!("get token {}", server_url);
                         if let Some(token) = params.get("token") {
+                            println!("token {}", token);
                             let _ = fs::create_dir_all(JWT_TOKEN_FOLDER_PATH);
                             let _ = fs::write(JWT_TOKEN_FILE_PATH, token);
 
