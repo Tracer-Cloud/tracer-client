@@ -17,8 +17,8 @@ pub const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/an
 pub const TRACER_SANDBOX_URL: &str = "https://sandbox.tracer.cloud";
 pub const OTEL_FORWARD_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/otel-forward";
 pub const CLI_LOGIN_URL: &str = "https://sandbox.tracer.cloud/sign-in?cli=true";
-// pub const CLI_LOGIN_URL_DEV: &str = "https://dev.sandbox.tracer.cloud/sign-in?cli=true";
-pub const CLI_LOGIN_URL_DEV: &str = "http://localhost:3000/sign-in?cli=true";
+pub const CLI_LOGIN_URL_LOCAL: &str = "http://localhost:3000/sign-in?cli=true";
+pub const CLI_LOGIN_URL_DEV: &str = "https://dev.sandbox.tracer.cloud/sign-in?cli=true";
 pub const JWT_TOKEN_FOLDER_PATH: &str = "/tmp/tracer";
 pub const JWT_TOKEN_FILE_NAME: &str = "token.txt";
 pub const JWT_TOKEN_FILE_PATH: &str = "/tmp/tracer/token.txt";
