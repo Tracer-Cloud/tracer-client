@@ -1,12 +1,10 @@
-use crate::constants::{CLERK_ISSUER_DOMAIN, CLERK_JWKS_DOMAIN};
+use crate::constants::{
+    CLERK_ISSUER_DOMAIN_DEV, CLERK_ISSUER_DOMAIN_PROD, CLERK_JWKS_DOMAIN_DEV,
+    CLERK_JWKS_DOMAIN_PROD,
+};
 use crate::utils::jwt_utils::claims::Claims;
 use jsonwebtoken::jwk::JwkSet;
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
-use once_cell::sync::Lazy;
-use std::sync::RwLock;
-
-// JWKS cache to avoid frequent network requests
-static JWKS_CACHE: Lazy<RwLock<Option<JwkSet>>> = Lazy::new(|| RwLock::new(None));
 
 pub struct ClerkJwtVerifier {
     jwks_url: String,
@@ -14,53 +12,45 @@ pub struct ClerkJwtVerifier {
 }
 
 impl ClerkJwtVerifier {
-    pub fn new() -> Self {
-        Self {
-            jwks_url: CLERK_JWKS_DOMAIN.to_string(),
-            issuer: CLERK_ISSUER_DOMAIN.to_string(),
+    pub fn new(platform: &str) -> Self {
+        let jwks_url: String;
+        let issuer: String;
+
+        if platform.eq_ignore_ascii_case("dev") || platform.eq_ignore_ascii_case("local") {
+            jwks_url = CLERK_JWKS_DOMAIN_DEV.to_string();
+            issuer = CLERK_ISSUER_DOMAIN_DEV.to_string();
+        } else {
+            jwks_url = CLERK_JWKS_DOMAIN_PROD.to_string();
+            issuer = CLERK_ISSUER_DOMAIN_PROD.to_string();
         }
+
+        Self { jwks_url, issuer }
     }
 
-    // Fetch JWKS from Clerk
+    /// Fetch JWKS from Clerk
+    /// We don't use caching for now because there is a lot of change of tokens between dev and prod and we might use the
+    /// wrong platform cached to decode the token, but i think it'll be added after
     pub async fn fetch_jwks(&self) -> Result<JwkSet, Box<dyn std::error::Error>> {
         let response = reqwest::get(&self.jwks_url).await?;
         let jwks: JwkSet = response.json().await?;
 
-        // Cache the JWKS
-        if let Ok(mut cache) = JWKS_CACHE.write() {
-            *cache = Some(jwks.clone());
-        }
-
         Ok(jwks)
-    }
-
-    // Get JWKS (from cache or fetch)
-    async fn get_jwks(&self) -> Result<JwkSet, Box<dyn std::error::Error>> {
-        // Try to get from cache first
-        if let Ok(cache) = JWKS_CACHE.read() {
-            if let Some(ref jwks) = *cache {
-                return Ok(jwks.clone());
-            }
-        }
-
-        // Fetch if not in cache
-        self.fetch_jwks().await
     }
 
     // Verify and decode JWT token
     pub async fn verify_token(&self, token: &str) -> Result<Claims, Box<dyn std::error::Error>> {
         // Get the token header to find the key ID
         let header = jsonwebtoken::decode_header(token)?;
-        let kid = header.kid.ok_or("Token missing key ID")?;
+        let key_id = header.kid.ok_or("Token missing key ID")?;
 
         // Get JWKS
-        let jwks = self.get_jwks().await?;
+        let jwks = self.fetch_jwks().await?;
 
         // Find the key with matching kid
         let key = jwks
             .keys
             .iter()
-            .find(|k| k.common.key_id.as_ref() == Some(&kid))
+            .find(|k| k.common.key_id.as_ref() == Some(&key_id))
             .ok_or("Key not found in JWKS")?;
 
         // Create a decoding key

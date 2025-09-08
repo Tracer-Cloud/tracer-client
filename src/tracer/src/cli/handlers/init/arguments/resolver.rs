@@ -22,7 +22,9 @@ impl ArgumentResolver {
     pub async fn resolve(mut self) -> FinalizedInitArgs {
         let prompt_mode = self.args.interactive_prompts.clone();
 
-        let token_claims_option = self.decode_token(self.args.token.clone()).await;
+        let platform = if self.args.dev { "dev" } else { "prod" };
+
+        let token_claims_option = self.decode_token(self.args.token.clone(), platform).await;
 
         if token_claims_option.is_none() {
             println!("No valid token found.\n Please run `tracer login` or `tracer init --token <your-token>` to login to the CLI.");
@@ -65,16 +67,16 @@ impl ArgumentResolver {
         }
     }
 
-    async fn decode_token(&mut self, token: Option<String>) -> Option<Claims> {
+    async fn decode_token(&mut self, token: Option<String>, platform: &str) -> Option<Claims> {
         if token.is_some() {
-            let token_claims = is_jwt_valid(token.unwrap().as_str()).await;
+            let token_claims = is_jwt_valid(token.unwrap().as_str(), platform).await;
             if token_claims.0 {
                 Some(token_claims.1.unwrap())
             } else {
                 None
             }
         } else {
-            get_token_claims_from_file().await
+            get_token_claims_from_file(platform).await
         }
     }
 

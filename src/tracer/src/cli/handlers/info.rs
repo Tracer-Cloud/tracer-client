@@ -86,7 +86,7 @@ impl InfoDisplay {
                 "id": &run_snapshot.id,
                 "monitored_processes": run_snapshot.process_count(),
                 "monitored_tasks": run_snapshot.tasks_count(),
-                "dashboard_url": run_snapshot.get_run_url(pipeline.name.clone()),
+                "dashboard_url": run_snapshot.get_run_url(pipeline.name.clone(), pipeline.is_dev),
             });
 
             if run_snapshot.process_count() > 0 {
@@ -171,7 +171,7 @@ impl InfoDisplay {
             );
             formatter.add_hyperlink(
                 "Dashboard URL",
-                &run_snapshot.get_run_url(pipeline.name.clone()),
+                &run_snapshot.get_run_url(pipeline.name.clone(), pipeline.is_dev),
             );
             formatter.add_field("Run name", &run_snapshot.name, "cyan");
             formatter.add_field("Run ID", &run_snapshot.id, "white");

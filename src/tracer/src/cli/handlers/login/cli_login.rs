@@ -84,7 +84,7 @@ pub async fn login(platform: &str) -> Result<String, Box<dyn std::error::Error>>
 
     // the first boolean in the tuple is whether the token is valid
     // the second are the claims if the token is valid
-    let jwt_validation_result: (bool, Option<Claims>) = is_jwt_valid(&token_value).await;
+    let jwt_validation_result: (bool, Option<Claims>) = is_jwt_valid(&token_value, platform).await;
 
     if !jwt_validation_result.0 {
         // this means the token is not valid
