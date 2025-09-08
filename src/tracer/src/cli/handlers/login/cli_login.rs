@@ -1,14 +1,17 @@
 use crate::constants::{CLI_LOGIN_URL_DEV, JWT_TOKEN_FILE_PATH, JWT_TOKEN_FOLDER_PATH};
+use crate::daemon::server::daemon_server::create_listener;
 use crate::utils::browser::browser_utils;
 use crate::utils::jwt_utils::jwt::is_jwt_valid;
-use axum::{routing::get, Router, extract::Query};
-use std::{fs, sync::{Arc, Mutex}};
+use axum::http::Method;
+use axum::{extract::Query, routing::get, Router};
 use std::collections::HashMap;
+use std::time::SystemTime;
+use std::{
+    fs,
+    sync::{Arc, Mutex},
+};
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
-use crate::daemon::server::daemon_server::create_listener;
-use std::time::SystemTime;
-use axum::http::Method;
 use tower_http::cors::{Any, CorsLayer};
 
 /// open a browser window when the user types 'tracer login' to login and get the token
@@ -30,7 +33,8 @@ pub async fn login() -> Result<String, Box<dyn std::error::Error>> {
 
     // TODO we should put some kind of check of the port if it's already in use
     // Google Cloud CLI use this for the login functionality
-    let server_future = start_login_server("127.0.0.1:8085".to_string(), cancellation_token.clone());
+    let server_future =
+        start_login_server("127.0.0.1:8085".to_string(), cancellation_token.clone());
 
     // run server in the background
     tokio::spawn(server_future);
@@ -64,9 +68,10 @@ pub async fn login() -> Result<String, Box<dyn std::error::Error>> {
     Ok("Login successful! Run `tracer init` to start a new run.".to_string())
 }
 
-
-pub async fn start_login_server(server_url: String, cancel_token: CancellationToken) -> anyhow::Result<()> {
-
+pub async fn start_login_server(
+    server_url: String,
+    cancel_token: CancellationToken,
+) -> anyhow::Result<()> {
     let listener = create_listener(server_url.clone()).await;
 
     // clone token for shutdown task
@@ -125,16 +130,12 @@ async fn wait_for_token(date: SystemTime) -> Option<String> {
     // because the file could have been created before the date we started waiting for a previous login
     // checking the modified date allows us to get the latest token created after the login command has started
     loop {
-        if let Ok(metadata) = fs::metadata(&token_file_path) {
+        if let Ok(metadata) = fs::metadata(token_file_path) {
             if let Ok(file_modified_at) = metadata.modified() {
                 if file_modified_at > date {
                     let token_result = fs::read_to_string(token_file_path);
 
-                    if token_result.is_ok() {
-                        return Some(token_result.unwrap());
-                    } else {
-                        return None;
-                    }
+                    return token_result.ok();
                 }
             }
         }

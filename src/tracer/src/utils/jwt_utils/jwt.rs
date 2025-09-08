@@ -1,3 +1,4 @@
+use crate::constants::JWT_TOKEN_FILE_PATH;
 use crate::utils::jwt_utils::claims::Claims;
 use crate::utils::jwt_utils::clerk::ClerkJwtVerifier;
 
@@ -23,5 +24,19 @@ pub async fn is_jwt_valid(token: &str) -> (bool, Option<Claims>) {
             eprintln!("Error validating jwt token from clerk: {}", err);
             (false, None)
         }
+    }
+}
+
+/// reads the file token.txt and returns the claims if the token is valid
+pub async fn get_token_claims() -> Option<Claims> {
+    // read the token.txt file
+    let token = std::fs::read_to_string(JWT_TOKEN_FILE_PATH).ok()?;
+
+    let is_token_valid_with_claims = is_jwt_valid(token.as_str()).await;
+
+    if is_token_valid_with_claims.0 {
+        Some(is_token_valid_with_claims.1.unwrap())
+    } else {
+        None
     }
 }
