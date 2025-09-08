@@ -30,7 +30,7 @@ pub async fn is_jwt_valid(token: &str) -> (bool, Option<Claims>) {
 }
 
 /// reads the file token.txt and returns the claims if the token is valid
-pub async fn get_token_claims() -> Option<Claims> {
+pub async fn get_token_claims_from_file() -> Option<Claims> {
     // read the token.txt file
     let token = std::fs::read_to_string(JWT_TOKEN_FILE_PATH).ok()?;
 

@@ -2,7 +2,7 @@ use super::super::user_prompts::{print_help, UserPrompts};
 use super::{FinalizedInitArgs, PromptMode, TracerCliInitArgs};
 use crate::utils::env;
 use crate::utils::jwt_utils::claims::Claims;
-use crate::utils::jwt_utils::jwt::get_token_claims;
+use crate::utils::jwt_utils::jwt::{get_token_claims_from_file, is_jwt_valid};
 use std::collections::HashMap;
 
 /// Constants for argument resolution
@@ -22,10 +22,10 @@ impl ArgumentResolver {
     pub async fn resolve(mut self) -> FinalizedInitArgs {
         let prompt_mode = self.args.interactive_prompts.clone();
 
-        let token_claims_option = self.decode_token().await;
+        let token_claims_option = self.decode_token(self.args.token.clone()).await;
 
         if token_claims_option.is_none() {
-            println!("No valid token found. Please run `tracer login` to login to the CLI.");
+            println!("No valid token found.\n Please run `tracer login` or `tracer init --token <your-token>` to login to the CLI.");
             std::process::exit(1);
         }
 
@@ -65,8 +65,17 @@ impl ArgumentResolver {
         }
     }
 
-    async fn decode_token(&mut self) -> Option<Claims> {
-        get_token_claims().await
+    async fn decode_token(&mut self, token: Option<String>) -> Option<Claims> {
+        if token.is_some() {
+            let token_claims = is_jwt_valid(token.unwrap().as_str()).await;
+            if token_claims.0 {
+                Some(token_claims.1.unwrap())
+            } else {
+                None
+            }
+        } else {
+            get_token_claims_from_file().await
+        }
     }
 
     fn resolve_pipeline_name(&self, prompt_mode: &PromptMode, user_id: &str) -> String {
