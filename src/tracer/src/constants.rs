@@ -19,6 +19,13 @@ pub const OTEL_FORWARD_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/otel-f
 pub const CLI_LOGIN_URL: &str = "https://sandbox.tracer.cloud/sign-in?cli=true";
 pub const CLI_LOGIN_URL_LOCAL: &str = "http://localhost:3000/sign-in?cli=true";
 pub const CLI_LOGIN_URL_DEV: &str = "https://dev.sandbox.tracer.cloud/sign-in?cli=true";
+pub const CLI_LOGIN_URL_PROD: &str = "https://sandbox.tracer.cloud/sign-in?cli=true";
+pub const CLI_LOGIN_REDIRECT_URL_PROD_SUCCESS: &str =
+    "https://sandbox.tracer.cloud/dashboard?login_success=true";
+pub const CLI_LOGIN_REDIRECT_URL_DEV_SUCCESS: &str =
+    "https://dev.sandbox.tracer.cloud/dashboard?login_success=true";
+pub const CLI_LOGIN_REDIRECT_URL_LOCAL_SUCCESS: &str =
+    "https://localhost:300/dashboard?login_success=true";
 pub const JWT_TOKEN_FOLDER_PATH: &str = "/tmp/tracer";
 pub const JWT_TOKEN_FILE_NAME: &str = "token.txt";
 pub const JWT_TOKEN_FILE_PATH: &str = "/tmp/tracer/token.txt";

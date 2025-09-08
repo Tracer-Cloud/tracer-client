@@ -36,10 +36,10 @@ pub fn process_command() {
         }
         Command::Update => handlers::update(),
         Command::Uninstall => handlers::uninstall(),
-        Command::Login => {
+        Command::Login { platform } => {
             let result = tokio::runtime::Runtime::new()
                 .unwrap()
-                .block_on(handlers::login());
+                .block_on(handlers::login(&platform));
             match result {
                 Ok(message) => success_message!("{}", message),
                 Err(e) => eprintln!("Error during login: {}", e),

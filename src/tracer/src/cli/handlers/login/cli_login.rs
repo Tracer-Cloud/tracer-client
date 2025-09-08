@@ -1,4 +1,8 @@
-use crate::constants::{CLI_LOGIN_URL_DEV, JWT_TOKEN_FILE_PATH, JWT_TOKEN_FOLDER_PATH};
+use crate::constants::{
+    CLI_LOGIN_REDIRECT_URL_DEV_SUCCESS, CLI_LOGIN_REDIRECT_URL_LOCAL_SUCCESS,
+    CLI_LOGIN_REDIRECT_URL_PROD_SUCCESS, CLI_LOGIN_URL_DEV, CLI_LOGIN_URL_LOCAL,
+    CLI_LOGIN_URL_PROD, JWT_TOKEN_FILE_PATH, JWT_TOKEN_FOLDER_PATH,
+};
 use crate::daemon::server::daemon_server::create_listener;
 use crate::utils::browser::browser_utils;
 use crate::utils::jwt_utils::jwt::is_jwt_valid;
@@ -15,14 +19,29 @@ use tokio_util::sync::CancellationToken;
 use tower_http::cors::{Any, CorsLayer};
 
 use crate::utils::jwt_utils::claims::Claims;
-/// open a browser window when the user types 'tracer login' to login and get the token
-/// It also waits for 2 minutes max for the token to be available in a specific folder
+use axum::response::Redirect;
 use std::time::Duration;
 use tokio::time::timeout;
 use tracing::log::debug;
 
-pub async fn login() -> Result<String, Box<dyn std::error::Error>> {
-    let login_url = CLI_LOGIN_URL_DEV;
+/// open a browser window when the user types 'tracer login' to login and get the token
+/// It also waits for 2 minutes max for the token to be available in a specific folder
+pub async fn login(platform: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let login_url = if platform.eq_ignore_ascii_case("dev") {
+        CLI_LOGIN_URL_DEV
+    } else if platform.eq_ignore_ascii_case("local") {
+        CLI_LOGIN_URL_LOCAL
+    } else {
+        CLI_LOGIN_URL_PROD
+    };
+
+    let redirect_url = if platform.eq_ignore_ascii_case("dev") {
+        CLI_LOGIN_REDIRECT_URL_DEV_SUCCESS
+    } else if platform.eq_ignore_ascii_case("local") {
+        CLI_LOGIN_REDIRECT_URL_LOCAL_SUCCESS
+    } else {
+        CLI_LOGIN_REDIRECT_URL_PROD_SUCCESS
+    };
 
     let now_system_date = SystemTime::now();
 
@@ -34,9 +53,13 @@ pub async fn login() -> Result<String, Box<dyn std::error::Error>> {
     let cancellation_token = CancellationToken::new();
 
     // TODO we should put some kind of check of the port if it's already in use
-    // Google Cloud CLI use this for the login functionality
-    let server_future =
-        start_login_server("127.0.0.1:8085".to_string(), cancellation_token.clone());
+    // Google Cloud CLI use this same address for the gcloud auth login functionality
+    let server_future = start_login_server(
+        "127.0.0.1:8085".to_string(),
+        cancellation_token.clone(),
+        redirect_url.to_string(),
+        login_url.to_string(),
+    );
 
     // run server in the background
     tokio::spawn(server_future);
@@ -99,6 +122,8 @@ pub async fn login() -> Result<String, Box<dyn std::error::Error>> {
 pub async fn start_login_server(
     server_url: String,
     cancel_token: CancellationToken,
+    redirect_url_success: String,
+    redirect_url_error: String,
 ) -> anyhow::Result<()> {
     debug!("Starting login server on: {}", server_url);
     let listener = create_listener(server_url.clone()).await;
@@ -131,7 +156,11 @@ pub async fn start_login_server(
                             if let Some(cancellation_token) = tx.lock().unwrap().take() {
                                 cancellation_token.cancel();
                             }
+
+                            return Redirect::to(&redirect_url_success);
                         }
+
+                        Redirect::to(&redirect_url_error)
                     }
                 }
             }),
