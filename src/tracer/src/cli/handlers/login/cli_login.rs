@@ -95,11 +95,13 @@ pub async fn start_login_server(
     server_url: String,
     cancel_token: CancellationToken,
 ) -> anyhow::Result<()> {
+    println!("Starting login server on {}", server_url);
     let listener = create_listener(server_url.clone()).await;
 
     // clone token for the shutdown task
     let shutdown_token = cancel_token.clone();
 
+    println!("Login server started");
     let tx = Arc::new(Mutex::new(Some(cancel_token.clone())));
 
     // create a CORS layer to allow all GET requests
@@ -108,6 +110,7 @@ pub async fn start_login_server(
         .allow_methods([Method::GET, Method::OPTIONS])
         .allow_headers(Any);
 
+    println!("2 Starting login server on {}", server_url);
     let app = Router::new()
         .route(
             "/callback",
@@ -141,6 +144,7 @@ pub async fn start_login_server(
         .with_graceful_shutdown(shutdown_future)
         .await?;
 
+    println!("Login server stopped");
     Ok(())
 }
 
