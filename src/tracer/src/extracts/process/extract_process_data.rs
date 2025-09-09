@@ -210,14 +210,19 @@ fn get_process_environment_variables<P: ProcessTrait>(
     for (key, value) in proc.environ().iter().filter_map(|v| v.split_once('=')) {
         match (&job_id, &trace_id) {
             (None, _) if key == env::AWS_BATCH_JOB_ID_ENV_VAR => {
-                job_id = Some(value.trim().to_string());
+                job_id = Some(value.to_string());
             }
             (_, None) if key == env::TRACE_ID_ENV_VAR => {
-                trace_id = Some(value.trim().to_string());
+                trace_id = Some(value.to_string());
             }
             (Some(_), Some(_)) => break,
             _ => continue,
         }
+    }
+
+    // if it's not a valid uuid we don't set the TRACER_TRACER_ID
+    if trace_id.is_some() && !is_valid_uuid(trace_id.as_ref().unwrap()) {
+        trace_id = None;
     }
 
     let container_id = get_container_id_from_cgroup(proc.pid().as_u32());
