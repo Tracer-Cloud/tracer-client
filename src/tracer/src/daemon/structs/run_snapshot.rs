@@ -1,4 +1,4 @@
-use crate::constants::DASHBOARD_BASE;
+use crate::constants::{DASHBOARD_BASE_DEV, DASHBOARD_BASE_PROD};
 use crate::daemon::structs::OpenTelemetryStatus;
 use crate::process_identification::types::current_run::PipelineCostSummary;
 use chrono::{DateTime, TimeDelta, Utc};
@@ -104,9 +104,16 @@ impl RunSnapshot {
         }
     }
 
-    pub fn get_run_url(&self, pipeline_name: String) -> String {
-        format!("{}/{}/{}", DASHBOARD_BASE, pipeline_name, self.id)
+    pub fn get_run_url(&self, pipeline_name: String, is_dev: bool) -> String {
+        let dashboard_url = if is_dev {
+            DASHBOARD_BASE_DEV
+        } else {
+            DASHBOARD_BASE_PROD
+        };
+
+        format!("{}/{}/{}", dashboard_url, pipeline_name, self.id)
     }
+
     fn total_runtime(&self) -> TimeDelta {
         Utc::now() - self.start_time
     }

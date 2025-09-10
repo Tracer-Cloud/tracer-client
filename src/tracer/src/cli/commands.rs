@@ -94,6 +94,13 @@ pub enum Command {
         #[clap(subcommand)]
         command: OtelCommand,
     },
+
+    /// Login to tracer and saves a jwt_utils token
+    Login {
+        /// Environment to login against
+        #[arg(default_value = "prod")]
+        platform: String,
+    },
 }
 
 #[derive(Subcommand, Debug, Clone)]

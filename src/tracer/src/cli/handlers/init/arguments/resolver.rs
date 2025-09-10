@@ -1,10 +1,9 @@
-// src/tracer/src/cli/handlers/init/arguments/resolver.rs
-use crate::utils::env;
-use std::collections::HashMap;
-
 use super::super::user_prompts::{print_help, UserPrompts};
-use super::user_id_resolver::resolve_user_id;
 use super::{FinalizedInitArgs, PromptMode, TracerCliInitArgs};
+use crate::utils::env;
+use crate::utils::jwt_utils::claims::Claims;
+use crate::utils::jwt_utils::jwt::{get_token_claims_from_file, is_jwt_valid};
+use std::collections::HashMap;
 
 /// Constants for argument resolution
 pub const DEFAULT_PIPELINE_TYPE: &str = "Preprocessing";
@@ -23,7 +22,30 @@ impl ArgumentResolver {
     pub async fn resolve(mut self) -> FinalizedInitArgs {
         let prompt_mode = self.args.interactive_prompts.clone();
 
-        let user_id = self.resolve_user_id(&prompt_mode);
+        let platform = if self.args.dev { "dev" } else { "prod" };
+
+        let mut user_id: String = "".to_string();
+        let organization_id: String;
+
+        if self.args.tags.user_id.is_none() {
+            let token_claims_option = self.decode_token(self.args.token.clone(), platform).await;
+
+            if token_claims_option.is_none() {
+                println!("No valid token found.\n Please run `tracer login` or `tracer init --token <your-token>` to login to the CLI.");
+                std::process::exit(1);
+            }
+
+            // checks on userid
+            let token_claims = token_claims_option.unwrap();
+            user_id = token_claims.sub.to_string();
+            self.args.tags.user_id = Some(user_id.clone()); // sub is the user id
+
+            // checks on organization id
+            if token_claims.organization.is_some() {
+                organization_id = token_claims.organization.unwrap().to_string();
+                self.args.tags.organization_id = Some(organization_id);
+            }
+        }
 
         // Resolve environment type first so it can be used in pipeline name generation
         self.resolve_environment_type().await;
@@ -50,10 +72,17 @@ impl ArgumentResolver {
         }
     }
 
-    fn resolve_user_id(&mut self, prompt_mode: &PromptMode) -> String {
-        let user_id = resolve_user_id(self.args.tags.user_id.clone(), prompt_mode);
-        self.args.tags.user_id = Some(user_id.clone());
-        user_id
+    async fn decode_token(&mut self, token: Option<String>, platform: &str) -> Option<Claims> {
+        if token.is_some() {
+            let token_claims = is_jwt_valid(token.unwrap().as_str(), platform).await;
+            if token_claims.0 {
+                Some(token_claims.1.unwrap())
+            } else {
+                None
+            }
+        } else {
+            get_token_claims_from_file(platform).await
+        }
     }
 
     fn resolve_pipeline_name(&self, prompt_mode: &PromptMode, user_id: &str) -> String {

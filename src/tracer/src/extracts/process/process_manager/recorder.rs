@@ -8,6 +8,7 @@ use crate::process_identification::types::event::attributes::process::ProcessPro
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::ProcessStatus as TracerProcessStatus;
 use crate::utils::env;
+use crate::utils::string_validation::is_valid_uuid;
 use anyhow::Result;
 use chrono::Utc;
 use std::collections::HashSet;
@@ -31,7 +32,10 @@ impl EventRecorder {
     pub fn new(event_dispatcher: EventDispatcher, docker_watcher: Arc<DockerWatcher>) -> Self {
         let mut trace_ids = HashSet::new();
         if let Some(trace_id) = event_dispatcher.trace_id() {
-            trace_ids.insert(trace_id);
+            // always validating the trace_id as a valid uuid
+            if is_valid_uuid(trace_id.as_ref()) {
+                trace_ids.insert(trace_id);
+            }
         }
         Self {
             event_dispatcher,
@@ -82,13 +86,15 @@ impl EventRecorder {
             }
         }
 
-        // If we have a new trace ID, create a new run in the database
+        // If we have a new trace ID and the TRACE_ID is a valid uuid, create a new run in the database
         if let Some(trace_id) = &full.trace_id {
-            let mut logged_trace_ids = self.logged_trace_ids.write().await;
-            if !logged_trace_ids.contains(trace_id) {
-                info!("Detected new trace ID: {}", trace_id);
-                logged_trace_ids.insert(trace_id.clone());
-                self.event_dispatcher.log_new_run(trace_id).await?;
+            if is_valid_uuid(trace_id.as_ref()) {
+                let mut logged_trace_ids = self.logged_trace_ids.write().await;
+                if !logged_trace_ids.contains(trace_id) {
+                    info!("Detected new trace ID: {}", trace_id);
+                    logged_trace_ids.insert(trace_id.clone());
+                    self.event_dispatcher.log_new_run(trace_id).await?;
+                }
             }
         }
 
@@ -167,11 +173,16 @@ impl EventRecorder {
             finish_trigger
         );
 
-        let trace_id = start_trigger
+        let mut trace_id = start_trigger
             .env
             .iter()
             .find(|(k, _)| k == env::TRACE_ID_ENV_VAR)
-            .map(|(_, v)| v.to_owned());
+            .map(|(_, environment_variable_value)| environment_variable_value.to_owned());
+
+        // validating the trace id, it is set only if it's a valid uuid
+        if trace_id.is_some() && !is_valid_uuid(trace_id.as_ref().unwrap()) {
+            trace_id = None;
+        }
 
         // CompletedProcess contains the exit reason, the tool_id, the tool_name, and started and ended at
         // started and ended at might not seem very useful, but might help in the future with duration calculations

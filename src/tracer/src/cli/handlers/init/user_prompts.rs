@@ -82,10 +82,6 @@ impl UserPrompts {
             pipeline_type.to_string()
         }
     }
-
-    pub fn prompt_for_user_id(default: Option<&str>) -> Option<String> {
-        get_validated_input(&INTERACTIVE_THEME, "Enter your User ID", default, "User ID")
-    }
 }
 
 pub fn print_help<T>() -> Option<T> {
@@ -98,7 +94,7 @@ pub fn print_help<T>() -> Option<T> {
 
     Parameter           | Command Line Option | Environment Variable
     --------------------|---------------------|-----------------------
-    user_id*            | --user-id           | TRACER_USER_ID
+    token*              | --token           |
     pipeline_name**     | --pipeline-name     | TRACER_PIPELINE_NAME
     pipeline_type**     | --pipeline-type     | TRACER_PIPELINE_TYPE
     environment**       | --environment       | TRACER_ENVIRONMENT
