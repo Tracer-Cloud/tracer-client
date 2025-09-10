@@ -31,15 +31,34 @@ pub struct CheckManager {
 
 impl CheckManager {
     pub async fn new(platform: &PlatformInfo) -> Self {
-        let checks: Vec<Box<dyn InstallCheck>> = match platform.os {
-            Os::Linux | Os::AmazonLinux => vec![
-                Box::new(KernelCheck::new()),
-                Box::new(APICheck::new()),
-                Box::new(RootCheck::new()),
-                Box::new(EnvironmentCheck::new().await),
-            ],
-            Os::Macos => vec![Box::new(RootCheck::new()), Box::new(APICheck::new())],
-        };
+        let mut checks: Vec<Box<dyn InstallCheck>> = Vec::new();
+
+        match platform.os {
+            Os::Linux | Os::AmazonLinux => {
+                let skip_kernel = std::env::var("TRACER_SKIP_KERNEL_CHECK")
+                    .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                    .unwrap_or(false);
+
+                if skip_kernel {
+                    print_status(
+                        "SKIPPED",
+                        "Kernel eBPF Support",
+                        "Skipped via TRACER_SKIP_KERNEL_CHECK",
+                        TagColor::Cyan,
+                    );
+                } else {
+                    checks.push(Box::new(KernelCheck::new()));
+                }
+
+                checks.push(Box::new(APICheck::new()));
+                checks.push(Box::new(RootCheck::new()));
+                checks.push(Box::new(EnvironmentCheck::new().await));
+            }
+            Os::Macos => {
+                checks.push(Box::new(RootCheck::new()));
+                checks.push(Box::new(APICheck::new()));
+            }
+        }
         Self { checks }
     }
 
