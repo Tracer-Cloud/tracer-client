@@ -318,7 +318,7 @@ mod tests {
             "PATH=/usr/bin:/bin".to_string(),
             "AWS_BATCH_JOB_ID=job-12345".to_string(),
             "HOSTNAME=container-abc123".to_string(),
-            "TRACER_TRACE_ID=trace-xyz789".to_string(),
+            "TRACER_TRACE_ID=123e4567-e89b-12d3-a456-426614174000".to_string(),
             "USER=testuser".to_string(),
         ];
 
@@ -334,7 +334,7 @@ mod tests {
 
         assert_eq!(container_id, None);
         assert_eq!(job_id, Some("job-12345".to_string()));
-        assert_eq!(trace_id, Some("trace-xyz789".to_string()));
+        assert_eq!(trace_id, Some("123e4567-e89b-12d3-a456-426614174000".to_string()));
     }
 
     #[test]
@@ -487,7 +487,7 @@ mod tests {
                 assert_eq!(props.process_memory_virtual, 1024 * 1024 * 200);
                 assert_eq!(props.container_id, None);
                 assert_eq!(props.job_id, Some("test-job-123".to_string()));
-                assert_eq!(props.trace_id, Some("test-trace-456".to_string()));
+                assert_eq!(props.trace_id, None);
                 assert_eq!(
                     props.working_directory,
                     Some("/test/working/directory".to_string())
