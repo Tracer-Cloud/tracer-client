@@ -25,11 +25,13 @@ impl ArgumentResolver {
         let platform = if self.args.dev { "dev" } else { "prod" };
 
         if self.args.token.is_some() {
-            println!("Using token from --token argument: {}", self.args.token.as_ref().unwrap());
+            println!(
+                "Using token from --token argument: {}",
+                self.args.token.as_ref().unwrap()
+            );
         } else {
             println!("No token provided. Using token from file.");
         }
-
 
         let token_claims_option = self.decode_token(self.args.token.clone(), platform).await;
 

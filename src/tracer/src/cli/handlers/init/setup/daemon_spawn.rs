@@ -62,7 +62,7 @@ fn build_spawn_args(args: &FinalizedInitArgs) -> Vec<String> {
         args.tags.environment.as_deref().unwrap_or("").to_string(),
         "--pipeline-type".to_string(),
         args.tags.pipeline_type.as_deref().unwrap_or("").to_string(),
-        "--user-id".to_string(),
+        "--token".to_string(),
         args.tags.user_id.as_deref().unwrap().to_string(),
         "--log-level".to_string(),
         args.log_level.clone(),

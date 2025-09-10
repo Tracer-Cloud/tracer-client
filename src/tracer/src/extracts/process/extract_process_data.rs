@@ -334,7 +334,10 @@ mod tests {
 
         assert_eq!(container_id, None);
         assert_eq!(job_id, Some("job-12345".to_string()));
-        assert_eq!(trace_id, Some("123e4567-e89b-12d3-a456-426614174000".to_string()));
+        assert_eq!(
+            trace_id,
+            Some("123e4567-e89b-12d3-a456-426614174000".to_string())
+        );
     }
 
     #[test]
