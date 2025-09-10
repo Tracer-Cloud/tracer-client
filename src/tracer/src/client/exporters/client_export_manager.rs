@@ -28,7 +28,6 @@ impl ExporterManager {
         let mut receiver = self.receiver.lock().await;
 
         if receiver.is_empty() {
-            println!("No data to submit, exiting submit_batched_data");
             return Ok(());
         }
 

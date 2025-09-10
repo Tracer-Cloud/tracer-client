@@ -32,16 +32,8 @@ pub async fn get_db_client(init_args: &FinalizedInitArgs, config: &Config) -> Lo
     // if we pass --is-dev=true, we use the dev endpoint
     // dev endpoint points to clickhouse, prod endpoint points to postgres
     let event_forward_endpoint = if init_args.dev {
-        println!(
-            "Using dev endpoint: {}",
-            &config.event_forward_endpoint_dev.as_ref().unwrap()
-        );
         &config.event_forward_endpoint_dev.as_ref().unwrap()
     } else {
-        println!(
-            "Using prod endpoint: {}",
-            &config.event_forward_endpoint_prod.as_ref().unwrap()
-        );
         &config.event_forward_endpoint_prod.as_ref().unwrap()
     };
 
