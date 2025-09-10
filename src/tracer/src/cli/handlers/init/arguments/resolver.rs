@@ -24,31 +24,27 @@ impl ArgumentResolver {
 
         let platform = if self.args.dev { "dev" } else { "prod" };
 
-        if self.args.token.is_some() {
-            println!(
-                "Using token from --token argument: {}",
-                self.args.token.as_ref().unwrap()
-            );
-        } else {
-            println!("No token provided. Using token from file.");
-        }
+        let mut user_id: String = "".to_string();
+        let organization_id: String;
 
-        let token_claims_option = self.decode_token(self.args.token.clone(), platform).await;
+        if self.args.tags.user_id.is_none() {
+            let token_claims_option = self.decode_token(self.args.token.clone(), platform).await;
 
-        if token_claims_option.is_none() {
-            println!("No valid token found.\n Please run `tracer login` or `tracer init --token <your-token>` to login to the CLI.");
-            std::process::exit(1);
-        }
+            if token_claims_option.is_none() {
+                println!("No valid token found.\n Please run `tracer login` or `tracer init --token <your-token>` to login to the CLI.");
+                std::process::exit(1);
+            }
 
-        // checks on userid
-        let token_claims = token_claims_option.unwrap();
-        let user_id = token_claims.sub.to_string();
-        self.args.tags.user_id = Some(user_id.clone()); // sub is the user id
+            // checks on userid
+            let token_claims = token_claims_option.unwrap();
+            user_id = token_claims.sub.to_string();
+            self.args.tags.user_id = Some(user_id.clone()); // sub is the user id
 
-        // checks on organization id
-        if token_claims.organization.is_some() {
-            let organization_id = token_claims.organization.unwrap().to_string();
-            self.args.tags.organization_id = Some(organization_id);
+            // checks on organization id
+            if token_claims.organization.is_some() {
+                organization_id = token_claims.organization.unwrap().to_string();
+                self.args.tags.organization_id = Some(organization_id);
+            }
         }
 
         // Resolve environment type first so it can be used in pipeline name generation
