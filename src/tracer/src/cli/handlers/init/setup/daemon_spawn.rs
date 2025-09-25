@@ -68,6 +68,11 @@ fn build_spawn_args(args: &FinalizedInitArgs) -> Vec<String> {
         args.log_level.clone(),
     ];
 
+    if args.tags.organization_id.is_some() {
+        spawn_args.push("--organization-id".to_string());
+        spawn_args.push(args.tags.organization_id.as_ref().unwrap().to_string());
+    }
+
     if args.dev {
         spawn_args.push("--dev".to_string());
     }

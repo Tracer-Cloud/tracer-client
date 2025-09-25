@@ -59,12 +59,17 @@ pub struct TracerCliInitArgs {
     pub no_daemonize: bool,
 
     // for testing purposes only
-    #[clap(long, hide = true)]
+    // useful for token decoding and url generation
+    #[clap(long, hide = true, default_value = "false")]
     pub dev: bool,
 
     /// force termination of existing daemon before starting new one
     #[clap(long)]
     pub force: bool,
+
+    /// set a jwt token for authentication
+    #[clap(long)]
+    pub token: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, ValueEnum)]

@@ -95,8 +95,6 @@ pub async fn gather_process_data<P: ProcessTrait>(
     // we collect the TRACER_TRACE_ID environment variable from the eBPF process environment, and
     // might also be able to get it from the proc file system - prefer the eBPF value if we have it
     // warn if the values differ
-
-    // TODO: filter trace id by the expected format (a UUID)
     let bpf_trace_id = process_env
         .iter()
         .find(|(k, _)| k == env::TRACE_ID_ENV_VAR)
@@ -110,18 +108,25 @@ pub async fn gather_process_data<P: ProcessTrait>(
     // to resolve trace_id - prefer the proc value if we have it as sometimes the eBPF value
     // gets corrupted, warn if the values differ
     let trace_id = if process_trace_id.is_some() {
-        process_trace_id
+        let process_trace_id_unrwapped = process_trace_id.unwrap();
+        if is_valid_uuid(&process_trace_id_unrwapped) {
+            Some(process_trace_id_unrwapped)
+        } else {
+            None
+        }
     } else if is_valid_uuid(&bpf_trace_id) {
+        // if we don't have a process_trace_id, we use the bpf_trace_id if it's in a valid uuid format
         Some(bpf_trace_id)
     } else {
         None
     };
 
     // get the process working directory
-    let working_directory = proc.cwd().as_ref().map(|p| p.to_string_lossy().to_string());
+    let process_working_directory = proc.cwd().as_ref().map(|p| p.to_string_lossy().to_string());
 
     // calculate process run time in milliseconds
-    let process_run_time = (Utc::now() - process_start_time).num_milliseconds().max(0) as u64;
+    let process_run_time_milliseconds =
+        (Utc::now() - process_start_time).num_milliseconds().max(0) as u64;
 
     // getting the process PID
     let process_pid = proc.pid().as_u32().to_string();
@@ -141,7 +146,7 @@ pub async fn gather_process_data<P: ProcessTrait>(
         tool_args: process_argv.join(" "),
         start_timestamp: process_start_time.to_rfc3339(),
         process_cpu_utilization: proc.cpu_usage(),
-        process_run_time,
+        process_run_time: process_run_time_milliseconds,
         process_disk_usage_read_total: proc.disk_usage().total_read_bytes,
         process_disk_usage_write_total: proc.disk_usage().total_written_bytes,
         process_disk_usage_read_last_interval: proc.disk_usage().read_bytes,
@@ -151,7 +156,7 @@ pub async fn gather_process_data<P: ProcessTrait>(
         process_status: proc.status().to_string(),
         container_id,
         job_id,
-        working_directory,
+        working_directory: process_working_directory,
         trace_id,
         container_event: None,
         tool_id,
@@ -173,7 +178,7 @@ pub fn create_short_lived_process_object(
         tool_name: display_name,
         tool_pid: process.pid.to_string(),
         tool_parent_pid: process.ppid.to_string(),
-        tool_binary_path: "".to_string(), // TODO WTF
+        tool_binary_path: "".to_string(),
         tool_cmd: process.comm.clone(),
         tool_args: process.argv.iter().join(" "),
         start_timestamp: Utc::now().to_rfc3339(),
@@ -205,14 +210,19 @@ fn get_process_environment_variables<P: ProcessTrait>(
     for (key, value) in proc.environ().iter().filter_map(|v| v.split_once('=')) {
         match (&job_id, &trace_id) {
             (None, _) if key == env::AWS_BATCH_JOB_ID_ENV_VAR => {
-                job_id = Some(value.trim().to_string());
+                job_id = Some(value.to_string());
             }
             (_, None) if key == env::TRACE_ID_ENV_VAR => {
-                trace_id = Some(value.trim().to_string());
+                trace_id = Some(value.to_string());
             }
             (Some(_), Some(_)) => break,
             _ => continue,
         }
+    }
+
+    // if it's not a valid uuid we don't set the TRACER_TRACER_ID
+    if trace_id.is_some() && !is_valid_uuid(trace_id.as_ref().unwrap()) {
+        trace_id = None;
     }
 
     let container_id = get_container_id_from_cgroup(proc.pid().as_u32());
@@ -308,7 +318,7 @@ mod tests {
             "PATH=/usr/bin:/bin".to_string(),
             "AWS_BATCH_JOB_ID=job-12345".to_string(),
             "HOSTNAME=container-abc123".to_string(),
-            "TRACER_TRACE_ID=trace-xyz789".to_string(),
+            "TRACER_TRACE_ID=123e4567-e89b-12d3-a456-426614174000".to_string(),
             "USER=testuser".to_string(),
         ];
 
@@ -324,7 +334,10 @@ mod tests {
 
         assert_eq!(container_id, None);
         assert_eq!(job_id, Some("job-12345".to_string()));
-        assert_eq!(trace_id, Some("trace-xyz789".to_string()));
+        assert_eq!(
+            trace_id,
+            Some("123e4567-e89b-12d3-a456-426614174000".to_string())
+        );
     }
 
     #[test]
@@ -477,7 +490,7 @@ mod tests {
                 assert_eq!(props.process_memory_virtual, 1024 * 1024 * 200);
                 assert_eq!(props.container_id, None);
                 assert_eq!(props.job_id, Some("test-job-123".to_string()));
-                assert_eq!(props.trace_id, Some("test-trace-456".to_string()));
+                assert_eq!(props.trace_id, None);
                 assert_eq!(
                     props.working_directory,
                     Some("/test/working/directory".to_string())
