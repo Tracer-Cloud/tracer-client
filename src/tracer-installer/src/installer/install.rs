@@ -1,9 +1,9 @@
 use super::platform::PlatformInfo;
 use crate::fs::{TrustedDir, TrustedFile};
 use crate::installer::url::TrustedUrl;
+use crate::success_message;
 use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
 use crate::utils::{print_message, print_status, print_title, TagColor};
-use crate::{success_message};
 use anyhow::{Context, Result};
 use colored::Colorize;
 use flate2::read::GzDecoder;
@@ -15,10 +15,8 @@ use std::collections::HashMap;
 use std::fs::Permissions;
 use std::os::unix::fs::PermissionsExt;
 use tar::Archive;
+use tokio::io::AsyncWriteExt;
 use tokio::task::JoinHandle;
-use tokio::{
-    io::{AsyncWriteExt},
-};
 use tokio_retry::strategy::{jitter, ExponentialBackoff};
 use tokio_retry::Retry;
 
@@ -67,7 +65,7 @@ impl Installer {
             analytics_handles.push(handle);
         }
 
-        Self::print_next_steps();
+        self.print_next_steps();
         join_all(analytics_handles).await;
         Ok(())
     }
@@ -210,8 +208,8 @@ impl Installer {
         }))
     }
 
-    pub fn print_next_steps() {
-        let sandbox_url = if Self.channel == TracerVersion::Production {
+    pub fn print_next_steps(&self) {
+        let sandbox_url = if self.channel == TracerVersion::Production {
             TRACER_SANDBOX_ENDPOINT_PROD
         } else {
             TRACER_SANDBOX_ENDPOINT_DEV
