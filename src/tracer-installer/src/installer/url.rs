@@ -13,8 +13,11 @@ impl TrustedUrl {
 
         let filename = binary_filename(platform)?;
 
+        // TODO: implement dev binary
+        // for now we are using the main branch when we pass dev or development as version
+        // in the future (also to be SOC2 compliant, we will have a dev branch)
         let url = match version {
-            TracerVersion::Development => format!("{}/{}", TRACER_AWS_URL, filename),
+            TracerVersion::Development => format!("{}/main/{}", TRACER_AWS_URL, filename),
             TracerVersion::Feature(branch) => format!("{}/{}/{}", TRACER_AWS_URL, branch, filename),
             TracerVersion::Production => format!("{}/main/{}", TRACER_AWS_URL, filename),
         };

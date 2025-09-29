@@ -1,10 +1,9 @@
 use super::platform::PlatformInfo;
-use crate::constants::USER_ID_ENV_VAR;
 use crate::fs::{TrustedDir, TrustedFile};
 use crate::installer::url::TrustedUrl;
 use crate::types::{AnalyticsEventType, AnalyticsPayload, TracerVersion};
 use crate::utils::{print_message, print_status, print_title, TagColor};
-use crate::{success_message, warning_message};
+use crate::{success_message};
 use anyhow::{Context, Result};
 use colored::Colorize;
 use flate2::read::GzDecoder;
@@ -16,15 +15,15 @@ use std::collections::HashMap;
 use std::fs::Permissions;
 use std::os::unix::fs::PermissionsExt;
 use tar::Archive;
-use tokio::fs::OpenOptions;
 use tokio::task::JoinHandle;
 use tokio::{
-    fs::File,
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+    io::{AsyncWriteExt},
 };
 use tokio_retry::strategy::{jitter, ExponentialBackoff};
 use tokio_retry::Retry;
 
+const TRACER_SANDBOX_ENDPOINT_PROD: &str = "https://sandbox.tracer.cloud";
+const TRACER_SANDBOX_ENDPOINT_DEV: &str = "https://dev.sandbox.tracer.cloud";
 const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics-supabase";
 
 pub struct Installer {
@@ -60,10 +59,6 @@ impl Installer {
             .await?;
 
         let _ = self.install_to_final_dir(&extract_path)?;
-
-        Self::patch_rc_files_async(self.user_id.clone())
-            .await
-            .expect("failed to write to rc files");
 
         if let Some(handle) = self
             .emit_analytic_event(AnalyticsEventType::InstallScriptCompleted)
@@ -153,96 +148,6 @@ impl Installer {
         Ok(final_path)
     }
 
-    /// Modify the user's shell config files. If user_id is `Some`, add/update the export of
-    /// TRACER_USER_ID environment variable; otherwise remove any existing export of TRACER_USER_ID.
-    ///
-    /// TODO: it's not very nice to add our environment variable to all of the user's config
-    /// files. See ENG-859 for options to improve this.
-    pub async fn patch_rc_files_async(user_id: Option<String>) -> Result<()> {
-        print_title("Updating Shell Configs");
-
-        // replace an existing export line in any of these files
-        const CONF_FILES: &[&str] = &[
-            ".zshrc",
-            ".bashrc",
-            ".zprofile",
-            ".bash_profile",
-            ".profile",
-        ];
-
-        let home = dirs_next::home_dir().context("Could not find home directory")?;
-        let config_files = CONF_FILES
-            .iter()
-            .map(|name| home.join(name))
-            .filter(|path| path.exists());
-
-        // look for this line in each file and either update it or remove it
-        let export_line_match = format!("export {}=", USER_ID_ENV_VAR);
-
-        // the line to add/replace
-        let updated_export_line = if let Some(id) = &user_id {
-            print_message("USER ID", id, TagColor::Cyan);
-            Some(format!(r#"export {}="{}""#, USER_ID_ENV_VAR, id))
-        } else {
-            warning_message!("No user ID provided, skipping user ID persistence");
-            None
-        };
-
-        // reuse line buffer
-        let mut lines = Vec::new();
-
-        for path in config_files {
-            let file = File::open(&path).await?;
-            let reader = BufReader::new(file);
-            let mut lines_stream = reader.lines();
-            let mut has_user_export = false;
-
-            while let Some(line) = lines_stream.next_line().await? {
-                if line.contains(&export_line_match) {
-                    if let Some(user_export) = &updated_export_line {
-                        lines.push(user_export.clone());
-                    }
-                    // Even if no user ID, we’re removing the line
-                    has_user_export = true;
-                } else {
-                    lines.push(line);
-                }
-            }
-
-            let updated = if has_user_export {
-                true
-            } else if let Some(user_export) = updated_export_line.as_ref() {
-                lines.push(user_export.clone());
-                true
-            } else {
-                false
-            };
-
-            if updated {
-                print_message("UPDATED", path.to_str().unwrap(), TagColor::Green);
-
-                // TODO: this could fail and leave the user's rc file in a corrupted state.
-                // Instead, we should write to a temporary file and then replace the existing file.
-
-                // Write all lines back to file
-                let mut file = OpenOptions::new()
-                    .write(true)
-                    .truncate(true)
-                    .open(&path)
-                    .await?;
-
-                for line in lines.drain(..) {
-                    file.write_all(line.as_bytes()).await?;
-                    file.write_all(b"\n").await?;
-                }
-            } else {
-                lines.clear();
-            }
-        }
-
-        Ok(())
-    }
-
     // COPY: tracer/src/utils/analytics/mod.rs
     pub async fn send_analytic_event(
         user_id: &str,
@@ -306,11 +211,17 @@ impl Installer {
     }
 
     pub fn print_next_steps() {
+        let sandbox_url = if Self.channel == TracerVersion::Production {
+            TRACER_SANDBOX_ENDPOINT_PROD
+        } else {
+            TRACER_SANDBOX_ENDPOINT_DEV
+        };
+
         print_title("Next Steps");
         println!(
             "- {} please follow the instructions at {}\n",
             "For a better onboarding".bold().yellow(),
-            "https://sandbox.tracer.cloud".cyan()
+            sandbox_url.cyan()
         );
 
         println!("- Then initialize Tracer:");
