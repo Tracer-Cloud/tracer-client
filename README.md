@@ -1,3 +1,7 @@
+[![Build Checks](https://github.com/Tracer-Cloud/tracer-client/actions/workflows/build-and-test.yml/badge.svg?branch=main)](https://github.com/Tracer-Cloud/tracer-client/actions/workflows/build-and-test.yml) [![Release](https://github.com/Tracer-Cloud/tracer-client/actions/workflows/dev-cross-platform-release-s3.yml/badge.svg?branch=main)](https://github.com/Tracer-Cloud/tracer-client/actions/workflows/dev-cross-platform-release-s3.yml)
+ [![Dependency Security](https://github.com/Tracer-Cloud/tracer-client/actions/workflows/cargo-audit.yml/badge.svg?branch=main)](https://github.com/Tracer-Cloud/tracer-client/actions/workflows/cargo-audit.yml)
+
+
 <h2 align="left">
 Tracer Linux Agent: Observability for Scientific HPC Workloads
 </h2>
