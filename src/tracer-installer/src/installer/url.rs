@@ -10,6 +10,7 @@ pub struct TrustedUrl(Url);
 impl TrustedUrl {
     pub fn tracer_aws_url(version: &TracerVersion, platform: &PlatformInfo) -> Result<Self> {
         const TRACER_AWS_URL: &str = "https://tracer-releases.s3.us-east-1.amazonaws.com";
+        println!("version {}", version.to_string());
 
         let tarball_name = get_tarball_name(platform, version)?;
 
@@ -53,6 +54,8 @@ fn get_tarball_name(platform: &PlatformInfo, version: &TracerVersion) -> Result<
         TracerVersion::Production => "tracer",
         TracerVersion::Development | TracerVersion::Feature(_) => "tracer-dev",
     };
+
+    println!("prefix {}", prefix);
 
     let suffix = match (&platform.os, &platform.arch) {
         (Os::Linux, Arch::X86_64) => "x86_64-unknown-linux-gnu.tar.gz",
