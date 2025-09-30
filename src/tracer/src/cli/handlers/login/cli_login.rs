@@ -29,7 +29,6 @@ use tracing::log::debug;
 /// It also waits for 2 minutes max for the token to be available in a specific folder
 pub async fn login(mut platform: &str) -> Result<String, Box<dyn std::error::Error>> {
     let is_development_environment = is_development_environment();
-    println!("is_development_environment {}", is_development_environment);
 
     let login_url = if platform.eq_ignore_ascii_case("local") {
         CLI_LOGIN_URL_LOCAL

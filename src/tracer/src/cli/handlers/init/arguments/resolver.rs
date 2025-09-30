@@ -29,8 +29,6 @@ impl ArgumentResolver {
             "prod"
         };
 
-        println!("Using platform: {}", platform);
-
         let mut user_id: String = "".to_string();
         let organization_id: String;
 
