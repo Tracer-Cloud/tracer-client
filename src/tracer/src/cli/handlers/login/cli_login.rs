@@ -27,12 +27,16 @@ use tracing::log::debug;
 
 /// open a browser window when the user types 'tracer login' to login and get the token
 /// It also waits for 2 minutes max for the token to be available in a specific folder
-pub async fn login(platform: &str) -> Result<String, Box<dyn std::error::Error>> {
+pub async fn login(mut platform: &str) -> Result<String, Box<dyn std::error::Error>> {
     let is_development_environment = is_development_environment();
+    println!("is_development_environment {}", is_development_environment);
 
     let login_url = if platform.eq_ignore_ascii_case("local") {
         CLI_LOGIN_URL_LOCAL
+    } else if platform.eq_ignore_ascii_case("prod") {
+        CLI_LOGIN_URL_PROD
     } else if platform.eq_ignore_ascii_case("dev") || is_development_environment {
+        platform = "dev";
         CLI_LOGIN_URL_DEV
     } else {
         CLI_LOGIN_URL_PROD
@@ -40,6 +44,8 @@ pub async fn login(platform: &str) -> Result<String, Box<dyn std::error::Error>>
 
     let redirect_url = if platform.eq_ignore_ascii_case("local") {
         CLI_LOGIN_REDIRECT_URL_LOCAL_SUCCESS
+    } else if platform.eq_ignore_ascii_case("prod") {
+        CLI_LOGIN_REDIRECT_URL_PROD_SUCCESS
     } else if platform.eq_ignore_ascii_case("dev") || is_development_environment {
         CLI_LOGIN_REDIRECT_URL_DEV_SUCCESS
     } else {
