@@ -50,7 +50,7 @@ impl Display for TrustedUrl {
 
 fn get_tarball_name(platform: &PlatformInfo, version: &TracerVersion) -> Result<String> {
     let prefix = match version {
-        TracerVersion::Production => "tracer",
+        TracerVersion::Production => "tracer-prod",
         TracerVersion::Development | TracerVersion::Feature(_) => "tracer-dev",
     };
 
