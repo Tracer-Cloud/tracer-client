@@ -1,6 +1,7 @@
 use super::super::user_prompts::{print_help, UserPrompts};
 use super::{FinalizedInitArgs, PromptMode, TracerCliInitArgs};
 use crate::utils::env;
+use crate::utils::env::is_development_environment;
 use crate::utils::jwt_utils::claims::Claims;
 use crate::utils::jwt_utils::jwt::{get_token_claims_from_file, is_jwt_valid};
 use std::collections::HashMap;
@@ -22,7 +23,11 @@ impl ArgumentResolver {
     pub async fn resolve(mut self) -> FinalizedInitArgs {
         let prompt_mode = self.args.interactive_prompts.clone();
 
-        let platform = if self.args.dev { "dev" } else { "prod" };
+        let platform = if is_development_environment() {
+            "dev"
+        } else {
+            "prod"
+        };
 
         let mut user_id: String = "".to_string();
         let organization_id: String;

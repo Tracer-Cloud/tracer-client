@@ -18,6 +18,7 @@ use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 use tower_http::cors::{Any, CorsLayer};
 
+use crate::utils::env::is_development_environment;
 use crate::utils::jwt_utils::claims::Claims;
 use axum::response::Redirect;
 use std::time::Duration;
@@ -27,18 +28,20 @@ use tracing::log::debug;
 /// open a browser window when the user types 'tracer login' to login and get the token
 /// It also waits for 2 minutes max for the token to be available in a specific folder
 pub async fn login(platform: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let login_url = if platform.eq_ignore_ascii_case("dev") {
-        CLI_LOGIN_URL_DEV
-    } else if platform.eq_ignore_ascii_case("local") {
+    let is_development_environment = is_development_environment();
+
+    let login_url = if platform.eq_ignore_ascii_case("local") {
         CLI_LOGIN_URL_LOCAL
+    } else if platform.eq_ignore_ascii_case("dev") || is_development_environment {
+        CLI_LOGIN_URL_DEV
     } else {
         CLI_LOGIN_URL_PROD
     };
 
-    let redirect_url = if platform.eq_ignore_ascii_case("dev") {
-        CLI_LOGIN_REDIRECT_URL_DEV_SUCCESS
-    } else if platform.eq_ignore_ascii_case("local") {
+    let redirect_url = if platform.eq_ignore_ascii_case("local") {
         CLI_LOGIN_REDIRECT_URL_LOCAL_SUCCESS
+    } else if platform.eq_ignore_ascii_case("dev") || is_development_environment {
+        CLI_LOGIN_REDIRECT_URL_DEV_SUCCESS
     } else {
         CLI_LOGIN_REDIRECT_URL_PROD_SUCCESS
     };
