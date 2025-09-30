@@ -11,12 +11,17 @@ impl TrustedUrl {
     pub fn tracer_aws_url(version: &TracerVersion, platform: &PlatformInfo) -> Result<Self> {
         const TRACER_AWS_URL: &str = "https://tracer-releases.s3.us-east-1.amazonaws.com";
 
-        let filename = binary_filename(platform)?;
+        let tarball_name = get_tarball_name(platform, version)?;
 
+        // TODO: implement dev binary
+        // for now we are using the main branch when we pass dev or development as version
+        // in the future (also to be SOC2 compliant, we will have a dev branch)
         let url = match version {
-            TracerVersion::Development => format!("{}/{}", TRACER_AWS_URL, filename),
-            TracerVersion::Feature(branch) => format!("{}/{}/{}", TRACER_AWS_URL, branch, filename),
-            TracerVersion::Production => format!("{}/main/{}", TRACER_AWS_URL, filename),
+            TracerVersion::Development => format!("{}/{}", TRACER_AWS_URL, tarball_name),
+            TracerVersion::Feature(branch) => {
+                format!("{}/{}/{}", TRACER_AWS_URL, branch, tarball_name)
+            }
+            TracerVersion::Production => format!("{}/main/{}", TRACER_AWS_URL, tarball_name),
         };
 
         let url = url.parse()?;
@@ -43,13 +48,21 @@ impl Display for TrustedUrl {
     }
 }
 
-fn binary_filename(platform: &PlatformInfo) -> anyhow::Result<&'static str> {
-    match (&platform.os, &platform.arch) {
-        (Os::Linux, Arch::X86_64) => Ok("tracer-x86_64-unknown-linux-gnu.tar.gz"),
-        (Os::Linux, Arch::Aarch64) => Ok("tracer-aarch64-unknown-linux-gnu.tar.gz"),
-        (Os::AmazonLinux, Arch::X86_64) => Ok("tracer-x86_64-amazon-linux-gnu.tar.gz"),
-        (Os::AmazonLinux, Arch::Aarch64) => Ok("tracer-aarch64-unknown-linux-gnu.tar.gz"),
-        (Os::Macos, Arch::X86_64) => Ok("tracer-x86_64-apple-darwin.tar.gz"),
-        (Os::Macos, Arch::Aarch64) => Ok("tracer-aarch64-apple-darwin.tar.gz"),
-    }
+fn get_tarball_name(platform: &PlatformInfo, version: &TracerVersion) -> Result<String> {
+    let prefix = match version {
+        TracerVersion::Production => "tracer-prod",
+        TracerVersion::Development | TracerVersion::Feature(_) => "tracer-dev",
+    };
+
+    println!("prefix {}", prefix);
+
+    let suffix = match (&platform.os, &platform.arch) {
+        (Os::Linux, Arch::X86_64) => "x86_64-unknown-linux-gnu.tar.gz",
+        (Os::Linux, Arch::Aarch64) => "aarch64-unknown-linux-gnu.tar.gz",
+        (Os::AmazonLinux, Arch::X86_64) => "x86_64-amazon-linux-gnu.tar.gz",
+        (Os::AmazonLinux, Arch::Aarch64) => "aarch64-unknown-linux-gnu.tar.gz",
+        (Os::Macos, Arch::X86_64) => "x86_64-apple-darwin.tar.gz",
+        (Os::Macos, Arch::Aarch64) => "aarch64-apple-darwin.tar.gz",
+    };
+    Ok(format!("{}-{}", prefix, suffix))
 }

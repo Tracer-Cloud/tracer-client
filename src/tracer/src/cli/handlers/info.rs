@@ -1,7 +1,9 @@
+use crate::constants::{DASHBOARD_BASE_DEV, DASHBOARD_BASE_PROD};
 use crate::daemon::client::DaemonClient;
 use crate::daemon::server::DaemonServer;
 use crate::daemon::structs::PipelineMetadata;
 use crate::utils::cli::BoxFormatter;
+use crate::utils::env::is_development_environment;
 use crate::utils::Version;
 
 pub async fn info(api_client: &DaemonClient, json: bool) {
@@ -86,7 +88,7 @@ impl InfoDisplay {
                 "id": &run_snapshot.id,
                 "monitored_processes": run_snapshot.process_count(),
                 "monitored_tasks": run_snapshot.tasks_count(),
-                "dashboard_url": run_snapshot.get_run_url(pipeline.name.clone(), pipeline.is_dev),
+                "dashboard_url": run_snapshot.get_run_url(pipeline.name.clone(), is_development_environment()),
             });
 
             if run_snapshot.process_count() > 0 {
@@ -241,7 +243,7 @@ impl InfoDisplay {
         formatter.add_section_header("Next steps");
         formatter.add_empty_line();
         formatter.add_field("Interactive setup", "tracer init", "cyan");
-        formatter.add_hyperlink("Sandbox", "https://sandbox.tracer.cloud");
+        formatter.add_hyperlink("Sandbox", self.get_sandbox_url());
         formatter.add_hyperlink(
             "Documentation",
             "https://github.com/Tracer-Cloud/tracer-client",
@@ -250,5 +252,13 @@ impl InfoDisplay {
         formatter.add_empty_line();
         formatter.add_footer();
         println!("{}", formatter.get_output());
+    }
+
+    pub fn get_sandbox_url(&self) -> &str {
+        if is_development_environment() {
+            DASHBOARD_BASE_DEV
+        } else {
+            DASHBOARD_BASE_PROD
+        }
     }
 }

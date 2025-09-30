@@ -1,16 +1,16 @@
 /// tracer/src/cli/handlers/init/handler.rs
 use super::arguments::TracerCliInitArgs;
+use super::setup::{
+    handle_existing_daemon, setup_daemon_logging, setup_sentry_context, spawn_daemon_process,
+};
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::server::DaemonServer;
 use crate::info_message;
+use crate::utils::env::is_development_environment;
 use crate::utils::system_info::check_sudo_with_procfs_option;
 use crate::utils::workdir::TRACER_WORK_DIR;
 use colored::Colorize;
-
-use super::setup::{
-    handle_existing_daemon, setup_daemon_logging, setup_sentry_context, spawn_daemon_process,
-};
 
 /// Initialize the tracer daemon with the given pipeline prefix
 pub async fn init(
@@ -27,6 +27,9 @@ pub async fn init(
     if args.no_daemonize {
         args.set_non_interactive();
     }
+
+    // Set dev mode to true if running in the dev environment
+    args.dev = is_development_environment();
 
     let args = args.resolve_arguments().await;
 

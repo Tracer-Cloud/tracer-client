@@ -20,19 +20,22 @@ jobs:
     permissions: write-all
     strategy:
       matrix:
+        arch: [x86_64, aarch64, macos-arm64, macos-x86_64]
+        channel: [dev, prod]
         include:
           - arch: x86_64
             target: x86_64-unknown-linux-gnu
             runner: ubuntu-22.04
           - arch: aarch64
             target: aarch64-unknown-linux-gnu
-            runner: ubuntu-22.04-arm # Native ARM runner
+            runner: ubuntu-22.04-arm
           - arch: macos-arm64
             target: aarch64-apple-darwin
             runner: macos-latest
           - arch: macos-x86_64
             target: x86_64-apple-darwin
             runner: macos-latest
+
 
     runs-on: ${{ matrix.runner }}
 
@@ -128,6 +131,7 @@ jobs:
         env:
           CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
           CARGO_INCREMENTAL: "0"
+          BUILD_CHANNEL: ${{ matrix.channel }}
         run: cargo build --release --target ${{ matrix.target }} -p tracer -p tracer-installer
 
       - name: Prepare binary for release
@@ -135,14 +139,14 @@ jobs:
           mkdir -p release-files/${{ matrix.arch }}
           cp target/${{ matrix.target }}/release/tracer release-files/${{ matrix.arch }}/tracer
           chmod +x release-files/${{ matrix.arch }}/tracer
-          tar -czf release-files/tracer-${{ matrix.target }}.tar.gz -C release-files/${{ matrix.arch }} tracer
-
-          # Copy Tracer Installer binary (if it was built)
+          tar -czf release-files/tracer-${{ matrix.channel }}-${{ matrix.target }}.tar.gz -C release-files/${{ matrix.arch }} tracer
+      
           if [ -f target/${{ matrix.target }}/release/tracer-installer ]; then
             cp target/${{ matrix.target }}/release/tracer-installer release-files/${{ matrix.arch }}/tracer-installer
             chmod +x release-files/${{ matrix.arch }}/tracer-installer
             tar -czf release-files/tracer-installer-${{ matrix.target }}.tar.gz -C release-files/${{ matrix.arch }} tracer-installer
           fi
+      
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -153,11 +157,13 @@ jobs:
 
       - name: Upload to S3
         run: |
-          aws s3 cp release-files/tracer-${{ matrix.target }}.tar.gz s3://tracer-releases/tracer-${{ matrix.target }}.tar.gz
-          aws s3 cp release-files/tracer-${{ matrix.target }}.tar.gz s3://tracer-releases/${{ github.head_ref || github.ref_name }}/tracer-${{ matrix.target }}.tar.gz
-
-          aws s3 cp release-files/tracer-installer-${{ matrix.target }}.tar.gz s3://tracer-installer-releases/${{ github.head_ref || github.ref_name }}/tracer-installer-${{ matrix.target }}.tar.gz
-
+          aws s3 cp release-files/tracer-${{ matrix.channel }}-${{ matrix.target }}.tar.gz s3://tracer-releases/tracer-${{ matrix.channel }}-${{ matrix.target }}.tar.gz
+          aws s3 cp release-files/tracer-${{ matrix.channel }}-${{ matrix.target }}.tar.gz s3://tracer-releases/${{ github.head_ref || github.ref_name }}/tracer-${{ matrix.channel }}-${{ matrix.target }}.tar.gz
+      
+          if [ -f release-files/tracer-installer-${{ matrix.target }}.tar.gz ]; then
+            aws s3 cp release-files/tracer-installer-${{ matrix.target }}.tar.gz s3://tracer-installer-releases/${{ github.head_ref || github.ref_name }}/tracer-installer-${{ matrix.target }}.tar.gz
+          fi
+        
   build-and-release-amazon-linux:
     permissions: write-all
     runs-on: ubuntu-latest

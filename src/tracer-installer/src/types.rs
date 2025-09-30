@@ -4,7 +4,7 @@ use serde::Serialize;
 use std::fmt;
 use std::{collections::HashMap, str::FromStr};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) enum TracerVersion {
     Development,
     Production,

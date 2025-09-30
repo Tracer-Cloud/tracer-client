@@ -24,6 +24,10 @@ fn main() {
     // opentelemetry config
     trigger_yml_files_from_dir("src/tracer/src/opentelemetry");
 
+    // Export build channel (default to prod if not set)
+    let channel = std::env::var("BUILD_CHANNEL").unwrap_or_else(|_| "dev".to_string());
+    println!("cargo:rustc-env=BUILD_CHANNEL={}", channel);
+
     // write the build-time information to the file
     built::write_built_file().expect("Failed to acquire build-time information");
 }
