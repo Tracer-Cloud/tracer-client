@@ -20,6 +20,7 @@ jobs:
     permissions: write-all
     strategy:
       matrix:
+        arch: [x86_64, aarch64, macos-arm64, macos-x86_64]
         channel: [dev, prod]
         include:
           - arch: x86_64
@@ -34,6 +35,7 @@ jobs:
           - arch: macos-x86_64
             target: x86_64-apple-darwin
             runner: macos-latest
+
 
     runs-on: ${{ matrix.runner }}
 
