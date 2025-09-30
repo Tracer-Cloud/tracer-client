@@ -106,3 +106,19 @@ async fn detect_ec2_environment(timeout_secs: u64) -> Option<String> {
 
     None
 }
+
+/// Get the build channel (prod, dev, ...) from the environment variable.
+/// Defaults to "prod" if the variable is not set.
+pub fn get_build_channel() -> &'static str {
+    let channel = env!("BUILD_CHANNEL");
+
+    if channel.is_empty() {
+        return "prod";
+    }
+
+    channel
+}
+
+pub fn is_development_environment() -> bool {
+    get_build_channel() == "dev"
+}
