@@ -17,7 +17,7 @@ impl TrustedUrl {
         // for now we are using the main branch when we pass dev or development as version
         // in the future (also to be SOC2 compliant, we will have a dev branch)
         let url = match version {
-            TracerVersion::Development => format!("{}/main/{}", TRACER_AWS_URL, tarball_name),
+            TracerVersion::Development => format!("{}/{}", TRACER_AWS_URL, tarball_name),
             TracerVersion::Feature(branch) => {
                 format!("{}/{}/{}", TRACER_AWS_URL, branch, tarball_name)
             }
