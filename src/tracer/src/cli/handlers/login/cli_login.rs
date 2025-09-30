@@ -32,8 +32,6 @@ pub async fn login(mut platform: &str) -> Result<String, Box<dyn std::error::Err
 
     let login_url = if platform.eq_ignore_ascii_case("local") {
         CLI_LOGIN_URL_LOCAL
-    } else if platform.eq_ignore_ascii_case("prod") {
-        CLI_LOGIN_URL_PROD
     } else if platform.eq_ignore_ascii_case("dev") || is_development_environment {
         platform = "dev";
         CLI_LOGIN_URL_DEV
@@ -43,8 +41,6 @@ pub async fn login(mut platform: &str) -> Result<String, Box<dyn std::error::Err
 
     let redirect_url = if platform.eq_ignore_ascii_case("local") {
         CLI_LOGIN_REDIRECT_URL_LOCAL_SUCCESS
-    } else if platform.eq_ignore_ascii_case("prod") {
-        CLI_LOGIN_REDIRECT_URL_PROD_SUCCESS
     } else if platform.eq_ignore_ascii_case("dev") || is_development_environment {
         CLI_LOGIN_REDIRECT_URL_DEV_SUCCESS
     } else {
