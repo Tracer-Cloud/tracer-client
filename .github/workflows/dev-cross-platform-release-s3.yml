@@ -144,7 +144,7 @@ jobs:
           if [ -f target/${{ matrix.target }}/release/tracer-installer ]; then
             cp target/${{ matrix.target }}/release/tracer-installer release-files/${{ matrix.arch }}/tracer-installer
             chmod +x release-files/${{ matrix.arch }}/tracer-installer
-            tar -czf release-files/tracer-installer-${{ matrix.channel }}-${{ matrix.target }}.tar.gz -C release-files/${{ matrix.arch }} tracer-installer
+            tar -czf release-files/tracer-installer-${{ matrix.target }}.tar.gz -C release-files/${{ matrix.arch }} tracer-installer
           fi
       
 
@@ -160,8 +160,8 @@ jobs:
           aws s3 cp release-files/tracer-${{ matrix.channel }}-${{ matrix.target }}.tar.gz s3://tracer-releases/tracer-${{ matrix.channel }}-${{ matrix.target }}.tar.gz
           aws s3 cp release-files/tracer-${{ matrix.channel }}-${{ matrix.target }}.tar.gz s3://tracer-releases/${{ github.head_ref || github.ref_name }}/tracer-${{ matrix.channel }}-${{ matrix.target }}.tar.gz
       
-          if [ -f release-files/tracer-installer-${{ matrix.channel }}-${{ matrix.target }}.tar.gz ]; then
-            aws s3 cp release-files/tracer-installer-${{ matrix.channel }}-${{ matrix.target }}.tar.gz s3://tracer-installer-releases/${{ github.head_ref || github.ref_name }}/tracer-installer-${{ matrix.channel }}-${{ matrix.target }}.tar.gz
+          if [ -f release-files/tracer-installer-${{ matrix.target }}.tar.gz ]; then
+            aws s3 cp release-files/tracer-installer-${{ matrix.target }}.tar.gz s3://tracer-installer-releases/${{ github.head_ref || github.ref_name }}/tracer-installer-${{ matrix.target }}.tar.gz
           fi
         
   build-and-release-amazon-linux:
