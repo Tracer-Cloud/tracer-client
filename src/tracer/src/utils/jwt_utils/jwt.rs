@@ -1,6 +1,7 @@
 use crate::constants::JWT_TOKEN_FILE_PATH;
 use crate::utils::jwt_utils::claims::Claims;
 use crate::utils::jwt_utils::clerk::ClerkJwtVerifier;
+use tracing::error;
 
 /// this function checks if the jwt is valid,
 /// we will check for now only if the token is in the right format, has all the fields, the user_id (sub) is not null
@@ -13,14 +14,14 @@ pub async fn is_jwt_valid(token: &str, platform: &str) -> (bool, Option<Claims>)
     match verification_result {
         Ok(claims) => {
             if claims.sub.is_empty() {
-                eprintln!("Error validating jwt token from clerk: user ID not found. Try 'tracer login' again");
+                error!("Error validating jwt token from clerk: user ID not found. Try 'tracer login' again");
                 (false, None)
             } else {
                 (true, Some(claims))
             }
         }
         Err(err) => {
-            eprintln!(
+            error!(
                 "Error validating jwt token from clerk: {}, try 'tracer login' again",
                 err
             );

@@ -1,9 +1,10 @@
 use super::super::user_prompts::{print_help, UserPrompts};
 use super::{FinalizedInitArgs, PromptMode, TracerCliInitArgs};
 use crate::utils::env;
-use crate::utils::env::is_development_environment;
+use crate::utils::env::{get_sandbox_url, is_development_environment};
 use crate::utils::jwt_utils::claims::Claims;
 use crate::utils::jwt_utils::jwt::{get_token_claims_from_file, is_jwt_valid};
+use colored::Colorize;
 use std::collections::HashMap;
 
 /// Constants for argument resolution
@@ -36,7 +37,7 @@ impl ArgumentResolver {
             let token_claims_option = self.decode_token(self.args.token.clone(), platform).await;
 
             if token_claims_option.is_none() {
-                println!("No valid token found.\n Please run `tracer login` or `tracer init --token <your-token>` to login to the CLI.");
+                println!("\nUnable to log in automatically. Please open {} and copy your init code here.", get_sandbox_url().cyan());
                 std::process::exit(1);
             }
 

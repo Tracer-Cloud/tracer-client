@@ -21,6 +21,8 @@ pub const CLI_LOGIN_URL: &str = "https://sandbox.tracer.cloud/sign-in?cli=true";
 pub const CLI_LOGIN_URL_LOCAL: &str = "http://localhost:3000/sign-in?cli=true";
 pub const CLI_LOGIN_URL_DEV: &str = "https://dev.sandbox.tracer.cloud/sign-in?cli=true";
 pub const CLI_LOGIN_URL_PROD: &str = "https://sandbox.tracer.cloud/sign-in?cli=true";
+pub const SANDBOX_URL_PROD: &str = "https://sandbox.tracer.cloud/";
+pub const SANDBOX_URL_DEV: &str = "https://dev.sandbox.tracer.cloud/";
 pub const CLI_LOGIN_REDIRECT_URL_PROD_SUCCESS: &str =
     "https://sandbox.tracer.cloud/dashboard?login_success=true";
 pub const CLI_LOGIN_REDIRECT_URL_DEV_SUCCESS: &str =
