@@ -125,11 +125,9 @@ pub fn is_development_environment() -> bool {
 }
 
 pub fn get_sandbox_url() -> &'static str {
-    let sandbox_url = if is_development_environment() {
+    if is_development_environment() {
         SANDBOX_URL_DEV
     } else {
         SANDBOX_URL_PROD
-    };
-
-    sandbox_url
+    }
 }
