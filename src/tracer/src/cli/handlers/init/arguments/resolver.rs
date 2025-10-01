@@ -37,7 +37,7 @@ impl ArgumentResolver {
             let token_claims_option = self.decode_token(self.args.token.clone(), platform).await;
 
             if token_claims_option.is_none() {
-                println!("\nUnable to log in automatically. Please open {} and copy your init code here.", get_sandbox_url().cyan());
+                println!("\nUnable to log in automatically. Please open {}, select your platform and copy your init code here.", get_sandbox_url().cyan());
                 std::process::exit(1);
             }
 
