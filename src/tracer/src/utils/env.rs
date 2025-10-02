@@ -1,3 +1,4 @@
+use crate::constants::{SANDBOX_URL_DEV, SANDBOX_URL_PROD};
 use reqwest::Client;
 use std::env;
 use std::fs;
@@ -121,4 +122,12 @@ pub fn get_build_channel() -> &'static str {
 
 pub fn is_development_environment() -> bool {
     get_build_channel() == "dev"
+}
+
+pub fn get_sandbox_url() -> &'static str {
+    if is_development_environment() {
+        SANDBOX_URL_DEV
+    } else {
+        SANDBOX_URL_PROD
+    }
 }
