@@ -166,6 +166,9 @@ jobs:
         
   build-and-release-amazon-linux:
     permissions: write-all
+    strategy:
+      matrix:
+        channel: [dev, prod]
     runs-on: ubuntu-latest
     container:
       image: amazonlinux:2023
@@ -225,6 +228,7 @@ jobs:
         env:
           CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
           CARGO_INCREMENTAL: "0"
+          BUILD_CHANNEL: ${{ matrix.channel }}
         run: |
           source $HOME/.cargo/env
           cargo build --release -p tracer
@@ -234,7 +238,7 @@ jobs:
           mkdir -p release-files/amazon-linux
           cp target/release/tracer release-files/amazon-linux/tracer
           chmod +x release-files/amazon-linux/tracer
-          tar -czf release-files/tracer-x86_64-amazon-linux-gnu.tar.gz -C release-files/amazon-linux tracer
+          tar -czf release-files/tracer-${{ matrix.channel }}-x86_64-amazon-linux-gnu.tar.gz -C release-files/amazon-linux tracer
 
       - name: Install AWS CLI
         run: |
@@ -251,5 +255,5 @@ jobs:
 
       - name: Upload to S3
         run: |
-          aws s3 cp release-files/tracer-x86_64-amazon-linux-gnu.tar.gz s3://tracer-releases/tracer-x86_64-amazon-linux-gnu.tar.gz
-          aws s3 cp release-files/tracer-x86_64-amazon-linux-gnu.tar.gz s3://tracer-releases/${{ github.head_ref || github.ref_name }}/tracer-x86_64-amazon-linux-gnu.tar.gz
+          aws s3 cp release-files/tracer-${{ matrix.channel }}-x86_64-amazon-linux-gnu.tar.gz s3://tracer-releases/tracer-${{ matrix.channel }}-x86_64-amazon-linux-gnu.tar.gz
+          aws s3 cp release-files/tracer-${{ matrix.channel }}-x86_64-amazon-linux-gnu.tar.gz s3://tracer-releases/${{ github.head_ref || github.ref_name }}/tracer-${{ matrix.channel }}-x86_64-amazon-linux-gnu.tar.gz
