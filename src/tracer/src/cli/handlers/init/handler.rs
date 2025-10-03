@@ -36,12 +36,13 @@ pub async fn init(
     // Set up Sentry context for monitoring
     setup_sentry_context(&args)?;
 
-    if !args.no_daemonize {
-        // Spawn daemon process and wait for it to be ready
-        return spawn_daemon_process(&args, api_client).await;
+    if args.no_daemonize {
+        setup_daemon_logging(&args.log_level)?;
+        return DaemonServer::new().await.start(args, config).await;
     }
-    setup_daemon_logging(&args.log_level)?;
-    DaemonServer::new().await.start(args, config).await
+
+    // Spawn the daemon process and wait for it to be ready
+    spawn_daemon_process(&args, api_client).await
 }
 
 /// Performs initial setup and validation before starting daemon

@@ -47,6 +47,10 @@ pub struct PipelineTags {
     /// other tags you'd like to attach to this session
     #[clap(long, value_parser = StringValueParser, value_delimiter = ',')]
     pub others: Vec<String>,
+
+    /// email of the user, get from the token
+    #[clap(long, value_parser = StringValueParser)]
+    pub email: Option<String>,
 }
 
 impl Default for PipelineTags {
@@ -61,6 +65,7 @@ impl Default for PipelineTags {
             instance_type: None,
             environment_type: None,
             others: vec![],
+            email: None,
         }
     }
 }
