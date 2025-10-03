@@ -96,6 +96,7 @@ impl DaemonServer {
             AnalyticsEventType::DaemonStartedSuccessfully,
             None,
         );
+
         info!("Starting Tracer daemon server...");
         let termination_token = CancellationToken::new();
         let server_url = config.server.clone();

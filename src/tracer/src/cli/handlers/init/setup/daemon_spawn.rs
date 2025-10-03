@@ -19,6 +19,12 @@ pub async fn spawn_daemon_process(
 
     info_message!("Spawning child process...");
 
+    analytics::spawn_event(
+        args.user_id.clone(),
+        AnalyticsEventType::DaemonStartedSuccessfully,
+        None,
+    );
+
     let spawn_args = build_spawn_args(args);
     let spawn_args_str: Vec<&str> = spawn_args.iter().map(|s| s.as_str()).collect();
     let child_id = spawn::spawn_child(&spawn_args_str)?;
