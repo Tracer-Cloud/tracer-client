@@ -2,7 +2,7 @@ use crate::extracts::process::process_manager::recorder::EventRecorder;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
 use anyhow::Result;
-use tracing::{debug, error, warn};
+use tracing::debug;
 
 /// Handles periodic polling and updating of process metrics for monitored processes.
 ///
@@ -36,8 +36,7 @@ impl ProcessMetricsHandler {
         let monitored_pids = state_manager.get_monitored_processes_pids().await;
 
         if monitored_pids.is_empty() {
-            warn!("No processes are currently monitored - skipping metrics poll");
-            error!("No processes are currently monitored - skipping metrics poll");
+            debug!("No processes are currently monitored - skipping metrics poll");
             return Ok(());
         }
 

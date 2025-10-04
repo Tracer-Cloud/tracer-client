@@ -212,9 +212,15 @@ impl TracerClient {
     pub async fn get_run_snapshot(&self) -> RunSnapshot {
         let run = &self.run;
 
-        let processes = self.process_watcher.get_monitored_processes().await;
+        let processes = self
+            .process_watcher
+            .get_monitored_processes_with_timeout(200)
+            .await;
 
-        let tasks = self.process_watcher.get_matched_tasks().await;
+        let tasks = self
+            .process_watcher
+            .get_matched_tasks_with_timeout(200)
+            .await;
         RunSnapshot::new(
             run.name.clone(),
             run.id.clone(),
@@ -228,7 +234,24 @@ impl TracerClient {
 
     pub async fn get_pipeline_data(&self) -> PipelineMetadata {
         let mut pipeline = self.pipeline.lock().await.clone();
-        pipeline.run_snapshot.replace(self.get_run_snapshot().await);
+
+        // Use timeout for getting run snapshot to avoid blocking
+        match tokio::time::timeout(
+            std::time::Duration::from_millis(300),
+            self.get_run_snapshot(),
+        )
+        .await
+        {
+            Ok(snapshot) => {
+                pipeline.run_snapshot.replace(snapshot);
+            }
+            Err(_) => {
+                // Timeout occurred, use cached data or create a minimal snapshot
+                tracing::warn!("Timeout getting run snapshot, using cached or minimal data");
+                // Keep existing run_snapshot if available, otherwise it remains None
+            }
+        }
+
         pipeline
     }
 

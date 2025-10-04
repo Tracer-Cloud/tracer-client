@@ -298,4 +298,36 @@ impl ProcessWatcher {
     pub async fn get_matched_tasks(&self) -> HashMap<String, usize> {
         self.process_manager.read().await.get_matched_tasks().await
     }
+
+    /// Non-blocking version of get_monitored_processes with timeout
+    pub async fn get_monitored_processes_with_timeout(&self, timeout_ms: u64) -> HashSet<String> {
+        match tokio::time::timeout(
+            std::time::Duration::from_millis(timeout_ms),
+            self.get_monitored_processes(),
+        )
+        .await
+        {
+            Ok(processes) => processes,
+            Err(_) => {
+                tracing::warn!("Timeout getting monitored processes, returning empty set");
+                HashSet::new()
+            }
+        }
+    }
+
+    /// Non-blocking version of get_matched_tasks with timeout
+    pub async fn get_matched_tasks_with_timeout(&self, timeout_ms: u64) -> HashMap<String, usize> {
+        match tokio::time::timeout(
+            std::time::Duration::from_millis(timeout_ms),
+            self.get_matched_tasks(),
+        )
+        .await
+        {
+            Ok(tasks) => tasks,
+            Err(_) => {
+                tracing::warn!("Timeout getting matched tasks, returning empty map");
+                HashMap::new()
+            }
+        }
+    }
 }
