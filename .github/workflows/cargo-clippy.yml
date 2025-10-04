@@ -1,16 +1,26 @@
-name: Rust Cargo Audit
+name: Linter Check
 on:
   push:
     branches:
       - main
       - dev
+    paths:
+      - "src/**"
+      - ".github/workflows/cargo-clippy.yml"
   pull_request:
     branches:
       - main
       - dev
+    paths:
+      - "src/**"
+      - ".github/workflows/cargo-clippy.yml"
+
+env:
+  CARGO_TERM_COLOR: always # Ensures colored output in GitHub Actions logs
+
 jobs:
-  cargo-audit:
-    name: Cargo Audit
+  build-and-lint:
+    name: Build and Lint
     runs-on: ubuntu-latest
 
     steps:
@@ -31,8 +41,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm
 
-      - name: Install cargo audit
-        run: cargo install cargo-audit
+      - name: Check Formatting
+        run: cargo fmt -- --check
 
-      - name: Run cargo audit
-        run: cargo audit
+      - name: Lint with Clippy
+        run: cargo clippy -- -D warnings
