@@ -2,7 +2,7 @@ use crate::extracts::process::process_manager::recorder::EventRecorder;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
 use anyhow::Result;
-use tracing::{debug, error, warn};
+use tracing::debug;
 
 /// Handles periodic polling and updating of process metrics for monitored processes.
 ///
