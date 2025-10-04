@@ -11,7 +11,6 @@ use crate::utils::env::is_development_environment;
 use crate::utils::system_info::check_sudo_with_procfs_option;
 use crate::utils::workdir::TRACER_WORK_DIR;
 use colored::Colorize;
-use tracing::log::error;
 
 /// Initialize the tracer daemon with the given pipeline prefix
 pub async fn init(
