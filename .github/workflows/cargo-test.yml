@@ -1,4 +1,4 @@
-name: Rust CI
+name: Tests
 on:
   push:
     branches:
@@ -64,20 +64,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm
-
-      - name: Check Formatting
-        run: cargo fmt -- --check
-
-      - name: Lint with Clippy
-        run: cargo clippy -- -D warnings
-
-      - name: Free Disk Space
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf "/usr/local/share/boost"
-          [ -n "$AGENT_TOOLSDIRECTORY" ] && sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-          sudo docker image prune --all --force
 
       - name: Run tests
         run: |

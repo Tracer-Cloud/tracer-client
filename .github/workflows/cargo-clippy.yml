@@ -1,0 +1,72 @@
+name: Linter Check
+on:
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - "src/**"
+      - ".github/workflows/cargo-clippy.yml"
+  pull_request:
+    branches:
+      - main
+      - dev
+    paths:
+      - "src/**"
+      - ".github/workflows/cargo-clippy.yml"
+
+env:
+  CARGO_TERM_COLOR: always # Ensures colored output in GitHub Actions logs
+
+jobs:
+  build-and-lint:
+    name: Build and Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository with submodules
+        uses: actions/checkout@v4.1.4
+        with:
+          submodules: recursive # This will fetch all submodules recursively
+
+      - name: Setup Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup toolchain install nightly-2025-04-15 --component rust-src
+          rustup component add clippy
+          rustup component add rustfmt
+
+      - name: Cache Rust dependencies
+        id: cache-deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: cargo-deps-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            cargo-deps-${{ runner.os }}-
+
+      - name: Cache build artifacts
+        id: cache-build
+        uses: actions/cache@v4
+        with:
+          path: |
+            target/
+          key: cargo-build-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            cargo-build-${{ runner.os }}-
+
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm
+
+      - name: Check Formatting
+        run: cargo fmt -- --check
+
+      - name: Lint with Clippy
+        run: cargo clippy -- -D warnings
