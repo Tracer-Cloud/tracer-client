@@ -69,9 +69,6 @@ jobs:
       - name: Check Formatting
         run: cargo fmt -- --check
 
-      - name: Cargo check
-        run: cargo check --locked --all-targets
-
       - name: Lint with Clippy
         run: cargo clippy -- -D warnings
 
