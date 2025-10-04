@@ -36,8 +36,7 @@ impl ProcessMetricsHandler {
         let monitored_pids = state_manager.get_monitored_processes_pids().await;
 
         if monitored_pids.is_empty() {
-            warn!("No processes are currently monitored - skipping metrics poll");
-            error!("No processes are currently monitored - skipping metrics poll");
+            debug!("No processes are currently monitored - skipping metrics poll");
             return Ok(());
         }
 
