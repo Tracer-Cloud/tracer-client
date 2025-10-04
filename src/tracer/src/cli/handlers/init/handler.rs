@@ -23,7 +23,7 @@ pub async fn init(
 
     info_message!("Starting daemon...");
 
-    // Force non-interactive mode when running as daemon process
+    // Force non-interactive mode when running as a daemon process
     if args.no_daemonize {
         args.set_non_interactive();
     }
@@ -36,15 +36,16 @@ pub async fn init(
     // Set up Sentry context for monitoring
     setup_sentry_context(&args)?;
 
-    if !args.no_daemonize {
-        // Spawn daemon process and wait for it to be ready
-        return spawn_daemon_process(&args, api_client).await;
+    if args.no_daemonize {
+        setup_daemon_logging(&args.log_level)?;
+        DaemonServer::new().await.start(args, config).await
+    } else {
+        // Spawn the daemon process and wait for it to be ready
+        spawn_daemon_process(&args, api_client).await
     }
-    setup_daemon_logging(&args.log_level)?;
-    DaemonServer::new().await.start(args, config).await
 }
 
-/// Performs initial setup and validation before starting daemon
+/// Performs initial setup and validation before starting the daemon
 async fn init_setup_validation(
     args: &TracerCliInitArgs,
     api_client: &DaemonClient,
@@ -52,7 +53,7 @@ async fn init_setup_validation(
     // Check if running with sudo (Linux only, unless force_procfs is enabled)
     check_sudo_with_procfs_option("init", args.force_procfs);
 
-    // Create work dir for logging and daemonizing files
+    // Create a work dir for logging and daemonizing files
     TRACER_WORK_DIR
         .init()
         .expect("Error while creating necessary files");

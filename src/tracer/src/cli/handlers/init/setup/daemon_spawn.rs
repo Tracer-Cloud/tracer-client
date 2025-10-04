@@ -1,14 +1,13 @@
 use super::super::arguments::FinalizedInitArgs;
 use crate::cli::handlers::{info, otel_start_with_auto_install};
 use crate::cli::helper::wait;
-use colored::Colorize;
-
 use crate::daemon::client::DaemonClient;
 use crate::daemon::server::DaemonServer;
 use crate::utils::analytics::types::AnalyticsEventType;
 use crate::utils::workdir::TRACER_WORK_DIR;
 use crate::utils::{analytics, spawn};
 use crate::{error_message, info_message, success_message, warning_message};
+use colored::Colorize;
 
 /// Spawns a new daemon process and waits for it to be ready
 pub async fn spawn_daemon_process(
@@ -77,6 +76,12 @@ fn build_spawn_args(args: &FinalizedInitArgs) -> Vec<String> {
     if args.tags.organization_id.is_some() {
         spawn_args.push("--organization-id".to_string());
         spawn_args.push(args.tags.organization_id.as_ref().unwrap().to_string());
+    }
+
+    if args.tags.email.is_some() {
+        let email = args.tags.email.as_ref().unwrap().to_string();
+        spawn_args.push("--email".to_string());
+        spawn_args.push(email);
     }
 
     if args.dev {

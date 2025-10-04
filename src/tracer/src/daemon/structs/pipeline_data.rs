@@ -1,6 +1,7 @@
 use crate::cli::handlers::init_arguments::FinalizedInitArgs;
 use crate::daemon::structs::{OpenTelemetryStatus, RunSnapshot};
 use crate::process_identification::types::pipeline_tags::PipelineTags;
+use crate::utils::env::get_build_channel;
 use chrono::{DateTime, TimeDelta, Utc};
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
@@ -46,10 +47,6 @@ impl PipelineMetadata {
     }
 
     pub fn stage(&self) -> &str {
-        if self.is_dev {
-            "dev"
-        } else {
-            "prod"
-        }
+        get_build_channel()
     }
 }

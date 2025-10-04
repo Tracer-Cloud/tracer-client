@@ -51,6 +51,9 @@ impl ArgumentResolver {
                 organization_id = token_claims.organization.unwrap().to_string();
                 self.args.tags.organization_id = Some(organization_id);
             }
+
+            // checks on email of the user
+            self.args.tags.email = Some(token_claims.email);
         }
 
         // Resolve environment type first so it can be used in pipeline name generation

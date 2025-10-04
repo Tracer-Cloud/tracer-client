@@ -47,6 +47,13 @@ pub struct PipelineTags {
     /// other tags you'd like to attach to this session
     #[clap(long, value_parser = StringValueParser, value_delimiter = ',')]
     pub others: Vec<String>,
+
+    /// email of the user, get from the token
+    /// not using (value_parser = StringValueParser) here because the email is get automatically in the token
+    /// and using that will trigger the checks on the special characters, and the email will be flagged as wrong
+    /// because it contains the '@' that is flagged as special character
+    #[clap(long)]
+    pub email: Option<String>,
 }
 
 impl Default for PipelineTags {
@@ -61,6 +68,7 @@ impl Default for PipelineTags {
             instance_type: None,
             environment_type: None,
             others: vec![],
+            email: None,
         }
     }
 }
