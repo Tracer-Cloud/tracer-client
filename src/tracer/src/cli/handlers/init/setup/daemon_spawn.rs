@@ -79,13 +79,7 @@ fn build_spawn_args(args: &FinalizedInitArgs) -> Vec<String> {
     }
 
     if args.tags.email.is_some() {
-        let email = args
-            .tags
-            .email
-            .as_ref()
-            .unwrap()
-            .to_string()
-            .replace("@", "_AT_");
+        let email = args.tags.email.as_ref().unwrap().to_string();
         spawn_args.push("--email".to_string());
         spawn_args.push(email);
     }

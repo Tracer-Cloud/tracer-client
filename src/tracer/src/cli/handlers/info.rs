@@ -79,7 +79,7 @@ impl InfoDisplay {
             "instance_type": pipeline.tags.instance_type.as_deref().unwrap_or("Not detected"),
             "user": pipeline.tags.user_id.as_deref().unwrap_or("Not set"),
             "organization": pipeline.tags.organization_id.as_deref().unwrap_or("Not set"),
-            "email": pipeline.tags.email.as_deref().unwrap_or("Not set").replace("_AT_", "@"),
+            "email": pipeline.tags.email.as_deref().unwrap_or("Not set"),
             "stage": pipeline.stage(),
         });
 
@@ -133,12 +133,7 @@ impl InfoDisplay {
         let pipeline_environment = pipeline.tags.environment.as_deref().unwrap_or("Not set");
         let pipeline_user = pipeline.tags.user_id.as_deref().unwrap();
 
-        let user_email = pipeline
-            .tags
-            .email
-            .as_deref()
-            .unwrap_or("Not set")
-            .replace("_AT_", "@");
+        let user_email = pipeline.tags.email.as_deref().unwrap_or("Not set");
         let user_organization = pipeline
             .tags
             .organization_id
@@ -149,7 +144,7 @@ impl InfoDisplay {
         formatter.add_field("Environment", pipeline_environment, "yellow");
         formatter.add_field("User", pipeline_user, "magenta");
         formatter.add_field("Organization", user_organization, "magenta");
-        formatter.add_field("Email", user_email.as_str(), "magenta");
+        formatter.add_field("Email", user_email, "magenta");
         formatter.add_field("Stage", pipeline.stage(), "yellow");
 
         if let Some(otel_status) = &pipeline.opentelemetry_status {

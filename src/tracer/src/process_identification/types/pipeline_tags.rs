@@ -49,7 +49,7 @@ pub struct PipelineTags {
     pub others: Vec<String>,
 
     /// email of the user, get from the token
-    #[clap(long, value_parser = StringValueParser)]
+    #[clap(long)]
     pub email: Option<String>,
 }
 
