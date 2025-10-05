@@ -52,7 +52,14 @@ impl TracerClient {
 
         let pipeline = Arc::new(Mutex::new(PipelineMetadata::new(&cli_args)));
 
-        let system = Arc::new(RwLock::new(System::new_all()));
+        // Move System::new_all() to a blocking task to avoid blocking the runtime
+        // This is especially important on Linux where it can take several seconds
+        let system = tokio::task::spawn_blocking(|| System::new_all())
+            .await
+            .context("Failed to spawn blocking task for System initialization")?;
+
+        let system = Arc::new(RwLock::new(system));
+
         let (run, system_properties) =
             Self::init_run(system.clone(), &cli_args.run_name, pricing_client).await;
 

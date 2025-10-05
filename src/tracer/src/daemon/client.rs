@@ -89,6 +89,7 @@ impl DaemonClient {
     }
 
     pub async fn send_info_request(&self) -> Result<PipelineMetadata> {
+        println!("Sending request to {}", INFO_ENDPOINT.cyan());
         self.request(INFO_ENDPOINT, Option::<()>::None).await
     }
 
