@@ -214,12 +214,12 @@ impl TracerClient {
 
         let processes = self
             .process_watcher
-            .get_monitored_processes_with_timeout(200)
+            .get_monitored_processes()
             .await;
 
         let tasks = self
             .process_watcher
-            .get_matched_tasks_with_timeout(200)
+            .get_matched_tasks()
             .await;
         RunSnapshot::new(
             run.name.clone(),

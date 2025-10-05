@@ -6,7 +6,7 @@ use axum::Json;
 pub const STOP_ENDPOINT: &str = "/stop";
 
 pub async fn stop(
-    State(mut state): State<DaemonState>,
+    State(state): State<DaemonState>,
 ) -> axum::response::Result<impl IntoResponse> {
     Ok(Json(state.stop_client().await))
 }
