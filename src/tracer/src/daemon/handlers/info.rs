@@ -31,7 +31,7 @@ pub async fn info(State(state): State<DaemonState>) -> axum::response::Result<im
         state.get_pipeline_data().await
     };
 
-    pipeline_data.opentelemetry_status = get_opentelemetry_status().await;
+    // pipeline_data.opentelemetry_status = get_opentelemetry_status().await;
     Ok(Json(pipeline_data))
 }
 
