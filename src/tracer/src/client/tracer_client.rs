@@ -228,9 +228,7 @@ impl TracerClient {
 
     pub async fn get_pipeline_data(&self) -> PipelineMetadata {
         let mut pipeline = self.pipeline.lock().await.clone();
-
         pipeline.run_snapshot.replace(self.get_run_snapshot().await);
-
         pipeline
     }
 
