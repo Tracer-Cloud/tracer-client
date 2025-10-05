@@ -8,7 +8,6 @@ use std::env;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
-use tracing::log::error;
 
 #[derive(Clone)]
 pub(super) struct DaemonState {
@@ -35,7 +34,6 @@ impl DaemonState {
     }
 
     pub async fn get_tracer_client(&self) -> Option<Arc<Mutex<TracerClient>>> {
-        error!("inside get_tracer_client called");
         let client = self.tracer_client.lock().await;
         client.clone()
     }

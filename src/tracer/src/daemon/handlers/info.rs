@@ -4,39 +4,26 @@ use crate::opentelemetry::collector::OtelCollector;
 use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::Json;
-use tracing::error;
 
 pub const INFO_ENDPOINT: &str = "/info";
 
 pub async fn info(State(state): State<DaemonState>) -> axum::response::Result<impl IntoResponse> {
-    error!("=== INFO HANDLER: Entry ===");
+    let guard = state.get_tracer_client().await;
 
-    let client_arc = state.get_tracer_client().await;
-    error!("=== INFO HANDLER: About to lock client ===");
-
-    let mut pipeline_data = if let Some(client) = client_arc {
-        match tokio::time::timeout(std::time::Duration::from_millis(500), client.lock()).await {
-            Ok(client) => {
-                error!("Client acquired");
-                client.get_pipeline_data().await
-            }
-            Err(_) => {
-                tracing::warn!(
-                    "Timeout waiting for tracer client lock, falling back to state data"
-                );
-                state.get_pipeline_data().await
-            }
-        }
+    let mut pipeline_data = if let Some(client) = guard {
+        let client = client.lock().await;
+        client.get_pipeline_data().await
     } else {
         state.get_pipeline_data().await
     };
 
-    pipeline_data.opentelemetry_status = get_opentelemetry_status().await;
+    pipeline_data.opentelemetry_status = get_open_telemetry_status().await;
+
     Ok(Json(pipeline_data))
 }
 
 #[allow(dead_code)]
-async fn get_opentelemetry_status() -> Option<OpenTelemetryStatus> {
+async fn get_open_telemetry_status() -> Option<OpenTelemetryStatus> {
     match OtelCollector::new() {
         Ok(collector) => {
             let enabled = collector.is_running();
