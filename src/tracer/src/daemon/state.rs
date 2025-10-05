@@ -35,7 +35,6 @@ impl DaemonState {
     }
 
     pub async fn get_tracer_client(&self) -> Option<Arc<Mutex<TracerClient>>> {
-        println!("inside get_tracer_client called");
         error!("inside get_tracer_client called");
         let client = self.tracer_client.lock().await;
         client.clone()
