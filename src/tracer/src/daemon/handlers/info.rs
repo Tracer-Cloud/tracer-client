@@ -4,11 +4,17 @@ use crate::opentelemetry::collector::OtelCollector;
 use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::Json;
+use tracing::error;
 
 pub const INFO_ENDPOINT: &str = "/info";
 
 pub async fn info(State(state): State<DaemonState>) -> axum::response::Result<impl IntoResponse> {
+    println!("info endpoint called");
+    error!("info endpoint called");
     let guard = state.get_tracer_client().await;
+
+    println!("tracer client lock");
+    error!("tracer client lock");
     let mut pipeline_data = if let Some(client) = guard {
         // Use timeout to prevent blocking - if the client is busy, fall back to state data
         match tokio::time::timeout(std::time::Duration::from_millis(500), client.lock()).await {
