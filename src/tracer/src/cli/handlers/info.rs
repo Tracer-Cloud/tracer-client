@@ -5,7 +5,6 @@ use crate::daemon::structs::PipelineMetadata;
 use crate::utils::cli::BoxFormatter;
 use crate::utils::env::is_development_environment;
 use crate::utils::Version;
-use tracing::error;
 
 pub async fn info(api_client: &DaemonClient, json: bool) {
     if !DaemonServer::is_running() {
