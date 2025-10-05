@@ -40,6 +40,12 @@ impl DaemonClient {
             bail!("Tracer daemon is not running");
         }
 
+        println!(
+            "Sending request to {} with body: {}",
+            endpoint.cyan(),
+            body.is_some().to_string().cyan()
+        );
+
         let url = format!("{}{}", self.base_uri, endpoint);
         let builder = if body.is_some() {
             self.client.post(&url).json(&body)

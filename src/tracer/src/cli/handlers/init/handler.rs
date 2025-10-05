@@ -6,11 +6,9 @@ use super::setup::{
 use crate::config::Config;
 use crate::daemon::client::DaemonClient;
 use crate::daemon::server::DaemonServer;
-use crate::info_message;
 use crate::utils::env::is_development_environment;
 use crate::utils::system_info::check_sudo_with_procfs_option;
 use crate::utils::workdir::TRACER_WORK_DIR;
-use colored::Colorize;
 
 /// Initialize the tracer daemon with the given pipeline prefix
 pub async fn init(
@@ -20,8 +18,6 @@ pub async fn init(
 ) -> anyhow::Result<()> {
     // Perform initial setup and validation
     init_setup_validation(&args, api_client).await?;
-
-    info_message!("Starting daemon...");
 
     // Force non-interactive mode when running as a daemon process
     if args.no_daemonize {
