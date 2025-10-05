@@ -116,9 +116,7 @@ impl OtelBinaryManager {
         }
 
         // Fall back to local installation
-        info!(
-            "No working system OpenTelemetry collector found, will install local version"
-        );
+        info!("No working system OpenTelemetry collector found, will install local version");
         let binary_dir = TRACER_WORK_DIR.resolve("bin");
         fs::create_dir_all(&binary_dir)?;
         Ok(binary_dir.join(OTEL_BINARY_NAME))

@@ -19,7 +19,7 @@ pub async fn info(State(state): State<DaemonState>) -> axum::response::Result<im
             Ok(client) => {
                 error!("Client acquired");
                 client.get_pipeline_data().await
-            },
+            }
             Err(_) => {
                 tracing::warn!(
                     "Timeout waiting for tracer client lock, falling back to state data"
