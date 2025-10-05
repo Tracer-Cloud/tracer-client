@@ -8,6 +8,7 @@ use flate2::read::GzDecoder;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tar::Archive;
+use tracing::info;
 
 #[derive(Debug, Clone)]
 pub struct OtelBinaryManager;
@@ -97,27 +98,25 @@ impl OtelBinaryManager {
     pub fn find_best_binary_path() -> Result<PathBuf> {
         // Check system PATH first
         if OtelUtils::check_binary_availability("otelcol") {
-            info_message!("Using system OpenTelemetry collector (otelcol)");
+            info!("Using system OpenTelemetry collector (otelcol)");
             return Ok(PathBuf::from("otelcol"));
         }
 
         // Check /usr/local/bin installation
         let system_binary = PathBuf::from("/usr/local/bin/otelcol");
         if system_binary.exists() && OtelUtils::get_binary_version(&system_binary).is_some() {
-            info_message!("Using system OpenTelemetry collector (/usr/local/bin/otelcol)");
+            info!("Using system OpenTelemetry collector (/usr/local/bin/otelcol)");
             return Ok(system_binary);
         }
 
         // Check for otelcol-contrib
         if OtelUtils::check_binary_availability("otelcol-contrib") {
-            info_message!("Using system OpenTelemetry collector (otelcol-contrib)");
+            info!("Using system OpenTelemetry collector (otelcol-contrib)");
             return Ok(PathBuf::from("otelcol-contrib"));
         }
 
         // Fall back to local installation
-        info_message!(
-            "No working system OpenTelemetry collector found, will install local version"
-        );
+        info!("No working system OpenTelemetry collector found, will install local version");
         let binary_dir = TRACER_WORK_DIR.resolve("bin");
         fs::create_dir_all(&binary_dir)?;
         Ok(binary_dir.join(OTEL_BINARY_NAME))

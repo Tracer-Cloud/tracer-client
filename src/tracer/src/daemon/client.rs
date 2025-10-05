@@ -14,6 +14,7 @@ use anyhow::{bail, Result};
 use colored::Colorize;
 use reqwest::{Client, Response};
 use serde::{Deserialize, Serialize};
+use tracing::debug;
 
 pub struct DaemonClient {
     base_uri: String,
@@ -83,6 +84,7 @@ impl DaemonClient {
     }
 
     pub async fn send_info_request(&self) -> Result<PipelineMetadata> {
+        debug!("Sending request to {}", INFO_ENDPOINT.cyan());
         self.request(INFO_ENDPOINT, Option::<()>::None).await
     }
 

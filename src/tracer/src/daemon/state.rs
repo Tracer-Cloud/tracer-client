@@ -51,7 +51,7 @@ impl DaemonState {
     pub fn terminate_server(&self) {
         self.server_token.cancel();
     }
-    pub async fn stop_client(&mut self) -> bool {
+    pub async fn stop_client(&self) -> bool {
         let option_client = self.tracer_client.lock().await;
 
         if option_client.is_some() {
@@ -66,7 +66,7 @@ impl DaemonState {
         }
     }
 
-    pub async fn start_tracer_client(&mut self) -> Option<Arc<Mutex<TracerClient>>> {
+    pub async fn start_tracer_client(&self) -> Option<Arc<Mutex<TracerClient>>> {
         let mut option_client = self.tracer_client.lock().await;
         if option_client.is_some() {
             return None;

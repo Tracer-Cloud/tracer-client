@@ -101,7 +101,7 @@ impl DaemonServer {
         let termination_token = CancellationToken::new();
         let server_url = config.server.clone();
 
-        let mut state = DaemonState::new(args, config, termination_token.clone());
+        let state = DaemonState::new(args, config, termination_token.clone());
 
         // Start the HTTP server first so it can respond to ping requests immediately
         let listener = create_listener(server_url).await;
