@@ -40,7 +40,7 @@ dirs-next = "2.0.0"
 dotenvy = "0.15.7"
 ec2_instance_metadata = { git = "https://github.com/Tracer-Cloud/ec2-instance-metadata-rs.git", branch = "master" }
 enquote = "1.1.0"
-flate2 = "1.1.2"
+flate2 = "1.1.4"
 futures-util = "0.3.31"
 git2 = { version = "0.20.2", features = [
     "https",
