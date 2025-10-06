@@ -18,7 +18,7 @@ pub async fn info(api_client: &DaemonClient, json: bool) {
             return;
         }
     };
-    let display = InfoDisplay::new(150, json);
+    let display = InfoDisplay::new(180, json);
     display.print(pipeline_data);
 }
 
