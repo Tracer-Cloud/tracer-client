@@ -16,7 +16,7 @@ pub async fn run_demo_with_existing_daemon(
         "Daemon is already running, executing {} pipeline...",
         selected_demo_pipeline.name()
     );
-
+// random
     let user_id = get_user_id_from_daemon(api_client).await;
     update_run_name_for_demo(api_client, &user_id).await;
 
