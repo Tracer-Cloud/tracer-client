@@ -71,6 +71,8 @@ fn build_spawn_args(args: &FinalizedInitArgs) -> Vec<String> {
         args.tags.user_id.as_deref().unwrap().to_string(),
         "--log-level".to_string(),
         args.log_level.clone(),
+        "--organization-slug".to_string(),
+        args.tags.organization_slug.clone(),
     ];
 
     if args.tags.organization_id.is_some() {

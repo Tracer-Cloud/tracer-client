@@ -11,8 +11,10 @@ pub const EVENT_FORWARD_ENDPOINT_DEV: &str = "https://sandbox.tracer.cloud/api/e
 pub const EVENT_FORWARD_ENDPOINT_PROD: &str =
     "https://sandbox.tracer.cloud/api/events-forward/prod";
 pub const SENTRY_DSN: &str = "https://35e0843e6748d2c93dfd56716f2eecfe@o4509281671380992.ingest.us.sentry.io/4509281680949248";
-pub const DASHBOARD_BASE_PROD: &str = "https://sandbox.tracer.cloud/run-overview";
-pub const DASHBOARD_BASE_DEV: &str = "https://dev.sandbox.tracer.cloud/run-overview";
+pub const DASHBOARD_BASE_PROD: &str =
+    "https://sandbox.tracer.cloud/{organization-slug}/run-overview/{pipeline-name}/{trace-id}";
+pub const DASHBOARD_BASE_DEV: &str =
+    "https://dev.sandbox.tracer.cloud/{organization-slug}/run-overview/{pipeline-name}/{trace-id}";
 
 pub const AWS_REGION: AwsRegion = UsEast2;
 pub const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics-supabase";

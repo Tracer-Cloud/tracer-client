@@ -54,6 +54,9 @@ pub struct PipelineTags {
     /// because it contains the '@' that is flagged as special character
     #[clap(long)]
     pub email: Option<String>,
+
+    #[clap(long, default_value = "")]
+    pub organization_slug: String,
 }
 
 impl Default for PipelineTags {
@@ -69,6 +72,7 @@ impl Default for PipelineTags {
             environment_type: None,
             others: vec![],
             email: None,
+            organization_slug: "".into(),
         }
     }
 }

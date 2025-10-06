@@ -20,4 +20,5 @@ pub struct Claims {
     pub email: String,
     pub full_name: Option<String>, // for now the full name is optional
     pub organization: Option<String>, // also the organization is optional for now, until we have a better way to handle it
+    pub organization_slug: String, //organization slug is required to generate the url for the run details page
 }
