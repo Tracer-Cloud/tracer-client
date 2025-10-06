@@ -1,4 +1,4 @@
-use crate::constants::{DASHBOARD_BASE_DEV, DASHBOARD_BASE_PROD};
+use crate::constants::{SANDBOX_URL_DEV, SANDBOX_URL_PROD};
 use crate::daemon::client::DaemonClient;
 use crate::daemon::server::DaemonServer;
 use crate::daemon::structs::PipelineMetadata;
@@ -28,7 +28,7 @@ pub struct InfoDisplay {
 }
 
 impl InfoDisplay {
-    pub const PREVIEW_LIMIT: Option<(usize, usize)> = Some((120, 20));
+    pub const PREVIEW_LIMIT: Option<(usize, usize)> = Some((180, 20));
 
     pub fn new(width: usize, json: bool) -> Self {
         Self { width, json }
@@ -78,7 +78,7 @@ impl InfoDisplay {
             "environment_type": pipeline.tags.environment_type.as_deref().unwrap_or("Not detected"),
             "instance_type": pipeline.tags.instance_type.as_deref().unwrap_or("Not detected"),
             "user": pipeline.tags.user_id.as_deref().unwrap_or("Not set"),
-            "organization": pipeline.tags.organization_id.as_deref().unwrap_or("Not set"),
+            "organization": pipeline.tags.organization_slug,
             "email": pipeline.tags.email.as_deref().unwrap_or("Not set"),
             "stage": pipeline.stage(),
         });
@@ -90,7 +90,7 @@ impl InfoDisplay {
                 "id": &run_snapshot.id,
                 "monitored_processes": run_snapshot.process_count(),
                 "monitored_tasks": run_snapshot.tasks_count(),
-                "dashboard_url": run_snapshot.get_run_url(pipeline.name.clone(), is_development_environment()),
+                "dashboard_url": run_snapshot.get_run_url(pipeline.tags.organization_slug.clone(), pipeline.name.clone(), is_development_environment()),
             });
 
             if run_snapshot.process_count() > 0 {
@@ -134,11 +134,7 @@ impl InfoDisplay {
         let pipeline_user = pipeline.tags.user_id.as_deref().unwrap();
 
         let user_email = pipeline.tags.email.as_deref().unwrap_or("Not set");
-        let user_organization = pipeline
-            .tags
-            .organization_id
-            .as_deref()
-            .unwrap_or("Not set");
+        let user_organization = pipeline.tags.organization_slug.as_str();
 
         formatter.add_field("Pipeline name", &pipeline.name, "cyan");
         formatter.add_field("Environment", pipeline_environment, "yellow");
@@ -184,7 +180,11 @@ impl InfoDisplay {
             );
             formatter.add_hyperlink(
                 "Dashboard URL",
-                &run_snapshot.get_run_url(pipeline.name.clone(), pipeline.is_dev),
+                &run_snapshot.get_run_url(
+                    pipeline.tags.organization_slug.clone(),
+                    pipeline.name.clone(),
+                    pipeline.is_dev,
+                ),
             );
             formatter.add_field("Run name", &run_snapshot.name, "cyan");
             formatter.add_field("Run ID", &run_snapshot.id, "white");
@@ -267,9 +267,9 @@ impl InfoDisplay {
 
     pub fn get_sandbox_url(&self) -> &str {
         if is_development_environment() {
-            DASHBOARD_BASE_DEV
+            SANDBOX_URL_DEV
         } else {
-            DASHBOARD_BASE_PROD
+            SANDBOX_URL_PROD
         }
     }
 }

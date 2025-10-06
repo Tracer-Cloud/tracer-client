@@ -104,14 +104,25 @@ impl RunSnapshot {
         }
     }
 
-    pub fn get_run_url(&self, pipeline_name: String, is_dev: bool) -> String {
+    pub fn get_run_url(
+        &self,
+        organization_slug: String,
+        pipeline_name: String,
+        is_dev: bool,
+    ) -> String {
         let dashboard_url = if is_dev {
             DASHBOARD_BASE_DEV
         } else {
             DASHBOARD_BASE_PROD
         };
 
-        format!("{}/{}/{}", dashboard_url, pipeline_name, self.id)
+        // constructing the dashboard url
+        let binding = dashboard_url
+            .replace("{organization-slug}", organization_slug.as_str())
+            .replace("{pipeline-name}", pipeline_name.as_str())
+            .replace("{trace-id}", self.id.as_str());
+
+        binding.to_string()
     }
 
     fn total_runtime(&self) -> TimeDelta {

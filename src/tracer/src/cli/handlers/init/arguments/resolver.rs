@@ -54,6 +54,7 @@ impl ArgumentResolver {
 
             // checks on email of the user
             self.args.tags.email = Some(token_claims.email);
+            self.args.tags.organization_slug = token_claims.organization_slug;
         }
 
         // Resolve environment type first so it can be used in pipeline name generation
