@@ -74,7 +74,7 @@ impl DaemonState {
 
         let args = self.args.lock().await.clone();
         let config = self.config.lock().await.clone();
-        let db_client = crate::daemon::server::get_db_client(&args).await;
+        let db_client = crate::daemon::server::get_db_client().await;
         let client = TracerClient::new(self.pipeline.clone(), config, db_client, args)
             .await
             .context("Failed to create TracerClient")

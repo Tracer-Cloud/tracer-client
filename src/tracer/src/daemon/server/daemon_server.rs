@@ -6,7 +6,7 @@ use crate::cli::handlers::init_arguments::FinalizedInitArgs;
 use crate::client::exporters::event_forward::EventForward;
 use crate::client::exporters::event_writer::LogWriterEnum;
 use crate::config::Config;
-use crate::constants::{EVENT_FORWARD_ENDPOINT, EVENT_FORWARD_ENDPOINT};
+use crate::constants::EVENT_FORWARD_ENDPOINT;
 use crate::daemon::handlers::get_user_id::{get_user_id, GET_USER_ID_ENDPOINT};
 use crate::daemon::handlers::info::{info, INFO_ENDPOINT};
 use crate::daemon::handlers::start::{start, START_ENDPOINT};
@@ -27,14 +27,8 @@ use tokio_util::sync::CancellationToken;
 use tracing::info;
 
 /// Get database client based on dev/prod configuration
-pub async fn get_db_client(init_args: &FinalizedInitArgs) -> LogWriterEnum {
-    let event_forward_endpoint = if init_args.dev {
-        EVENT_FORWARD_ENDPOINT
-    } else {
-        EVENT_FORWARD_ENDPOINT
-    };
-
-    LogWriterEnum::Forward(EventForward::try_new(event_forward_endpoint).await.unwrap())
+pub async fn get_db_client() -> LogWriterEnum {
+    LogWriterEnum::Forward(EventForward::try_new(EVENT_FORWARD_ENDPOINT).await.unwrap())
 }
 
 // Route definitions consolidated from routes.rs
