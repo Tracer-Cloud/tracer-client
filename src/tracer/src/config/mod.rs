@@ -20,9 +20,6 @@ pub struct Config {
     pub database_name: String,
 
     pub server: String,
-
-    pub event_forward_endpoint_dev: Option<String>,
-    pub event_forward_endpoint_prod: Option<String>,
 }
 
 impl Config {

@@ -2,8 +2,7 @@ use crate::cloud_providers::aws::config::AwsConfig;
 use crate::config::Config;
 use crate::constants::{
     AWS_REGION, BATCH_SUBMISSION_INTERVAL_MS, BATCH_SUBMISSION_RETRIES,
-    BATCH_SUBMISSION_RETRY_DELAY_MS, EVENT_FORWARD_ENDPOINT_DEV, EVENT_FORWARD_ENDPOINT_PROD,
-    PROCESS_METRICS_SEND_INTERVAL_MS, PROCESS_POLLING_INTERVAL_MS,
+    BATCH_SUBMISSION_RETRY_DELAY_MS, PROCESS_METRICS_SEND_INTERVAL_MS, PROCESS_POLLING_INTERVAL_MS,
 };
 use crate::process_identification::constants::DEFAULT_DAEMON_PORT;
 
@@ -41,9 +40,6 @@ impl Default for Config {
             database_name: "tracer_db".to_string(),
 
             server: format!("127.0.0.1:{}", DEFAULT_DAEMON_PORT),
-
-            event_forward_endpoint_dev: Some(EVENT_FORWARD_ENDPOINT_DEV.to_string()),
-            event_forward_endpoint_prod: Some(EVENT_FORWARD_ENDPOINT_PROD.to_string()),
         }
     }
 }

@@ -47,7 +47,6 @@ serde.workspace = true
 serde_json.workspace = true
 shlex.workspace = true
 softpath.workspace = true
-sqlx.workspace = true
 sysinfo.workspace = true
 termion.workspace = true
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
@@ -72,7 +71,6 @@ dotenvy.workspace = true
 pretty_assertions_sorted.workspace = true
 rstest.workspace = true
 serial_test.workspace = true
-sqlx.workspace = true
 tempfile.workspace = true
 uuid.workspace = true
 
