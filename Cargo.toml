@@ -76,11 +76,6 @@ serde_regex = "1.1.0"
 serial_test = "3.2.0"
 shlex = "1.3.0"
 softpath = "0.2.2"
-sqlx = { version = "0.8.6", features = [
-    "runtime-tokio-rustls",
-    "postgres",
-    "chrono",
-] }
 sysinfo = "0.36.1"
 tar = "0.4.44"
 tempfile = "3.23.0"

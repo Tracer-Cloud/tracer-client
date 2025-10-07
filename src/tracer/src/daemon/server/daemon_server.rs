@@ -6,6 +6,7 @@ use crate::cli::handlers::init_arguments::FinalizedInitArgs;
 use crate::client::exporters::event_forward::EventForward;
 use crate::client::exporters::event_writer::LogWriterEnum;
 use crate::config::Config;
+use crate::constants::{EVENT_FORWARD_ENDPOINT_DEV, EVENT_FORWARD_ENDPOINT_PROD};
 use crate::daemon::handlers::get_user_id::{get_user_id, GET_USER_ID_ENDPOINT};
 use crate::daemon::handlers::info::{info, INFO_ENDPOINT};
 use crate::daemon::handlers::start::{start, START_ENDPOINT};
@@ -26,15 +27,11 @@ use tokio_util::sync::CancellationToken;
 use tracing::info;
 
 /// Get database client based on dev/prod configuration
-pub async fn get_db_client(init_args: &FinalizedInitArgs, config: &Config) -> LogWriterEnum {
-    // if we pass --is-dev=false, we use the prod endpoint
-    // if we don't pass any value, we use the prod endpoint
-    // if we pass --is-dev=true, we use the dev endpoint
-    // dev endpoint points to clickhouse, prod endpoint points to postgres
+pub async fn get_db_client(init_args: &FinalizedInitArgs) -> LogWriterEnum {
     let event_forward_endpoint = if init_args.dev {
-        &config.event_forward_endpoint_dev.as_ref().unwrap()
+        EVENT_FORWARD_ENDPOINT_DEV
     } else {
-        &config.event_forward_endpoint_prod.as_ref().unwrap()
+        EVENT_FORWARD_ENDPOINT_PROD
     };
 
     LogWriterEnum::Forward(EventForward::try_new(event_forward_endpoint).await.unwrap())
