@@ -53,6 +53,8 @@ pub struct CompletedProcess {
     pub started_at: DateTime<Utc>,
     pub ended_at: DateTime<Utc>,
     pub trace_id: Option<String>,
+    pub process_run_time: u64,
+    pub tool_args: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
