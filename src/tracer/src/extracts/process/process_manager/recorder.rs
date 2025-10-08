@@ -184,6 +184,10 @@ impl EventRecorder {
             trace_id = None;
         }
 
+        let completed_process_run_time_milliseconds = (finish_trigger.finished_at
+            - start_trigger.started_at)
+            .num_milliseconds()
+            .max(0) as u64;
         // CompletedProcess contains the exit reason, the tool_id, the tool_name, and started and ended at
         // started and ended at might not seem very useful, but might help in the future with duration calculations
         let properties =
@@ -199,6 +203,8 @@ impl EventRecorder {
                 started_at: start_trigger.started_at,
                 ended_at: finish_trigger.finished_at,
                 trace_id,
+                process_run_time: completed_process_run_time_milliseconds,
+                tool_args: start_trigger.argv.join(" "),
             };
 
         self.event_dispatcher
