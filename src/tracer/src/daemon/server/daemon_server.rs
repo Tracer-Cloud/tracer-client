@@ -17,6 +17,7 @@ use crate::daemon::state::DaemonState;
 use crate::process_identification::constants::DEFAULT_DAEMON_PORT;
 use crate::utils::analytics;
 use crate::utils::analytics::types::AnalyticsEventType;
+use crate::utils::env::is_development_environment;
 use crate::utils::workdir::TRACER_WORK_DIR;
 use axum::routing::{get, post, MethodRouter};
 use axum::Router;
@@ -27,8 +28,8 @@ use tokio_util::sync::CancellationToken;
 use tracing::info;
 
 /// Get database client based on dev/prod configuration
-pub async fn get_db_client(init_args: &FinalizedInitArgs) -> LogWriterEnum {
-    let event_forward_endpoint = if init_args.dev {
+pub async fn get_db_client() -> LogWriterEnum {
+    let event_forward_endpoint = if is_development_environment() {
         EVENT_FORWARD_ENDPOINT_DEV
     } else {
         EVENT_FORWARD_ENDPOINT_PROD
