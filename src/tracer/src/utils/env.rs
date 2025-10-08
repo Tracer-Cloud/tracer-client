@@ -45,7 +45,6 @@ fn is_docker() -> bool {
 /// environment is EC2, this function may query the metadata server -
 /// `timeout_secs` is used to set the timeout for that query.
 pub(crate) async fn detect_environment_type(timeout_secs: u64) -> String {
-    let running_in_docker = is_docker();
 
     if is_codespaces() {
         return "GitHub Codespaces".into();
@@ -58,9 +57,7 @@ pub(crate) async fn detect_environment_type(timeout_secs: u64) -> String {
         return "GitHub Actions".into();
     }
 
-    if has_env_var(AWS_BATCH_JOB_ID_ENV_VAR) {
-        return "AWS Batch".into();
-    }
+    let running_in_docker = is_docker();
 
     if detect_ec2_environment(timeout_secs).await.is_some() {
         return if running_in_docker {

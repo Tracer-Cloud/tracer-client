@@ -6,6 +6,7 @@ use reqwest::Client;
 use std::collections::HashMap;
 use tokio_retry::strategy::{jitter, ExponentialBackoff};
 use tokio_retry::Retry;
+use crate::utils::env::detect_environment_type;
 
 pub fn spawn_event(
     user_id: String,
@@ -29,7 +30,7 @@ pub async fn send_event(
     if !metadata.contains_key("environment") {
         metadata.insert(
             "environment".to_string(),
-            crate::utils::env::detect_environment_type(5).await,
+            detect_environment_type(1).await,
         );
     }
 
