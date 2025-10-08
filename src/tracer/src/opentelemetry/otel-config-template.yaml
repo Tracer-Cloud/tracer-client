@@ -93,7 +93,11 @@ processors:
           - set(attributes["log_level"], "INFO")
           - set(attributes["pipeline_name"], "{{pipeline_name}}")
           - set(attributes["run_name"], "{{run_name}}")
+          - set(attributes["trace_id"], "{{trace_id}}")
+          - set(attributes["span_id"], "{{span_id}}")
+          - set(attributes["organization_id"], "{{organization_id}}")
           - set(attributes["run_id"], "{{run_id}}")
+          - set(attributes["user_email"], "{{user_email}}")
           - set(attributes["log_file_path"], attributes["log.file.path"]) where attributes["log.file.path"] != nil
           - set(attributes["file_name"], attributes["log.file.name"]) where attributes["log.file.name"] != nil
           - set(attributes["log.file.name_resolved"], attributes["log.file.name_resolved"]) where attributes["log.file.name_resolved"] != nil

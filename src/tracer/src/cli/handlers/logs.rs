@@ -176,11 +176,31 @@ pub async fn otel_start_with_auto_install(
                     .unwrap_or("unknown")
                     .to_string();
 
+                let trace_id = run_id.clone();
+                let span_id = run_id.clone();
+
+                let organization_id = pipeline_data
+                    .tags
+                    .organization_id
+                    .as_deref()
+                    .unwrap_or("unknown")
+                    .to_string();
+
+                let user_email = pipeline_data
+                    .tags
+                    .email
+                    .as_deref()
+                    .unwrap_or("unknown")
+                    .to_string();
                 let config = OtelConfig::with_environment_variables(
                     user_id,
                     pipeline_name,
                     Some(run_name),
                     run_id.clone(),
+                    organization_id,
+                    trace_id,
+                    span_id,
+                    user_email,
                     std::collections::HashMap::new(),
                 );
 
@@ -201,11 +221,23 @@ pub async fn otel_start_with_auto_install(
             } else {
                 warning_message!("No active run found, using standalone configuration");
 
+                let user_email = pipeline_data
+                    .tags
+                    .email
+                    .as_deref()
+                    .unwrap_or("unknown")
+                    .to_string();
+
+                let run_id = uuid::Uuid::new_v4().to_string();
                 let standalone_config = OtelConfig::with_environment_variables(
                     "standalone".to_string(),
                     "standalone".to_string(),
                     Some("standalone".to_string()),
-                    uuid::Uuid::new_v4().to_string(),
+                    run_id.clone(),
+                    "standalone".to_string(),
+                    run_id.clone(),
+                    run_id,
+                    user_email,
                     std::collections::HashMap::new(),
                 );
 
@@ -221,11 +253,18 @@ pub async fn otel_start_with_auto_install(
         Err(e) => {
             warning_message!("Daemon not accessible: {}", e);
 
+            let user_email = "unknown".to_string();
+
+            let run_id = uuid::Uuid::new_v4().to_string();
             let standalone_config = OtelConfig::with_environment_variables(
                 "standalone".to_string(),
                 "standalone".to_string(),
                 Some("standalone".to_string()),
-                uuid::Uuid::new_v4().to_string(),
+                run_id.clone(),
+                "standalone".to_string(),
+                run_id.clone(),
+                run_id,
+                user_email,
                 std::collections::HashMap::new(),
             );
 

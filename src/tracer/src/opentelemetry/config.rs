@@ -12,6 +12,10 @@ pub struct OtelConfig {
     pub pipeline_name: String,
     pub run_name: Option<String>,
     pub run_id: String,
+    pub organization_id: String,
+    pub trace_id: String,
+    pub span_id: String,
+    pub user_email: String,
     pub environment_variables: HashMap<String, String>,
 }
 
@@ -21,12 +25,20 @@ impl OtelConfig {
         pipeline_name: String,
         run_name: Option<String>,
         run_id: String,
+        organization_id: String,
+        trace_id: String,
+        span_id: String,
+        user_email: String,
     ) -> Self {
         Self {
             user_id,
             pipeline_name,
             run_name,
             run_id,
+            organization_id,
+            trace_id,
+            span_id,
+            user_email,
             environment_variables: HashMap::new(),
         }
     }
@@ -36,6 +48,10 @@ impl OtelConfig {
         pipeline_name: String,
         run_name: Option<String>,
         run_id: String,
+        organization_id: String,
+        trace_id: String,
+        span_id: String,
+        user_email: String,
         environment_variables: HashMap<String, String>,
     ) -> Self {
         Self {
@@ -43,6 +59,10 @@ impl OtelConfig {
             pipeline_name,
             run_name,
             run_id,
+            organization_id,
+            trace_id,
+            span_id,
+            user_email,
             environment_variables,
         }
     }
@@ -67,7 +87,7 @@ impl OtelConfig {
                 }
             );
         }
-
+        
         Ok(())
     }
 
@@ -75,6 +95,7 @@ impl OtelConfig {
         crate::info_message!(
             "Generating OpenTelemetry config for run_id: {}",
             self.run_id
+
         );
 
         let template_content = include_str!("otel-config-template.yaml");
@@ -87,7 +108,11 @@ impl OtelConfig {
                 self.run_name.as_deref().unwrap_or("unknown"),
             )
             .replace("{{run_id}}", &self.run_id)
-            .replace("{{otel_endpoint}}", OTEL_FORWARD_ENDPOINT);
+            .replace("{{otel_endpoint}}", OTEL_FORWARD_ENDPOINT)
+            .replace("{{organization_id}}", &self.organization_id)
+            .replace("{{trace_id}}", &self.trace_id)
+            .replace("{{span_id}}", &self.span_id)
+            .replace("{{user_email}}", &self.user_email);
 
         Ok(config)
     }
