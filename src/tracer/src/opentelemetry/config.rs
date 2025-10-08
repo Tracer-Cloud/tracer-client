@@ -87,7 +87,7 @@ impl OtelConfig {
                 }
             );
         }
-        
+
         Ok(())
     }
 
@@ -95,7 +95,6 @@ impl OtelConfig {
         crate::info_message!(
             "Generating OpenTelemetry config for run_id: {}",
             self.run_id
-
         );
 
         let template_content = include_str!("otel-config-template.yaml");
