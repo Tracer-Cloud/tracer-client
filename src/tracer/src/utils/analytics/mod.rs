@@ -2,11 +2,11 @@ pub mod types;
 
 use crate::constants::TRACER_ANALYTICS_ENDPOINT;
 use crate::utils::analytics::types::{AnalyticsEventType, AnalyticsPayload};
+use crate::utils::env::detect_environment_type;
 use reqwest::Client;
 use std::collections::HashMap;
 use tokio_retry::strategy::{jitter, ExponentialBackoff};
 use tokio_retry::Retry;
-use crate::utils::env::detect_environment_type;
 
 pub fn spawn_event(
     user_id: String,
@@ -16,7 +16,6 @@ pub fn spawn_event(
     tokio::spawn(send_event(user_id, event, metadata));
 }
 
-// COPIED: tracer-installer/src/installer/install.rs
 pub async fn send_event(
     user_id: String,
     event: AnalyticsEventType,
@@ -28,10 +27,7 @@ pub async fn send_event(
     // Ensure the environment is set in metadata
     let mut metadata = metadata.unwrap_or_default();
     if !metadata.contains_key("environment") {
-        metadata.insert(
-            "environment".to_string(),
-            detect_environment_type(1).await,
-        );
+        metadata.insert("environment".to_string(), detect_environment_type(1).await);
     }
 
     let payload = AnalyticsPayload {

@@ -45,7 +45,6 @@ fn is_docker() -> bool {
 /// environment is EC2, this function may query the metadata server -
 /// `timeout_secs` is used to set the timeout for that query.
 pub(crate) async fn detect_environment_type(timeout_secs: u64) -> String {
-
     if is_codespaces() {
         return "GitHub Codespaces".into();
     }

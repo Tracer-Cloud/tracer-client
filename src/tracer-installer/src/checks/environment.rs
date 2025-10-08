@@ -23,24 +23,17 @@ fn is_docker() -> bool {
 }
 
 pub async fn detect_environment_type() -> String {
-    let running_in_docker = is_docker();
-
     if is_codespaces() {
         return "GitHub Codespaces".into();
     }
 
-    let is_batch = env::var("AWS_BATCH_JOB_ID").is_ok();
+    let running_in_docker = is_docker();
 
-    if let Some(metadata) = get_aws_instance_metadata().await {
-        let instance_type = &metadata.instance_type;
-        annotate_ec2_metadata(&metadata);
-        if is_batch {
-            return format!("AWS Batch - {instance_type}");
-        }
+    if let Some(_metadata) = get_aws_instance_metadata().await {
         return if running_in_docker {
-            format!("AWS EC2 (Docker) - {instance_type}")
+            "AWS EC2 (Docker)".to_string()
         } else {
-            format!("AWS EC2 - {instance_type}")
+            "AWS EC2".to_string()
         };
     }
 
@@ -70,14 +63,6 @@ pub async fn get_aws_instance_metadata() -> Option<InstanceMetadata> {
     }
 }
 
-fn annotate_ec2_metadata(metadata: &InstanceMetadata) {
-    crate::Sentry::add_tag("aws_instance_id", &metadata.instance_id);
-    crate::Sentry::add_tag("aws_region", metadata.region);
-    crate::Sentry::add_tag("aws_account_id", &metadata.account_id);
-    crate::Sentry::add_tag("aws_ami_id", &metadata.ami_id);
-    crate::Sentry::add_tag("aws_instance_type", &metadata.instance_type);
-}
-
 pub struct EnvironmentCheck {
     detected: String,
 }
@@ -85,7 +70,7 @@ pub struct EnvironmentCheck {
 impl EnvironmentCheck {
     pub async fn new() -> Self {
         let detected = detect_environment_type().await;
-        crate::Sentry::add_tag("detected_env", &detected);
+        Sentry::add_tag("detected_env", &detected);
         Self { detected }
     }
 }
