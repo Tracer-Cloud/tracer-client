@@ -15,8 +15,6 @@ use crate::daemon::handlers::terminate::{terminate, TERMINATE_ENDPOINT};
 use crate::daemon::handlers::update_run_name::{update_run_name, UPDATE_RUN_NAME_ENDPOINT};
 use crate::daemon::state::DaemonState;
 use crate::process_identification::constants::DEFAULT_DAEMON_PORT;
-use crate::utils::analytics;
-use crate::utils::analytics::types::AnalyticsEventType;
 use crate::utils::env::is_development_environment;
 use crate::utils::workdir::TRACER_WORK_DIR;
 use axum::routing::{get, post, MethodRouter};
@@ -89,12 +87,6 @@ impl DaemonServer {
         Self { server: None }
     }
     pub async fn start(mut self, args: FinalizedInitArgs, config: Config) -> anyhow::Result<()> {
-        analytics::spawn_event(
-            args.user_id.clone(),
-            AnalyticsEventType::DaemonStartedSuccessfully,
-            None,
-        );
-
         info!("Starting Tracer daemon server...");
         let termination_token = CancellationToken::new();
         let server_url = config.server.clone();

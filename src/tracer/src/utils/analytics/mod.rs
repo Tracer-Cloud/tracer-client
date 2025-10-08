@@ -8,26 +8,18 @@ use std::collections::HashMap;
 use tokio_retry::strategy::{jitter, ExponentialBackoff};
 use tokio_retry::Retry;
 
-pub fn spawn_event(
-    user_id: String,
-    event: AnalyticsEventType,
-    metadata: Option<HashMap<String, String>>,
-) {
-    tokio::spawn(send_event(user_id, event, metadata));
+pub fn spawn_event(user_id: String, event: AnalyticsEventType) {
+    tokio::spawn(send_event(user_id, event));
 }
 
-pub async fn send_event(
-    user_id: String,
-    event: AnalyticsEventType,
-    metadata: Option<HashMap<String, String>>,
-) -> anyhow::Result<()> {
+pub async fn send_event(user_id: String, event: AnalyticsEventType) -> anyhow::Result<()> {
     let client = Client::new();
     let retry_strategy = ExponentialBackoff::from_millis(500).map(jitter).take(3);
 
     // Ensure the environment is set in metadata
-    let mut metadata = metadata.unwrap_or_default();
+    let mut metadata = HashMap::new();
     if !metadata.contains_key("environment") {
-        metadata.insert("environment".to_string(), detect_environment_type(1).await);
+        metadata.insert("environment".to_string(), detect_environment_type());
     }
 
     let payload = AnalyticsPayload {

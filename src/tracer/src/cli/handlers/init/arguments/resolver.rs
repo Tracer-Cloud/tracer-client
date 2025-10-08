@@ -181,7 +181,7 @@ impl ArgumentResolver {
                 .unwrap_or(false);
 
             if !self.args.no_daemonize || is_demo_pipeline {
-                self.args.tags.environment_type = Some(env::detect_environment_type(1).await);
+                self.args.tags.environment_type = Some(env::detect_environment_type());
             }
         }
     }

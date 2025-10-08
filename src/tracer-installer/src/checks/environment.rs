@@ -6,6 +6,8 @@ use std::path::Path;
 
 use super::InstallCheck;
 
+const TRACER_ENVIRONMENT_TYPE_ENV_VAR: &str = "TRACER_ENVIRONMENT_TYPE";
+
 fn is_docker() -> bool {
     // 1. Check for /.dockerenv
     if Path::new("/.dockerenv").exists() {
@@ -23,25 +25,22 @@ fn is_docker() -> bool {
 }
 
 pub async fn detect_environment_type() -> String {
-    if is_codespaces() {
-        return "GitHub Codespaces".into();
-    }
-
-    let running_in_docker = is_docker();
-
-    if let Some(_metadata) = get_aws_instance_metadata().await {
-        return if running_in_docker {
-            "AWS EC2 (Docker)".to_string()
+    let environment_type = if is_codespaces() {
+        "GitHub Codespaces"
+    } else if let Some(_metadata) = get_aws_instance_metadata().await {
+        if is_docker() {
+            "AWS EC2 (Docker)"
         } else {
-            "AWS EC2".to_string()
-        };
-    }
+            "AWS EC2"
+        }
+    } else if is_docker() {
+        "Docker"
+    } else {
+        "Local"
+    };
 
-    if running_in_docker {
-        return "Docker".into();
-    }
-
-    "Local".into()
+    env::set_var(TRACER_ENVIRONMENT_TYPE_ENV_VAR, environment_type);
+    environment_type.to_string()
 }
 
 fn is_codespaces() -> bool {

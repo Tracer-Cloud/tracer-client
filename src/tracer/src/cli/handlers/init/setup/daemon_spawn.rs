@@ -20,8 +20,7 @@ pub async fn spawn_daemon_process(
 
     analytics::spawn_event(
         args.user_id.clone(),
-        AnalyticsEventType::DaemonStartedSuccessfully,
-        None,
+        AnalyticsEventType::DaemonStartAttempted,
     );
 
     let spawn_args = build_spawn_args(args);
@@ -31,13 +30,12 @@ pub async fn spawn_daemon_process(
     std::fs::write(&TRACER_WORK_DIR.pid_file, child_id.to_string())?;
     success_message!("Daemon started successfully.");
 
-    // Wait for the daemon to be ready, then show info
     analytics::spawn_event(
         args.user_id.clone(),
-        AnalyticsEventType::DaemonStartAttempted,
-        None,
+        AnalyticsEventType::DaemonStartedSuccessfully,
     );
 
+    // Wait for the daemon to be ready, then show info
     if !wait(api_client).await {
         error_message!("Daemon is not responding, please check logs");
         return Ok(());
