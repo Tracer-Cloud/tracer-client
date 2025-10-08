@@ -20,6 +20,7 @@ pub struct OtelConfig {
 }
 
 impl OtelConfig {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         user_id: String,
         pipeline_name: String,
@@ -43,6 +44,7 @@ impl OtelConfig {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn with_environment_variables(
         user_id: String,
         pipeline_name: String,
