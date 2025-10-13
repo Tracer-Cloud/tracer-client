@@ -1,5 +1,7 @@
 use crate::types::TracerVersion;
 use colored::Colorize;
+use std::collections::HashSet;
+use sysinfo::Disks;
 
 pub enum TagColor {
     Green,
@@ -74,4 +76,28 @@ pub fn print_anteater_banner(version: &TracerVersion) {
 
 pub fn print_title(title: &str) {
     println!("\n==== {} ====\n", title.bold());
+}
+
+pub fn get_total_space_available_bytes() -> u64 {
+    let disks = Disks::new_with_refreshed_list();
+
+    // hashset to store disk names and check for duplicates
+    let mut disk_names = HashSet::new();
+    let mut total_available_space = 0u64;
+
+    // Sum all available space across disks
+    // filtering out duplicate disk names
+    for disk in disks.iter() {
+        let disk_name = disk.name().to_str().unwrap_or_default();
+
+        // if the disk name is not present in the hashset, add it to the set
+        // it will return true if the disk name is not present in the set
+        let disk_not_present = disk_names.insert(disk_name);
+
+        if disk_not_present {
+            total_available_space += disk.available_space();
+        }
+    }
+
+    total_available_space
 }

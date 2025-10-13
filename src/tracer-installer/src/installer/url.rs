@@ -54,8 +54,6 @@ fn get_tarball_name(platform: &PlatformInfo, version: &TracerVersion) -> Result<
         TracerVersion::Development | TracerVersion::Feature(_) => "tracer-dev",
     };
 
-    println!("prefix {}", prefix);
-
     let suffix = match (&platform.os, &platform.arch) {
         (Os::Linux, Arch::X86_64) => "x86_64-unknown-linux-gnu.tar.gz",
         (Os::Linux, Arch::Aarch64) => "aarch64-unknown-linux-gnu.tar.gz",
