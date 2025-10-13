@@ -1,5 +1,5 @@
 use crate::sentry::Sentry;
-use crate::utils::{print_status, TagColor};
+use crate::utils::{get_total_space_available_bytes, print_status, TagColor};
 use crate::warning_message;
 use anyhow::{anyhow, Result};
 use colored::Colorize;
@@ -90,7 +90,7 @@ impl PlatformInfo {
         );
         let sys = System::new_all();
 
-        let total_mem_gib = sys.total_memory() as f64 / 1024.0 / 1024.0 / 1024.0;
+        let total_ram_gib = sys.total_memory() as f64 / 1024.0 / 1024.0 / 1024.0;
 
         let cores = sys.cpus().len();
         print_status("INFO", "CPU Cores", &format!("{}", cores), TagColor::Cyan);
@@ -98,7 +98,17 @@ impl PlatformInfo {
         print_status(
             "INFO",
             "Total Ram",
-            &format!("{:.2} GiB", total_mem_gib),
+            &format!("{:.2} GiB", total_ram_gib),
+            TagColor::Cyan,
+        );
+
+        let available_disk_space_gib =
+            get_total_space_available_bytes() as f64 / 1024.0 / 1024.0 / 1024.0;
+
+        print_status(
+            "INFO",
+            "Available Disk Space",
+            &format!("{:.2} GiB", available_disk_space_gib),
             TagColor::Cyan,
         );
     }

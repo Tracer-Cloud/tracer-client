@@ -71,11 +71,11 @@ pub async fn get_aws_instance_metadata() -> Option<InstanceMetadata> {
 }
 
 fn annotate_ec2_metadata(metadata: &InstanceMetadata) {
-    crate::Sentry::add_tag("aws_instance_id", &metadata.instance_id);
-    crate::Sentry::add_tag("aws_region", metadata.region);
-    crate::Sentry::add_tag("aws_account_id", &metadata.account_id);
-    crate::Sentry::add_tag("aws_ami_id", &metadata.ami_id);
-    crate::Sentry::add_tag("aws_instance_type", &metadata.instance_type);
+    Sentry::add_tag("aws_instance_id", &metadata.instance_id);
+    Sentry::add_tag("aws_region", metadata.region);
+    Sentry::add_tag("aws_account_id", &metadata.account_id);
+    Sentry::add_tag("aws_ami_id", &metadata.ami_id);
+    Sentry::add_tag("aws_instance_type", &metadata.instance_type);
 }
 
 pub struct EnvironmentCheck {
@@ -85,7 +85,7 @@ pub struct EnvironmentCheck {
 impl EnvironmentCheck {
     pub async fn new() -> Self {
         let detected = detect_environment_type().await;
-        crate::Sentry::add_tag("detected_env", &detected);
+        Sentry::add_tag("detected_env", &detected);
         Self { detected }
     }
 }
