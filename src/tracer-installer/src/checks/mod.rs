@@ -1,18 +1,18 @@
-mod api;
 mod environment;
 pub mod kernel;
 
 mod root;
+mod storage;
 
 use crate::error_message;
 use crate::installer::{Os, PlatformInfo};
 use crate::utils::{print_status, TagColor};
-use api::APICheck;
 use colored::Colorize;
 pub(crate) use environment::detect_environment_type;
 use environment::EnvironmentCheck;
 use kernel::KernelCheck;
 
+use crate::checks::storage::StorageCheck;
 use root::RootCheck;
 
 /// Trait defining functions a Requirement check must implement before being called
@@ -50,13 +50,13 @@ impl CheckManager {
                     checks.push(Box::new(KernelCheck::new()));
                 }
 
-                checks.push(Box::new(APICheck::new()));
+                checks.push(Box::new(StorageCheck::new()));
                 checks.push(Box::new(RootCheck::new()));
                 checks.push(Box::new(EnvironmentCheck::new().await));
             }
             Os::Macos => {
+                checks.push(Box::new(StorageCheck::new()));
                 checks.push(Box::new(RootCheck::new()));
-                checks.push(Box::new(APICheck::new()));
             }
         }
         Self { checks }
