@@ -4,7 +4,7 @@ use crate::warning_message;
 use anyhow::{anyhow, Result};
 use colored::Colorize;
 use std::process::Command;
-use sysinfo::System;
+use sysinfo::{Disks, System};
 
 #[derive(Debug, Clone)]
 pub enum Os {
@@ -90,7 +90,7 @@ impl PlatformInfo {
         );
         let sys = System::new_all();
 
-        let total_mem_gib = sys.total_memory() as f64 / 1024.0 / 1024.0 / 1024.0;
+        let total_ram_gib = sys.total_memory() as f64 / 1024.0 / 1024.0 / 1024.0;
 
         let cores = sys.cpus().len();
         print_status("INFO", "CPU Cores", &format!("{}", cores), TagColor::Cyan);
@@ -98,7 +98,21 @@ impl PlatformInfo {
         print_status(
             "INFO",
             "Total Ram",
-            &format!("{:.2} GiB", total_mem_gib),
+            &format!("{:.2} GiB", total_ram_gib),
+            TagColor::Cyan,
+        );
+
+        let available_disk_space = Disks::new_with_refreshed_list()
+            .iter()
+            .map(|disk| disk.available_space())
+            .sum::<u64>();
+
+        let available_disk_space_gib = available_disk_space as f64 / 1024.0 / 1024.0 / 1024.0;
+
+        print_status(
+            "INFO",
+            "Available Disk Space",
+            &format!("{:.2} GiB", available_disk_space_gib),
             TagColor::Cyan,
         );
     }
