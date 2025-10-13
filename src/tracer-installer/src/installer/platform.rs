@@ -1,5 +1,5 @@
 use crate::sentry::Sentry;
-use crate::utils::{get_total_space_available, print_status, TagColor};
+use crate::utils::{get_total_space_available_bytes, print_status, TagColor};
 use crate::warning_message;
 use anyhow::{anyhow, Result};
 use colored::Colorize;
@@ -103,7 +103,7 @@ impl PlatformInfo {
         );
 
         let available_disk_space_gib =
-            get_total_space_available() as f64 / 1024.0 / 1024.0 / 1024.0;
+            get_total_space_available_bytes() as f64 / 1024.0 / 1024.0 / 1024.0;
 
         print_status(
             "INFO",

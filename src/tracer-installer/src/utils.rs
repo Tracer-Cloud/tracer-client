@@ -78,7 +78,7 @@ pub fn print_title(title: &str) {
     println!("\n==== {} ====\n", title.bold());
 }
 
-pub fn get_total_space_available() -> u64 {
+pub fn get_total_space_available_bytes() -> u64 {
     let disks = Disks::new_with_refreshed_list();
 
     // hashset to store disk names and check for duplicates
