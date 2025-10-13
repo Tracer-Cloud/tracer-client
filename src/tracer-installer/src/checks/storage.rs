@@ -1,5 +1,5 @@
 use crate::checks::InstallCheck;
-use sysinfo::Disks;
+use crate::utils::get_total_space_available;
 
 pub struct StorageCheck;
 
@@ -12,14 +12,12 @@ impl StorageCheck {
 #[async_trait::async_trait]
 impl InstallCheck for StorageCheck {
     async fn check(&self) -> bool {
-        // Sum all available space across disks
-        let disks = Disks::new_with_refreshed_list();
-        let total_available: u64 = disks.iter().map(|disk| disk.available_space()).sum();
-
         // 4 GB threshold in bytes
         const MIN_SPACE_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 
-        total_available >= MIN_SPACE_BYTES
+        let total_available_space = get_total_space_available();
+
+        total_available_space >= MIN_SPACE_BYTES
     }
     fn name(&self) -> &'static str {
         "Storage Space"
