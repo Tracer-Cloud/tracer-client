@@ -1,6 +1,8 @@
 use crate::cloud_providers::aws::types::aws_region::AwsRegion;
 use crate::cloud_providers::aws::types::aws_region::AwsRegion::UsEast2;
 
+pub mod environment;
+
 pub const PROCESS_POLLING_INTERVAL_MS: u64 = 5;
 pub const BATCH_SUBMISSION_INTERVAL_MS: u64 = 5000;
 pub const BATCH_SUBMISSION_RETRIES: u64 = 3;

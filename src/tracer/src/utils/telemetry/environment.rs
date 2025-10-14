@@ -1,12 +1,5 @@
 use crate::utils::env::*;
-
-// Normalized environment name constants for ClickHouse storage
-const ENV_AWS_EC2: &str = "aws-ec2";
-const ENV_AWS_BATCH: &str = "aws-batch";
-const ENV_GITHUB_CODESPACES: &str = "github-codespaces";
-const ENV_GITHUB_ACTIONS: &str = "github-actions";
-const ENV_DOCKER: &str = "docker";
-const ENV_LOCAL: &str = "local";
+use crate::constants::environment::*;
 
 /// Error categories for telemetry reporting
 #[derive(Debug, Clone, Copy)]

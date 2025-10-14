@@ -3,13 +3,11 @@ use serde_json::{json, Map, Value};
 
 use anyhow::Context;
 
+use crate::constants::environment::ENV_UNKNOWN;
 use crate::process_identification::types::event::attributes::process::ProcessProperties;
 use crate::process_identification::types::event::{attributes::EventAttributes, Event};
 use serde::Serialize;
 use std::convert::TryFrom;
-
-// Normalized environment name constant for unknown environments
-const ENV_UNKNOWN: &str = "unknown";
 
 
 

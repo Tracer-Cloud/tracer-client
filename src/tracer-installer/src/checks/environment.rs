@@ -1,3 +1,4 @@
+use crate::constants::*;
 use crate::sentry::Sentry;
 use ec2_instance_metadata::InstanceMetadata;
 use std::env;
@@ -5,13 +6,6 @@ use std::fs;
 use std::path::Path;
 
 use super::InstallCheck;
-
-// Normalized environment name constants for ClickHouse storage
-const ENV_AWS_EC2: &str = "aws-ec2";
-const ENV_AWS_BATCH: &str = "aws-batch";
-const ENV_GITHUB_CODESPACES: &str = "github-codespaces";
-const ENV_DOCKER: &str = "docker";
-const ENV_LOCAL: &str = "local";
 
 fn is_docker() -> bool {
     // 1. Check for /.dockerenv
