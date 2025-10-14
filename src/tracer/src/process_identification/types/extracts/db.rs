@@ -9,8 +9,6 @@ use crate::process_identification::types::event::{attributes::EventAttributes, E
 use serde::Serialize;
 use std::convert::TryFrom;
 
-
-
 #[derive(Serialize, Clone, Debug)]
 pub struct EventInsert {
     pub timestamp: DateTime<Utc>,
@@ -122,7 +120,8 @@ impl TryFrom<Event> for EventInsert {
             source_type: "tracer-daemon".to_string(),
             instrumentation_version: option_env!("CARGO_PKG_VERSION").map(str::to_string),
             instrumentation_type: Some("TRACER_DAEMON".to_string()),
-            environment: tags.as_ref()
+            environment: tags
+                .as_ref()
                 .and_then(|t| t.environment.clone())
                 .or_else(|| Some(ENV_UNKNOWN.to_string())),
             pipeline_type: tags.as_ref().and_then(|t| t.pipeline_type.clone()),

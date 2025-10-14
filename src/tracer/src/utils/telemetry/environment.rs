@@ -1,5 +1,5 @@
-use crate::utils::env::*;
 use crate::constants::environment::*;
+use crate::utils::env::*;
 
 /// Error categories for telemetry reporting
 #[derive(Debug, Clone, Copy)]

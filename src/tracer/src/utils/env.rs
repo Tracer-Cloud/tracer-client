@@ -1,5 +1,5 @@
-use crate::constants::{SANDBOX_URL_DEV, SANDBOX_URL_PROD};
 use crate::constants::environment::*;
+use crate::constants::{SANDBOX_URL_DEV, SANDBOX_URL_PROD};
 use reqwest::Client;
 use std::env;
 use std::fs;
@@ -16,8 +16,6 @@ pub const AWS_BATCH_JOB_ID_ENV_VAR: &str = "AWS_BATCH_JOB_ID";
 pub const CODESPACES_ENV_VAR: &str = "CODESPACES";
 pub const CODESPACE_NAME_ENV_VAR: &str = "CODESPACE_NAME";
 pub const HOSTNAME_ENV_VAR: &str = "HOSTNAME";
-
-
 
 pub fn get_env_var(var: &str) -> Option<String> {
     env::var(var).ok()
