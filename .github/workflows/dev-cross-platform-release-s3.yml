@@ -101,7 +101,7 @@ jobs:
           if [[ "${{ matrix.runner }}" == *"ubuntu"* ]]; then
               rustup toolchain install nightly-2025-04-15 --component rust-src
               sudo apt-get update
-              sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm libelf-dev
+              sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm libelf-dev libssl-dev pkg-config
           fi
 
 
@@ -190,7 +190,7 @@ jobs:
         run: |
             yum update -y --allowerasing
             yum groupinstall -y "Development Tools" --allowerasing
-            yum install -y kernel-devel kernel-headers clang llvm libbpf-devel --allowerasing
+            yum install -y kernel-devel kernel-headers clang llvm libbpf-devel openssl-devel pkgconfig --allowerasing
 
       - name: Install Rust
         run: |
