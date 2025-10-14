@@ -39,7 +39,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm
+          sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm libssl-dev pkg-config
 
       - name: Run tests
         run: |
