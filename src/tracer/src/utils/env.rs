@@ -1,3 +1,4 @@
+use crate::constants::environment::*;
 use crate::constants::{SANDBOX_URL_DEV, SANDBOX_URL_PROD};
 use reqwest::Client;
 use std::env;
@@ -48,33 +49,29 @@ pub(crate) async fn detect_environment_type(timeout_secs: u64) -> String {
     let running_in_docker = is_docker();
 
     if is_codespaces() {
-        return "GitHub Codespaces".into();
+        return ENV_GITHUB_CODESPACES.into();
     }
 
     if get_env_var(GITHUB_ACTIONS_ENV_VAR)
         .map(|v| v == "true")
         .unwrap_or(false)
     {
-        return "GitHub Actions".into();
+        return ENV_GITHUB_ACTIONS.into();
     }
 
     if has_env_var(AWS_BATCH_JOB_ID_ENV_VAR) {
-        return "AWS Batch".into();
+        return ENV_AWS_BATCH.into();
     }
 
     if detect_ec2_environment(timeout_secs).await.is_some() {
-        return if running_in_docker {
-            "AWS EC2 (Docker)".into()
-        } else {
-            "AWS EC2".into()
-        };
+        return ENV_AWS_EC2.into();
     }
 
     if running_in_docker {
-        return "Docker".into();
+        return ENV_DOCKER.into();
     }
 
-    "Local".into()
+    ENV_LOCAL.into()
 }
 
 fn is_codespaces() -> bool {

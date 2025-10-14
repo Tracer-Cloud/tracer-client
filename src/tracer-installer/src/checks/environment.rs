@@ -1,3 +1,4 @@
+use crate::constants::*;
 use crate::sentry::Sentry;
 use ec2_instance_metadata::InstanceMetadata;
 use std::env;
@@ -26,29 +27,24 @@ pub async fn detect_environment_type() -> String {
     let running_in_docker = is_docker();
 
     if is_codespaces() {
-        return "GitHub Codespaces".into();
+        return ENV_GITHUB_CODESPACES.into();
     }
 
     let is_batch = env::var("AWS_BATCH_JOB_ID").is_ok();
 
     if let Some(metadata) = get_aws_instance_metadata().await {
-        let instance_type = &metadata.instance_type;
         annotate_ec2_metadata(&metadata);
         if is_batch {
-            return format!("AWS Batch - {instance_type}");
+            return ENV_AWS_BATCH.into();
         }
-        return if running_in_docker {
-            format!("AWS EC2 (Docker) - {instance_type}")
-        } else {
-            format!("AWS EC2 - {instance_type}")
-        };
+        return ENV_AWS_EC2.into();
     }
 
     if running_in_docker {
-        return "Docker".into();
+        return ENV_DOCKER.into();
     }
 
-    "Local".into()
+    ENV_LOCAL.into()
 }
 
 fn is_codespaces() -> bool {
