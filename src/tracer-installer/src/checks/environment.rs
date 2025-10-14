@@ -6,6 +6,13 @@ use std::path::Path;
 
 use super::InstallCheck;
 
+// Normalized environment name constants for ClickHouse storage
+const ENV_AWS_EC2: &str = "aws-ec2";
+const ENV_AWS_BATCH: &str = "aws-batch";
+const ENV_GITHUB_CODESPACES: &str = "github-codespaces";
+const ENV_DOCKER: &str = "docker";
+const ENV_LOCAL: &str = "local";
+
 fn is_docker() -> bool {
     // 1. Check for /.dockerenv
     if Path::new("/.dockerenv").exists() {
@@ -26,29 +33,24 @@ pub async fn detect_environment_type() -> String {
     let running_in_docker = is_docker();
 
     if is_codespaces() {
-        return "GitHub Codespaces".into();
+        return ENV_GITHUB_CODESPACES.into();
     }
 
     let is_batch = env::var("AWS_BATCH_JOB_ID").is_ok();
 
     if let Some(metadata) = get_aws_instance_metadata().await {
-        let instance_type = &metadata.instance_type;
         annotate_ec2_metadata(&metadata);
         if is_batch {
-            return format!("AWS Batch - {instance_type}");
+            return ENV_AWS_BATCH.into();
         }
-        return if running_in_docker {
-            format!("AWS EC2 (Docker) - {instance_type}")
-        } else {
-            format!("AWS EC2 - {instance_type}")
-        };
+        return ENV_AWS_EC2.into();
     }
 
     if running_in_docker {
-        return "Docker".into();
+        return ENV_DOCKER.into();
     }
 
-    "Local".into()
+    ENV_LOCAL.into()
 }
 
 fn is_codespaces() -> bool {

@@ -8,6 +8,11 @@ use crate::process_identification::types::event::{attributes::EventAttributes, E
 use serde::Serialize;
 use std::convert::TryFrom;
 
+// Normalized environment name constant for unknown environments
+const ENV_UNKNOWN: &str = "unknown";
+
+
+
 #[derive(Serialize, Clone, Debug)]
 pub struct EventInsert {
     pub timestamp: DateTime<Utc>,
@@ -119,7 +124,9 @@ impl TryFrom<Event> for EventInsert {
             source_type: "tracer-daemon".to_string(),
             instrumentation_version: option_env!("CARGO_PKG_VERSION").map(str::to_string),
             instrumentation_type: Some("TRACER_DAEMON".to_string()),
-            environment: tags.as_ref().and_then(|t| t.environment.clone()),
+            environment: tags.as_ref()
+                .and_then(|t| t.environment.clone())
+                .or_else(|| Some(ENV_UNKNOWN.to_string())),
             pipeline_type: tags.as_ref().and_then(|t| t.pipeline_type.clone()),
             user_id: tags.as_ref().unwrap().user_id.clone().unwrap(),
             organization_id: tags.as_ref().and_then(|t| t.organization_id.clone()),

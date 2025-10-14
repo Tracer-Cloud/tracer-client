@@ -1,5 +1,13 @@
 use crate::utils::env::*;
 
+// Normalized environment name constants for ClickHouse storage
+const ENV_AWS_EC2: &str = "aws-ec2";
+const ENV_AWS_BATCH: &str = "aws-batch";
+const ENV_GITHUB_CODESPACES: &str = "github-codespaces";
+const ENV_GITHUB_ACTIONS: &str = "github-actions";
+const ENV_DOCKER: &str = "docker";
+const ENV_LOCAL: &str = "local";
+
 /// Error categories for telemetry reporting
 #[derive(Debug, Clone, Copy)]
 pub enum ErrorCategory {
@@ -57,37 +65,32 @@ pub fn detect_environment() -> String {
             .map(|v| v.contains("codespaces-"))
             .unwrap_or(false)
     {
-        return "GitHub Codespaces".to_string();
+        return ENV_GITHUB_CODESPACES.to_string();
     }
 
     // Check for GitHub Actions
     if has_env_var(GITHUB_ACTIONS_ENV_VAR) {
-        return "GitHub Actions".to_string();
+        return ENV_GITHUB_ACTIONS.to_string();
     }
 
     // Check for AWS Batch
     if has_env_var(AWS_BATCH_JOB_ID_ENV_VAR) {
-        return "AWS Batch".to_string();
+        return ENV_AWS_BATCH.to_string();
     }
 
     // Check for Docker (if detected earlier)
     if is_docker {
-        return "Docker".to_string();
+        return ENV_DOCKER.to_string();
     }
 
     // Check for AWS EC2 (Linux only)
     #[cfg(target_os = "linux")]
     if let Ok(uuid) = std::fs::read_to_string("/sys/devices/virtual/dmi/id/product_uuid") {
         if uuid.to_lowercase().starts_with("ec2") {
-            return if is_docker {
-                "AWS EC2 (Docker)"
-            } else {
-                "AWS EC2"
-            }
-            .to_string();
+            return ENV_AWS_EC2.to_string();
         }
     }
 
     // Default to local development
-    "Local Development".to_string()
+    ENV_LOCAL.to_string()
 }
