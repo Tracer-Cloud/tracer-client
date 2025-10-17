@@ -120,6 +120,28 @@ impl DockerWatcher {
             .await
             .ok()?;
 
+        // environment variables of the container to get the TRACER_TRACE_ID and the AWS_BATCH_JOB_ID
+        let container_environment_variables = inspect
+            .config
+            .as_ref()
+            .and_then(|container_config| container_config.env.clone())
+            .unwrap_or_default();
+
+        // each element of the vector is a string "key=value"
+        let trace_id = container_environment_variables
+            .iter()
+            .find(|environment_variable| environment_variable.starts_with("TRACER_TRACE_ID="))
+            .map(|environment_variable| {
+                environment_variable.split("=").nth(1).unwrap().to_string()
+            }); // getting the value of the environment variable
+
+        let job_id = container_environment_variables
+            .iter()
+            .find(|environment_variable| environment_variable.starts_with("AWS_BATCH_JOB_ID="))
+            .map(|environment_variable| {
+                environment_variable.split("=").nth(1).unwrap().to_string()
+            }); // getting the value of the environment variable
+
         let name = inspect
             .name
             .unwrap_or_default()
@@ -166,6 +188,9 @@ impl DockerWatcher {
             labels,
             timestamp: time,
             state,
+            environment_variables: container_environment_variables,
+            trace_id,
+            job_id,
         })
     }
 
