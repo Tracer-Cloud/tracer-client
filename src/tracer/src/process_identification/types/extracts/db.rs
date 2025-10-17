@@ -99,6 +99,9 @@ impl TryFrom<Event> for EventInsert {
                 EventAttributes::NewRun { trace_id: t } => {
                     trace_id = Some(t.clone());
                 }
+                EventAttributes::ContainerEvents(container_events) => {
+                    trace_id = container_events.trace_id.clone();
+                }
                 _ => {}
             }
 
