@@ -1,5 +1,5 @@
 [![Linter Check](https://github.com/Tracer-Cloud/tracer-client/actions/workflows/cargo-clippy.yml/badge.svg?branch=main)](https://github.com/Tracer-Cloud/tracer-client/actions/workflows/cargo-clippy.yml) [![Tests](https://github.com/Tracer-Cloud/tracer-client/actions/workflows/cargo-test.yml/badge.svg?branch=main)](https://github.com/Tracer-Cloud/tracer-client/actions/workflows/cargo-test.yml) [![Release](https://github.com/Tracer-Cloud/tracer-client/actions/workflows/dev-cross-platform-release-s3.yml/badge.svg?branch=main)](https://github.com/Tracer-Cloud/tracer-client/actions/workflows/dev-cross-platform-release-s3.yml)
- [![Dependency Security](https://github.com/Tracer-Cloud/tracer-client/actions/workflows/cargo-audit.yml/badge.svg?branch=main)](https://github.com/Tracer-Cloud/tracer-client/actions/workflows/cargo-audit.yml)
+[![Dependency Security](https://github.com/Tracer-Cloud/tracer-client/actions/workflows/cargo-audit.yml/badge.svg?branch=main)](https://github.com/Tracer-Cloud/tracer-client/actions/workflows/cargo-audit.yml)
 
 <h2 align="left">
 Tracer Linux Agent: Observability for Scientific HPC Workloads
@@ -7,9 +7,9 @@ Tracer Linux Agent: Observability for Scientific HPC Workloads
 
 ![Tracer-Banner](https://github.com/user-attachments/assets/5bbbdcee-11ca-4f09-b042-a5259309b7e4)
 
+## What Is Tracer and Why Use It?
 
-## What Is Tracer and Why Use It? 
-- Tracer is a system-level monitoring platform purpose-built for scientific computing. It is a a one-line install Linux agent and instant dashboards to give you insights into pipeline performance and cost optimization. 
+- Tracer is a system-level monitoring platform purpose-built for scientific computing. It is a a one-line install Linux agent and instant dashboards to give you insights into pipeline performance and cost optimization.
 
 - Unlike industry agnostic monitoring agents, Tracer structures DevOps data for scientific pipelines, providing clear visibility into pipeline stages and execution runs. In environments like AWS Batch, where processes and containers are loosely connected, users struggle to understand which processes belong to which pipeline run, and frequently lose logs from failed containers, making debugging difficult.
 
@@ -41,7 +41,7 @@ New metrics that help you speed up your pipelines and maximize your budget:
 The easiest way to get started with Tracer is via our **browser-based sandbox**:  
 👉 [https://sandbox.tracer.cloud/](https://sandbox.tracer.cloud/)
 
-→ Click **“Proceed to Onboarding”** to launch a guided onboarding experience tailored to your preferred tech stack — *no AWS credentials or setup required*.
+- Click **“Proceed to Onboarding”** to launch a guided onboarding experience tailored to your preferred tech stack — _no AWS credentials or setup required_.
 
 ### 2. Install Tracer With One Line of Code
 
@@ -50,24 +50,27 @@ Choose your preferred tech stack from the left-hand menu.
 Copy the pre-filled curl command (also shown in the Sandbox) and run it in your terminal:
 
 ```bash
-curl -sSL https://install.tracer.cloud | sh -s _USERID_
+curl -sSL https://install.tracer.cloud | sh
 ```
 
-→ Some environments (e.g. Docker) may require 1-2 additional steps.
+### 3. Initialize the Tracer Client (requires token)
 
-### 3. Start Tracer agent
+Start the Tracer client to initialize a pipeline and enable monitoring. You must provide your Tracer token every time you initialize.
 
-Copy the pre-filled tracer init command (also shown in the Sandbox) and run it in your terminal:
+- Get your token from the [Tracer Sandbox](https://sandbox.tracer.cloud/)
+- Then run:
+
+> **Note:** Root privileges required
 
 ```bash
-tracer init --user-id _USERID_
+sudo tracer init --token <paste-your-token-here> --watch-dir "/tmp/tracer"
 ```
-Depending on the tech stack, this line can be preceded by sudo as shown in the Sandbox.
 
 ### 4. Initialize a Pipeline
 
 You can now choose to run any pipeline you want or use 'tracer test' to launch a prepared pipeline.
 Run your own pipeline by following your usual workflow or try with one of our test examples first (https://github.com/Tracer-Cloud/nextflow-test-pipelines):
+
 ```bash
 sudo -E tracer demo
 ```
@@ -76,11 +79,11 @@ sudo -E tracer demo
 
 Access the Tracer monitoring dashboard to watch your pipeline in action, including:
 
-- Real-time execution metrics  
-- Pipeline stages  
-- Resource usage across runs  
+- Real-time execution metrics
+- Pipeline stages
+- Resource usage across runs
 
-→ The sandbox will guide you to your personal dashboard at the bottom of the onboarding page.
+- The sandbox will guide you to your personal dashboard at the bottom of the onboarding page.
 
 <br />
 
