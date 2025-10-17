@@ -29,4 +29,7 @@ pub struct ContainerEvent {
     pub labels: HashMap<String, String>,
     pub timestamp: DateTime<Utc>,
     pub state: ContainerState,
+    pub environment_variables: Vec<String>,
+    pub trace_id: Option<String>,
+    pub job_id: Option<String>,
 }
