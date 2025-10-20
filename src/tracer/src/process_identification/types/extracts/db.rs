@@ -63,38 +63,35 @@ impl TryFrom<Event> for EventInsert {
         let mut cpu_usage = None;
         let mut mem_used = None;
         let mut ec2_cost_per_hour = None;
-        let mut processed_dataset = None;
+        let processed_dataset = None;
 
         if let Some(attr) = &event.attributes {
             match attr {
-                EventAttributes::Process(ProcessProperties::Full(p)) => {
-                    cpu_usage = Some(p.process_cpu_utilization);
-                    mem_used = Some(p.process_memory_usage as f64);
-                    job_id = p.job_id.clone();
-                    trace_id = p.trace_id.clone();
+                EventAttributes::Process(ProcessProperties::Full(process_properties)) => {
+                    cpu_usage = Some(process_properties.process_cpu_utilization);
+                    mem_used = Some(process_properties.process_memory_usage as f64);
+                    job_id = process_properties.job_id.clone();
+                    trace_id = process_properties.trace_id.clone();
                 }
-                EventAttributes::CompletedProcess(p) => {
-                    trace_id = p.trace_id.clone();
+                EventAttributes::CompletedProcess(completed_process) => {
+                    trace_id = completed_process.trace_id.clone();
                 }
-                EventAttributes::SystemMetric(m) => {
-                    cpu_usage = Some(m.system_cpu_utilization);
-                    mem_used = Some(m.system_memory_used as f64);
+                EventAttributes::SystemMetric(system_metric) => {
+                    cpu_usage = Some(system_metric.system_cpu_utilization);
+                    mem_used = Some(system_metric.system_memory_used as f64);
                 }
-                EventAttributes::SystemProperties(p) => {
-                    ec2_cost_per_hour = p.ec2_cost_per_hour;
+                EventAttributes::SystemProperties(system_properties) => {
+                    ec2_cost_per_hour = system_properties.ec2_cost_per_hour;
 
                     // Properly flatten and assign to `resource_attributes`
                     let mut flat = Map::new();
                     crate::process_identification::utils::flatten_with_prefix(
                         "system_properties",
-                        &serde_json::to_value(p).context("serialize system_properties")?,
+                        &serde_json::to_value(system_properties)
+                            .context("serialize system_properties")?,
                         &mut flat,
                     );
                     resource_attributes = Value::Object(flat);
-                }
-                EventAttributes::ProcessDatasetStats(d) => {
-                    processed_dataset = Some(d.total as i32);
-                    trace_id = d.trace_id.clone();
                 }
                 EventAttributes::NewRun { trace_id: t } => {
                     trace_id = Some(t.clone());

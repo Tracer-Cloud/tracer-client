@@ -2,6 +2,8 @@ use crate::extracts::containers::docker_watcher::event::{
     ContainerEvent, ContainerId, ContainerState,
 };
 use crate::process_identification::recorder::EventDispatcher;
+use crate::process_identification::types::event::attributes::EventAttributes;
+use crate::process_identification::types::event::ProcessStatus;
 use anyhow::Result;
 use bollard::models::EventMessage;
 use bollard::query_parameters::{EventsOptionsBuilder, InspectContainerOptions};
@@ -12,7 +14,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracer_ebpf::ebpf_trigger::exit_code_explanation;
-
 #[derive(Clone)]
 pub struct DockerWatcher {
     docker: Option<Docker>,
@@ -75,32 +76,32 @@ impl DockerWatcher {
                         let container_id = ContainerId(container_event.id.clone());
                         let mut state = container_state.write().await;
 
+                        // we will define if it's a container execution or a container termination
+                        let mut process_status = ProcessStatus::ContainerExecution;
                         match container_event.state {
                             ContainerState::Started => {
+                                // the process_status is set already to ContainerExecution, so we don't need to change it here
                                 state.insert(container_id, container_event.clone());
                             }
                             ContainerState::Exited { .. } | ContainerState::Died => {
                                 state.remove(&container_id);
+                                process_status = ProcessStatus::ContainerTermination;
                             }
                         }
                         // Log the container event
                         if let Err(e) = recorder
-                        .log(
-                            crate::process_identification::types::event::ProcessStatus::ContainerExecution,
-                            format!("[container] {} - {:?}",
-                            container_event.name, container_event.state
-                        ),
-                            Some(
-                                crate::process_identification::types::event::attributes::EventAttributes::ContainerEvents(
-                                container_event.clone().into(),
-                            ),
-                        ),
-                            Some(container_event.timestamp),
-                        )
-                        .await
-                    {
-                        tracing::error!("Failed to log container event: {:?}", e);
-                    }
+                            .log(
+                                process_status,
+                                "[container event]".to_string(),
+                                Some(EventAttributes::ContainerEvents(
+                                    container_event.clone().into(),
+                                )),
+                                Some(container_event.timestamp),
+                            )
+                            .await
+                        {
+                            tracing::error!("Failed to log container event: {:?}", e);
+                        }
                     }
                 }
             });
