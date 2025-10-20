@@ -5,16 +5,10 @@ on:
     types: [opened, synchronize, reopened]
     branches:
       - "main"
-    paths:
-      - "src/**"
-      - ".github/workflows/dev-cross-platform-release-s3.yml"
   push:
     branches:
       - "main"
-    paths:
-      - "src/**"
-      - ".github/workflows/dev-cross-platform-release-s3.yml"
-
+      
 jobs:
   build-and-release:
     permissions: write-all
