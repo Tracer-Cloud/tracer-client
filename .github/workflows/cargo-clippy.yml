@@ -4,16 +4,10 @@ on:
     branches:
       - main
       - dev
-    paths:
-      - "src/**"
-      - ".github/workflows/cargo-clippy.yml"
   pull_request:
     branches:
       - main
       - dev
-    paths:
-      - "src/**"
-      - ".github/workflows/cargo-clippy.yml"
 
 env:
   CARGO_TERM_COLOR: always # Ensures colored output in GitHub Actions logs
