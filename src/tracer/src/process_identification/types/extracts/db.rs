@@ -34,14 +34,10 @@ pub struct EventInsert {
     pub run_name: String,
     pub pipeline_name: String,
     pub job_id: Option<String>,
-    pub parent_job_id: Option<String>,
-    pub child_job_ids: Option<Vec<String>>,
-    pub workflow_engine: Option<String>,
 
     pub ec2_cost_per_hour: Option<f64>,
     pub cpu_usage: Option<f32>,
     pub mem_used: Option<f64>,
-    pub processed_dataset: Option<i32>,
     pub process_status: String,
 
     pub attributes: Value,
@@ -57,44 +53,37 @@ impl TryFrom<Event> for EventInsert {
         let mut resource_attributes = json!({});
         let mut job_id = None;
         let mut trace_id = None;
-        let parent_job_id = None;
-        let child_job_ids = None;
-        let workflow_engine = None;
         let mut cpu_usage = None;
         let mut mem_used = None;
         let mut ec2_cost_per_hour = None;
-        let mut processed_dataset = None;
 
         if let Some(attr) = &event.attributes {
             match attr {
-                EventAttributes::Process(ProcessProperties::Full(p)) => {
-                    cpu_usage = Some(p.process_cpu_utilization);
-                    mem_used = Some(p.process_memory_usage as f64);
-                    job_id = p.job_id.clone();
-                    trace_id = p.trace_id.clone();
+                EventAttributes::Process(ProcessProperties::Full(process_properties)) => {
+                    cpu_usage = Some(process_properties.process_cpu_utilization);
+                    mem_used = Some(process_properties.process_memory_usage as f64);
+                    job_id = process_properties.job_id.clone();
+                    trace_id = process_properties.trace_id.clone();
                 }
-                EventAttributes::CompletedProcess(p) => {
-                    trace_id = p.trace_id.clone();
+                EventAttributes::CompletedProcess(completed_process) => {
+                    trace_id = completed_process.trace_id.clone();
                 }
-                EventAttributes::SystemMetric(m) => {
-                    cpu_usage = Some(m.system_cpu_utilization);
-                    mem_used = Some(m.system_memory_used as f64);
+                EventAttributes::SystemMetric(system_metric) => {
+                    cpu_usage = Some(system_metric.system_cpu_utilization);
+                    mem_used = Some(system_metric.system_memory_used as f64);
                 }
-                EventAttributes::SystemProperties(p) => {
-                    ec2_cost_per_hour = p.ec2_cost_per_hour;
+                EventAttributes::SystemProperties(system_properties) => {
+                    ec2_cost_per_hour = system_properties.ec2_cost_per_hour;
 
                     // Properly flatten and assign to `resource_attributes`
                     let mut flat = Map::new();
                     crate::process_identification::utils::flatten_with_prefix(
                         "system_properties",
-                        &serde_json::to_value(p).context("serialize system_properties")?,
+                        &serde_json::to_value(system_properties)
+                            .context("serialize system_properties")?,
                         &mut flat,
                     );
                     resource_attributes = Value::Object(flat);
-                }
-                EventAttributes::ProcessDatasetStats(d) => {
-                    processed_dataset = Some(d.total as i32);
-                    trace_id = d.trace_id.clone();
                 }
                 EventAttributes::NewRun { trace_id: t } => {
                     trace_id = Some(t.clone());
@@ -116,7 +105,6 @@ impl TryFrom<Event> for EventInsert {
             body: event.body,
             severity_text: event.severity_text,
             severity_number: event.severity_number.map(|v| v as i16),
-            // TODO: should be event.trace_id?
             trace_id: trace_id.or_else(|| event.run_id.clone()),
             span_id: event.span_id,
 
@@ -125,12 +113,12 @@ impl TryFrom<Event> for EventInsert {
             instrumentation_type: Some("TRACER_DAEMON".to_string()),
             environment: tags
                 .as_ref()
-                .and_then(|t| t.environment.clone())
+                .and_then(|tags| tags.environment.clone())
                 .or_else(|| Some(ENV_UNKNOWN.to_string())),
-            pipeline_type: tags.as_ref().and_then(|t| t.pipeline_type.clone()),
+            pipeline_type: tags.as_ref().and_then(|tags| tags.pipeline_type.clone()),
             user_id: tags.as_ref().unwrap().user_id.clone().unwrap(),
-            organization_id: tags.as_ref().and_then(|t| t.organization_id.clone()),
-            department: tags.as_ref().map(|t| t.department.clone()),
+            organization_id: tags.as_ref().and_then(|tags| tags.organization_id.clone()),
+            department: tags.as_ref().map(|tags| tags.department.clone()),
 
             event_type: event.event_type.to_string(),
             process_type: event.process_type.to_string(),
@@ -139,14 +127,9 @@ impl TryFrom<Event> for EventInsert {
             run_name: event.run_name.unwrap_or_default(),
             pipeline_name: event.pipeline_name.unwrap_or_default(),
             job_id,
-            parent_job_id,
-            child_job_ids,
-            workflow_engine,
-
             ec2_cost_per_hour,
             cpu_usage,
             mem_used,
-            processed_dataset,
             process_status: event.process_status.to_string(),
 
             attributes,
