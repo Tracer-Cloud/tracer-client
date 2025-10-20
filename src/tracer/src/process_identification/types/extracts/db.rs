@@ -34,14 +34,10 @@ pub struct EventInsert {
     pub run_name: String,
     pub pipeline_name: String,
     pub job_id: Option<String>,
-    pub parent_job_id: Option<String>,
-    pub child_job_ids: Option<Vec<String>>,
-    pub workflow_engine: Option<String>,
 
     pub ec2_cost_per_hour: Option<f64>,
     pub cpu_usage: Option<f32>,
     pub mem_used: Option<f64>,
-    pub processed_dataset: Option<i32>,
     pub process_status: String,
 
     pub attributes: Value,
@@ -57,13 +53,9 @@ impl TryFrom<Event> for EventInsert {
         let mut resource_attributes = json!({});
         let mut job_id = None;
         let mut trace_id = None;
-        let parent_job_id = None;
-        let child_job_ids = None;
-        let workflow_engine = None;
         let mut cpu_usage = None;
         let mut mem_used = None;
         let mut ec2_cost_per_hour = None;
-        let processed_dataset = None;
 
         if let Some(attr) = &event.attributes {
             match attr {
@@ -113,7 +105,6 @@ impl TryFrom<Event> for EventInsert {
             body: event.body,
             severity_text: event.severity_text,
             severity_number: event.severity_number.map(|v| v as i16),
-            // TODO: should be event.trace_id?
             trace_id: trace_id.or_else(|| event.run_id.clone()),
             span_id: event.span_id,
 
@@ -122,12 +113,12 @@ impl TryFrom<Event> for EventInsert {
             instrumentation_type: Some("TRACER_DAEMON".to_string()),
             environment: tags
                 .as_ref()
-                .and_then(|t| t.environment.clone())
+                .and_then(|tags| tags.environment.clone())
                 .or_else(|| Some(ENV_UNKNOWN.to_string())),
-            pipeline_type: tags.as_ref().and_then(|t| t.pipeline_type.clone()),
+            pipeline_type: tags.as_ref().and_then(|tags| tags.pipeline_type.clone()),
             user_id: tags.as_ref().unwrap().user_id.clone().unwrap(),
-            organization_id: tags.as_ref().and_then(|t| t.organization_id.clone()),
-            department: tags.as_ref().map(|t| t.department.clone()),
+            organization_id: tags.as_ref().and_then(|tags| tags.organization_id.clone()),
+            department: tags.as_ref().map(|tags| tags.department.clone()),
 
             event_type: event.event_type.to_string(),
             process_type: event.process_type.to_string(),
@@ -136,14 +127,9 @@ impl TryFrom<Event> for EventInsert {
             run_name: event.run_name.unwrap_or_default(),
             pipeline_name: event.pipeline_name.unwrap_or_default(),
             job_id,
-            parent_job_id,
-            child_job_ids,
-            workflow_engine,
-
             ec2_cost_per_hour,
             cpu_usage,
             mem_used,
-            processed_dataset,
             process_status: event.process_status.to_string(),
 
             attributes,
