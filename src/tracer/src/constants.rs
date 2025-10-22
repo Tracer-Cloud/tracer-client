@@ -20,7 +20,7 @@ pub const DASHBOARD_BASE_DEV: &str =
 
 pub const AWS_REGION: AwsRegion = UsEast2;
 pub const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics-supabase";
-pub const OTEL_FORWARD_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/otel-forward";
+pub const OTEL_FORWARD_ENDPOINT: &str = "https://api.sandbox.tracer.cloud/api/public/otel-forward";
 pub const CLI_LOGIN_URL: &str = "https://sandbox.tracer.cloud/sign-in?cli=true";
 pub const CLI_LOGIN_URL_LOCAL: &str = "http://localhost:3000/sign-in?cli=true";
 pub const CLI_LOGIN_URL_DEV: &str = "https://dev.sandbox.tracer.cloud/sign-in?cli=true";
