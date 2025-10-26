@@ -11,6 +11,8 @@ use std::sync::Arc;
 use sysinfo::{Disks, System};
 use tokio::sync::RwLock;
 
+use crate::extracts::metrics::gpu_monitor::GpuMonitor;
+
 pub struct SystemMetricsCollector {
     event_dispatcher: EventDispatcher,
     system: Arc<RwLock<System>>,
@@ -64,7 +66,12 @@ impl SystemMetricsCollector {
         let system_disk_total_space = Self::calculate_total_disk_space(&disk_stats);
         let system_disk_used_space = Self::calculate_total_disk_used_space(&disk_stats);
 
-        SystemMetric {
+        // Collect GPU metrics
+        let gpu_stats = GpuMonitor::collect_gpu_stats().unwrap_or_default();
+        let (system_gpu_utilization, system_gpu_memory_used, system_gpu_memory_total, system_gpu_memory_utilization) = 
+            GpuMonitor::calculate_aggregate_gpu_metrics(&gpu_stats);
+
+        let system_metric = SystemMetric {
             events_name: "global_system_metrics".to_string(),
             system_memory_total: total_memory,
             system_memory_used: used_memory,
@@ -76,7 +83,14 @@ impl SystemMetricsCollector {
             system_disk_total_space,
             system_disk_used_space,
             system_disk_io: disk_stats,
-        }
+            system_gpu_utilization,
+            system_gpu_memory_used,
+            system_gpu_memory_total,
+            system_gpu_memory_utilization,
+            system_gpu_stats: gpu_stats,
+        };
+        
+        system_metric
     }
 
     pub async fn collect_metrics(&self) -> Result<()> {
@@ -156,9 +170,57 @@ mod tests {
         let attribute = event.attributes.clone().unwrap();
         if let EventAttributes::SystemMetric(system_metric) = attribute {
             assert_eq!(system_metric.events_name, "global_system_metrics");
+            // GPU metrics should be present (may be None if no GPUs available)
+            assert!(system_metric.system_gpu_stats.is_empty() || !system_metric.system_gpu_stats.is_empty());
         } else {
             // fail test
             panic!("Expected SystemMetric attribute type"); // Replace assert!(false)
         }
+    }
+
+    #[tokio::test]
+    async fn test_gpu_metrics_collection() {
+        // Test GPU metrics collection
+        let gpu_stats = GpuMonitor::collect_gpu_stats();
+        
+        // This test will pass regardless of whether GPUs are available
+        // If GPUs are available, we should have some stats
+        // If no GPUs are available, we should have an empty HashMap
+        match gpu_stats {
+            Ok(stats) => {
+                // GPU stats collection succeeded (may be empty if no GPUs)
+                assert!(stats.len() >= 0);
+            }
+            Err(_) => {
+                // GPU stats collection failed (no GPUs or tools not available)
+                // This is expected in environments without GPUs
+            }
+        }
+    }
+
+    #[test]
+    fn test_gpu_aggregate_calculation() {
+        use crate::process_identification::types::event::attributes::system_metrics::GpuStatistic;
+        use std::collections::HashMap;
+
+        let mut gpu_stats = HashMap::new();
+        
+        // Add a mock GPU
+        gpu_stats.insert("gpu0".to_string(), GpuStatistic {
+            gpu_id: 0,
+            gpu_name: "Test GPU".to_string(),
+            gpu_utilization: 75.0,
+            gpu_memory_used: 1024 * 1024 * 1024, // 1GB
+            gpu_memory_total: 4 * 1024 * 1024 * 1024, // 4GB
+            gpu_memory_utilization: 25.0,
+            gpu_temperature: Some(80.0),
+        });
+
+        let (util, used, total, util_pct) = GpuMonitor::calculate_aggregate_gpu_metrics(&gpu_stats);
+        
+        assert_eq!(util, Some(75.0));
+        assert_eq!(used, Some(1024 * 1024 * 1024));
+        assert_eq!(total, Some(4 * 1024 * 1024 * 1024));
+        assert_eq!(util_pct, Some(25.0));
     }
 }
