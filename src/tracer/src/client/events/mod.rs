@@ -1,6 +1,7 @@
 mod run_details;
 use crate::cloud_providers::aws::aws_metadata::get_aws_instance_metadata;
 use crate::cloud_providers::aws::pricing::PricingSource;
+use crate::extracts::metrics::gpu_monitor::GpuMonitor;
 use crate::extracts::metrics::system_metrics_collector::SystemMetricsCollector;
 use crate::process_identification::types::current_run::{PipelineCostSummary, RunMetadata};
 use crate::process_identification::types::event::attributes::system_metrics::SystemProperties;
@@ -34,6 +35,14 @@ async fn gather_system_properties(
     let system_disk_total_space =
         SystemMetricsCollector::calculate_total_disk_space(&system_disk_io);
 
+    let gpu_stats = GpuMonitor::collect_gpu_stats().unwrap_or_default();
+    let (
+        system_gpu_utilization,
+        system_gpu_memory_used,
+        system_gpu_memory_total,
+        system_gpu_memory_utilization,
+    ) = GpuMonitor::calculate_aggregate_gpu_metrics(&gpu_stats);
+
     SystemProperties {
         os: System::name(),
         os_version: System::os_version(),
@@ -50,6 +59,11 @@ async fn gather_system_properties(
         ec2_cost_per_hour: pricing_context.as_ref().map(|c| c.total_hourly_cost),
         pricing_context,
         system_disk_total_space,
+        system_gpu_stats: gpu_stats,
+        system_gpu_utilization,
+        system_gpu_memory_used,
+        system_gpu_memory_total,
+        system_gpu_memory_utilization,
     }
 }
 

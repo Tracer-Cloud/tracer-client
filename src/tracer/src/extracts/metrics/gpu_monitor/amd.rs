@@ -67,6 +67,7 @@ impl AmdGpuMonitor {
             let gpu_stat = GpuStatistic {
                 gpu_id: current_gpu_id,
                 gpu_name: format!("AMD GPU {}", current_gpu_id),
+                gpu_type: "amd".to_string(),
                 gpu_utilization: utilization,
                 gpu_memory_used: memory_used,
                 gpu_memory_total: memory_total,

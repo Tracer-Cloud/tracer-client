@@ -43,6 +43,7 @@ impl NvidiaGpuMonitor {
                 let gpu_stat = GpuStatistic {
                     gpu_id,
                     gpu_name: gpu_name.clone(),
+                    gpu_type: "nvidia".to_string(),
                     gpu_utilization: utilization,
                     gpu_memory_used: memory_used,
                     gpu_memory_total: memory_total,

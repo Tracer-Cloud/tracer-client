@@ -52,6 +52,7 @@ impl AppleGpuMonitor {
                 let gpu_stat = GpuStatistic {
                     gpu_id,
                     gpu_name,
+                    gpu_type: "apple_silicon".to_string(),
                     gpu_utilization: utilization,
                     gpu_memory_used: memory_used,
                     gpu_memory_total: memory_total,
@@ -105,6 +106,7 @@ impl AppleGpuMonitor {
                             let gpu_stat = GpuStatistic {
                                 gpu_id,
                                 gpu_name,
+                                gpu_type: "apple_silicon".to_string(),
                                 gpu_utilization,
                                 gpu_memory_used: memory_used,
                                 gpu_memory_total: memory_total,
@@ -195,6 +197,6 @@ impl AppleGpuMonitor {
             }
         }
 
-        "Apple Silicon GPU".to_string()
+        "apple_silicon GPU".to_string()
     }
 }

@@ -15,6 +15,7 @@ pub struct DiskStatistic {
 pub struct GpuStatistic {
     pub gpu_id: u32,
     pub gpu_name: String,
+    pub gpu_type: String,
     pub gpu_utilization: f32,
     pub gpu_memory_used: u64,
     pub gpu_memory_total: u64,
@@ -60,4 +61,9 @@ pub struct SystemProperties {
     pub ec2_cost_per_hour: Option<f64>,
     pub pricing_context: Option<InstancePricingContext>,
     pub system_disk_total_space: u64, // sum of the different disks size of the machine, because a machine can have multiple disk mounted
+    pub system_gpu_stats: HashMap<String, GpuStatistic>,
+    pub system_gpu_utilization: Option<f32>,
+    pub system_gpu_memory_used: Option<u64>,
+    pub system_gpu_memory_total: Option<u64>,
+    pub system_gpu_memory_utilization: Option<f64>,
 }

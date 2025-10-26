@@ -83,6 +83,7 @@ mod tests {
             GpuStatistic {
                 gpu_id: 0,
                 gpu_name: "Test GPU".to_string(),
+                gpu_type: "test".to_string(),
                 gpu_utilization: 50.0,
                 gpu_memory_used: 1024 * 1024 * 1024,
                 gpu_memory_total: 2 * 1024 * 1024 * 1024,
