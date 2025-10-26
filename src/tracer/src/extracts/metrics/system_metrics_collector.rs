@@ -216,6 +216,7 @@ mod tests {
             GpuStatistic {
                 gpu_id: 0,
                 gpu_name: "Test GPU".to_string(),
+                gpu_type: "test".to_string(),
                 gpu_utilization: 75.0,
                 gpu_memory_used: 1024 * 1024 * 1024,      // 1GB
                 gpu_memory_total: 4 * 1024 * 1024 * 1024, // 4GB
