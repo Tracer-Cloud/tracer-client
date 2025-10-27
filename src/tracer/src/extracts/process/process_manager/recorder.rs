@@ -169,7 +169,7 @@ impl EventRecorder {
             .unwrap_or(0);
 
         info!(
-            "record_process_completion: START: finish trigger: {:?}",
+            "record_process_completion: finish trigger: {:?}",
             finish_trigger
         );
 
