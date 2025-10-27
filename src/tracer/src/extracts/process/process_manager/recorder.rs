@@ -16,7 +16,7 @@ use std::sync::Arc;
 use sysinfo::Process;
 use tokio::sync::RwLock;
 use tracer_ebpf::ebpf_trigger::{ProcessEndTrigger, ProcessStartTrigger};
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 
 /// Handles recording of process-related events
 pub struct EventRecorder {
@@ -168,7 +168,7 @@ impl EventRecorder {
             .try_into()
             .unwrap_or(0);
 
-        error!(
+        info!(
             "record_process_completion: START: finish trigger: {:?}",
             finish_trigger
         );
