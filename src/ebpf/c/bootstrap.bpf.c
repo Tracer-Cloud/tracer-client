@@ -161,24 +161,6 @@ fill_sched_process_exec(struct event *e,
     arg_ptr += n; // jump over NUL byte
   }
 
-  // TODO: try this if env values are still getting corrupted:
-  // Read env_start and env_end atomically to ensure consistency
-  // struct env
-  // {
-  //  unsigned long start;
-  //  unsigned long end;
-  // };
-  // // CO-RE relocate the offset of env_start within mm_struct.
-  // long off = bpf_core_field_offset(struct mm_struct, env_start);
-  // if (off < 0)
-  //   break;
-  // void *base = (void *)((char *)mm + off);
-  // // Read start+end in one shot.
-  // if (bpf_probe_read_kernel(&env, sizeof(env), base) < 0)
-  //   return;
-  // if (env.end < env.start)
-  //   return;
-
   env_start = BPF_CORE_READ(mm, env_start);
   env_end = BPF_CORE_READ(mm, env_end);
   if (env_end <= env_start)
@@ -205,9 +187,6 @@ fill_sched_process_exec(struct event *e,
     if (n <= 1) /* invalid or empty string */
       continue;
 
-    // NOTE: this currently works because we are only looking for a single key. Trying to look for
-    // multiple keys in a loop will not work because the verifier will complain that program is too
-    // complex. For each new key to look for, we will need to add a new branch here.
     if (store_env_val(e, 0, str, n))
       found++;
 
@@ -222,7 +201,19 @@ fill_sched_process_exit(struct event *e,
                         struct trace_event_raw_sched_process_template *ctx)
 {
   struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-  e->sched__sched_process_exit__payload.status = BPF_CORE_READ(task, exit_code);
+
+  // Read both exit_code and exit_signal
+  int exit_code = BPF_CORE_READ(task, exit_code);
+  int exit_signal = BPF_CORE_READ(task, exit_signal);
+
+  // Combine them: typically exit_code contains the status
+  // but exit_signal might have the signal if killed
+  e->sched__sched_process_exit__payload.status = exit_code ? exit_code : exit_signal;
+
+  // Debug: uncomment to see what values we're getting
+  // if (debug_enabled)
+  //   bpf_printk("EXIT: pid=%d exit_code=%d exit_signal=%d",
+  //              BPF_CORE_READ(task, tgid), exit_code, exit_signal);
 }
 
 // File open request started
@@ -269,9 +260,7 @@ static __always_inline void
 fill_vmscan_mm_vmscan_direct_reclaim_begin(struct event *e,
                                            struct trace_event_raw_vmscan_direct_reclaim_begin *ctx)
 {
-  // TODO: cannot read ctx->order, seems to be undefined on trace_event_raw_vmscan_direct_reclaim_begin
   (void)e;
-  // e->vmscan__mm_vmscan_direct_reclaim_begin__payload.order = BPF_CORE_READ(ctx, order);
 }
 
 // Memory stall event
@@ -279,9 +268,7 @@ static __always_inline void
 fill_sched_psi_memstall_enter(struct event *e,
                               struct trace_event_raw_psi_memstall *ctx)
 {
-  // TODO: cannot read ctx->type, seems to be undefined on trace_event_raw_psi_memstall
   (void)e;
-  // e->sched__psi_memstall_enter__payload.type = BPF_CORE_READ(ctx, type);
 }
 
 // OOM mark victim event
@@ -289,7 +276,6 @@ static __always_inline void
 fill_oom_mark_victim(struct event *e,
                      struct trace_event_raw_mark_victim *ctx __attribute__((unused)))
 {
-  // No additional fields to fill for OOM mark victim
   (void)e;
 }
 
@@ -306,12 +292,15 @@ fill_oom_mark_victim(struct event *e,
     u32 pid = id >> 32;                                                           \
     u32 tid = (u32)id;                                                            \
                                                                                   \
-    /* Ignore threads, report only the root process */                            \
-    /* todo: handle multi-threaded processes */                                   \
-    if (pid != tid)                                                               \
+    /* For EXIT events, we want to capture thread group leader exits */          \
+    /* For EXEC events, ignore threads */                                        \
+    if (EVENT__##name != EVENT__SCHED__SCHED_PROCESS_EXIT && pid != tid)         \
       return 0;                                                                   \
                                                                                   \
-    /* todo: BPF_RB_NO_WAKEUP (perf) */                                           \
+    /* For EXIT, only report when the main thread (pid == tid) exits */          \
+    if (EVENT__##name == EVENT__SCHED__SCHED_PROCESS_EXIT && pid != tid)         \
+      return 0;                                                                   \
+                                                                                  \
     struct event *e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);                    \
     if (!e)                                                                       \
       return 0;                                                                   \

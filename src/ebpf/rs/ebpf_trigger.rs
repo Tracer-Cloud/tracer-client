@@ -21,9 +21,6 @@ pub struct ProcessStartTrigger {
     pub comm: String,
     /// Command arguments (the first element is the command)
     pub argv: Vec<String>,
-    /// Selected environment variables (key-value pairs)
-    /// Currently, only TRACER_TRACE_ID is supported
-    pub env: Vec<(String, String)>,
     /// Command string (from concatenating argv)
     pub command_string: String,
     /// Command start time
@@ -39,14 +36,12 @@ fn unquote(mut argv: Vec<String>) -> Vec<String> {
     argv
 }
 
-/// TODO: create a builder rather than having multiple constructors
 impl ProcessStartTrigger {
     pub fn from_bpf_event(
         pid: u32,
         ppid: u32,
         comm: &str,
         argv: Vec<String>,
-        env: Vec<(String, String)>,
         timestamp_ns: u64,
     ) -> Self {
         const NS_PER_SEC: u64 = 1_000_000_000;
@@ -56,7 +51,6 @@ impl ProcessStartTrigger {
             comm: comm.to_string(),
             command_string: join_args(&argv),
             argv: unquote(argv),
-            env,
             started_at: DateTime::from_timestamp(
                 (timestamp_ns / NS_PER_SEC) as i64,
                 (timestamp_ns % NS_PER_SEC) as u32,
@@ -78,7 +72,6 @@ impl ProcessStartTrigger {
             comm: name.to_string(),
             command_string: join_args(&argv),
             argv: unquote(argv),
-            env: Vec::new(),
             started_at: Utc::now(),
         }
     }
@@ -91,18 +84,9 @@ impl ProcessStartTrigger {
             ppid,
             comm,
             argv: unquote(argv),
-            env: Vec::new(),
             command_string: command_string.to_string(),
             started_at: Utc::now(),
         }
-    }
-
-    /// Returns the value of the specified variable from the process' environment, if present
-    pub fn get_env_var(&self, key: &str) -> Option<&str> {
-        self.env
-            .iter()
-            .find(|(k, _)| k == key)
-            .map(|(_, v)| v.as_str())
     }
 }
 
@@ -129,16 +113,6 @@ pub enum Trigger {
     ProcessEnd(ProcessEndTrigger),
     OutOfMemory(OutOfMemoryTrigger),
 }
-
-//                 let signaled = (status & 0x7f) != 0;   // nonzero => terminated by signal
-//                 let dumped   = signaled && (code & 0x80);
-
-//   if (signaled) {
-
-//     ;
-//   } else {
-//     e->sched__sched_process_exit__payload.exit_code =
-//   }
 
 /// Exit code along with short reason and longer explanation.
 ///
