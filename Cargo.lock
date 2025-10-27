@@ -4152,6 +4152,7 @@ dependencies = [
  "hyper 1.7.0",
  "itertools 0.14.0",
  "jsonwebtoken",
+ "log",
  "mockall",
  "nix",
  "once_cell",
