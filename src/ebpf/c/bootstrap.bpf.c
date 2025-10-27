@@ -24,7 +24,7 @@ const volatile int key_lens[MAX_KEYS] = {
 struct
 {
   __uint(type, BPF_MAP_TYPE_RINGBUF);
-  __uint(max_entries, 256 * 1024);
+  __uint(max_entries, 8 * 1024 * 1024);
 } rb SEC(".maps");
 
 // Print in debug mode
