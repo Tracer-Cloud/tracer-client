@@ -289,16 +289,15 @@ fill_oom_mark_victim(struct event *e,
   {                                                                               \
     /* --------------------------- common prologue --------------------------- */ \
     u64 id = bpf_get_current_pid_tgid();                                          \
-    u32 pid = id >> 32;                                                           \
-    u32 tid = (u32)id;                                                            \
+    u32 tgid = id >> 32;      /* thread-group id (the process id) */             \
+    u32 pid = (u32)id;        /* actual kernel thread id (tid) */                \
                                                                                   \
-    /* For EXIT events, we want to capture thread group leader exits */          \
-    /* For EXEC events, ignore threads */                                        \
-    if (EVENT__##name != EVENT__SCHED__SCHED_PROCESS_EXIT && pid != tid)         \
+    /* For non-exit events, ignore non-leader threads (only consider group leader) */ \
+    if (EVENT__##name != EVENT__SCHED__SCHED_PROCESS_EXIT && tgid != pid)        \
       return 0;                                                                   \
                                                                                   \
-    /* For EXIT, only report when the main thread (pid == tid) exits */          \
-    if (EVENT__##name == EVENT__SCHED__SCHED_PROCESS_EXIT && pid != tid)         \
+    /* For EXIT, only report when the main thread (tgid == pid) exits */         \
+    if (EVENT__##name == EVENT__SCHED__SCHED_PROCESS_EXIT && tgid != pid)        \
       return 0;                                                                   \
                                                                                   \
     struct event *e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);                    \
@@ -311,20 +310,23 @@ fill_oom_mark_victim(struct event *e,
                                                                                   \
     e->event_type = EVENT__##name;                                                \
     e->timestamp_ns = bpf_ktime_get_ns() + system_boot_ns;                        \
-    e->pid = pid;                                                                 \
+    /* store the process id (tgid) as the logical PID for events */              \
+    e->pid = tgid;                                                                \
     e->ppid = BPF_CORE_READ(parent, tgid);                                        \
                                                                                   \
+    /* Use the leader/start-time pairing that makes upid unique: */               \
     u64 start_ns = BPF_CORE_READ(task, start_time);                               \
     u64 pstart_ns = BPF_CORE_READ(parent, start_time);                            \
     e->upid = make_upid(e->pid, start_ns);                                        \
     e->uppid = make_upid(e->ppid, pstart_ns);                                     \
                                                                                   \
-    /* ---------------------- variant‑specific section ----------------------- */ \
+    /* ---------------------- variant-specific section ----------------------- */ \
     fill_fn(e, ctx);                                                              \
                                                                                   \
     bpf_ringbuf_submit(e, 0);                                                     \
     return 0;                                                                     \
   }
+
 
 /* Instantiate one handler per EVENT_LIST entry */
 EVENT_LIST(HANDLER_DECL)
