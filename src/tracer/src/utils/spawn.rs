@@ -134,7 +134,7 @@ fn get_canonical_argv_path() -> Result<PathBuf> {
 fn validate_path_secure(path: &Path) -> io::Result<()> {
     let meta = fs::metadata(path)?;
     if !meta.is_file() {
-        return Err(io::Error::new(io::ErrorKind::Other, "not a file"));
+        return Err(io::Error::other( "not a file"));
     }
     // Walk parents and ensure no component is world-writable.
     let mut cur = path;
