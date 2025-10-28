@@ -122,9 +122,7 @@ pub enum Trigger {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ExitReason {
     pub code: i64,
-    /// If the process was terminated by a signal, the signal number and whether a core dump was
-    /// generated
-    pub term_signal: Option<(u16, bool)>,
+    pub term_signal: Option<u16>, // If the process was terminated by a signal we save the signal number
     pub reason: String,
     pub explanation: String,
 }
@@ -153,11 +151,7 @@ impl From<i64> for ExitReason {
         let status = value as u16;
         let code = ((status >> 8) & 0xff) as i64;
         let signaled = (status & 0x7f) != 0;
-        let term_signal = if signaled {
-            Some((status & 0x7f, status & 0x80 != 0))
-        } else {
-            None
-        };
+        let term_signal = if signaled { Some(status & 0x7f) } else { None };
         Self {
             code,
             term_signal,
