@@ -93,7 +93,6 @@ jobs:
       - name: Install build dependencies
         run: |
           if [[ "${{ matrix.runner }}" == *"ubuntu"* ]]; then
-              rustup toolchain install nightly-2025-04-15 --component rust-src
               sudo apt-get update
               sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm libelf-dev libssl-dev pkg-config
           fi
@@ -123,8 +122,6 @@ jobs:
 
       - name: Build the binary
         env:
-          CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
-          CARGO_INCREMENTAL: "0"
           BUILD_CHANNEL: ${{ matrix.channel }}
         run: cargo build --release --target ${{ matrix.target }} -p tracer -p tracer-installer
 
@@ -195,7 +192,6 @@ jobs:
           rustup toolchain install 1.89.0 --profile minimal
           rustup component add clippy
           rustup component add rustfmt
-          rustup toolchain install nightly-2025-04-15 --component rust-src
 
       - name: Check out repository with submodules
         uses: actions/checkout@v4.1.4
