@@ -134,5 +134,5 @@ pub fn get_aws_default_profile() -> String {
             }
         }
     }
-        .to_string()
+    .to_string()
 }

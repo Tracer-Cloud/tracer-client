@@ -2,6 +2,7 @@ use crate::cli::handlers::init_arguments::FinalizedInitArgs;
 use crate::client::events::init_run;
 use crate::client::exporters::client_export_manager::ExporterManager;
 use crate::client::exporters::event_writer::LogWriterEnum;
+use crate::cloud_providers::aws::config::{get_aws_default_profile, AwsConfig};
 use crate::cloud_providers::aws::pricing::PricingSource;
 use crate::config::Config;
 use crate::daemon::structs::{PipelineMetadata, RunSnapshot};
@@ -22,7 +23,6 @@ use tokio::sync::Mutex;
 use tokio::sync::{mpsc, RwLock};
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
-use crate::cloud_providers::aws::config::{AwsConfig, get_aws_default_profile};
 
 pub struct TracerClient {
     system: Arc<RwLock<System>>, // todo: use arc swap
