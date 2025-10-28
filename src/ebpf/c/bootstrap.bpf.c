@@ -11,14 +11,6 @@
 // .rodata: globals tunable from user space
 const volatile bool debug_enabled SEC(".rodata") = false;
 const volatile u64 system_boot_ns SEC(".rodata") = 0;
-const volatile char keys[MAX_KEYS][KEY_MAX_LEN] = {
-    "TRACER_TRACE_ID=",
-    /* add more (up to MAX_KEYS) */
-};
-const volatile int key_lens[MAX_KEYS] = {
-    16,
-    /* add more (up to MAX_KEYS) */
-};
 
 // Ring buffer interface to user‑space reader (bootstrap.c)
 struct
@@ -56,39 +48,6 @@ static __always_inline int startswith(const char *s, const char *p, int plen)
   return 1;
 }
 
-/* Tries to match the key with index `idx` against `str` - if they match, the value of the
- * environment variable is stored in the event payload. Returns `1` if a match was found,
- * `0` otherwise.
- */
-static __always_inline int store_env_val(struct event *e, int idx, char *str, int str_len)
-{
-  // check if we've already found the key
-  if (e->sched__sched_process_exec__payload.env_found_mask & (1u << idx))
-    return 0;
-  // Ensure candidate string is at least key_len and matches prefix
-  const int key_len = key_lens[idx];
-  if (str_len < key_len)
-    return 0;
-  if (!startswith(str, keys[idx], key_len))
-    return 0;
-  // Copy value (portion after key)
-  const char *val = str + key_len;
-  // strncpy is not allowed; do bounded byte-wise copy
-#pragma clang loop unroll(disable)
-  for (int b = 0; b < VAL_MAX_LEN - 1; b++)
-  {
-    char c = val[b];
-    e->sched__sched_process_exec__payload.env_values[idx][b] = c;
-    if (c == '\0')
-      break;
-  }
-  // make sure the value is null terminated
-  e->sched__sched_process_exec__payload.env_values[idx][VAL_MAX_LEN - 1] = '\0';
-  // mark the key as found
-  e->sched__sched_process_exec__payload.env_found_mask |= (1u << idx);
-  return 1;
-}
-
 /* -------------------------------------------------------------------------- */
 /*                         1.  Event registration table                       */
 /* -------------------------------------------------------------------------- */
@@ -104,23 +63,8 @@ static __always_inline int store_env_val(struct event *e, int idx, char *str, in
     "tracepoint/sched/sched_process_exec", fill_sched_process_exec)                                            \
   X(SCHED__SCHED_PROCESS_EXIT, trace_event_raw_sched_process_template,                                         \
     "tracepoint/sched/sched_process_exit", fill_sched_process_exit)                                            \
-  /* TODO: cannot attach psi_memstall_enter */                                                                 \
-  /* X(SCHED__PSI_MEMSTALL_ENTER, trace_event_raw_psi_memstall,                */                              \
-  /*   "tracepoint/sched/psi_memstall_enter", fill_sched_psi_memstall_enter)   */                              \
-                                                                                                               \
-  /* TODO: collecting these events triggers them, causing indirect infinite loop. BPF_RB_NO_WAKEUP will fix */ \
-  /*  X(SYSCALL__SYS_ENTER_OPENAT, trace_event_raw_sys_enter,                  */                              \
-  /*    "tracepoint/syscalls/sys_enter_openat", fill_sys_enter_openat)         */                              \
-  /*  X(SYSCALL__SYS_EXIT_OPENAT, trace_event_raw_sys_exit,                    */                              \
-  /*    "tracepoint/syscalls/sys_exit_openat", fill_sys_exit_openat)           */                              \
-  /*  X(SYSCALL__SYS_ENTER_READ, trace_event_raw_sys_enter,                    */                              \
-  /*    "tracepoint/syscalls/sys_enter_read", fill_sys_enter_read)             */                              \
-  /*  X(SYSCALL__SYS_ENTER_WRITE, trace_event_raw_sys_enter,                   */                              \
-  /*    "tracepoint/syscalls/sys_enter_write", fill_sys_enter_write)           */                              \
-                                                                                                               \
   X(VMSCAN__MM_VMSCAN_DIRECT_RECLAIM_BEGIN, trace_event_raw_vmscan_direct_reclaim_begin,                       \
     "tracepoint/vmscan/mm_vmscan_direct_reclaim_begin", fill_vmscan_mm_vmscan_direct_reclaim_begin)            \
-                                                                                                               \
   X(OOM__MARK_VICTIM, trace_event_raw_mark_victim,                                                             \
     "tracepoint/oom/mark_victim", fill_oom_mark_victim)
 
@@ -159,39 +103,6 @@ fill_sched_process_exec(struct event *e,
       break;
     e->sched__sched_process_exec__payload.argc++;
     arg_ptr += n; // jump over NUL byte
-  }
-
-  env_start = BPF_CORE_READ(mm, env_start);
-  env_end = BPF_CORE_READ(mm, env_end);
-  if (env_end <= env_start)
-    return;
-
-  /* Walk env block: NUL-terminated strings packed back-to-back */
-  unsigned long p = env_start;
-  int scanned_bytes = 0;
-  int found = 0;
-
-#pragma clang loop unroll(disable)
-  for (int i = 0; i < MAX_ENV_STRS; i++)
-  {
-    if (p >= env_end)
-      break;
-    if (scanned_bytes >= MAX_SCAN_BYTES)
-      break;
-    char str[KEY_MAX_LEN + VAL_MAX_LEN]; /* room for key+value */
-    long bytes_remaining = env_end - p;
-    long read_len = bytes_remaining < sizeof(str) ? bytes_remaining : sizeof(str);
-    long n = bpf_probe_read_user_str(str, read_len, (void *)p);
-    p += (unsigned long)n;
-    scanned_bytes += (int)n;
-    if (n <= 1) /* invalid or empty string */
-      continue;
-
-    if (store_env_val(e, 0, str, n))
-      found++;
-
-    if (found >= MAX_KEYS)
-      break;
   }
 }
 

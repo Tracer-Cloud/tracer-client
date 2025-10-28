@@ -37,7 +37,6 @@ git2.workspace = true
 itertools.workspace = true
 mockall.workspace = true
 nix.workspace = true
-percent-encoding.workspace = true
 rand.workspace = true
 regex.workspace = true
 reqwest.workspace = true
@@ -61,17 +60,12 @@ uuid.workspace = true
 which.workspace = true
 yaml-rust2.workspace = true
 jsonwebtoken.workspace = true
-once_cell.workspace = true
-hyper.workspace = true
 
 tempfile = { workspace = true, optional = true }
-log = "0.4.28"
 
 [dev-dependencies]
-dotenvy.workspace = true
 pretty_assertions_sorted.workspace = true
 rstest.workspace = true
-serial_test.workspace = true
 tempfile.workspace = true
 uuid.workspace = true
 

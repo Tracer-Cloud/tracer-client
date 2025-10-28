@@ -22,6 +22,7 @@ use tokio::sync::Mutex;
 use tokio::sync::{mpsc, RwLock};
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
+use crate::cloud_providers::aws::config::{AwsConfig, get_aws_default_profile};
 
 pub struct TracerClient {
     system: Arc<RwLock<System>>, // todo: use arc swap
@@ -48,7 +49,7 @@ impl TracerClient {
     ) -> Result<TracerClient> {
         info!("Initializing TracerClient");
 
-        let pricing_client = Self::init_pricing_client(&config).await;
+        let pricing_client = Self::init_pricing_client().await;
 
         let pipeline = Arc::new(Mutex::new(PipelineMetadata::new(&cli_args)));
 
@@ -108,8 +109,8 @@ impl TracerClient {
         })
     }
 
-    async fn init_pricing_client(config: &Config) -> PricingSource {
-        PricingSource::new(config.aws_init_type.clone()).await
+    async fn init_pricing_client() -> PricingSource {
+        PricingSource::new(AwsConfig::Profile(get_aws_default_profile()).clone()).await
     }
 
     fn init_event_dispatcher(

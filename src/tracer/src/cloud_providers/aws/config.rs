@@ -119,3 +119,20 @@ pub async fn resolve_available_aws_config(profile: AwsConfig, region: &str) -> O
     tracing::warn!("Could not resolve AWS credentials from profile or environment.");
     None
 }
+
+pub fn get_aws_default_profile() -> String {
+    match dirs_next::home_dir() {
+        None => "default",
+        Some(path) => {
+            if std::fs::read_to_string(path.join(".aws/credentials"))
+                .unwrap_or_default()
+                .contains("[me]")
+            {
+                "me"
+            } else {
+                "default"
+            }
+        }
+    }
+        .to_string()
+}
