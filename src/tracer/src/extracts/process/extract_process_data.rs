@@ -94,19 +94,8 @@ pub async fn gather_process_data<P: ProcessTrait>(
     // get the process environment variables
     let (container_id, job_id, process_trace_id) = get_process_environment_variables(proc);
 
-    // if we have both a bpf_trace_id and a process_trace_id, we use the process_trace_id as it is more attendible
-    // to resolve trace_id - prefer the proc value if we have it as sometimes the eBPF value
-    // gets corrupted, warn if the values differ
-    let trace_id = if process_trace_id.is_some() {
-        let process_trace_id_unrwapped = process_trace_id.unwrap();
-        if is_valid_uuid(&process_trace_id_unrwapped) {
-            Some(process_trace_id_unrwapped)
-        } else {
-            None
-        }
-    } else {
-        None
-    };
+    // checking if we have a trace_id and it's a valid uuid
+    let trace_id = process_trace_id.filter(|trace_id| is_valid_uuid(trace_id));
 
     // get the process working directory
     let process_working_directory = proc.cwd().as_ref().map(|p| p.to_string_lossy().to_string());
