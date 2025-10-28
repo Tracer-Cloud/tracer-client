@@ -6,12 +6,6 @@
 #define MAX_ARR_LEN 16
 #define MAX_STR_LEN 128
 
-#define MAX_KEYS 1          /* how many env vars to capture */
-#define KEY_MAX_LEN 16      /* max key name length incl '=' */
-#define VAL_MAX_LEN 128     /* max captured value length (bytes) */
-#define MAX_ENV_STRS 128    /* max env strings to scan */
-#define MAX_SCAN_BYTES 4096 /* hard cap on bytes scanned */
-
 typedef unsigned long long u64;
 typedef unsigned int u32;
 
@@ -38,8 +32,6 @@ struct sched__sched_process_exec__payload
     char comm[TASK_COMM_LEN];
     u32 argc;
     char argv[MAX_ARR_LEN][MAX_STR_LEN];
-    u32 env_found_mask;                     // bit j == 1 => env_values[j] is populated
-    char env_values[MAX_KEYS][VAL_MAX_LEN]; // Environment variables
 };
 
 struct sched__sched_process_exit__payload

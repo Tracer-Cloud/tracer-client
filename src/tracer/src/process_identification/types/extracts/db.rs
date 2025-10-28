@@ -65,9 +65,6 @@ impl TryFrom<Event> for EventInsert {
                     job_id = process_properties.job_id.clone();
                     trace_id = process_properties.trace_id.clone();
                 }
-                EventAttributes::CompletedProcess(completed_process) => {
-                    trace_id = completed_process.trace_id.clone();
-                }
                 EventAttributes::SystemMetric(system_metric) => {
                     cpu_usage = Some(system_metric.system_cpu_utilization);
                     mem_used = Some(system_metric.system_memory_used as f64);

@@ -6,6 +6,7 @@ use reqwest::Client;
 use std::collections::HashMap;
 use tokio_retry::strategy::{jitter, ExponentialBackoff};
 use tokio_retry::Retry;
+use tracing::error;
 
 pub fn spawn_event(
     user_id: String,
@@ -48,7 +49,7 @@ pub async fn send_event(
         if res.status().is_success() {
             Ok(())
         } else {
-            eprintln!(
+            error!(
                 "Failed to send analytics event: {} [{}]",
                 event.as_str(),
                 res.status()

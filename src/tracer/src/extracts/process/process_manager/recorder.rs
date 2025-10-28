@@ -7,7 +7,6 @@ use crate::process_identification::target_pipeline::pipeline_manager::TaskMatch;
 use crate::process_identification::types::event::attributes::process::ProcessProperties;
 use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::ProcessStatus as TracerProcessStatus;
-use crate::utils::env;
 use crate::utils::string_validation::is_valid_uuid;
 use anyhow::Result;
 use chrono::Utc;
@@ -16,7 +15,7 @@ use std::sync::Arc;
 use sysinfo::Process;
 use tokio::sync::RwLock;
 use tracer_ebpf::ebpf_trigger::{ProcessEndTrigger, ProcessStartTrigger};
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 
 /// Handles recording of process-related events
 pub struct EventRecorder {
@@ -62,7 +61,6 @@ impl EventRecorder {
                     display_name.clone(),
                     process.started_at,
                     &process.argv,
-                    &process.env,
                 )
                 .await
             }
@@ -138,7 +136,6 @@ impl EventRecorder {
             display_name.clone(),
             process.started_at,
             &process.argv,
-            &process.env,
         )
         .await;
 
@@ -168,21 +165,10 @@ impl EventRecorder {
             .try_into()
             .unwrap_or(0);
 
-        error!(
-            "record_process_completion: START: finish trigger: {:?}",
+        info!(
+            "record_process_completion: finish trigger: {:?}",
             finish_trigger
         );
-
-        let mut trace_id = start_trigger
-            .env
-            .iter()
-            .find(|(k, _)| k == env::TRACE_ID_ENV_VAR)
-            .map(|(_, environment_variable_value)| environment_variable_value.to_owned());
-
-        // validating the trace id, it is set only if it's a valid uuid
-        if trace_id.is_some() && !is_valid_uuid(trace_id.as_ref().unwrap()) {
-            trace_id = None;
-        }
 
         let completed_process_run_time_milliseconds = (finish_trigger.finished_at
             - start_trigger.started_at)
@@ -202,7 +188,6 @@ impl EventRecorder {
                 exit_reason: finish_trigger.exit_reason.clone(),
                 started_at: start_trigger.started_at,
                 ended_at: finish_trigger.finished_at,
-                trace_id,
                 process_run_time: completed_process_run_time_milliseconds,
                 tool_args: start_trigger.argv.join(" "),
             };

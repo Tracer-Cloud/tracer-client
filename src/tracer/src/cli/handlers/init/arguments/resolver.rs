@@ -83,8 +83,8 @@ impl ArgumentResolver {
     }
 
     async fn decode_token(&mut self, token: Option<String>, platform: &str) -> Option<Claims> {
-        if token.is_some() {
-            let token_claims = is_jwt_valid(token.unwrap().as_str(), platform).await;
+        if let Some(token_result) = token {
+            let token_claims = is_jwt_valid(&token_result, platform).await;
             if token_claims.0 {
                 Some(token_claims.1.unwrap())
             } else {

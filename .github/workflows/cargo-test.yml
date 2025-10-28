@@ -24,8 +24,7 @@ jobs:
 
       - name: Setup Rust toolchain
         run: |
-          rustup toolchain install stable --profile minimal
-          rustup toolchain install nightly-2025-04-15 --component rust-src
+          rustup toolchain install 1.89.0 --profile minimal
           rustup component add clippy
           rustup component add rustfmt
 
