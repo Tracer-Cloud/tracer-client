@@ -73,6 +73,8 @@ fn build_spawn_args(args: &FinalizedInitArgs) -> Vec<String> {
         args.log_level.clone(),
         "--organization-slug".to_string(),
         args.tags.organization_slug.clone(),
+        "--user-full-name".to_string(),
+        args.tags.user_full_name.clone(),
     ];
 
     if args.tags.organization_id.is_some() {
