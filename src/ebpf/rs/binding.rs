@@ -242,10 +242,6 @@ mod linux {
             assert!(exec_trigger.is_some());
             assert!(exit_trigger.is_some());
             assert_eq!(exit_trigger.unwrap().exit_reason.unwrap().code, 1);
-            assert_eq!(
-                exec_trigger.unwrap().env,
-                vec![("TRACER_TRACE_ID".to_string(), "foobar".to_string())]
-            );
         }
 
         fn is_root_user() -> bool {

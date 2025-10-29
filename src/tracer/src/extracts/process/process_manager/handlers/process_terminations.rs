@@ -18,6 +18,10 @@ impl ProcessTerminationHandler {
     ) -> Result<()> {
         debug!("Processing {} process terminations", triggers.len());
 
+        for trigger in &triggers {
+            debug!("Processing termination trigger: {:?}", trigger);
+        }
+
         // Remove terminated processes from the state
         Self::remove_processes_from_state(state_manager, &triggers).await?;
 
@@ -28,7 +32,10 @@ impl ProcessTerminationHandler {
         // Find all processes that we were monitoring that have terminated
         let terminated_processes: HashMap<String, Vec<ProcessStartTrigger>> = {
             let mut state = state_manager.get_state_mut().await;
+
             let monitoring = state.get_monitoring_mut();
+
+            debug!("Monitoring processes: {:?}", monitoring);
 
             monitoring
                 .iter_mut()
@@ -77,6 +84,7 @@ impl ProcessTerminationHandler {
         triggers: &[ProcessEndTrigger],
     ) -> Result<()> {
         for trigger in triggers.iter() {
+            debug!("Removing process from state: {:?}", trigger);
             state_manager.remove_process(&trigger.pid).await;
         }
         Ok(())

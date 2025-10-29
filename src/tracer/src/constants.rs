@@ -1,6 +1,3 @@
-use crate::cloud_providers::aws::types::aws_region::AwsRegion;
-use crate::cloud_providers::aws::types::aws_region::AwsRegion::UsEast2;
-
 pub mod environment;
 
 pub const PROCESS_POLLING_INTERVAL_MS: u64 = 5;
@@ -19,8 +16,6 @@ pub const DASHBOARD_BASE_PROD: &str =
     "https://sandbox.tracer.cloud/{organization-slug}/run-overview/{pipeline-name}/{trace-id}";
 pub const DASHBOARD_BASE_DEV: &str =
     "https://dev.sandbox.tracer.cloud/{organization-slug}/run-overview/{pipeline-name}/{trace-id}";
-
-pub const AWS_REGION: AwsRegion = UsEast2;
 pub const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics-supabase";
 pub const OTEL_FORWARD_ENDPOINT: &str = "https://api.sandbox.tracer.cloud/api/public/otel-forward";
 pub const CLI_LOGIN_URL: &str = "https://sandbox.tracer.cloud/sign-in?cli=true";
