@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
 use tokio::sync::RwLock;
+use tracing::debug;
 
 /// Handles system information refresh operations
 pub struct SystemRefresher {
@@ -40,11 +41,13 @@ impl SystemRefresher {
         tokio::task::spawn_blocking(move || {
             let mut sys = system.blocking_write();
 
-            sys.refresh_processes_specifics(
+            let updated_processes = sys.refresh_processes_specifics(
                 ProcessesToUpdate::Some(&pids_for_closure),
                 true,
-                ProcessRefreshKind::everything(), // TODO(ENG-336): minimize data collected for performance
+                ProcessRefreshKind::everything(),
             );
+
+            debug!("PIDs to refresh: {}, Updated processes: {:?}", pids_for_closure.len(), updated_processes);
         })
         .await?;
 

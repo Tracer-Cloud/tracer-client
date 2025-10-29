@@ -49,6 +49,12 @@ impl ProcessMetricsHandler {
         system_refresher.refresh_system(&monitored_pids).await?;
         debug!("System data refreshed for {} PIDs", monitored_pids.len());
 
+        // debugging
+        for pid in monitored_pids.iter() {
+            debug!("Extracting metrics for PID {} before refresh", pid);
+            // let process = system
+        }
+
         // Step 3: Extract and log metrics for each monitored process
         for (target, processes) in state_manager.get_state().await.get_monitoring().iter() {
             for proc in processes {
