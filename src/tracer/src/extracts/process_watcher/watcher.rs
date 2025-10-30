@@ -139,7 +139,9 @@ impl ProcessWatcher {
         info!("Starting eBPF event processing");
 
         // refreshing sysinfo system
-        sysinfo::System::new_all();
+        let mut system = sysinfo::System::new_all();
+        system.refresh_processes(ProcessesToUpdate::All, true);
+
 
         match start_processing_events(tx) {
             Ok(_) => {
