@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::collections::HashSet;
 use std::sync::Arc;
-use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
+use sysinfo::{Pid, ProcessesToUpdate, System};
 use tokio::sync::RwLock;
 
 /// Handles system information refresh operations
