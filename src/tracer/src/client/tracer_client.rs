@@ -91,7 +91,7 @@ impl TracerClient {
 
         Ok(TracerClient {
             // if putting a value to config, also update `TracerClient::reload_config_file`
-            system: Arc::new(RwLock::new(System::new())),
+            system: Arc::new(RwLock::new(System::new_all())),
             cancellation_token,
             metrics_collector,
             process_watcher,
@@ -149,6 +149,8 @@ impl TracerClient {
                     match self.process_watcher.start_ebpf().await {
                         Ok(_) => {
                             info!("eBPF monitoring started successfully");
+                            // allow sysinfo to accumulate initial deltas for CPU/IO
+                            tokio::time::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL).await;
                             Ok(())
                         }
                         Err(e) => {

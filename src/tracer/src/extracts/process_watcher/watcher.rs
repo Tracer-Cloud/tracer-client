@@ -165,6 +165,45 @@ impl ProcessWatcher {
                     process_manager.set_ebpf_task(task).await;
                 });
                 info!("eBPF monitoring task initialized successfully");
+                //
+                // // One-time procfs backfill: seed already-running processes so metrics begin immediately
+                // let watcher = Arc::clone(&self);
+                // tokio::spawn(async move {
+                //     info!("Performing one-time procfs backfill for existing processes");
+                //     let mut system = sysinfo::System::new_all();
+                //     system.refresh_processes(ProcessesToUpdate::All, true);
+                //
+                //     let mut triggers: Vec<Trigger> = Vec::new();
+                //     for (pid, process) in system.processes() {
+                //         let pid_u32 = pid.as_u32();
+                //
+                //         // Collect argv from sysinfo; if empty, fallback to ps
+                //         let mut argv: Vec<String> = process
+                //             .cmd()
+                //             .iter()
+                //             .map(|arg| arg.to_string_lossy().to_string())
+                //             .collect();
+                //         if argv.is_empty() {
+                //             argv = get_process_argv(pid_u32 as i32);
+                //         }
+                //
+                //         let start_trigger = ProcessStartTrigger::from_name_and_args(
+                //             pid_u32 as usize,
+                //             process.parent().map(|p| p.as_u32()).unwrap_or(0) as usize,
+                //             <&str>::try_from(process.name()).unwrap_or("unknown"),
+                //             &argv,
+                //         );
+                //         triggers.push(Trigger::ProcessStart(start_trigger));
+                //     }
+                //
+                //     if !triggers.is_empty() {
+                //         if let Err(err) = watcher.process_triggers(triggers).await {
+                //             error!("Backfill trigger processing failed: {}", err);
+                //         } else {
+                //             info!("Backfill completed");
+                //         }
+                //     }
+                // });
             }
             Err(_) => {
                 error!("Failed to initialize eBPF monitoring task - not in a tokio runtime");
