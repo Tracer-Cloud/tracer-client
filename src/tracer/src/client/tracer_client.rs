@@ -2,6 +2,7 @@ use crate::cli::handlers::init_arguments::FinalizedInitArgs;
 use crate::client::events::init_run;
 use crate::client::exporters::client_export_manager::ExporterManager;
 use crate::client::exporters::event_writer::LogWriterEnum;
+use crate::cloud_providers::aws::config::{get_aws_default_profile, AwsConfig};
 use crate::cloud_providers::aws::pricing::PricingSource;
 use crate::config::Config;
 use crate::daemon::structs::{PipelineMetadata, RunSnapshot};
@@ -48,7 +49,7 @@ impl TracerClient {
     ) -> Result<TracerClient> {
         info!("Initializing TracerClient");
 
-        let pricing_client = Self::init_pricing_client(&config).await;
+        let pricing_client = Self::init_pricing_client().await;
 
         let pipeline = Arc::new(Mutex::new(PipelineMetadata::new(&cli_args)));
 
@@ -108,8 +109,8 @@ impl TracerClient {
         })
     }
 
-    async fn init_pricing_client(config: &Config) -> PricingSource {
-        PricingSource::new(config.aws_init_type.clone()).await
+    async fn init_pricing_client() -> PricingSource {
+        PricingSource::new(AwsConfig::Profile(get_aws_default_profile()).clone()).await
     }
 
     fn init_event_dispatcher(

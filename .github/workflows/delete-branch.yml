@@ -1,8 +1,7 @@
 name: Delete Branch S3 Assets
 
 on:
-  delete:               # fires when any branch or tag is deleted
-    # No filters needed; we’ll bail out for tags inside the job
+  delete: # fires when any branch or tag is deleted
 
 jobs:
   cleanup-s3-folder:

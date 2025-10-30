@@ -91,28 +91,12 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                     args.push(from_bpf_str(&payload.argv[i])?.to_string());
                 }
 
-                let env = ENV_KEYS
-                    .iter()
-                    .enumerate()
-                    .take(MAX_ENV_LEN)
-                    .filter_map(|(i, key)| {
-                        if payload.env_found_mask & (1 << i) != 0 {
-                            let key = key.to_string();
-                            if let Some(value) = env_val(&payload.env_values[i]) {
-                                return Some((key, value));
-                            }
-                        }
-                        None
-                    })
-                    .collect();
-
                 Ok(ebpf_trigger::Trigger::ProcessStart(
                     ebpf_trigger::ProcessStartTrigger::from_bpf_event(
                         self.pid,
                         self.ppid,
                         comm,
                         args,
-                        env,
                         self.timestamp_ns,
                     ),
                 ))

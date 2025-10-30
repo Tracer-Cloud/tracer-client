@@ -103,15 +103,10 @@ pub async fn login(mut platform: &str) -> Result<String, Box<dyn std::error::Err
 
     let claims = jwt_validation_result.1.unwrap();
 
-    let user_name = if claims.full_name.is_none() {
-        "".to_string()
-    } else {
-        format!(
-            " {}",
-            &claims.full_name.unwrap().split(" ").collect::<Vec<&str>>()[0]
-        )
-        // getting only the first name
-    };
+    let user_name = format!(
+        " {}",
+        &claims.full_name.split(" ").collect::<Vec<&str>>()[0]
+    ); // getting only the first name
 
     // cancel the server now that we have the token
     cancellation_token.cancel();

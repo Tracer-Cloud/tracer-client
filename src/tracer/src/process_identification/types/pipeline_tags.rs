@@ -57,6 +57,9 @@ pub struct PipelineTags {
 
     #[clap(long, default_value = "")]
     pub organization_slug: String,
+
+    #[clap(long, default_value = "")]
+    pub user_full_name: String,
 }
 
 impl Default for PipelineTags {
@@ -73,6 +76,7 @@ impl Default for PipelineTags {
             others: vec![],
             email: None,
             organization_slug: "".into(),
+            user_full_name: "".into(),
         }
     }
 }

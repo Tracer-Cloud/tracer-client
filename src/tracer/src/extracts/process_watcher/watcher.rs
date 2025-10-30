@@ -261,6 +261,11 @@ impl ProcessWatcher {
             }
         }
 
+        // Process start triggers
+        self.trigger_processor
+            .process_process_start_triggers(process_start_triggers)
+            .await?;
+
         // Process out of memory triggers
         self.trigger_processor
             .process_out_of_memory_triggers(out_of_memory_triggers)
@@ -269,11 +274,6 @@ impl ProcessWatcher {
         // Process end triggers
         self.trigger_processor
             .process_process_end_triggers(process_end_triggers)
-            .await?;
-
-        // Process start triggers
-        self.trigger_processor
-            .process_process_start_triggers(process_start_triggers)
             .await?;
 
         Ok(())
