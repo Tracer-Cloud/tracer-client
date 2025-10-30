@@ -32,6 +32,7 @@ impl ArgumentResolver {
 
         let mut user_id: String = "".to_string();
         let organization_id: String;
+        let mut user_name: String = "".to_string();
 
         if self.args.tags.user_id.is_none() {
             let token_claims_option = self.decode_token(self.args.token.clone(), platform).await;
@@ -43,6 +44,10 @@ impl ArgumentResolver {
 
             // checks on userid
             let token_claims = token_claims_option.unwrap();
+
+            // Get user_name first (borrows token_claims immutably)
+            user_name = token_claims.get_name_from_full_name();
+
             user_id = token_claims.sub.to_string();
             self.args.tags.user_id = Some(user_id.clone()); // sub is the user id
 
@@ -55,12 +60,20 @@ impl ArgumentResolver {
             // checks on email of the user
             self.args.tags.email = Some(token_claims.email);
             self.args.tags.organization_slug = token_claims.organization_slug;
+
+            // getting the user's full name from the token
+            self.args.tags.user_full_name = token_claims.full_name;
+            user_name = if !user_name.is_empty() {
+                user_name
+            } else {
+                user_id.clone()
+            };
         }
 
         // Resolve environment type first so it can be used in pipeline name generation
         self.resolve_environment_type().await;
 
-        let pipeline_name = self.resolve_pipeline_name(&prompt_mode, &user_id);
+        let pipeline_name = self.resolve_pipeline_name(&prompt_mode, user_name);
         let run_name = self.resolve_run_name();
 
         self.resolve_environment(&prompt_mode);
@@ -83,8 +96,8 @@ impl ArgumentResolver {
     }
 
     async fn decode_token(&mut self, token: Option<String>, platform: &str) -> Option<Claims> {
-        if token.is_some() {
-            let token_claims = is_jwt_valid(token.unwrap().as_str(), platform).await;
+        if let Some(token_result) = token {
+            let token_claims = is_jwt_valid(&token_result, platform).await;
             if token_claims.0 {
                 Some(token_claims.1.unwrap())
             } else {
@@ -95,7 +108,10 @@ impl ArgumentResolver {
         }
     }
 
-    fn resolve_pipeline_name(&self, prompt_mode: &PromptMode, user_id: &str) -> String {
+    fn resolve_pipeline_name(&self, prompt_mode: &PromptMode, user_name: String) -> String {
+        // we expect to create somenthing like <Name> pipeline
+        let pipeline_name_value = user_name.to_lowercase() + "_pipeline";
+
         match (self.args.pipeline_name.clone(), prompt_mode) {
             (Some(name), PromptMode::Required) => {
                 // Only prompt for confirmation in Required mode
@@ -106,11 +122,11 @@ impl ArgumentResolver {
                     })
             }
             (Some(name), _) => {
-                // If the pipeline name is "test" or "demo", expand it to include user_id
+                // If the pipeline name is "test" or "demo", expand it to include user_id or full name
                 if name == "test" {
-                    format!("test-{}", user_id)
+                    format!("test-{}", pipeline_name_value)
                 } else if name == "demo" {
-                    format!("demo-{}", user_id)
+                    format!("demo-{}", pipeline_name_value)
                 } else if name.starts_with("demo-pipeline:") {
                     // For demo pipelines with specific pipeline ID: "demo-pipeline:{pipeline_id}" -> "{environment}-demo-{pipeline_id}-{user_id}"
                     let pipeline_id = name.strip_prefix("demo-pipeline:").unwrap();
@@ -126,13 +142,13 @@ impl ArgumentResolver {
                                 .replace(")", "")
                         })
                         .unwrap_or_else(|| "local".to_string());
-                    format!("{}-demo-{}-{}", env_type, pipeline_id, user_id)
+                    format!("{}-demo-{}-{}", env_type, pipeline_id, pipeline_name_value)
                 } else {
                     name
                 }
             }
             (None, PromptMode::Minimal | PromptMode::Required) => {
-                UserPrompts::prompt_for_pipeline_name(user_id).unwrap_or_else(|| {
+                UserPrompts::prompt_for_pipeline_name(&pipeline_name_value).unwrap_or_else(|| {
                     // Generate pipeline name with environment prefix
                     let env_type = self
                         .args
@@ -146,7 +162,7 @@ impl ArgumentResolver {
                                 .replace(")", "")
                         })
                         .unwrap_or_else(|| "no-terminal".to_string());
-                    let default_name = format!("{}-{}", env_type, user_id);
+                    let default_name = format!("{}-{}", env_type, pipeline_name_value);
                     eprintln!(
                         "Warning: No terminal detected. Using generated pipeline name: '{}'",
                         default_name
@@ -155,7 +171,7 @@ impl ArgumentResolver {
                     default_name
                 })
             }
-            (None, PromptMode::None) => user_id.to_string(),
+            (None, PromptMode::None) => pipeline_name_value.to_string(),
         }
     }
 

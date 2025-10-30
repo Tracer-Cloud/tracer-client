@@ -88,38 +88,14 @@ pub async fn gather_process_data<P: ProcessTrait>(
     display_name: String,
     process_start_time: DateTime<Utc>,
     process_argv: &[String],
-    process_env: &[(String, String)],
 ) -> ProcessProperties {
     debug!("Gathering process data for {}", display_name);
-
-    // we collect the TRACER_TRACE_ID environment variable from the eBPF process environment, and
-    // might also be able to get it from the proc file system - prefer the eBPF value if we have it
-    // warn if the values differ
-    let bpf_trace_id = process_env
-        .iter()
-        .find(|(k, _)| k == env::TRACE_ID_ENV_VAR)
-        .map(|(_, v)| v.to_owned())
-        .unwrap_or_default();
 
     // get the process environment variables
     let (container_id, job_id, process_trace_id) = get_process_environment_variables(proc);
 
-    // if we have both a bpf_trace_id and a process_trace_id, we use the process_trace_id as it is more attendible
-    // to resolve trace_id - prefer the proc value if we have it as sometimes the eBPF value
-    // gets corrupted, warn if the values differ
-    let trace_id = if process_trace_id.is_some() {
-        let process_trace_id_unrwapped = process_trace_id.unwrap();
-        if is_valid_uuid(&process_trace_id_unrwapped) {
-            Some(process_trace_id_unrwapped)
-        } else {
-            None
-        }
-    } else if is_valid_uuid(&bpf_trace_id) {
-        // if we don't have a process_trace_id, we use the bpf_trace_id if it's in a valid uuid format
-        Some(bpf_trace_id)
-    } else {
-        None
-    };
+    // checking if we have a trace_id and it's a valid uuid
+    let trace_id = process_trace_id.filter(|trace_id| is_valid_uuid(trace_id));
 
     // get the process working directory
     let process_working_directory = proc.cwd().as_ref().map(|p| p.to_string_lossy().to_string());
@@ -168,12 +144,6 @@ pub fn create_short_lived_process_object(
     process: &ProcessStartTrigger,
     display_name: String,
 ) -> ProcessProperties {
-    let trace_id = process
-        .env
-        .iter()
-        .find(|(k, _)| k == env::TRACE_ID_ENV_VAR)
-        .map(|(_, v)| v.to_owned());
-
     ProcessProperties::Full(Box::new(FullProcessProperties {
         tool_name: display_name,
         tool_pid: process.pid.to_string(),
@@ -194,7 +164,7 @@ pub fn create_short_lived_process_object(
         container_id: None,
         job_id: None,
         working_directory: None,
-        trace_id,
+        trace_id: None,
         container_event: None,
         tool_id: construct_tool_id(&process.pid.to_string(), process.started_at),
     }))
@@ -462,14 +432,8 @@ mod tests {
         let display_name = "Test Application".to_string();
         let process_start_time = Utc::now() - Duration::seconds(30);
 
-        let result = gather_process_data(
-            &mock_process,
-            display_name.clone(),
-            process_start_time,
-            &[],
-            &[],
-        )
-        .await;
+        let result =
+            gather_process_data(&mock_process, display_name.clone(), process_start_time, &[]).await;
 
         // Verify the result
         match result {
@@ -532,14 +496,8 @@ mod tests {
         let display_name = "Minimal App".to_string();
         let process_start_time = Utc::now();
 
-        let result = gather_process_data(
-            &mock_process,
-            display_name.clone(),
-            process_start_time,
-            &[],
-            &[],
-        )
-        .await;
+        let result =
+            gather_process_data(&mock_process, display_name.clone(), process_start_time, &[]).await;
 
         // Verify the result handles None values correctly
         match result {
@@ -592,7 +550,7 @@ mod tests {
         let process_start_time = Utc::now() - Duration::minutes(5);
 
         let result =
-            gather_process_data(&mock_process, display_name, process_start_time, &[], &[]).await;
+            gather_process_data(&mock_process, display_name, process_start_time, &[]).await;
 
         match result {
             ProcessProperties::Full(props) => {

@@ -1,5 +1,3 @@
-pub use crate::cloud_providers::aws::s3::S3Client;
-pub use crate::cloud_providers::aws::secrets::SecretsClient;
 use aws_config::{BehaviorVersion, Region, SdkConfig};
 use aws_credential_types::provider::ProvideCredentials;
 use config::{Value, ValueKind};
@@ -119,4 +117,21 @@ pub async fn resolve_available_aws_config(profile: AwsConfig, region: &str) -> O
 
     tracing::warn!("Could not resolve AWS credentials from profile or environment.");
     None
+}
+
+pub fn get_aws_default_profile() -> String {
+    match dirs_next::home_dir() {
+        None => "default",
+        Some(path) => {
+            if std::fs::read_to_string(path.join(".aws/credentials"))
+                .unwrap_or_default()
+                .contains("[me]")
+            {
+                "me"
+            } else {
+                "default"
+            }
+        }
+    }
+    .to_string()
 }

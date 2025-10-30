@@ -159,11 +159,11 @@ impl OtelUtils {
     }
 
     pub fn read_log_file_content(file_path: &TrustedFile) -> String {
-        file_path
-            .exists()
-            .unwrap_or(false)
-            .then(|| file_path.read_to_string().unwrap_or_default())
-            .unwrap_or_else(|| "No log details available".to_string())
+        if file_path.exists().unwrap_or(false) {
+            file_path.read_to_string().unwrap_or_default()
+        } else {
+            "No log details available".to_string()
+        }
     }
 
     pub fn get_platform_info() -> Result<(&'static str, &'static str)> {
