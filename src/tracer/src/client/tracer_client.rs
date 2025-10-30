@@ -151,8 +151,6 @@ impl TracerClient {
                     match self.process_watcher.start_ebpf().await {
                         Ok(_) => {
                             info!("eBPF monitoring started successfully");
-                            // allow sysinfo to accumulate initial deltas for CPU/IO
-                            tokio::time::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL).await;
                             Ok(())
                         }
                         Err(e) => {

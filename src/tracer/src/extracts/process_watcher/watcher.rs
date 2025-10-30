@@ -191,6 +191,9 @@ impl ProcessWatcher {
             buffer.clear();
             debug!("Ready to receive triggers");
 
+            let mut system = sysinfo::System::new_all();
+            system.refresh_processes(ProcessesToUpdate::All, true);
+
             // Since UnboundedReceiver doesn't have recv_many, we need to use a different approach
             // Try to receive a single event with timeout to avoid blocking forever
             match tokio::time::timeout(std::time::Duration::from_secs(5), rx.recv()).await {
