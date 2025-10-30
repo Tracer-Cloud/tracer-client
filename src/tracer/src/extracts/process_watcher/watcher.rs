@@ -8,7 +8,7 @@ use anyhow::{Error, Result};
 use std::collections::{HashMap, HashSet};
 use std::fs::{self};
 use std::sync::Arc;
-use sysinfo::ProcessesToUpdate;
+use sysinfo::{Pid, ProcessesToUpdate, System};
 use tokio::sync::{mpsc, Mutex, RwLock};
 use tracer_ebpf::binding::start_processing_events;
 use tracer_ebpf::ebpf_trigger::{
@@ -252,6 +252,12 @@ impl ProcessWatcher {
                         "ProcessWatcher: received START trigger pid={}, cmd={}",
                         process_started.pid, process_started.comm
                     );
+
+                    let mut system = System::new_all();
+                    system.refresh_processes(ProcessesToUpdate::Some(&[Pid::from(process_started.pid)]), true);
+
+                    let process = system.process(Pid::from(process_started.pid));
+                    debug!("ProcessWatcher: process: {:?}", process);
 
                     process_start_triggers.push(process_started);
                 }
