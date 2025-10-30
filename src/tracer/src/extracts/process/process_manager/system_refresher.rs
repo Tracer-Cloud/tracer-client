@@ -41,17 +41,7 @@ impl SystemRefresher {
         tokio::task::spawn_blocking(move || {
             let mut sys = system.blocking_write();
 
-            let updated_processes = sys.refresh_processes_specifics(
-                ProcessesToUpdate::Some(&pids_for_closure),
-                true,
-                ProcessRefreshKind::everything(),
-            );
-
-            debug!(
-                "PIDs to refresh: {}, Updated processes: {:?}",
-                pids_for_closure.len(),
-                updated_processes
-            );
+            sys.refresh_processes(ProcessesToUpdate::All, true);
         })
         .await?;
 
