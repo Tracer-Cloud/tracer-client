@@ -135,7 +135,7 @@ impl ProcessWatcher {
         info!("Initializing eBPF monitoring");
         // Use unbounded channel for cross-runtime compatibility
         let (tx, rx) = mpsc::unbounded_channel::<Trigger>();
-
+        // let system = sysinfo::System::new_all();
         // Start the eBPF event processing
         info!("Starting eBPF event processing");
         match start_processing_events(tx) {

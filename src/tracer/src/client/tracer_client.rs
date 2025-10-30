@@ -25,18 +25,15 @@ use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
 pub struct TracerClient {
-    system: Arc<RwLock<System>>, // todo: use arc swap
-
+    system: Arc<RwLock<System>>,
     pub process_watcher: Arc<ProcessWatcher>,
     docker_watcher: Arc<DockerWatcher>,
     pub cancellation_token: CancellationToken,
     metrics_collector: SystemMetricsCollector,
-
     pipeline: Arc<Mutex<PipelineMetadata>>,
     run: RunMetadata,
     config: Config,
     force_procfs: bool,
-
     pub exporter: Arc<ExporterManager>,
 }
 
@@ -54,6 +51,7 @@ impl TracerClient {
         let pipeline = Arc::new(Mutex::new(PipelineMetadata::new(&cli_args)));
 
         let system = Arc::new(RwLock::new(System::new_all()));
+
         let (run, system_properties) =
             Self::init_run(system.clone(), &cli_args.run_name, pricing_client).await;
 
@@ -81,9 +79,6 @@ impl TracerClient {
             )
             .await?;
 
-        // Initialize system info lazily to avoid blocking startup
-        let system = Arc::new(RwLock::new(System::new()));
-
         // Initialize Docker watcher lazily to avoid blocking startup
         let docker_watcher = Arc::new(DockerWatcher::new_lazy(event_dispatcher.clone()));
 
@@ -91,12 +86,12 @@ impl TracerClient {
 
         let exporter = Arc::new(ExporterManager::new(db_client, rx));
 
-        let metrics_collector = Self::init_watchers(&event_dispatcher, &system);
+        let metrics_collector = Self::init_watchers(&event_dispatcher);
         let cancellation_token = CancellationToken::new();
 
         Ok(TracerClient {
             // if putting a value to config, also update `TracerClient::reload_config_file`
-            system: system.clone(),
+            system: Arc::new(RwLock::new(System::new())),
             cancellation_token,
             metrics_collector,
             process_watcher,
@@ -132,11 +127,8 @@ impl TracerClient {
         ))
     }
 
-    fn init_watchers(
-        event_dispatcher: &EventDispatcher,
-        system: &Arc<RwLock<System>>,
-    ) -> SystemMetricsCollector {
-        SystemMetricsCollector::new(event_dispatcher.clone(), system.clone())
+    fn init_watchers(event_dispatcher: &EventDispatcher) -> SystemMetricsCollector {
+        SystemMetricsCollector::new(event_dispatcher.clone())
     }
 
     /// Starts process monitoring using eBPF if the system is running on Linux and meets kernel requirements.

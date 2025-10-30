@@ -47,7 +47,11 @@ impl SystemRefresher {
                 ProcessRefreshKind::everything(),
             );
 
-            debug!("PIDs to refresh: {}, Updated processes: {:?}", pids_for_closure.len(), updated_processes);
+            debug!(
+                "PIDs to refresh: {}, Updated processes: {:?}",
+                pids_for_closure.len(),
+                updated_processes
+            );
         })
         .await?;
 

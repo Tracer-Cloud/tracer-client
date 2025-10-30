@@ -17,10 +17,10 @@ pub struct SystemMetricsCollector {
 }
 
 impl SystemMetricsCollector {
-    pub fn new(event_dispatcher: EventDispatcher, system: Arc<RwLock<System>>) -> Self {
+    pub fn new(event_dispatcher: EventDispatcher) -> Self {
         Self {
             event_dispatcher,
-            system,
+            system: Arc::new(RwLock::new(System::new())),
         }
     }
 
@@ -144,7 +144,7 @@ mod tests {
 
         let recorder = EventDispatcher::new(pipeline, run, tx);
 
-        let collector = SystemMetricsCollector::new(recorder, Arc::new(RwLock::new(system)));
+        let collector = SystemMetricsCollector::new(recorder);
 
         collector.collect_metrics().await.unwrap();
 
