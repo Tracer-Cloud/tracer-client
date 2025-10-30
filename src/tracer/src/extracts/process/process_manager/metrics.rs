@@ -49,6 +49,13 @@ impl ProcessMetricsHandler {
         system_refresher.refresh_system(&monitored_pids).await?;
         debug!("System data refreshed for {} PIDs", monitored_pids.len());
 
+        // --- DEBUG: Log all PIDs visible in sysinfo System after refresh
+        let system = system_refresher.get_system().read().await;
+        let sysinfo_pids: Vec<_> = system.processes().keys().map(|pid| pid.as_u32()).collect();
+        debug!("All sysinfo PIDs after refresh: {:?}", sysinfo_pids);
+        debug!("Monitored PIDs: {:?}", monitored_pids);
+        drop(system);
+
         // debugging
         for pid in monitored_pids.iter() {
             debug!("Extracting metrics for PID {} before refresh", pid);

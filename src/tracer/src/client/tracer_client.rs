@@ -166,7 +166,7 @@ impl TracerClient {
                 }
                 Some((major, minor)) => {
                     warn!(
-                        "Kernel version {}.{} is too old for eBPF support (requires 5.15+), falling back to process polling",
+                        "Kernel version {}.{} too old for eBPF support (requires 5.15+)",
                         major, minor
                     );
                     self.start_process_polling().await
