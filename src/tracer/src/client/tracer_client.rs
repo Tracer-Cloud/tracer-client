@@ -82,6 +82,8 @@ impl TracerClient {
         // Initialize Docker watcher lazily to avoid blocking startup
         let docker_watcher = Arc::new(DockerWatcher::new_lazy(event_dispatcher.clone()));
 
+        let system = Arc::new(RwLock::new(System::new_all()));
+
         let process_watcher = Self::init_process_watcher(&event_dispatcher, docker_watcher.clone());
 
         let exporter = Arc::new(ExporterManager::new(db_client, rx));
@@ -91,7 +93,7 @@ impl TracerClient {
 
         Ok(TracerClient {
             // if putting a value to config, also update `TracerClient::reload_config_file`
-            system: Arc::new(RwLock::new(System::new_all())),
+            system: system.clone(),
             cancellation_token,
             metrics_collector,
             process_watcher,
