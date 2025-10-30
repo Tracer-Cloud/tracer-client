@@ -39,12 +39,7 @@ impl SystemRefresher {
         // Execute the blocking operation in a separate thread
         tokio::task::spawn_blocking(move || {
             let mut sys = system.blocking_write();
-
-            sys.refresh_processes_specifics(
-                ProcessesToUpdate::Some(&pids_for_closure),
-                true,
-                ProcessRefreshKind::everything(),
-            );
+            sys.refresh_processes(ProcessesToUpdate::All, true);
         })
         .await?;
 
