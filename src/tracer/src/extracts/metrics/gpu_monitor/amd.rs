@@ -51,7 +51,7 @@ impl AmdGpuMonitor {
                 .and_then(|s| s.trim().parse::<f32>().ok())
                 .unwrap_or(0.0);
 
-            let (memory_used, memory_total) = Self::extract_memory(card, &mem_json, gpu_id);
+            let (memory_used, memory_total) = Self::extract_memory(&mem_json, gpu_id);
 
             let memory_utilization = if memory_total > 0 {
                 (memory_used as f64 / memory_total as f64) * 100.0
@@ -92,7 +92,7 @@ impl AmdGpuMonitor {
         Ok(gpu_stats)
     }
 
-    fn extract_memory(card: &Value, mem_json: &Option<Value>, gpu_id: u32) -> (u64, u64) {
+    fn extract_memory(mem_json: &Option<Value>, gpu_id: u32) -> (u64, u64) {
         // Try memory JSON first: "VRAM Total Memory (B)" and "VRAM Total Used Memory (B)"
         if let Some(json) = mem_json {
             if let Some(obj) = json.as_object() {
