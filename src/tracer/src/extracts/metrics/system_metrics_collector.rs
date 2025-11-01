@@ -68,12 +68,11 @@ impl SystemMetricsCollector {
 
         // Collect GPU metrics
         let gpu_stats = GpuMonitor::collect_gpu_stats().unwrap_or_default();
-        let (
-            system_gpu_utilization,
-            system_gpu_memory_used,
-            system_gpu_memory_total,
-            system_gpu_memory_utilization,
-        ) = GpuMonitor::calculate_aggregate_gpu_metrics(&gpu_stats);
+        let gpu_aggregate = GpuMonitor::calculate_aggregate_gpu_metrics(&gpu_stats);
+        let system_gpu_utilization = gpu_aggregate.avg_utilization;
+        let system_gpu_memory_used = gpu_aggregate.total_memory_used;
+        let system_gpu_memory_total = gpu_aggregate.total_memory_total;
+        let system_gpu_memory_utilization = gpu_aggregate.memory_utilization;
 
         SystemMetric {
             events_name: "global_system_metrics".to_string(),
@@ -225,11 +224,11 @@ mod tests {
             },
         );
 
-        let (util, used, total, util_pct) = GpuMonitor::calculate_aggregate_gpu_metrics(&gpu_stats);
+        let stats = GpuMonitor::calculate_aggregate_gpu_metrics(&gpu_stats);
 
-        assert_eq!(util, Some(75.0));
-        assert_eq!(used, Some(1024 * 1024 * 1024));
-        assert_eq!(total, Some(4 * 1024 * 1024 * 1024));
-        assert_eq!(util_pct, Some(25.0));
+        assert_eq!(stats.avg_utilization, Some(75.0));
+        assert_eq!(stats.total_memory_used, Some(1024 * 1024 * 1024));
+        assert_eq!(stats.total_memory_total, Some(4 * 1024 * 1024 * 1024));
+        assert_eq!(stats.memory_utilization, Some(25.0));
     }
 }

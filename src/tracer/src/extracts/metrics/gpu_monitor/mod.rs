@@ -10,6 +10,14 @@ use amd::AmdGpuMonitor;
 use apple::AppleGpuMonitor;
 use nvidia::NvidiaGpuMonitor;
 
+#[derive(Debug, Clone, Default)]
+pub struct GpuAggregateStats {
+    pub avg_utilization: Option<f32>,
+    pub total_memory_used: Option<u64>,
+    pub total_memory_total: Option<u64>,
+    pub memory_utilization: Option<f64>,
+}
+
 pub struct GpuMonitor;
 
 impl GpuMonitor {
@@ -33,9 +41,9 @@ impl GpuMonitor {
 
     pub fn calculate_aggregate_gpu_metrics(
         gpu_stats: &HashMap<String, GpuStatistic>,
-    ) -> (Option<f32>, Option<u64>, Option<u64>, Option<f64>) {
+    ) -> GpuAggregateStats {
         if gpu_stats.is_empty() {
-            return (None, None, None, None);
+            return GpuAggregateStats::default();
         }
 
         let total_utilization: f32 = gpu_stats.values().map(|gpu| gpu.gpu_utilization).sum();
@@ -50,12 +58,12 @@ impl GpuMonitor {
             None
         };
 
-        (
-            Some(avg_utilization),
-            Some(total_memory_used),
-            Some(total_memory_total),
+        GpuAggregateStats {
+            avg_utilization: Some(avg_utilization),
+            total_memory_used: Some(total_memory_used),
+            total_memory_total: Some(total_memory_total),
             memory_utilization,
-        )
+        }
     }
 }
 
@@ -66,13 +74,12 @@ mod tests {
     #[test]
     fn test_calculate_aggregate_gpu_metrics_empty() {
         let empty_stats = HashMap::new();
-        let (util, used, total, util_pct) =
-            GpuMonitor::calculate_aggregate_gpu_metrics(&empty_stats);
+        let stats = GpuMonitor::calculate_aggregate_gpu_metrics(&empty_stats);
 
-        assert!(util.is_none());
-        assert!(used.is_none());
-        assert!(total.is_none());
-        assert!(util_pct.is_none());
+        assert!(stats.avg_utilization.is_none());
+        assert!(stats.total_memory_used.is_none());
+        assert!(stats.total_memory_total.is_none());
+        assert!(stats.memory_utilization.is_none());
     }
 
     #[test]
@@ -92,11 +99,11 @@ mod tests {
             },
         );
 
-        let (util, used, total, util_pct) = GpuMonitor::calculate_aggregate_gpu_metrics(&gpu_stats);
+        let stats = GpuMonitor::calculate_aggregate_gpu_metrics(&gpu_stats);
 
-        assert_eq!(util, Some(50.0));
-        assert_eq!(used, Some(1024 * 1024 * 1024));
-        assert_eq!(total, Some(2 * 1024 * 1024 * 1024));
-        assert_eq!(util_pct, Some(50.0));
+        assert_eq!(stats.avg_utilization, Some(50.0));
+        assert_eq!(stats.total_memory_used, Some(1024 * 1024 * 1024));
+        assert_eq!(stats.total_memory_total, Some(2 * 1024 * 1024 * 1024));
+        assert_eq!(stats.memory_utilization, Some(50.0));
     }
 }
