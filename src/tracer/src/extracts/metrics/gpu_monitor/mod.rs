@@ -24,10 +24,10 @@ impl GpuMonitor {
     pub fn collect_gpu_stats() -> Result<HashMap<String, GpuStatistic>> {
         let mut gpu_stats = HashMap::new();
 
-        let nvidia_handle = std::thread::spawn(|| NvidiaGpuMonitor::collect_gpu_stats());
-        let amd_handle = std::thread::spawn(|| AmdGpuMonitor::collect_gpu_stats());
+        let nvidia_handle = std::thread::spawn(NvidiaGpuMonitor::collect_gpu_stats);
+        let amd_handle = std::thread::spawn(AmdGpuMonitor::collect_gpu_stats);
         let apple_handle = if cfg!(target_os = "macos") {
-            Some(std::thread::spawn(|| AppleGpuMonitor::collect_gpu_stats()))
+            Some(std::thread::spawn(AppleGpuMonitor::collect_gpu_stats))
         } else {
             None
         };

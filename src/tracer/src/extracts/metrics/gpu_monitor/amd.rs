@@ -8,29 +8,32 @@ pub struct AmdGpuMonitor;
 
 impl AmdGpuMonitor {
     pub fn collect_gpu_stats() -> Result<HashMap<String, GpuStatistic>> {
-        let output = match Command::new("rocm-smi").args(["-a", "--json"]).output() {
-            Ok(o) => o,
-            Err(_) => return Ok(HashMap::new()),
+        let gpu_output = match Command::new("rocm-smi").args(["-a", "--json"]).output() {
+            Ok(o) if o.status.success() => o,
+            _ => return Ok(HashMap::new()),
         };
 
-        if !output.status.success() {
-            return Ok(HashMap::new());
-        }
-
-        let stdout_str = match String::from_utf8(output.stdout) {
-            Ok(s) => s,
-            Err(_) => return Ok(HashMap::new()),
+        let gpu_json: Value = match String::from_utf8(gpu_output.stdout)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+        {
+            Some(v) => v,
+            None => return Ok(HashMap::new()),
         };
 
-        let json: Value = match serde_json::from_str(&stdout_str) {
-            Ok(v) => v,
-            Err(_) => return Ok(HashMap::new()),
-        };
+        // Command: rocm-smi --showmeminfo vram --json (gets memory info)
+        let mem_output = Command::new("rocm-smi")
+            .args(["--showmeminfo", "vram", "--json"])
+            .output();
 
-        let memory_info = Self::get_memory_info();
+        let mem_json: Option<Value> = mem_output
+            .ok()
+            .filter(|o| o.status.success())
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .and_then(|s| serde_json::from_str(&s).ok());
+
         let mut gpu_stats = HashMap::new();
-
-        let obj = match json.as_object() {
+        let obj = match gpu_json.as_object() {
             Some(o) => o,
             None => return Ok(HashMap::new()),
         };
@@ -48,19 +51,15 @@ impl AmdGpuMonitor {
                 .and_then(|s| s.trim().parse::<f32>().ok())
                 .unwrap_or(0.0);
 
-            let (memory_used, memory_total) = memory_info.get(&gpu_id).copied().unwrap_or((0, 0));
-            let memory_util_pct = card
-                .get("GPU memory use (%)")
-                .and_then(|v| v.as_str())
-                .and_then(|s| s.trim().parse::<f64>().ok())
-                .unwrap_or(0.0);
+            let (memory_used, memory_total) = Self::extract_memory(card, &mem_json, gpu_id);
 
             let memory_utilization = if memory_total > 0 {
                 (memory_used as f64 / memory_total as f64) * 100.0
-            } else if memory_util_pct > 0.0 {
-                memory_util_pct
             } else {
-                0.0
+                card.get("GPU memory use (%)")
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.trim().parse::<f64>().ok())
+                    .unwrap_or(0.0)
             };
 
             let temperature = card
@@ -75,81 +74,48 @@ impl AmdGpuMonitor {
                 .unwrap_or("AMD GPU")
                 .to_string();
 
-            let gpu_stat = GpuStatistic {
-                gpu_id,
-                gpu_name: format!("{} {}", gpu_name, gpu_id),
-                gpu_type: "amd".to_string(),
-                gpu_utilization: utilization,
-                gpu_memory_used: memory_used,
-                gpu_memory_total: memory_total,
-                gpu_memory_utilization: memory_utilization,
-                gpu_temperature: temperature,
-            };
-
-            gpu_stats.insert(format!("amd_{}", gpu_id), gpu_stat);
+            gpu_stats.insert(
+                format!("amd_{}", gpu_id),
+                GpuStatistic {
+                    gpu_id,
+                    gpu_name: format!("{} {}", gpu_name, gpu_id),
+                    gpu_type: "amd".to_string(),
+                    gpu_utilization: utilization,
+                    gpu_memory_used: memory_used,
+                    gpu_memory_total: memory_total,
+                    gpu_memory_utilization: memory_utilization,
+                    gpu_temperature: temperature,
+                },
+            );
         }
 
         Ok(gpu_stats)
     }
 
-    fn get_memory_info() -> HashMap<u32, (u64, u64)> {
-        let output = match Command::new("rocm-smi")
-            .args(["--showmeminfo", "vram"])
-            .output()
-        {
-            Ok(o) => o,
-            Err(_) => return HashMap::new(),
-        };
+    fn extract_memory(card: &Value, mem_json: &Option<Value>, gpu_id: u32) -> (u64, u64) {
+        // Try memory JSON first: "VRAM Total Memory (B)" and "VRAM Total Used Memory (B)"
+        if let Some(json) = mem_json {
+            if let Some(obj) = json.as_object() {
+                if let Some(card_key) = obj.get(&format!("card{}", gpu_id)) {
+                    let total = card_key
+                        .get("VRAM Total Memory (B)")
+                        .and_then(|v| v.as_str())
+                        .and_then(|s| s.trim().parse::<u64>().ok())
+                        .unwrap_or(0);
 
-        let output_str = match String::from_utf8(output.stdout) {
-            Ok(s) => s,
-            Err(_) => return HashMap::new(),
-        };
+                    let used = card_key
+                        .get("VRAM Total Used Memory (B)")
+                        .and_then(|v| v.as_str())
+                        .and_then(|s| s.trim().parse::<u64>().ok())
+                        .unwrap_or(0);
 
-        let mut memory_info = HashMap::new();
-        let mut current_gpu = None;
-
-        for line in output_str.lines() {
-            if line.contains("GPU[") {
-                if let Some(id) = Self::extract_id(line) {
-                    if let Some((prev_id, prev_total)) = current_gpu {
-                        memory_info.insert(prev_id, (0, prev_total));
-                    }
-                    current_gpu = Some((id, 0));
-                }
-            } else if let Some(ref mut gpu) = current_gpu {
-                if line.contains("Total") && line.contains("MB") {
-                    if let Some(total_mb) = Self::extract_mb(line) {
-                        gpu.1 = total_mb * 1024 * 1024;
+                    if total > 0 {
+                        return (used, total);
                     }
                 }
             }
         }
 
-        if let Some((id, total)) = current_gpu {
-            if total > 0 {
-                memory_info.insert(id, (0, total));
-            }
-        }
-
-        memory_info
-    }
-
-    fn extract_id(line: &str) -> Option<u32> {
-        let start = line.find('[')?;
-        let end = line[start..].find(']')?;
-        line[start + 1..start + end].parse().ok()
-    }
-
-    fn extract_mb(line: &str) -> Option<u64> {
-        let parts: Vec<&str> = line.split_whitespace().collect();
-        for part in parts {
-            if let Some(num_str) = part.strip_suffix("MB") {
-                if let Ok(val) = num_str.parse::<u64>() {
-                    return Some(val);
-                }
-            }
-        }
-        None
+        (0, 0)
     }
 }

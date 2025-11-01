@@ -27,10 +27,7 @@ impl NvidiaGpuMonitor {
             Err(_) => return Ok(HashMap::new()),
         };
 
-        let stderr_str = match String::from_utf8(output.stderr) {
-            Ok(s) => s,
-            Err(_) => String::new(),
-        };
+        let stderr_str = String::from_utf8(output.stderr).unwrap_or_default();
 
         // Check if nvidia-smi failed due to driver issues (even if exit code is 0)
         if stdout_str.contains("NVIDIA-SMI has failed")
