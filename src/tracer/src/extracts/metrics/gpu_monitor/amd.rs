@@ -1,5 +1,5 @@
 use crate::process_identification::types::event::attributes::system_metrics::GpuStatistic;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::process::Command;
@@ -8,17 +8,19 @@ pub struct AmdGpuMonitor;
 
 impl AmdGpuMonitor {
     pub fn collect_gpu_stats() -> Result<HashMap<String, GpuStatistic>> {
-        let output = Command::new("rocm-smi")
-            .args(["-a", "--json"])
-            .output()
-            .context("Failed to execute rocm-smi")?;
+        let output = match Command::new("rocm-smi").args(["-a", "--json"]).output() {
+            Ok(o) => o,
+            Err(_) => return Ok(HashMap::new()),
+        };
 
         if !output.status.success() {
             return Ok(HashMap::new());
         }
 
-        let output_str =
-            String::from_utf8(output.stdout).context("Failed to parse rocm-smi output")?;
+        let output_str = match String::from_utf8(output.stdout) {
+            Ok(s) => s,
+            Err(_) => return Ok(HashMap::new()),
+        };
 
         let json: Value = match serde_json::from_str(&output_str) {
             Ok(v) => v,
@@ -85,9 +87,7 @@ impl AmdGpuMonitor {
             .unwrap_or("AMD GPU")
             .to_string();
 
-        if utilization == 0.0 && memory_used == 0 && memory_total == 0 {
-            return None;
-        }
+        // Always return GPU stat if we found a card in the JSON, even if values are 0
 
         Some(GpuStatistic {
             gpu_id,
@@ -117,7 +117,6 @@ impl AmdGpuMonitor {
 
         let mut memory_info = HashMap::new();
         let mut current_gpu = None;
-        let mut memory_total = 0u64;
 
         for line in output_str.lines() {
             if line.contains("GPU[") {
@@ -126,13 +125,11 @@ impl AmdGpuMonitor {
                         memory_info.insert(prev_id, (0, prev_total));
                     }
                     current_gpu = Some((id, 0));
-                    memory_total = 0;
                 }
             } else if let Some(ref mut gpu) = current_gpu {
                 if line.contains("Total") && line.contains("MB") {
-                    if let Some(total) = Self::extract_mb(line) {
-                        memory_total = total * 1024 * 1024;
-                        gpu.1 = memory_total;
+                    if let Some(total_mb) = Self::extract_mb(line) {
+                        gpu.1 = total_mb * 1024 * 1024;
                     }
                 }
             }
@@ -156,8 +153,7 @@ impl AmdGpuMonitor {
     fn extract_mb(line: &str) -> Option<u64> {
         let parts: Vec<&str> = line.split_whitespace().collect();
         for part in parts {
-            if part.ends_with("MB") {
-                let num_str = &part[..part.len() - 2];
+            if let Some(num_str) = part.strip_suffix("MB") {
                 if let Ok(val) = num_str.parse::<u64>() {
                     return Some(val);
                 }

@@ -1,5 +1,5 @@
 use crate::process_identification::types::event::attributes::system_metrics::GpuStatistic;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::collections::HashMap;
 use std::process::Command;
 
@@ -7,24 +7,43 @@ pub struct NvidiaGpuMonitor;
 
 impl NvidiaGpuMonitor {
     pub fn collect_gpu_stats() -> Result<HashMap<String, GpuStatistic>> {
-        let output = Command::new("nvidia-smi")
+        let output = match Command::new("nvidia-smi")
             .args([
                 "--query-gpu=index,name,utilization.gpu,memory.used,memory.total,temperature.gpu",
                 "--format=csv,noheader,nounits",
             ])
             .output()
-            .context("Failed to execute nvidia-smi")?;
+        {
+            Ok(o) => o,
+            Err(_) => return Ok(HashMap::new()),
+        };
 
         if !output.status.success() {
-            return Err(anyhow::anyhow!("nvidia-smi command failed"));
+            return Ok(HashMap::new());
         }
 
-        let output_str =
-            String::from_utf8(output.stdout).context("Failed to parse nvidia-smi output")?;
+        let stdout_str = match String::from_utf8(output.stdout) {
+            Ok(s) => s,
+            Err(_) => return Ok(HashMap::new()),
+        };
+
+        let stderr_str = match String::from_utf8(output.stderr) {
+            Ok(s) => s,
+            Err(_) => String::new(),
+        };
+
+        // Check if nvidia-smi failed due to driver issues (even if exit code is 0)
+        if stdout_str.contains("NVIDIA-SMI has failed")
+            || stdout_str.contains("couldn't communicate with the NVIDIA driver")
+            || stderr_str.contains("NVIDIA-SMI has failed")
+            || stderr_str.contains("couldn't communicate with the NVIDIA driver")
+        {
+            return Ok(HashMap::new());
+        }
 
         let mut gpu_stats = HashMap::new();
 
-        for line in output_str.lines() {
+        for line in stdout_str.lines() {
             let parts: Vec<&str> = line.split(',').map(str::trim).collect();
             if parts.len() >= 6 {
                 let gpu_id = parts[0].parse::<u32>().unwrap_or(0);

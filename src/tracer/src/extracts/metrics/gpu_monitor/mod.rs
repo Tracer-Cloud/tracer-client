@@ -24,15 +24,21 @@ impl GpuMonitor {
     pub fn collect_gpu_stats() -> Result<HashMap<String, GpuStatistic>> {
         let mut gpu_stats = HashMap::new();
 
-        if let Ok(nvidia_stats) = NvidiaGpuMonitor::collect_gpu_stats() {
+        // Run NVIDIA and AMD in parallel
+        let nvidia_handle = std::thread::spawn(|| NvidiaGpuMonitor::collect_gpu_stats());
+        let amd_handle = std::thread::spawn(|| AmdGpuMonitor::collect_gpu_stats());
+        let apple_handle = std::thread::spawn(|| AppleGpuMonitor::collect_gpu_stats());
+
+        // Collect results from all threads
+        if let Ok(Ok(nvidia_stats)) = nvidia_handle.join() {
             gpu_stats.extend(nvidia_stats);
         }
 
-        if let Ok(amd_stats) = AmdGpuMonitor::collect_gpu_stats() {
+        if let Ok(Ok(amd_stats)) = amd_handle.join() {
             gpu_stats.extend(amd_stats);
         }
 
-        if let Ok(apple_stats) = AppleGpuMonitor::collect_gpu_stats() {
+        if let Ok(Ok(apple_stats)) = apple_handle.join() {
             gpu_stats.extend(apple_stats);
         }
 
