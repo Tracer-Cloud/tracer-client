@@ -59,7 +59,7 @@ reqwest = { version = "0.12.23", default-features = false, features = [
     "rustls-tls",
     "stream",
 ] }
-rstest = "0.25.0"
+rstest = "0.26.1"
 rustls = { version = "0.23.32", features = ["ring"] }
 sentry = { version = "0.41.0", default-features = false, features = [
     "anyhow",
