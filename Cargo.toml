@@ -61,7 +61,7 @@ reqwest = { version = "0.12.23", default-features = false, features = [
 ] }
 rstest = "0.25.0"
 rustls = { version = "0.23.32", features = ["ring"] }
-sentry = { version = "0.41.0", default-features = false, features = [
+sentry = { version = "0.45.0", default-features = false, features = [
     "anyhow",
     "backtrace",
     "panic",
