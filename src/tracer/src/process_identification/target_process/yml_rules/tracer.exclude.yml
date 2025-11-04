@@ -5,3 +5,10 @@ rules:
     or:
       - command_contains: "--help"
       - command_contains: "-help"
+
+- rule_name: "Exclude version"
+  display_name: "Exclude version"
+  condition:
+    or:
+      - command_contains: "--version"
+      - command_contains: "-version"
