@@ -370,10 +370,6 @@ rules:
     display_name: umi_tools
     condition:
       command_contains: umi_tools
-  - rule_name: fastp command
-    display_name: fastp
-    condition:
-      command_contains: fastp
   - rule_name: qualimap command
     display_name: qualimap
     condition:
