@@ -19,7 +19,10 @@ mod tests {
             local_hostname: "ip-172-31-0-1.ec2.internal".to_string(),
             hostname: "ip-172-31-0-1.ec2.internal".to_string(),
             public_hostname: Some("ec2-54-".into()),
-            is_spot_instance: Some(false),
+            instance_lifecycle: Some("normal".to_string()),
+            instance_purchasing_model: Some(
+                crate::cloud_providers::aws::aws_metadata::InstancePurchasingModel::OnDemand,
+            ),
         }
     }
 

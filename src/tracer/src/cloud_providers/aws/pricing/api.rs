@@ -102,9 +102,9 @@ impl ApiPricingClient {
             "instance_id": metadata.instance_id,
             "region": metadata.region,
         });
-        
-        if let Some(is_spot) = metadata.is_spot_instance {
-            body["is_spot_instance"] = serde_json::json!(is_spot);
+
+        if let Some(lifecycle) = &metadata.instance_lifecycle {
+            body["instance_lifecycle"] = serde_json::json!(lifecycle);
         }
 
         Retry::spawn(strategy, || async {

@@ -51,11 +51,13 @@ pub fn flatten_with_prefix(prefix: &str, val: &Value, out: &mut Map<String, Valu
             }
         }
         Value::Array(arr) => {
-            // Optionally, serialize arrays as JSON strings
             out.insert(
                 prefix.to_string(),
-                Value::String(serde_json::to_string(arr).unwrap()),
+                Value::String(serde_json::to_string(arr).unwrap_or_default()),
             );
+        }
+        Value::Null => {
+            out.insert(prefix.to_string(), Value::Null);
         }
         _ => {
             out.insert(prefix.to_string(), val.clone());
