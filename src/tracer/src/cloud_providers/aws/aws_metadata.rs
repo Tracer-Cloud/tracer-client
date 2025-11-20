@@ -82,10 +82,13 @@ fn determine_purchasing_model(
 }
 
 async fn fetch_instance_metadata() -> (Option<String>, Option<String>) {
-    let client = reqwest::Client::builder()
+    let client = match reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(METADATA_TIMEOUT_SECS))
         .build()
-        .ok()?;
+    {
+        Ok(c) => c,
+        Err(_) => return (None, None),
+    };
 
     let token_response = client
         .put(format!("{}/api/token", METADATA_BASE_URL))
