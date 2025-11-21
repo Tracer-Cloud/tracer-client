@@ -98,10 +98,14 @@ impl ApiPricingClient {
 
     async fn fetch_ec2_price(&self, metadata: &AwsInstanceMetaData) -> Option<Ec2ApiResponse> {
         let strategy = ExponentialBackoff::from_millis(100).take(2);
-        let body = serde_json::json!({
+        let mut body = serde_json::json!({
             "instance_id": metadata.instance_id,
             "region": metadata.region,
         });
+
+        if let Some(lifecycle) = &metadata.instance_lifecycle {
+            body["instance_lifecycle"] = serde_json::json!(lifecycle);
+        }
 
         Retry::spawn(strategy, || async {
             match self.client.post(EC2_ENDPOINT).json(&body).send().await {
