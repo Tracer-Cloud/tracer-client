@@ -16,17 +16,17 @@ tracer_ebpf = { path = "src/ebpf" }
 anyhow = "1.0.100"
 assert_cmd = "2.0.17"
 async-trait = "0.1.89"
-aws-config = { version = "1.8.6", features = ["behavior-version-latest"] }
-aws-credential-types = "1.2.8"
-aws-sdk-ec2 = "1.177.0"
-aws-sdk-pricing = "1.87.0"
-aws-sdk-s3 = "1.109.0"
-aws-sdk-secretsmanager = "1.88.0"
+aws-config = { version = "1.8.10", features = ["behavior-version-latest"] }
+aws-credential-types = "1.2.9"
+aws-sdk-ec2 = "1.180.0"
+aws-sdk-pricing = "1.91.0"
+aws-sdk-s3 = "1.112.0"
+aws-sdk-secretsmanager = "1.93.0"
 axum = "0.8.5"
-bollard = "0.19.3"
+bollard = "0.19.4"
 built = { version = "0.8.0", features = ["chrono", "git2"] }
 chrono = { version = "0.4.42", features = ["serde"] }
-clap = { version = "4.5.48", features = ["derive", "env"] }
+clap = { version = "4.5.51", features = ["derive", "env"] }
 colored = "3.0.0"
 config = { version = "0.15.17", default-features = false, features = [
     "toml",
@@ -60,7 +60,7 @@ reqwest = { version = "0.12.23", default-features = false, features = [
     "stream",
 ] }
 rstest = "0.25.0"
-rustls = { version = "0.23.32", features = ["ring"] }
+rustls = { version = "0.23.35", features = ["ring"] }
 sentry = { version = "0.41.0", default-features = false, features = [
     "anyhow",
     "backtrace",
@@ -79,7 +79,7 @@ tempfile = "3.23.0"
 termion = "4.0.5"
 tokio = { version = "1.47.1", features = ["full"] }
 tokio-retry = "0.3.0"
-tokio-util = "0.7.16"
+tokio-util = "0.7.17"
 toml = "0.9.5"
 tracing = { version = "0.1.41" }
 tracing-appender = "0.2.3"
