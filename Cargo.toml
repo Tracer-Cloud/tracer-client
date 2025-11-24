@@ -22,13 +22,13 @@ aws-sdk-ec2 = "1.177.0"
 aws-sdk-pricing = "1.87.0"
 aws-sdk-s3 = "1.109.0"
 aws-sdk-secretsmanager = "1.88.0"
-axum = "0.8.5"
-bollard = "0.19.3"
+axum = "0.8.7"
+bollard = "0.19.4"
 built = { version = "0.8.0", features = ["chrono", "git2"] }
 chrono = { version = "0.4.42", features = ["serde"] }
-clap = { version = "4.5.48", features = ["derive", "env"] }
+clap = { version = "4.5.53", features = ["derive", "env"] }
 colored = "3.0.0"
-config = { version = "0.15.17", default-features = false, features = [
+config = { version = "0.15.19", default-features = false, features = [
     "toml",
     "convert-case",
 ] }
@@ -45,7 +45,7 @@ git2 = { version = "0.20.2", features = [
     "https",
     "vendored-openssl",
 ], default-features = false }
-indicatif = "0.18.0"
+indicatif = "0.18.3"
 itertools = "0.14.0"
 log = "0.4.28"
 mockall = "0.13.1"
@@ -60,7 +60,7 @@ reqwest = { version = "0.12.23", default-features = false, features = [
     "stream",
 ] }
 rstest = "0.25.0"
-rustls = { version = "0.23.32", features = ["ring"] }
+rustls = { version = "0.23.35", features = ["ring"] }
 sentry = { version = "0.41.0", default-features = false, features = [
     "anyhow",
     "backtrace",
@@ -76,10 +76,10 @@ softpath = "0.2.2"
 sysinfo = "0.36.1"
 tar = "0.4.44"
 tempfile = "3.23.0"
-termion = "4.0.5"
+termion = "4.0.6"
 tokio = { version = "1.47.1", features = ["full"] }
 tokio-retry = "0.3.0"
-tokio-util = "0.7.16"
+tokio-util = "0.7.17"
 toml = "0.9.5"
 tracing = { version = "0.1.41" }
 tracing-appender = "0.2.3"
