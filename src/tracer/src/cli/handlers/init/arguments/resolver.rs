@@ -58,11 +58,11 @@ impl ArgumentResolver {
             }
 
             // checks on email of the user
-            self.args.tags.email = Some(token_claims.email);
+            self.args.tags.email = Some(token_claims.email.clone());
             self.args.tags.organization_slug = token_claims.organization_slug;
 
             // getting the user's full name from the token
-            self.args.tags.user_full_name = token_claims.full_name;
+            self.args.tags.user_full_name = token_claims.full_name.unwrap_or(token_claims.email);
             user_name = if !user_name.is_empty() {
                 user_name
             } else {

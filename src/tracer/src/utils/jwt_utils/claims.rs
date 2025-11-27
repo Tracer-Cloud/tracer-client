@@ -18,7 +18,7 @@ pub struct Claims {
 
     // custom fields
     pub email: String,
-    pub full_name: String,
+    pub full_name: Option<String>,
     pub organization: Option<String>, // also the organization is optional for now, until we have a better way to handle it
     pub organization_slug: String, //organization slug is required to generate the url for the run details page
 }
@@ -26,7 +26,8 @@ pub struct Claims {
 impl Claims {
     /// Getting the first word in the full name and considering as name
     pub fn get_name_from_full_name(&self) -> String {
-        let full_name_vector = &self.full_name.split(" ").collect::<Vec<&str>>();
+        let binding = self.full_name.clone().unwrap_or(self.email.clone());
+        let full_name_vector = &binding.split(" ").collect::<Vec<&str>>();
         full_name_vector[0].to_string()
     }
 }
