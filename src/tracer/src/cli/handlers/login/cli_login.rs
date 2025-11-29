@@ -68,8 +68,8 @@ pub async fn login(mut platform: &str) -> Result<String, Box<dyn std::error::Err
     // run server in the background
     tokio::spawn(server_future);
 
-    // wait up to 2 minutes for the token file to appear
-    let token = match timeout(Duration::from_secs(120), wait_for_token(now_system_date)).await {
+    // wait up to 5 minutes for the token file to appear
+    let token = match timeout(Duration::from_secs(300), wait_for_token(now_system_date)).await {
         Ok(token) => token,
         Err(_) => {
             // timeout elapsed, shutdown server and return error
