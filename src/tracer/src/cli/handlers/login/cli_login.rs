@@ -74,7 +74,7 @@ pub async fn login(mut platform: &str) -> Result<String, Box<dyn std::error::Err
         Err(_) => {
             // timeout elapsed, shutdown server and return error
             cancellation_token.cancel();
-            return Err("Login timed out waiting for token, 2 minutes passed, please try `tracer login` again".into());
+            return Err("Login timed out waiting for token, 5 minutes passed, please try `tracer login` again".into());
         }
     };
 
