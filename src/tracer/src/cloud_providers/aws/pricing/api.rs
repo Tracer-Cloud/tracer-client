@@ -6,8 +6,8 @@ use reqwest::{Client, StatusCode};
 use serde::Deserialize;
 use tokio_retry::{strategy::ExponentialBackoff, Retry};
 
-const EC2_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/aws/pricing/ec2";
-const EBS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/aws/pricing/ebs";
+const EC2_ENDPOINT: &str = "https://app.tracer.cloud/api/aws/pricing/ec2";
+const EBS_ENDPOINT: &str = "https://app.tracer.cloud/api/aws/pricing/ebs";
 
 #[derive(Debug, Deserialize)]
 pub struct Ec2ApiResponse {

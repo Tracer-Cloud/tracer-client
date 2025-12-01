@@ -7,26 +7,25 @@ pub const BATCH_SUBMISSION_RETRY_DELAY_MS: u64 = 2000;
 pub const PROCESS_METRICS_SEND_INTERVAL_MS: u64 = 500;
 pub const FILE_SIZE_NOT_CHANGING_PERIOD_MS: u64 = 1000 * 60;
 pub const EVENT_FORWARD_ENDPOINT_DEV: &str =
-    "https://dev.sandbox.tracer.cloud/api/public/events-forward";
-pub const EVENT_FORWARD_ENDPOINT_PROD: &str =
-    "https://sandbox.tracer.cloud/api/public/events-forward";
+    "https://staging.tracer.cloud/api/public/events-forward";
+pub const EVENT_FORWARD_ENDPOINT_PROD: &str = "https://app.tracer.cloud/api/public/events-forward";
 pub const SENTRY_DSN: &str = "https://35e0843e6748d2c93dfd56716f2eecfe@o4509281671380992.ingest.us.sentry.io/4509281680949248";
 pub const DASHBOARD_BASE_PROD: &str =
-    "https://sandbox.tracer.cloud/{organization-slug}/run-overview/{pipeline-name}/{trace-id}";
+    "https://app.tracer.cloud/{organization-slug}/run-overview/{pipeline-name}/{trace-id}";
 pub const DASHBOARD_BASE_DEV: &str =
-    "https://dev.sandbox.tracer.cloud/{organization-slug}/run-overview/{pipeline-name}/{trace-id}";
-pub const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics-supabase";
-pub const OTEL_FORWARD_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/public/otel-forward";
-pub const CLI_LOGIN_URL: &str = "https://sandbox.tracer.cloud/sign-in?cli=true";
+    "https://staging.tracer.cloud/{organization-slug}/run-overview/{pipeline-name}/{trace-id}";
+pub const TRACER_ANALYTICS_ENDPOINT: &str = "https://app.tracer.cloud/api/analytics-supabase";
+pub const OTEL_FORWARD_ENDPOINT: &str = "https://app.tracer.cloud/api/public/otel-forward";
+pub const CLI_LOGIN_URL: &str = "https://app.tracer.cloud/sign-in?cli=true";
 pub const CLI_LOGIN_URL_LOCAL: &str = "http://localhost:3000/sign-in?cli=true";
-pub const CLI_LOGIN_URL_DEV: &str = "https://dev.sandbox.tracer.cloud/sign-in?cli=true";
-pub const CLI_LOGIN_URL_PROD: &str = "https://sandbox.tracer.cloud/sign-in?cli=true";
-pub const SANDBOX_URL_PROD: &str = "https://sandbox.tracer.cloud/";
-pub const SANDBOX_URL_DEV: &str = "https://dev.sandbox.tracer.cloud/";
+pub const CLI_LOGIN_URL_DEV: &str = "https://staging.tracer.cloud/sign-in?cli=true";
+pub const CLI_LOGIN_URL_PROD: &str = "https://app.tracer.cloud/sign-in?cli=true";
+pub const SANDBOX_URL_PROD: &str = "https://app.tracer.cloud/";
+pub const SANDBOX_URL_DEV: &str = "https://staging.tracer.cloud/";
 pub const CLI_LOGIN_REDIRECT_URL_PROD_SUCCESS: &str =
-    "https://sandbox.tracer.cloud/dashboard?login_success=true";
+    "https://app.tracer.cloud/dashboard?login_success=true";
 pub const CLI_LOGIN_REDIRECT_URL_DEV_SUCCESS: &str =
-    "https://dev.sandbox.tracer.cloud/dashboard?login_success=true";
+    "https://staging.tracer.cloud/dashboard?login_success=true";
 pub const CLI_LOGIN_REDIRECT_URL_LOCAL_SUCCESS: &str =
     "http://localhost:3000/dashboard?login_success=true";
 pub const JWT_TOKEN_FOLDER_PATH: &str = "/tmp/tracer";
