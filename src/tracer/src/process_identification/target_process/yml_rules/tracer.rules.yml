@@ -667,3 +667,14 @@ rules:
           - GroupReadsByUmi
           - CollectDuplexSeqMetrics
           - FastqToBam
+
+  # s3 upload
+  - rule_name: s3 cp
+    display_name: aws s3 cp
+    condition:
+      command_contains: aws s3 cp
+
+  - rule_name: s3 sync
+    display_name: aws s3 sync
+    condition:
+      command_contains: aws s3 sync
