@@ -14,7 +14,7 @@ pub const SENTRY_DSN: &str = "https://35e0843e6748d2c93dfd56716f2eecfe@o45092816
 pub const DASHBOARD_BASE_PROD: &str =
     "https://app.tracer.cloud/{organization-slug}/run-overview/{pipeline-name}/{trace-id}";
 pub const DASHBOARD_BASE_DEV: &str =
-    "https://dev.app.tracer.cloud/{organization-slug}/run-overview/{pipeline-name}/{trace-id}";
+    "https://staging.tracer.cloud/{organization-slug}/run-overview/{pipeline-name}/{trace-id}";
 pub const TRACER_ANALYTICS_ENDPOINT: &str = "https://app.tracer.cloud/api/analytics-supabase";
 pub const OTEL_FORWARD_ENDPOINT: &str = "https://app.tracer.cloud/api/public/otel-forward";
 pub const CLI_LOGIN_URL: &str = "https://app.tracer.cloud/sign-in?cli=true";
