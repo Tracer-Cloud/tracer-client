@@ -254,85 +254,80 @@ jobs:
     strategy:
       matrix:
         channel: [dev, prod]
+
     runs-on: ubuntu-latest
-    container:
-      image: amazonlinux:2
 
     steps:
-      - name: Cache Rust dependencies (Amazon Linux)
-        uses: actions/cache@v3
+      - uses: actions/checkout@v3
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-          key: amazon-linux-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            amazon-linux-cargo-
-
-      - name: Install dependencies
-        run: |
-            yum update -y --allowerasing
-            yum groupinstall -y "Development Tools" --allowerasing
-            yum install -y kernel-devel kernel-headers clang llvm libbpf-devel openssl-devel pkgconfig --allowerasing
-
-      - name: Install Rust
-        run: |
-          curl https://sh.rustup.rs -sSf | sh -s -- -y
-          echo 'source $HOME/.cargo/env' >> ~/.bashrc
-          source $HOME/.cargo/env
-          rustup target add x86_64-unknown-linux-gnu
-          rustup toolchain install 1.89.0 --profile minimal
-          rustup component add clippy
-          rustup component add rustfmt
-
-      - name: Check out repository with submodules
-        uses: actions/checkout@v3
-        with:
-          submodules: recursive # This will fetch all submodules recursively
-          fetch-depth: 0 # Fetch all history for versioning
+          submodules: recursive
+          fetch-depth: 0
 
       - name: Configure Git safe directory
         run: git config --global --add safe.directory $GITHUB_WORKSPACE
 
+      - name: Cache Rust dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/
+            ~/.cargo/git/
+          key: amazon-linux-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            amazon-linux-cargo-
+
       - name: Update version in Cargo.toml
         run: |
-          # Get current date in YYYY.MM.DD format
           DATE=$(date +'%Y.%-m.%-d')
-          # Get time in HH.MM format
           TIME=$(date +'%H%M')
-          # Create new version string
           NEW_VERSION="${DATE}+${TIME}"
-          # Update version in Cargo.toml
           sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
-          # Print the new version for verification
           echo "Updated version to: ${NEW_VERSION}"
 
-      - name: Build the binary
+      - name: Build in Amazon Linux 2 Docker
         env:
-          CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
-          CARGO_INCREMENTAL: "0"
           BUILD_CHANNEL: ${{ matrix.channel }}
         run: |
-          source $HOME/.cargo/env
-          cargo build --release -p tracer
+          docker pull amazonlinux:2
+
+          docker run --rm \
+            -v $PWD:/workspace \
+            -v $HOME/.cargo:/root/.cargo \
+            -w /workspace \
+            amazonlinux:2 \
+            bash -c "
+              yum update -y --allowerasing &&
+              yum groupinstall -y 'Development Tools' &&
+              yum install -y kernel-devel kernel-headers clang llvm libbpf-devel openssl-devel pkgconfig --allowerasing &&
+
+              # Install Rust
+              curl https://sh.rustup.rs -sSf | sh -s -- -y &&
+              source /root/.cargo/env &&
+              rustup toolchain install 1.89.0 --profile minimal &&
+              rustup target add x86_64-unknown-linux-gnu &&
+              rustup component add clippy &&
+              rustup component add rustfmt &&
+
+              # Build the binary
+              cargo build --release -p tracer
+            "
 
       - name: Prepare binary for release
         run: |
           mkdir -p release-files/amazon-linux-2
-          cp target/release/tracer release-files/amazon-linux-2/tracer
+          cp target/release/tracer release-files/amazon-linux-2/
           chmod +x release-files/amazon-linux-2/tracer
-          tar -czf release-files/tracer-${{ matrix.channel }}-x86_64-amazon-linux-2-gnu.tar.gz -C release-files/amazon-linux-2 tracer
+          tar -czf release-files/tracer-${{ matrix.channel }}-x86_64-amazon-linux-2-gnu.tar.gz \
+              -C release-files/amazon-linux-2 tracer
 
       - name: Install AWS CLI
         run: |
           curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
           unzip awscliv2.zip
-          ./aws/install
+          sudo ./aws/install
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v3
+      - uses: aws-actions/configure-aws-credentials@v3
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -340,5 +335,8 @@ jobs:
 
       - name: Upload to S3
         run: |
-          aws s3 cp release-files/tracer-${{ matrix.channel }}-x86_64-amazon-linux-2-gnu.tar.gz s3://tracer-releases/tracer-${{ matrix.channel }}-x86_64-amazon-linux-2-gnu.tar.gz
-          aws s3 cp release-files/tracer-${{ matrix.channel }}-x86_64-amazon-linux-2-gnu.tar.gz s3://tracer-releases/${{ github.head_ref || github.ref_name }}/tracer-${{ matrix.channel }}-x86_64-amazon-linux-2-gnu.tar.gz
+          aws s3 cp release-files/tracer-${{ matrix.channel }}-x86_64-amazon-linux-2-gnu.tar.gz \
+            s3://tracer-releases/tracer-${{ matrix.channel }}-x86_64-amazon-linux-2-gnu.tar.gz
+
+          aws s3 cp release-files/tracer-${{ matrix.channel }}-x86_64-amazon-linux-2-gnu.tar.gz \
+            s3://tracer-releases/${{ github.head_ref || github.ref_name }}/tracer-${{ matrix.channel }}-x86_64-amazon-linux-2-gnu.tar.gz
