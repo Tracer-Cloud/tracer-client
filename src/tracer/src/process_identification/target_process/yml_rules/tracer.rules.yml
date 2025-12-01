@@ -678,3 +678,8 @@ rules:
     display_name: aws s3 sync
     condition:
       command_contains: aws s3 sync
+
+  - rule_name: docker pull
+    display_name: docker pull
+    condition:
+      command_contains: docker pull
