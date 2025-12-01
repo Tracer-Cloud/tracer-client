@@ -15,6 +15,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
+    let kernel = String::from_utf8(
+        Command::new("uname")
+            .arg("-r")
+            .output()?
+            .stdout,
+    )?
+    .trim()
+    .to_string();
+
+    println!("cargo:warning=Detected kernel {}", kernel);
+
+    // Parse major.minor
+    let mut parts = kernel.split('.');
+
+    let major = parts.next().unwrap_or("0").parse::<u32>().unwrap_or(0);
+    let minor = parts.next().unwrap_or("0").parse::<u32>().unwrap_or(0);
+
+    // libbpf CO-RE requires kernel headers ≥ 5.5
+    if major < 5 || (major == 5 && minor < 5) {
+        println!(
+            "cargo:warning=Skipping eBPF build: kernel {} < 5.5",
+            kernel
+        );
+        return Ok(());
+    }
+
     // Tell cargo to rerun this build script if any of the C files change
     println!("cargo:rerun-if-changed=c/");
 
