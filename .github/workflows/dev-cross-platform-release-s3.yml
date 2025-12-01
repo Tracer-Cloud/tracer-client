@@ -299,6 +299,17 @@ jobs:
             bash -c "
               yum update -y &&
               yum groupinstall -y 'Development Tools' &&
+              yum install -y \
+                openssl-devel \
+                perl \
+                perl-core \
+                perl-IPC-Cmd \
+                perl-Data-Dumper \
+                perl-FindBin \
+                perl-Pod-Html \
+                perl-Test-Harness \
+                &&
+
               yum install -y kernel-devel kernel-headers clang llvm libbpf-devel openssl-devel pkgconfig &&
 
               # Install Rust
