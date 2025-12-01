@@ -15,31 +15,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    let kernel = String::from_utf8(
-        Command::new("uname")
-            .arg("-r")
-            .output()?
-            .stdout,
-    )?
-    .trim()
-    .to_string();
+    let version_code = kernel_version_code();
+    println!("cargo:warning=Detected linux version code {}", version_code);
 
-    println!("cargo:warning=Detected kernel {}", kernel);
+    // version code for 5.5:    KERNEL_VERSION(5,5,0) = 328192
+    let min_version_code = (5 * 65536) + (5 * 256); // 328192
 
-    // Parse major.minor
-    let mut parts = kernel.split('.');
-
-    let major = parts.next().unwrap_or("0").parse::<u32>().unwrap_or(0);
-    let minor = parts.next().unwrap_or("0").parse::<u32>().unwrap_or(0);
-
-    // libbpf CO-RE requires kernel headers ≥ 5.5
-    if major < 5 || (major == 5 && minor < 5) {
+    if version_code < min_version_code {
         println!(
-            "cargo:warning=Skipping eBPF build: kernel {} < 5.5",
-            kernel
+            "cargo:warning=Skipping eBPF build: kernel headers < 5.5 (version_code={})",
+            version_code
         );
         return Ok(());
     }
+
 
     // Tell cargo to rerun this build script if any of the C files change
     println!("cargo:rerun-if-changed=c/");
@@ -75,4 +64,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo:rustc-link-lib=z");
 
     Ok(())
+}
+
+
+fn kernel_version_code() -> u32 {
+    let header = std::fs::read_to_string("/usr/include/linux/version.h")
+        .unwrap_or_default();
+
+    // Look for: #define LINUX_VERSION_CODE 331264
+    for line in header.lines() {
+        if let Some(rest) = line.strip_prefix("#define LINUX_VERSION_CODE") {
+            return rest.trim().parse::<u32>().unwrap_or(0);
+        }
+    }
+    0
 }
