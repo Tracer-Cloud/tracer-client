@@ -50,15 +50,3 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-
-fn kernel_version_code() -> u32 {
-    let header = std::fs::read_to_string("/usr/include/linux/version.h").unwrap_or_default();
-
-    // Look for: #define LINUX_VERSION_CODE 331264
-    for line in header.lines() {
-        if let Some(rest) = line.strip_prefix("#define LINUX_VERSION_CODE") {
-            return rest.trim().parse::<u32>().unwrap_or(0);
-        }
-    }
-    0
-}
