@@ -297,9 +297,9 @@ jobs:
             -w /workspace \
             amazonlinux:2 \
             bash -c "
-              yum update -y --allowerasing &&
+              yum update -y &&
               yum groupinstall -y 'Development Tools' &&
-              yum install -y kernel-devel kernel-headers clang llvm libbpf-devel openssl-devel pkgconfig --allowerasing &&
+              yum install -y kernel-devel kernel-headers clang llvm libbpf-devel openssl-devel pkgconfig &&
 
               # Install Rust
               curl https://sh.rustup.rs -sSf | sh -s -- -y &&
