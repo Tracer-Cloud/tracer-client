@@ -8,8 +8,7 @@ pub const PROCESS_METRICS_SEND_INTERVAL_MS: u64 = 500;
 pub const FILE_SIZE_NOT_CHANGING_PERIOD_MS: u64 = 1000 * 60;
 pub const EVENT_FORWARD_ENDPOINT_DEV: &str =
     "https://staging.tracer.cloud/api/public/events-forward";
-pub const EVENT_FORWARD_ENDPOINT_PROD: &str =
-    "https://app.tracer.cloud/api/public/events-forward";
+pub const EVENT_FORWARD_ENDPOINT_PROD: &str = "https://app.tracer.cloud/api/public/events-forward";
 pub const SENTRY_DSN: &str = "https://35e0843e6748d2c93dfd56716f2eecfe@o4509281671380992.ingest.us.sentry.io/4509281680949248";
 pub const DASHBOARD_BASE_PROD: &str =
     "https://app.tracer.cloud/{organization-slug}/run-overview/{pipeline-name}/{trace-id}";
