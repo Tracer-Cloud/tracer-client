@@ -20,9 +20,9 @@ use tokio::task::JoinHandle;
 use tokio_retry::strategy::{jitter, ExponentialBackoff};
 use tokio_retry::Retry;
 
-const TRACER_SANDBOX_ENDPOINT_PROD: &str = "https://sandbox.tracer.cloud";
-const TRACER_SANDBOX_ENDPOINT_DEV: &str = "https://dev.sandbox.tracer.cloud";
-const TRACER_ANALYTICS_ENDPOINT: &str = "https://sandbox.tracer.cloud/api/analytics-supabase";
+const TRACER_SANDBOX_ENDPOINT_PROD: &str = "https://app.tracer.cloud";
+const TRACER_SANDBOX_ENDPOINT_DEV: &str = "https://staging.tracer.cloud";
+const TRACER_ANALYTICS_ENDPOINT: &str = "https://app.tracer.cloud/api/analytics-supabase";
 
 pub struct Installer {
     pub platform: PlatformInfo,

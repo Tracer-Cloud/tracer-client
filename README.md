@@ -39,7 +39,7 @@ New metrics that help you speed up your pipelines and maximize your budget:
 ### 1. Access the Sandbox
 
 The easiest way to get started with Tracer is via our **browser-based sandbox**:  
-👉 [https://sandbox.tracer.cloud/](https://sandbox.tracer.cloud/)
+👉 [https://app.tracer.cloud/](https://app.tracer.cloud/)
 
 - Click **“Proceed to Onboarding”** to launch a guided onboarding experience tailored to your preferred tech stack — _no AWS credentials or setup required_.
 
@@ -57,7 +57,7 @@ curl -sSL https://install.tracer.cloud | sh
 
 Start the Tracer client to initialize a pipeline and enable monitoring. You must provide your Tracer token every time you initialize.
 
-- Get your token from the [Tracer Sandbox](https://sandbox.tracer.cloud/)
+- Get your token from the [Tracer Sandbox](https://app.tracer.cloud/)
 - Then run:
 
 > **Note:** Root privileges required
