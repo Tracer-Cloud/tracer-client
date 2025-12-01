@@ -15,21 +15,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    let version_code = kernel_version_code();
-    println!("cargo:warning=Detected linux version code {}", version_code);
-
-    // version code for 5.5:    KERNEL_VERSION(5,5,0) = 328192
-    let min_version_code = (5 * 65536) + (5 * 256); // 328192
-
-    if version_code < min_version_code {
-        println!(
-            "cargo:warning=Skipping eBPF build: kernel headers < 5.5 (version_code={})",
-            version_code
-        );
-        return Ok(());
-    }
-
-
     // Tell cargo to rerun this build script if any of the C files change
     println!("cargo:rerun-if-changed=c/");
 
@@ -66,10 +51,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-
 fn kernel_version_code() -> u32 {
-    let header = std::fs::read_to_string("/usr/include/linux/version.h")
-        .unwrap_or_default();
+    let header = std::fs::read_to_string("/usr/include/linux/version.h").unwrap_or_default();
 
     // Look for: #define LINUX_VERSION_CODE 331264
     for line in header.lines() {
