@@ -14,7 +14,8 @@ pub async fn is_jwt_valid(token: &str, platform: &str) -> (bool, Option<Claims>)
     match verification_result {
         Ok(claims) => {
             if claims.sub.is_empty() {
-                error!("Error validating jwt token from clerk: user ID not found. Try 'tracer auth' again");
+                error!("Error validating jwt token from clerk: user ID not found. Try 'tracer login' again");
+                eprintln!("Error validating jwt token from clerk: user ID not found. Try 'tracer login' again");
                 (false, None)
             } else {
                 (true, Some(claims))
@@ -22,7 +23,11 @@ pub async fn is_jwt_valid(token: &str, platform: &str) -> (bool, Option<Claims>)
         }
         Err(err) => {
             error!(
-                "Error validating jwt token from clerk: {}, try 'tracer auth' again",
+                "Error validating jwt token from clerk: {}, try 'tracer login' again",
+                err
+            );
+            eprintln!(
+                "Error validating jwt token from clerk: {}, try 'tracer login' again",
                 err
             );
             (false, None)

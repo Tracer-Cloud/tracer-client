@@ -65,7 +65,7 @@ pub async fn auth(
         Err(_) => {
             // timeout elapsed, shutdown server and return error
             cancellation_token.cancel();
-            return Err("Login timed out waiting for token, 5 minutes passed, please try `tracer auth` again".into());
+            return Err("Authentication timed out waiting for token, 5 minutes passed, please try `tracer auth` again".into());
         }
     };
 
