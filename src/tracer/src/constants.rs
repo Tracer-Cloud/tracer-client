@@ -16,21 +16,19 @@ pub const DASHBOARD_BASE_DEV: &str =
     "https://staging.tracer.cloud/{organization-slug}/run-overview/{pipeline-name}/{trace-id}";
 pub const TRACER_ANALYTICS_ENDPOINT: &str = "https://app.tracer.cloud/api/analytics-supabase";
 pub const OTEL_FORWARD_ENDPOINT: &str = "https://app.tracer.cloud/api/public/otel-forward";
-pub const CLI_LOGIN_URL: &str = "https://app.tracer.cloud/sign-in?cli=true";
-pub const CLI_LOGIN_URL_LOCAL: &str = "http://localhost:3000/sign-in?cli=true";
-pub const CLI_LOGIN_URL_DEV: &str = "https://staging.tracer.cloud/sign-in?cli=true";
-pub const CLI_LOGIN_URL_PROD: &str = "https://app.tracer.cloud/sign-in?cli=true";
-pub const CLI_SIGNUP_URL: &str = "https://app.tracer.cloud/sign-up?cli=true";
-pub const CLI_SIGNUP_URL_LOCAL: &str = "http://localhost:3000/sign-up?cli=true";
-pub const CLI_SIGNUP_URL_DEV: &str = "https://staging.tracer.cloud/sign-up?cli=true";
-pub const CLI_SIGNUP_URL_PROD: &str = "https://app.tracer.cloud/sign-up?cli=true";
+pub const LOGIN_URL_LOCAL: &str = "http://localhost:3000/sign-in?cli=true";
+pub const LOGIN_URL_DEV: &str = "https://staging.tracer.cloud/sign-in?cli=true";
+pub const LOGIN_URL_PROD: &str = "https://app.tracer.cloud/sign-in?cli=true";
+pub const SIGNUP_URL_LOCAL: &str = "http://localhost:3000/sign-up?cli=true";
+pub const SIGNUP_URL_DEV: &str = "https://staging.tracer.cloud/sign-up?cli=true";
+pub const SIGNUP_URL_PROD: &str = "https://app.tracer.cloud/sign-up?cli=true";
 pub const SANDBOX_URL_PROD: &str = "https://app.tracer.cloud/";
 pub const SANDBOX_URL_DEV: &str = "https://staging.tracer.cloud/";
-pub const CLI_LOGIN_REDIRECT_URL_PROD_SUCCESS: &str =
+pub const AUTH_REDIRECT_URL_PROD_SUCCESS: &str =
     "https://app.tracer.cloud/dashboard?login_success=true";
-pub const CLI_LOGIN_REDIRECT_URL_DEV_SUCCESS: &str =
+pub const AUTH_REDIRECT_URL_DEV_SUCCESS: &str =
     "https://staging.tracer.cloud/dashboard?login_success=true";
-pub const CLI_LOGIN_REDIRECT_URL_LOCAL_SUCCESS: &str =
+pub const AUTH_REDIRECT_URL_LOCAL_SUCCESS: &str =
     "http://localhost:3000/dashboard?login_success=true";
 pub const JWT_TOKEN_FOLDER_PATH: &str = "/tmp/tracer";
 pub const JWT_TOKEN_FILE_NAME: &str = "token.txt";

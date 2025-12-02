@@ -46,7 +46,7 @@ pub fn process_command() {
                 Err(e) => eprintln!("Error during login: {}", e),
             }
         }
-        Command::SignUp { platform } => {
+        Command::Signup { platform } => {
             let result = tokio::runtime::Runtime::new()
                 .unwrap()
                 .block_on(handlers::auth(&platform, AuthType::SignUp));

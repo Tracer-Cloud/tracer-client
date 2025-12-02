@@ -99,15 +99,17 @@ pub enum Command {
     Login {
         /// Environment to authenticate against
         /// It can be prod, dev, or local (points to localhost:3000)
-        #[arg(default_value = "prod")]
+        /// default adapts automatically to the environment, if you are on dev or prod binary
+        #[arg(default_value = "default")]
         platform: String,
     },
 
-    /// SignUp to tracer and saves a JWT token inside a token.txt file
-    SignUp {
+    /// Signp to tracer and saves a JWT token inside a token.txt file
+    Signup {
         /// Environment to authenticate against
         /// It can be prod, dev, or local (points to localhost:3000)
-        #[arg(default_value = "prod")]
+        /// default adapts automatically to the environment, if you are on dev or prod binary
+        #[arg(default_value = "default")]
         platform: String,
     },
 }

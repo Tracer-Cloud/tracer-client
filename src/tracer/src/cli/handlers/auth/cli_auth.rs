@@ -1,7 +1,4 @@
-use crate::constants::{
-    CLI_LOGIN_REDIRECT_URL_DEV_SUCCESS, CLI_LOGIN_REDIRECT_URL_LOCAL_SUCCESS,
-    CLI_LOGIN_REDIRECT_URL_PROD_SUCCESS, JWT_TOKEN_FILE_PATH, JWT_TOKEN_FOLDER_PATH,
-};
+use crate::constants::{JWT_TOKEN_FILE_PATH, JWT_TOKEN_FOLDER_PATH};
 use crate::daemon::server::daemon_server::create_listener;
 use crate::utils::browser::browser_utils;
 use crate::utils::jwt_utils::jwt::is_jwt_valid;
@@ -18,7 +15,7 @@ use tokio_util::sync::CancellationToken;
 use tower_http::cors::{Any, CorsLayer};
 
 use crate::cli::handlers::auth::types::AuthType;
-use crate::utils::cli::auth::get_auth_url;
+use crate::utils::cli::auth::{get_auth_redirect_url, get_auth_url};
 use crate::utils::env::is_development_environment;
 use crate::utils::jwt_utils::claims::Claims;
 use axum::response::Redirect;
@@ -39,13 +36,7 @@ pub async fn auth(
     let auth_page_url = get_auth_url(platform, auth_type, is_development_environment);
 
     // Getting the redirect url based on the platform
-    let redirect_url = if platform.eq_ignore_ascii_case("local") {
-        CLI_LOGIN_REDIRECT_URL_LOCAL_SUCCESS
-    } else if is_development_environment {
-        CLI_LOGIN_REDIRECT_URL_DEV_SUCCESS
-    } else {
-        CLI_LOGIN_REDIRECT_URL_PROD_SUCCESS
-    };
+    let redirect_url = get_auth_redirect_url(platform, is_development_environment);
 
     let now_system_date = SystemTime::now();
 
