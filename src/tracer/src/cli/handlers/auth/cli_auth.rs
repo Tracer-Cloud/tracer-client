@@ -41,7 +41,7 @@ pub async fn auth(
     let now_system_date = SystemTime::now();
 
     // open the browser window to auth
-    browser_utils::open_url(auth_page_url);
+    browser_utils::open_url(&auth_page_url);
 
     // start a server with cancellation support
     // the cancellation token is used to shut down the server when the token is received
