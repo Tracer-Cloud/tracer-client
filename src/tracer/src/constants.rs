@@ -20,6 +20,10 @@ pub const CLI_LOGIN_URL: &str = "https://app.tracer.cloud/sign-in?cli=true";
 pub const CLI_LOGIN_URL_LOCAL: &str = "http://localhost:3000/sign-in?cli=true";
 pub const CLI_LOGIN_URL_DEV: &str = "https://staging.tracer.cloud/sign-in?cli=true";
 pub const CLI_LOGIN_URL_PROD: &str = "https://app.tracer.cloud/sign-in?cli=true";
+pub const CLI_SIGNUP_URL: &str = "https://app.tracer.cloud/sign-up?cli=true";
+pub const CLI_SIGNUP_URL_LOCAL: &str = "http://localhost:3000/sign-up?cli=true";
+pub const CLI_SIGNUP_URL_DEV: &str = "https://staging.tracer.cloud/sign-up?cli=true";
+pub const CLI_SIGNUP_URL_PROD: &str = "https://app.tracer.cloud/sign-up?cli=true";
 pub const SANDBOX_URL_PROD: &str = "https://app.tracer.cloud/";
 pub const SANDBOX_URL_DEV: &str = "https://staging.tracer.cloud/";
 pub const CLI_LOGIN_REDIRECT_URL_PROD_SUCCESS: &str =

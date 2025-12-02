@@ -1,5 +1,6 @@
 use super::commands::{Cli, Command};
 use super::handlers;
+use crate::cli::handlers::auth::types::AuthType;
 use crate::config::Config;
 use crate::daemon::server::DaemonServer;
 use crate::success_message;
@@ -39,10 +40,19 @@ pub fn process_command() {
         Command::Login { platform } => {
             let result = tokio::runtime::Runtime::new()
                 .unwrap()
-                .block_on(handlers::login(&platform));
+                .block_on(handlers::auth(&platform, AuthType::Login));
             match result {
                 Ok(message) => success_message!("{}", message),
                 Err(e) => eprintln!("Error during login: {}", e),
+            }
+        }
+        Command::SignUp { platform } => {
+            let result = tokio::runtime::Runtime::new()
+                .unwrap()
+                .block_on(handlers::auth(&platform, AuthType::SignUp));
+            match result {
+                Ok(message) => success_message!("{}", message),
+                Err(e) => eprintln!("Error during sign up: {}", e),
             }
         }
         command => tokio::runtime::Runtime::new()
