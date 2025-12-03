@@ -19,6 +19,7 @@ use crate::utils::cli::auth::{get_auth_redirect_url, get_auth_url};
 use crate::utils::env::is_development_environment;
 use crate::utils::jwt_utils::claims::Claims;
 use axum::response::Redirect;
+use colored::Colorize;
 use std::time::Duration;
 use tokio::time::timeout;
 use tracing::log::debug;
@@ -34,6 +35,12 @@ pub async fn auth(
 
     // Getting the auth page url, it might redirect to the sign-in or sign-up page based on the AuthType
     let auth_page_url = get_auth_url(platform, auth_type, is_development_environment);
+
+    println!("Opening browser window to {}", auth_page_url.cyan());
+    println!(
+        "If the browser doesn't open automatically, go to this URL: {}",
+        auth_page_url.cyan()
+    );
 
     // Getting the redirect url based on the platform
     let redirect_url = get_auth_redirect_url(platform, is_development_environment);

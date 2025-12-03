@@ -42,7 +42,7 @@ pub fn process_command() {
                 .unwrap()
                 .block_on(handlers::auth(&platform, AuthType::Login));
             match result {
-                Ok(message) => success_message!("{}", message),
+                Ok(message) => println!("{}", message),
                 Err(e) => eprintln!("Error during login: {}", e),
             }
         }
@@ -51,7 +51,7 @@ pub fn process_command() {
                 .unwrap()
                 .block_on(handlers::auth(&platform, AuthType::SignUp));
             match result {
-                Ok(message) => success_message!("{}", message),
+                Ok(message) => println!("{}", message),
                 Err(e) => eprintln!("Error during sign up: {}", e),
             }
         }
