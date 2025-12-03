@@ -38,7 +38,7 @@ pub async fn auth(
 
     println!("Opening browser window to {}", auth_page_url.cyan());
     println!(
-        "If the browser doesn't open automatically, go to this URL: {}",
+        "If the browser doesn't open automatically, go to: {}",
         auth_page_url.cyan()
     );
 
