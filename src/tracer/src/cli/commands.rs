@@ -95,10 +95,21 @@ pub enum Command {
         command: OtelCommand,
     },
 
-    /// Login to tracer and saves a jwt_utils token
+    /// Login to tracer and saves a JWT token inside a token.txt file
     Login {
-        /// Environment to login against
-        #[arg(default_value = "prod")]
+        /// Environment to authenticate against
+        /// It can be prod, dev, or local (points to localhost:3000)
+        /// default adapts automatically to the environment, if you are on dev or prod binary
+        #[arg(default_value = "default")]
+        platform: String,
+    },
+
+    /// Signp to tracer and saves a JWT token inside a token.txt file
+    Signup {
+        /// Environment to authenticate against
+        /// It can be prod, dev, or local (points to localhost:3000)
+        /// default adapts automatically to the environment, if you are on dev or prod binary
+        #[arg(default_value = "default")]
         platform: String,
     },
 }

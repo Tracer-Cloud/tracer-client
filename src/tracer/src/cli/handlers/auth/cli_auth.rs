@@ -1,8 +1,4 @@
-use crate::constants::{
-    CLI_LOGIN_REDIRECT_URL_DEV_SUCCESS, CLI_LOGIN_REDIRECT_URL_LOCAL_SUCCESS,
-    CLI_LOGIN_REDIRECT_URL_PROD_SUCCESS, CLI_LOGIN_URL_DEV, CLI_LOGIN_URL_LOCAL,
-    CLI_LOGIN_URL_PROD, JWT_TOKEN_FILE_PATH, JWT_TOKEN_FOLDER_PATH,
-};
+use crate::constants::{JWT_TOKEN_FILE_PATH, JWT_TOKEN_FOLDER_PATH};
 use crate::daemon::server::daemon_server::create_listener;
 use crate::utils::browser::browser_utils;
 use crate::utils::jwt_utils::jwt::is_jwt_valid;
@@ -18,51 +14,53 @@ use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 use tower_http::cors::{Any, CorsLayer};
 
+use crate::cli::handlers::auth::types::AuthType;
+use crate::utils::cli::auth::{get_auth_redirect_url, get_auth_url};
 use crate::utils::env::is_development_environment;
 use crate::utils::jwt_utils::claims::Claims;
 use axum::response::Redirect;
+use colored::Colorize;
 use std::time::Duration;
 use tokio::time::timeout;
 use tracing::log::debug;
 
-/// open a browser window when the user types 'tracer login' to login and get the token
-/// It also waits for 2 minutes max for the token to be available in a specific folder
-pub async fn login(mut platform: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let is_development_environment = is_development_environment();
+/// open a browser window when the user types 'tracer login' to auth and get the token
+/// It also waits for 5-minute max for the token to be available in a specific folder
+pub async fn auth(
+    platform: &str,
+    auth_type: AuthType,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let is_development_environment =
+        is_development_environment() || platform.eq_ignore_ascii_case("dev");
 
-    let login_url = if platform.eq_ignore_ascii_case("local") {
-        CLI_LOGIN_URL_LOCAL
-    } else if platform.eq_ignore_ascii_case("dev") || is_development_environment {
-        platform = "dev";
-        CLI_LOGIN_URL_DEV
-    } else {
-        CLI_LOGIN_URL_PROD
-    };
+    // Getting the auth page url, it might redirect to the sign-in or sign-up page based on the AuthType
+    let auth_page_url = get_auth_url(platform, auth_type, is_development_environment);
 
-    let redirect_url = if platform.eq_ignore_ascii_case("local") {
-        CLI_LOGIN_REDIRECT_URL_LOCAL_SUCCESS
-    } else if platform.eq_ignore_ascii_case("dev") || is_development_environment {
-        CLI_LOGIN_REDIRECT_URL_DEV_SUCCESS
-    } else {
-        CLI_LOGIN_REDIRECT_URL_PROD_SUCCESS
-    };
+    println!("Opening browser window to {}", auth_page_url.cyan());
+    println!(
+        "If the browser doesn't open automatically, go to: {}",
+        auth_page_url.cyan()
+    );
+
+    // Getting the redirect url based on the platform
+    let redirect_url = get_auth_redirect_url(platform, is_development_environment);
 
     let now_system_date = SystemTime::now();
 
-    // open the browser window to login
-    browser_utils::open_url(login_url);
+    // open the browser window to auth
+    browser_utils::open_url(&auth_page_url);
 
     // start a server with cancellation support
     // the cancellation token is used to shut down the server when the token is received
     let cancellation_token = CancellationToken::new();
 
     // TODO we should put some kind of check of the port if it's already in use
-    // Google Cloud CLI use this same address for the gcloud auth login functionality
+    // Google Cloud CLI use this same address for the gcloud auth auth functionality
     let server_future = start_login_server(
         "127.0.0.1:8085".to_string(),
         cancellation_token.clone(),
         redirect_url.to_string(),
-        login_url.to_string(),
+        auth_page_url.to_string(),
     );
 
     // run server in the background
@@ -74,7 +72,7 @@ pub async fn login(mut platform: &str) -> Result<String, Box<dyn std::error::Err
         Err(_) => {
             // timeout elapsed, shutdown server and return error
             cancellation_token.cancel();
-            return Err("Login timed out waiting for token, 5 minutes passed, please try `tracer login` again".into());
+            return Err("Authentication timed out waiting for token, 5 minutes passed, please try `tracer auth` again".into());
         }
     };
 
@@ -108,7 +106,6 @@ pub async fn login(mut platform: &str) -> Result<String, Box<dyn std::error::Err
     // cancel the server now that we have the token
     cancellation_token.cancel();
 
-    // 5. return success
     Ok(format!(
         "Welcome back{}! Run `tracer init` to start a new run.",
         user_name
@@ -121,7 +118,7 @@ pub async fn start_login_server(
     redirect_url_success: String,
     redirect_url_error: String,
 ) -> anyhow::Result<()> {
-    debug!("Starting login server on: {}", server_url);
+    debug!("Starting auth server on: {}", server_url);
     let listener = create_listener(server_url.clone()).await;
 
     // clone token for the shutdown task
@@ -185,8 +182,8 @@ async fn wait_for_token(date: SystemTime) -> Option<String> {
 
     // every 1 second we check if the token file has been created
     // if it was created, we check that the modified date is after the date we started waiting
-    // because the file could have been created before the date we started waiting for a previous login
-    // checking the modified date allows us to get the latest token created after the login command has started
+    // because the file could have been created before the date we started waiting for a previous auth
+    // checking the modified date allows us to get the latest token created after the auth command has started
     loop {
         if let Ok(metadata) = fs::metadata(token_file_path) {
             if let Ok(file_modified_at) = metadata.modified() {

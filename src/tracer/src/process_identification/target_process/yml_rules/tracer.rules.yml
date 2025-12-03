@@ -683,3 +683,8 @@ rules:
     display_name: docker pull
     condition:
       command_contains: docker pull
+
+  - rule_name: parabricks rna_fq2bam
+    display_name: rna_fq2bam (Parabricks)
+    condition:
+      command_contains: pbrun rna_fq2bam
