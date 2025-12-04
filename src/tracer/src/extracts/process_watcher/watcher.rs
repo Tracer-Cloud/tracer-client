@@ -258,6 +258,13 @@ impl ProcessWatcher {
                     debug!("OOM trigger pid={}", out_of_memory.pid);
                     out_of_memory_triggers.push(out_of_memory);
                 }
+                Trigger::FileOpen(file_opened) => {
+                    // debug!("File open trigger pid={}, path={}", file_opened.pid, file_opened.path);
+                    println!(
+                        "File open trigger pid={}, path={}",
+                        file_opened.pid, file_opened.filename
+                    );
+                }
             }
         }
 

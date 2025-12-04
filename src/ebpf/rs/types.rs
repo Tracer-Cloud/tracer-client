@@ -34,6 +34,15 @@ pub struct SchedProcessExitPayload {
     pub status: u16,
 }
 
+// struct syscall__sys_enter_openat__payload in bootstrap.h
+#[repr(C, packed)]
+pub struct SysEnterOpenAtPayload {
+    pub dfd: i32,
+    pub filename: [u8; MAX_STR_LEN],
+    pub flags: i32,
+    pub mode: i32,
+}
+
 // Define the CEvent struct to match the memory layout of the C struct
 #[repr(C, packed)]
 pub struct CEvent {
@@ -48,6 +57,19 @@ pub struct CEvent {
     // Payload - using a byte array large enough to hold any payload
     // We'll access specific payloads by casting
     pub payload: [u8; 2048], // Size should be sufficient for largest payload
+}
+
+fn get_file_size(pid: u32, filename: &str) -> Option<u64> {
+    // We only handle absolute paths via the /proc magic link for now
+    if !filename.starts_with('/') {
+        return None;
+    }
+
+    // Construct path: /proc/<pid>/root<filename>
+    let proc_path = format!("/proc/{}/root{}", pid, filename);
+
+    // Rust's fs::metadata is equivalent to C's stat()
+    std::fs::metadata(proc_path).ok().map(|m| m.len())
 }
 
 // Keep the helper function from the original code
@@ -133,6 +155,34 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                         )
                         .unwrap(),
                     },
+                ))
+            }
+            EVENT__SYSCALL__SYS_ENTER_OPENAT => {
+                // 1. Cast the payload
+                let payload_ptr = self.payload.as_ptr() as *const SysEnterOpenAtPayload;
+                let payload = unsafe { &*payload_ptr };
+
+                // FIX: Copy pid from the packed struct to a local variable first
+                let pid = self.pid;
+
+                // 2. Extract filename
+                let filename = from_bpf_str(&payload.filename)?.to_string();
+
+                // 3. Get the size using the local variable
+                let size = get_file_size(pid, &filename);
+
+                Ok(ebpf_trigger::Trigger::FileOpen(
+                    ebpf_trigger::FileOpenTrigger {
+                        pid: pid as usize,
+                        // FIX: Use the local variable 'pid' here
+                        comm: format!("pid-{}", pid),
+                        filename,
+                        size,
+                        timestamp: chrono::DateTime::from_timestamp(
+                            (self.timestamp_ns / 1_000_000_000) as i64,
+                            (self.timestamp_ns % 1_000_000_000) as u32,
+                        ).unwrap(),
+                    }
                 ))
             }
             // We can add cases for other event types as needed

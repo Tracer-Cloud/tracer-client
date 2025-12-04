@@ -99,6 +99,15 @@ pub struct ProcessEndTrigger {
     pub exit_reason: Option<ExitReason>,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct FileOpenTrigger {
+    pub pid: usize,
+    pub comm: String, // this is useful to know "who" opened it
+    pub filename: String,
+    pub size: Option<u64>, // Option, because the file might not exist or be accessible
+    pub timestamp: DateTime<Utc>,
+}
+
 #[derive(Debug, Clone)]
 pub struct OutOfMemoryTrigger {
     pub pid: usize,
@@ -112,6 +121,7 @@ pub enum Trigger {
     ProcessStart(ProcessStartTrigger),
     ProcessEnd(ProcessEndTrigger),
     OutOfMemory(OutOfMemoryTrigger),
+    FileOpen(FileOpenTrigger),
 }
 
 /// Exit code along with short reason and longer explanation.
