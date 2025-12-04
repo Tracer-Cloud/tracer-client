@@ -76,31 +76,6 @@ struct lib_ctx
 	struct ring_buffer *rb;
 };
 
-// get file size via /proc
-static long get_file_size(int pid, const char *filename)
-{
-	char path[512];
-	struct stat st;
-
-	if (!filename || filename[0] == '\0')
-		return -1;
-
-	// Absolute path: check if we can access it via /proc/<pid>/root
-	// This handles containers/chroots correctly.
-	if (filename[0] == '/') {
-		snprintf(path, sizeof(path), "/proc/%d/root%s", pid, filename);
-	} else {
-		// Relative path: resolving this is complex without CWD.
-		// We skip relative paths for simplicity or assume relative to CWD (not implemented here)
-		return -1;
-	}
-
-	if (stat(path, &st) == 0) {
-		return st.st_size;
-	}
-	return -1; // File not found or new file being created
-}
-
 // Copies from ringBuffer to external buffer and invokes callback
 static int handle_event(void *ctx, void *data, size_t data_sz)
 {

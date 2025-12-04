@@ -2,7 +2,9 @@ use crate::extracts::process::process_manager::ProcessManager;
 use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracer_ebpf::ebpf_trigger::{OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger};
+use tracer_ebpf::ebpf_trigger::{
+    FileOpenTrigger, OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger,
+};
 use tracing::{debug, info};
 
 pub struct TriggerProcessor {
@@ -75,6 +77,26 @@ impl TriggerProcessor {
             process_manager
                 .handle_process_starts(process_start_triggers)
                 .await?;
+        }
+
+        Ok(())
+    }
+
+    pub async fn process_file_opening_triggers(
+        &self,
+        file_opening_triggers: Vec<FileOpenTrigger>,
+    ) -> Result<()> {
+        if !file_opening_triggers.is_empty() {
+            info!(
+                "Processing {} file opening triggers",
+                file_opening_triggers.len()
+            );
+            for trigger in &file_opening_triggers {
+                debug!(
+                    "Processing file open trigger for file: {}",
+                    trigger.filename
+                );
+            }
         }
 
         Ok(())

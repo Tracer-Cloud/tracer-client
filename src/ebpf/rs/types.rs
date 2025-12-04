@@ -60,16 +60,23 @@ pub struct CEvent {
 }
 
 fn get_file_size(pid: u32, filename: &str) -> Option<u64> {
-    // We only handle absolute paths via the /proc magic link for now
-    if !filename.starts_with('/') {
-        return None;
+    // Construct the container-aware path via /proc
+    let proc_path = if filename.starts_with('/') {
+        format!("/proc/{}/root{}", pid, filename)
+    } else {
+        format!("/proc/{}/cwd/{}", pid, filename)
+    };
+
+    // Try to read via /proc (Correct way for containers)
+    if let Ok(metadata) = std::fs::metadata(&proc_path) {
+        return Some(metadata.len());
     }
 
-    // Construct path: /proc/<pid>/root<filename>
-    let proc_path = format!("/proc/{}/root{}", pid, filename);
-
-    // Rust's fs::metadata is equivalent to C's stat()
-    std::fs::metadata(proc_path).ok().map(|m| m.len())
+    // FALLBACK: Try the path directly on the host
+    // If the process died (race condition) or is not in a container,
+    // we might still be able to find the file on the host filesystem.
+    // This fixes "size=None" for short-lived commands like 'cat'.
+    std::fs::metadata(filename).ok().map(|m| m.len())
 }
 
 // Keep the helper function from the original code

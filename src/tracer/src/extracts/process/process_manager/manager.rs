@@ -14,7 +14,10 @@ use std::{
     sync::Arc,
 };
 use tokio::task::JoinHandle;
-use tracer_ebpf::ebpf_trigger::{OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger};
+use tracer_ebpf::ebpf_trigger::{
+    FileOpenTrigger, OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger,
+};
+use tracing::debug;
 
 /// Main coordinator for process management operations
 /// Uses functional programming principles with direct component access
@@ -80,6 +83,14 @@ impl ProcessManager {
             triggers,
         )
         .await
+    }
+
+    pub async fn handle_file_openings(
+        &self,
+        file_opening_triggers: Vec<FileOpenTrigger>,
+    ) -> Result<()> {
+        debug!("handle_file_opening: {}", file_opening_triggers.len());
+        Ok(())
     }
 
     /// Polls and updates metrics for all monitored processes
