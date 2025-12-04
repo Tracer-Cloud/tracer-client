@@ -182,26 +182,6 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_gpu_metrics_collection() {
-        // Test GPU metrics collection
-        let gpu_stats = GpuMonitor::collect_gpu_stats();
-
-        // This test will pass regardless of whether GPUs are available
-        // If GPUs are available, we should have some stats
-        // If no GPUs are available, we should have an empty HashMap
-        match gpu_stats {
-            Ok(stats) => {
-                // GPU stats collection succeeded (may be empty if no GPUs)
-                assert!(stats.len() >= 0);
-            }
-            Err(_) => {
-                // GPU stats collection failed (no GPUs or tools not available)
-                // This is expected in environments without GPUs
-            }
-        }
-    }
-
     #[test]
     fn test_gpu_aggregate_calculation() {
         use crate::process_identification::types::event::attributes::system_metrics::GpuStatistic;

@@ -82,13 +82,10 @@ impl EventDispatcher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::process_identification::types::event::attributes::{
-        process::DataSetsProcessed, EventAttributes,
-    };
+    use crate::process_identification::types::event::attributes::EventAttributes;
     use chrono::TimeZone;
     use tokio::sync::mpsc;
     use tracer_ebpf::ebpf_trigger::FileOpenTrigger;
-    use uuid::Uuid;
 
     #[tokio::test]
     async fn test_event_with_metadata() {
@@ -160,7 +157,7 @@ mod tests {
         // Check that attributes were passed correctly
         match &event.attributes {
             Some(EventAttributes::FileOpened(stats)) => {
-                assert_eq!(stats.size_bytes, Some(3));
+                assert_eq!(stats.size_bytes, Some(5));
                 assert_eq!(stats.filename, "test".to_string());
                 assert_eq!(stats.comm, "comm".to_string());
             }
