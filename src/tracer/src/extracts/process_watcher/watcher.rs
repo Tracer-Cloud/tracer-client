@@ -262,8 +262,8 @@ impl ProcessWatcher {
                     // debug!("File open trigger pid={}, path={}", file_opened.pid, file_opened.path);
                     if file_opened.filename.contains("fq") {
                         println!(
-                            "File open trigger pid={}, path={}",
-                            file_opened.pid, file_opened.filename
+                            "File open trigger pid={}, path={}, size={}",
+                            file_opened.pid, file_opened.filename, file_opened.size
                         );
                     }
                 }
