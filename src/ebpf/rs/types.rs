@@ -146,17 +146,15 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                 ))
             }
             EVENT__SYSCALL__SYS_ENTER_OPENAT => {
-                // 1. Cast the payload
+                // Casting the payload
                 let payload_ptr = self.payload.as_ptr() as *const SysEnterOpenAtPayload;
                 let payload = unsafe { &*payload_ptr };
-
-                // FIX: Copy pid from the packed struct to a local variable first
                 let pid = self.pid;
 
-                // 2. Extract filename
+                // Extracting the filename
                 let filename = from_bpf_str(&payload.filename)?.to_string();
 
-                // 3. Get the size using the local variable
+                // Getting the size of the file in bytes
                 let size_bytes = get_file_size(pid, &filename);
 
                 Ok(ebpf_trigger::Trigger::FileOpen(
@@ -172,7 +170,6 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                     },
                 ))
             }
-            // We can add cases for other event types as needed
             _ => Err(anyhow::anyhow!("Unsupported event type")),
         }
     }
