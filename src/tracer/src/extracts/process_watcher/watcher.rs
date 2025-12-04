@@ -261,9 +261,8 @@ impl ProcessWatcher {
                 }
                 Trigger::FileOpen(file_opened) => {
                     debug!(
-                        "File open trigger from pid={}, command={}, filename={}, size={}",
+                        "File open trigger from pid={}, filename={}, size={}",
                         file_opened.pid,
-                        file_opened.comm,
                         file_opened.filename,
                         file_opened.size_bytes.unwrap_or(0)
                     );
