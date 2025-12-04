@@ -1,4 +1,5 @@
 use crate::ebpf_trigger;
+use crate::utils::get_file_size;
 
 // CEvent must be kept in-sync with bootstrap.h types
 pub const TASK_COMM_LEN: usize = 16;
@@ -57,26 +58,6 @@ pub struct CEvent {
     // Payload - using a byte array large enough to hold any payload
     // We'll access specific payloads by casting
     pub payload: [u8; 2048], // Size should be sufficient for largest payload
-}
-
-fn get_file_size(pid: u32, filename: &str) -> Option<u64> {
-    // Construct the container-aware path via /proc
-    let proc_path = if filename.starts_with('/') {
-        format!("/proc/{}/root{}", pid, filename)
-    } else {
-        format!("/proc/{}/cwd/{}", pid, filename)
-    };
-
-    // Try to read via /proc (Correct way for containers)
-    if let Ok(metadata) = std::fs::metadata(&proc_path) {
-        return Some(metadata.len());
-    }
-
-    // FALLBACK: Try the path directly on the host
-    // If the process died (race condition) or is not in a container,
-    // we might still be able to find the file on the host filesystem.
-    // This fixes "size=None" for short-lived commands like 'cat'.
-    std::fs::metadata(filename).ok().map(|m| m.len())
 }
 
 // Keep the helper function from the original code
