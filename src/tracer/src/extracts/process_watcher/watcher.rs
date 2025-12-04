@@ -260,14 +260,20 @@ impl ProcessWatcher {
                     out_of_memory_triggers.push(out_of_memory);
                 }
                 Trigger::FileOpen(file_opened) => {
-                    // debug!("File open trigger pid={}, path={}", file_opened.pid, file_opened.path);
-                    if file_opened.filename.contains(".fq") {
-                        println!(
-                            "File open trigger pid={}, path={}, size={:?}",
-                            file_opened.pid, file_opened.filename, file_opened.size_bytes
-                        );
+                    debug!(
+                        "File open trigger from pid={}, command={}, filename={}, size={}",
+                        file_opened.pid,
+                        file_opened.comm,
+                        file_opened.filename,
+                        file_opened.size_bytes.unwrap_or(0)
+                    );
+
+                    // for now, we log only fq, fq.gz, fastq, fastq.gz files
+                    if file_opened.filename.contains(".fq")
+                        || file_opened.filename.contains(".fastq")
+                    {
+                        file_opening_triggers.push(file_opened);
                     }
-                    file_opening_triggers.push(file_opened);
                 }
             }
         }

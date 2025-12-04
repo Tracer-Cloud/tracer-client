@@ -17,10 +17,7 @@ use tokio::task::JoinHandle;
 use tracer_ebpf::ebpf_trigger::{
     FileOpenTrigger, OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger,
 };
-use tracing::debug;
 
-/// Main coordinator for process management operations
-/// Uses functional programming principles with direct component access
 pub struct ProcessManager {
     pub state_manager: StateManager,
     pub event_recorder: EventRecorder,
@@ -89,7 +86,13 @@ impl ProcessManager {
         &self,
         file_opening_triggers: Vec<FileOpenTrigger>,
     ) -> Result<()> {
-        debug!("handle_file_opening: {}", file_opening_triggers.len());
+        for file_opening_trigger in file_opening_triggers {
+            let _ = &self
+                .event_recorder
+                .record_file_opening(file_opening_trigger)
+                .await?;
+        }
+
         Ok(())
     }
 

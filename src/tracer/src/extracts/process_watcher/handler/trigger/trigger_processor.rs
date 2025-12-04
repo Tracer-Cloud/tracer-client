@@ -87,16 +87,10 @@ impl TriggerProcessor {
         file_opening_triggers: Vec<FileOpenTrigger>,
     ) -> Result<()> {
         if !file_opening_triggers.is_empty() {
-            info!(
-                "Processing {} file opening triggers",
-                file_opening_triggers.len()
-            );
-            for trigger in &file_opening_triggers {
-                debug!(
-                    "Processing file open trigger for file: {}",
-                    trigger.filename
-                );
-            }
+            let process_manager = self.process_manager.write().await;
+            process_manager
+                .handle_file_openings(file_opening_triggers)
+                .await?;
         }
 
         Ok(())

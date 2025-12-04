@@ -99,7 +99,7 @@ impl SystemMetricsCollector {
             EventAttributes::SystemMetric(self.gather_metrics_object_attributes().await);
 
         self.event_dispatcher
-            .log(
+            .log_with_metadata(
                 ProcessStatus::MetricEvent,
                 format!("[{}] System's resources metric", Utc::now()),
                 Some(attributes),
