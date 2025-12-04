@@ -104,7 +104,7 @@ pub struct FileOpenTrigger {
     pub pid: usize,
     pub comm: String, // this is useful to know "who" opened it
     pub filename: String,
-    pub size: Option<u64>, // Option, because the file might not exist or be accessible
+    pub size_bytes: Option<u64>, // Option, because the file might not exist or be accessible
     pub timestamp: DateTime<Utc>,
 }
 

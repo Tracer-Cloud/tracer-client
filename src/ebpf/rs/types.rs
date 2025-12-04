@@ -176,7 +176,7 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                 let filename = from_bpf_str(&payload.filename)?.to_string();
 
                 // 3. Get the size using the local variable
-                let size = get_file_size(pid, &filename);
+                let size_bytes = get_file_size(pid, &filename);
 
                 Ok(ebpf_trigger::Trigger::FileOpen(
                     ebpf_trigger::FileOpenTrigger {
@@ -184,7 +184,7 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                         // FIX: Use the local variable 'pid' here
                         comm: format!("pid-{}", pid),
                         filename,
-                        size,
+                        size_bytes,
                         timestamp: chrono::DateTime::from_timestamp(
                             (self.timestamp_ns / 1_000_000_000) as i64,
                             (self.timestamp_ns % 1_000_000_000) as u32,
