@@ -181,8 +181,9 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                         timestamp: chrono::DateTime::from_timestamp(
                             (self.timestamp_ns / 1_000_000_000) as i64,
                             (self.timestamp_ns % 1_000_000_000) as u32,
-                        ).unwrap(),
-                    }
+                        )
+                        .unwrap(),
+                    },
                 ))
             }
             // We can add cases for other event types as needed
