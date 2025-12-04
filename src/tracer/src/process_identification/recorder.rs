@@ -132,7 +132,6 @@ mod tests {
             timestamp: DateTime::default(),
             size_bytes: Some(5),
             filename: "test".to_string(),
-            comm: "comm".to_string(),
         }));
 
         // Call the log method
@@ -159,7 +158,6 @@ mod tests {
             Some(EventAttributes::FileOpened(stats)) => {
                 assert_eq!(stats.size_bytes, Some(5));
                 assert_eq!(stats.filename, "test".to_string());
-                assert_eq!(stats.comm, "comm".to_string());
             }
             _ => panic!("Expected ProcessDatasetStats attributes"),
         }
