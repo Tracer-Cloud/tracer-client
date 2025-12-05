@@ -101,7 +101,7 @@ pub struct ProcessEndTrigger {
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct FileOpenTrigger {
-    pub pid: usize,               // pid of the process that opened the file
+    pub pid: u32,                 // pid of the process that opened the file
     pub filename: String,         // it can be the full path or just the name
     pub size_bytes: i128, // -1 if we can't get the size of the file, otherwise the size in bytes
     pub timestamp: DateTime<Utc>, // timestamp of the event

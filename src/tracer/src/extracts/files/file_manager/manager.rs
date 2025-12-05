@@ -1,10 +1,11 @@
+use crate::extracts::files::file_manager::metrics::FileMetricsHandler;
 use crate::extracts::process::process_manager::recorder::EventRecorder;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use tracer_ebpf::ebpf_trigger::FileOpenTrigger;
 
 pub struct FileManager {
-    monitored_files: Arc<RwLock<HashMap<usize, FileOpenTrigger>>>,
+    monitored_files: Arc<RwLock<HashMap<u32, FileOpenTrigger>>>,
     pub event_recorder: EventRecorder,
 }
 
@@ -17,7 +18,7 @@ impl FileManager {
     }
 
     /// Returns a snapshot of the monitored files
-    pub fn get_monitored_files_snapshot(&self) -> HashMap<usize, FileOpenTrigger> {
+    pub fn get_monitored_files_snapshot(&self) -> HashMap<u32, FileOpenTrigger> {
         self.monitored_files.read().unwrap().clone()
     }
 
@@ -28,7 +29,7 @@ impl FileManager {
             .insert(file_opening_trigger.pid, file_opening_trigger);
     }
 
-    pub fn remove_file_from_monitoring(&self, pid: usize) {
+    pub fn remove_file_from_monitoring(&self, pid: u32) {
         self.monitored_files.write().unwrap().remove(&pid);
     }
 
@@ -51,5 +52,9 @@ impl FileManager {
         }
 
         Ok(())
+    }
+
+    pub async fn poll_file_metrics(&self) -> anyhow::Result<()> {
+        FileMetricsHandler::poll_file_metrics(self, &self.event_recorder).await
     }
 }

@@ -129,6 +129,23 @@ pub async fn monitor(client: Arc<Mutex<TracerClient>>, server_token: Cancellatio
         )
     };
 
+    let mut file_metrics_handle = {
+        let client = Arc::clone(&client);
+        spawn_worker_thread(
+            process_metrics_interval_ms * 10, // 500ms x 10 so we do the file metrics every 5 seconds
+            server_token.clone(),
+            client_token.clone(),
+            move || {
+                let client = Arc::clone(&client);
+                async move {
+                    let mut guard = client.lock().await;
+                    guard.poll_files_metrics().await.unwrap();
+                    sentry_alert(&guard).await;
+                }
+            },
+        )
+    };
+
     tokio::select! {
         result = &mut submission_handle => {
             if let Err(join_error) = result {
@@ -154,6 +171,15 @@ pub async fn monitor(client: Arc<Mutex<TracerClient>>, server_token: Cancellatio
                 }
             }
         }
+        result = &mut file_metrics_handle => {
+            if let Err(join_error) = result {
+                if join_error.is_panic() {
+                    error!("Files metrics thread panicked");
+                    server_token.cancel();
+                }
+            }
+        }
+
     }
 
     // submit all data left

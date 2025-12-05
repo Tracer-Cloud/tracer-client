@@ -227,4 +227,18 @@ impl EventRecorder {
             )
             .await
     }
+
+    pub async fn record_file_size_updates(&self, file_open_trigger: FileOpenTrigger) -> Result<()> {
+        self.event_dispatcher
+            .log_with_metadata(
+                TracerProcessStatus::FileSizeUpdate,
+                format!(
+                    "File size update for {}, now = {}",
+                    &file_open_trigger.filename, &file_open_trigger.size_bytes
+                ),
+                Some(EventAttributes::FileOpened(file_open_trigger.clone())),
+                Some(file_open_trigger.timestamp),
+            )
+            .await
+    }
 }

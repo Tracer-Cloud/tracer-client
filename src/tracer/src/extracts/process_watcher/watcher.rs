@@ -26,19 +26,18 @@ pub struct ProcessWatcher {
 }
 
 impl ProcessWatcher {
-    pub fn new(event_dispatcher: EventDispatcher, docker_watcher: Arc<DockerWatcher>) -> Self {
+    pub fn new(
+        event_dispatcher: EventDispatcher,
+        docker_watcher: Arc<DockerWatcher>,
+        file_manager: Arc<RwLock<FileManager>>,
+    ) -> Self {
         // instantiate the process manager
         let event_recorder = EventRecorder::new(event_dispatcher.clone(), docker_watcher.clone());
         let process_manager = Arc::new(RwLock::new(ProcessManager::new(event_recorder.clone())));
 
-        let file_manager = Arc::new(RwLock::new(FileManager::new(event_recorder)));
-
         ProcessWatcher {
             ebpf_initialized: Arc::new(Mutex::new(false)),
-            trigger_processor: TriggerProcessor::new(
-                Arc::clone(&process_manager),
-                Arc::clone(&file_manager),
-            ),
+            trigger_processor: TriggerProcessor::new(Arc::clone(&process_manager), file_manager),
             process_manager,
         }
     }

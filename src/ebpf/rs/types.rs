@@ -160,7 +160,7 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
 
                 Ok(ebpf_trigger::Trigger::FileOpen(
                     ebpf_trigger::FileOpenTrigger {
-                        pid: pid as usize,
+                        pid,
                         filename,
                         size_bytes,
                         timestamp: chrono::DateTime::from_timestamp(

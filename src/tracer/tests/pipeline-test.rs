@@ -7,9 +7,11 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{self, Sender};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 use tracer::daemon::structs::PipelineMetadata;
 use tracer::extracts::containers::DockerWatcher;
+use tracer::extracts::files::file_manager::manager::FileManager;
+use tracer::extracts::process::process_manager::recorder::EventRecorder;
 use tracer::extracts::process_watcher::watcher::ProcessWatcher;
 use tracer::process_identification::recorder::EventDispatcher;
 use tracer::process_identification::types::current_run::RunMetadata;
@@ -29,9 +31,13 @@ fn create_process_watcher(
 ) -> Arc<ProcessWatcher> {
     let event_dispatcher = EventDispatcher::new(pipeline, run, event_sender);
     let docker_watcher = DockerWatcher::new(event_dispatcher.clone());
+    let event_recorder =
+        EventRecorder::new(event_dispatcher.clone(), Arc::new(docker_watcher.clone()));
+    let file_manager = Arc::new(RwLock::new(FileManager::new(event_recorder)));
     Arc::new(ProcessWatcher::new(
         event_dispatcher,
         Arc::new(docker_watcher),
+        file_manager,
     ))
 }
 
