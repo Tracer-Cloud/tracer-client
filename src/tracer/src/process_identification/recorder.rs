@@ -27,17 +27,6 @@ impl EventDispatcher {
         self.run.trace_id.clone()
     }
 
-    pub async fn log(
-        &self,
-        process_status: ProcessStatus,
-        body: String,
-        attributes: Option<EventAttributes>,
-        timestamp: Option<DateTime<Utc>>,
-    ) -> anyhow::Result<()> {
-        self.log_with_metadata(process_status, body, attributes, timestamp)
-            .await
-    }
-
     pub async fn log_with_metadata(
         &self,
         process_status: ProcessStatus,
@@ -93,12 +82,10 @@ impl EventDispatcher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::process_identification::types::event::attributes::{
-        process::DataSetsProcessed, EventAttributes,
-    };
+    use crate::process_identification::types::event::attributes::EventAttributes;
     use chrono::TimeZone;
     use tokio::sync::mpsc;
-    use uuid::Uuid;
+    use tracer_ebpf::ebpf_trigger::FileOpenTrigger;
 
     #[tokio::test]
     async fn test_event_with_metadata() {
@@ -140,15 +127,16 @@ mod tests {
         let message = "Test log via standard method".to_string();
 
         // Create test attributes
-        let attributes = Some(EventAttributes::ProcessDatasetStats(DataSetsProcessed {
-            datasets: "dataset1,dataset2".to_string(),
-            total: 2,
-            trace_id: Some(Uuid::new_v4().to_string()),
+        let attributes = Some(EventAttributes::FileOpened(FileOpenTrigger {
+            pid: 3,
+            timestamp: DateTime::default(),
+            size_bytes: Some(5),
+            filename: "test".to_string(),
         }));
 
         // Call the log method
         recorder
-            .log(
+            .log_with_metadata(
                 ProcessStatus::MetricEvent,
                 message.clone(),
                 attributes.clone(),
@@ -167,10 +155,9 @@ mod tests {
 
         // Check that attributes were passed correctly
         match &event.attributes {
-            Some(EventAttributes::ProcessDatasetStats(stats)) => {
-                assert_eq!(stats.datasets, "dataset1,dataset2");
-                assert_eq!(stats.total, 2);
-                assert!(stats.trace_id.is_some());
+            Some(EventAttributes::FileOpened(stats)) => {
+                assert_eq!(stats.size_bytes, Some(5));
+                assert_eq!(stats.filename, "test".to_string());
             }
             _ => panic!("Expected ProcessDatasetStats attributes"),
         }
@@ -188,7 +175,7 @@ mod tests {
 
         // Attempt to log - this should result in an error
         let result = recorder
-            .log(
+            .log_with_metadata(
                 ProcessStatus::Alert,
                 "This message should fail to send".to_string(),
                 None,
@@ -212,7 +199,7 @@ mod tests {
         let message = "Logging with trace_id".to_string();
 
         recorder
-            .log(ProcessStatus::ToolExecution, message.clone(), None, None)
+            .log_with_metadata(ProcessStatus::ToolExecution, message.clone(), None, None)
             .await
             .unwrap();
 

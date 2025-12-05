@@ -2,16 +2,10 @@ receivers:
   filelog:
     include:
       - "**/*.log"
-      - "**/*nextflow.log"
-      - "**/*nextflow*.log"
       - "**/*.nextflow.log"
-      - "**/*.nextflow.log.*"
-      - "**/*.nextflow.log*"
-      - "**/*.nextflow.log*"
-      - "**/*.nextflow.log*"
-      - "**/*.command.log"
       - "**/*.command.err"
       - "**/*.command.out"
+      - "/var/lib/docker/containers/**/*.log"
 
     exclude:
       - /proc/*

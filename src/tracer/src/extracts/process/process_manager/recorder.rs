@@ -14,7 +14,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use sysinfo::Process;
 use tokio::sync::RwLock;
-use tracer_ebpf::ebpf_trigger::{ProcessEndTrigger, ProcessStartTrigger};
+use tracer_ebpf::ebpf_trigger::{FileOpenTrigger, ProcessEndTrigger, ProcessStartTrigger};
 use tracing::{debug, info};
 
 /// Handles recording of process-related events
@@ -97,7 +97,7 @@ impl EventRecorder {
         }
 
         self.event_dispatcher
-            .log(
+            .log_with_metadata(
                 TracerProcessStatus::ToolExecution,
                 format!("[{}] Tool process: {}", Utc::now(), &display_name),
                 Some(EventAttributes::Process(properties)),
@@ -142,7 +142,7 @@ impl EventRecorder {
         debug!("Process data completed. PID={}", process.pid);
 
         self.event_dispatcher
-            .log(
+            .log_with_metadata(
                 TracerProcessStatus::ToolMetricEvent,
                 format!("[{}] Tool metric event: {}", Utc::now(), &display_name),
                 Some(EventAttributes::Process(properties)),
@@ -193,7 +193,7 @@ impl EventRecorder {
             };
 
         self.event_dispatcher
-            .log(
+            .log_with_metadata(
                 TracerProcessStatus::FinishedToolExecution,
                 format!("[{}] {} exited", Utc::now(), &start_trigger.comm),
                 Some(EventAttributes::CompletedProcess(properties)),
@@ -207,11 +207,22 @@ impl EventRecorder {
     /// Record a match for a set of processes to a job.
     pub async fn record_task_match(&self, task_match: TaskMatch) -> Result<()> {
         self.event_dispatcher
-            .log(
+            .log_with_metadata(
                 TracerProcessStatus::TaskMatch,
                 format!("[{}] Job match: {}", Utc::now(), &task_match),
                 Some(EventAttributes::TaskMatch(task_match)),
                 None,
+            )
+            .await
+    }
+
+    pub async fn record_file_opening(&self, file_open_trigger: FileOpenTrigger) -> Result<()> {
+        self.event_dispatcher
+            .log_with_metadata(
+                TracerProcessStatus::FileOpened,
+                format!("File opened: {}", &file_open_trigger.filename),
+                Some(EventAttributes::FileOpened(file_open_trigger.clone())),
+                Some(file_open_trigger.timestamp),
             )
             .await
     }

@@ -1,8 +1,8 @@
+pub mod auth;
 mod cleanup_port;
 mod demo;
 mod info;
 mod init;
-mod login;
 mod logs;
 mod otel;
 mod start;
@@ -12,13 +12,13 @@ mod theme;
 mod uninstall;
 mod update;
 
+pub(super) use auth::cli_auth::auth;
 pub(super) use cleanup_port::cleanup_port;
 pub use demo::arguments as demo_arguments;
 pub(super) use demo::demo;
 pub(super) use info::info;
 pub use init::arguments as init_arguments;
 pub(super) use init::init;
-pub(super) use login::cli_login::login;
 pub(super) use logs::{logs, otel_start_with_auto_install};
 pub(super) use otel::handle_otel_command;
 pub(super) use start::start;

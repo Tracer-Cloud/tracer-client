@@ -6,7 +6,6 @@ use tracer_ebpf::ebpf_trigger::ProcessEndTrigger;
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
 use tracing::{debug, error};
 
-/// Handles process termination events
 pub struct ProcessTerminationHandler;
 
 impl ProcessTerminationHandler {
