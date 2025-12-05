@@ -37,10 +37,17 @@ impl FileManager {
         file_opening_triggers: Vec<FileOpenTrigger>,
     ) -> anyhow::Result<()> {
         for file_opening_trigger in file_opening_triggers {
-            let _ = &self
-                .event_recorder
-                .record_file_opening(file_opening_trigger)
-                .await?;
+            // for now, we filter in only fq, fq.gz, fastq, fastq.gz files
+            if file_opening_trigger.filename.contains(".fq")
+                || file_opening_trigger.filename.contains(".fastq")
+            {
+                self.add_file_to_monitoring(file_opening_trigger.clone());
+
+                let _ = &self
+                    .event_recorder
+                    .record_file_opening(file_opening_trigger)
+                    .await?;
+            }
         }
 
         Ok(())
