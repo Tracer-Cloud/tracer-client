@@ -132,7 +132,7 @@ pub async fn monitor(client: Arc<Mutex<TracerClient>>, server_token: Cancellatio
     let mut file_metrics_handle = {
         let client = Arc::clone(&client);
         spawn_worker_thread(
-            process_metrics_interval_ms * 10, // 500ms x 10 so we do the file metrics every 5 seconds
+            system_metrics_interval_ms, // 500ms x 10 so we do the file metrics every 5 seconds
             server_token.clone(),
             client_token.clone(),
             move || {
