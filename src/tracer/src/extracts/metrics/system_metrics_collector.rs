@@ -99,7 +99,7 @@ impl SystemMetricsCollector {
             EventAttributes::SystemMetric(self.gather_metrics_object_attributes().await);
 
         self.event_dispatcher
-            .log(
+            .log_with_metadata(
                 ProcessStatus::MetricEvent,
                 format!("[{}] System's resources metric", Utc::now()),
                 Some(attributes),
@@ -179,26 +179,6 @@ mod tests {
         } else {
             // fail test
             panic!("Expected SystemMetric attribute type"); // Replace assert!(false)
-        }
-    }
-
-    #[tokio::test]
-    async fn test_gpu_metrics_collection() {
-        // Test GPU metrics collection
-        let gpu_stats = GpuMonitor::collect_gpu_stats();
-
-        // This test will pass regardless of whether GPUs are available
-        // If GPUs are available, we should have some stats
-        // If no GPUs are available, we should have an empty HashMap
-        match gpu_stats {
-            Ok(stats) => {
-                // GPU stats collection succeeded (may be empty if no GPUs)
-                assert!(stats.len() >= 0);
-            }
-            Err(_) => {
-                // GPU stats collection failed (no GPUs or tools not available)
-                // This is expected in environments without GPUs
-            }
         }
     }
 

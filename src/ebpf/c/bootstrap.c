@@ -6,6 +6,8 @@
 #include <sys/resource.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <errno.h>
 
 #include <bpf/libbpf.h>
 
@@ -78,6 +80,7 @@ struct lib_ctx
 static int handle_event(void *ctx, void *data, size_t data_sz)
 {
 	struct lib_ctx *lc = ctx;
+	struct event *e = data; // Cast data to our event struct
 
 	if (unlikely(data_sz != sizeof(struct event)))
 	{

@@ -25,9 +25,10 @@ pub fn flatten_event_attributes(event: &Event) -> Result<Value> {
         EventAttributes::CompletedProcess(p) => ("process", serde_json::to_value(p)?),
         EventAttributes::SystemMetric(p) => ("system_metric", serde_json::to_value(p)?),
         EventAttributes::SystemProperties(_) => return Ok(Value::Object(map)),
-        EventAttributes::ProcessDatasetStats(p) => {
-            ("processed_dataset_stats", serde_json::to_value(p)?)
-        }
+        EventAttributes::FileOpened(file_opened) => (
+            "processed_dataset_stats",
+            serde_json::to_value(file_opened)?,
+        ),
         EventAttributes::Syslog(p) => ("syslog", serde_json::to_value(p)?),
 
         EventAttributes::ContainerEvents(p) => ("containers", serde_json::to_value(p)?),

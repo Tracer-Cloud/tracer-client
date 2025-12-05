@@ -12,7 +12,7 @@ use sysinfo::ProcessesToUpdate;
 use tokio::sync::{mpsc, Mutex, RwLock};
 use tracer_ebpf::binding::start_processing_events;
 use tracer_ebpf::ebpf_trigger::{
-    OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger, Trigger,
+    FileOpenTrigger, OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger, Trigger,
 };
 use tracing::{debug, error, info};
 
@@ -226,6 +226,7 @@ impl ProcessWatcher {
         let mut process_start_triggers: Vec<ProcessStartTrigger> = vec![];
         let mut process_end_triggers: Vec<ProcessEndTrigger> = vec![];
         let mut out_of_memory_triggers: Vec<OutOfMemoryTrigger> = vec![];
+        let mut file_opening_triggers: Vec<FileOpenTrigger> = vec![];
 
         debug!("ProcessWatcher: processing {} triggers", triggers.len());
 
@@ -258,22 +259,38 @@ impl ProcessWatcher {
                     debug!("OOM trigger pid={}", out_of_memory.pid);
                     out_of_memory_triggers.push(out_of_memory);
                 }
+                Trigger::FileOpen(file_opened) => {
+                    debug!(
+                        "File open trigger from pid={}, filename={}, size={}",
+                        file_opened.pid,
+                        file_opened.filename,
+                        file_opened.size_bytes.unwrap_or(0)
+                    );
+
+                    // for now, we log only fq, fq.gz, fastq, fastq.gz files
+                    if file_opened.filename.contains(".fq")
+                        || file_opened.filename.contains(".fastq")
+                    {
+                        file_opening_triggers.push(file_opened);
+                    }
+                }
             }
         }
 
-        // Process start triggers
         self.trigger_processor
             .process_process_start_triggers(process_start_triggers)
             .await?;
 
-        // Process out of memory triggers
         self.trigger_processor
             .process_out_of_memory_triggers(out_of_memory_triggers)
             .await;
 
-        // Process end triggers
         self.trigger_processor
             .process_process_end_triggers(process_end_triggers)
+            .await?;
+
+        self.trigger_processor
+            .process_file_opening_triggers(file_opening_triggers)
             .await?;
 
         Ok(())
