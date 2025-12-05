@@ -18,7 +18,7 @@ pub struct Claims {
 
     // custom fields
     pub email: String,
-    pub full_name: String,
+    pub full_name: Option<String>,
     pub organization: Option<String>, // also the organization is optional for now, until we have a better way to handle it
     pub organization_slug: String, //organization slug is required to generate the url for the run details page
 }
@@ -26,7 +26,49 @@ pub struct Claims {
 impl Claims {
     /// Getting the first word in the full name and considering as name
     pub fn get_name_from_full_name(&self) -> String {
-        let full_name_vector = &self.full_name.split(" ").collect::<Vec<&str>>();
-        full_name_vector[0].to_string()
+        if let Some(name) = self
+            .full_name
+            .as_ref()
+            .and_then(|full_name| {
+                full_name
+                    .split_whitespace()
+                    .find(|word| !word.is_empty())
+                    .map(|word| word.to_string())
+            })
+        {
+            return name;
+        }
+
+        self.get_initials_from_email()
+    }
+
+    pub fn get_full_name_or_initials(&self) -> String {
+        if let Some(full_name) = self.full_name.as_ref() {
+            let trimmed = full_name.trim();
+            if !trimmed.is_empty() {
+                return trimmed.to_string();
+            }
+        }
+
+        self.get_initials_from_email()
+    }
+
+    fn get_initials_from_email(&self) -> String {
+        let user_segment = self.email.split('@').next().unwrap_or("");
+        if user_segment.is_empty() {
+            return self.sub.clone();
+        }
+
+        let initials = user_segment
+            .split(|c: char| c == '.' || c == '_' || c == '-' || c == ' ')
+            .filter_map(|segment| segment.chars().next())
+            .map(|c| c.to_ascii_uppercase())
+            .collect::<String>();
+
+        if initials.is_empty() {
+            user_segment.to_ascii_uppercase()
+        } else {
+            initials
+        }
     }
 }

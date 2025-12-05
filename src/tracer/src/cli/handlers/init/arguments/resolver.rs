@@ -62,7 +62,7 @@ impl ArgumentResolver {
             self.args.tags.organization_slug = token_claims.organization_slug;
 
             // getting the user's full name from the token
-            self.args.tags.user_full_name = token_claims.full_name;
+            self.args.tags.user_full_name = token_claims.get_full_name_or_initials();
             user_name = if !user_name.is_empty() {
                 user_name
             } else {

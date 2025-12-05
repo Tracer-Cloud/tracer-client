@@ -85,6 +85,57 @@ impl Ec2Client {
         Ok(volume_metadata)
     }
 
+    /// Fetch current spot price for an instance type in a specific availability zone
+    pub async fn get_spot_price(
+        &self,
+        instance_type: &str,
+        availability_zone: &str,
+    ) -> Result<Option<f64>, anyhow::Error> {
+        let client = self
+            .client
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("EC2 client is not initialized"))?;
+
+        tracing::info!(
+            instance_type,
+            availability_zone,
+            "Fetching spot price for instance type"
+        );
+
+        let output = client
+            .describe_spot_price_history()
+            .instance_types(instance_type)
+            .availability_zone(availability_zone)
+            .product_descriptions("Linux/UNIX")
+            .max_results(1)
+            .send()
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to fetch spot price: {e}"))?;
+
+        let spot_price = output
+            .spot_price_history()
+            .first()
+            .and_then(|history| history.spot_price())
+            .and_then(|price_str| price_str.parse::<f64>().ok());
+
+        if let Some(price) = spot_price {
+            tracing::info!(
+                instance_type,
+                availability_zone,
+                price,
+                "Found spot price"
+            );
+        } else {
+            tracing::warn!(
+                instance_type,
+                availability_zone,
+                "No spot price history found"
+            );
+        }
+
+        Ok(spot_price)
+    }
+
     pub async fn describe_instance(
         &self,
         instance_id: &str,

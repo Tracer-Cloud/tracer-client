@@ -15,26 +15,37 @@ use super::ec2_client_manager::{reinitialize_client_if_needed, update_client_if_
 pub struct PricingClient {
     pub pricing_client: Option<pricing::Client>,
     pub ec2_client: RwLock<Option<Ec2Client>>,
-    region: String,
+    ec2_region: RwLock<String>, // Track the EC2 client's region separately
     aws_config: AwsConfig,
 }
 
 impl PricingClient {
     /// Creates a new PricingClient instance
-    pub async fn new(initialization_conf: AwsConfig, region: &'static str) -> Self {
-        let config = resolve_available_aws_config(initialization_conf.clone(), region).await;
+    /// The ec2_client will be reinitialized to the correct region when needed
+    pub async fn new(initialization_conf: AwsConfig, initial_region: &'static str) -> Self {
+        // Pricing API requires us-east-1
+        let pricing_config = resolve_available_aws_config(initialization_conf.clone(), "us-east-1").await;
+        
+        // EC2 client starts with initial_region, will be reinitialized as needed
+        let ec2_config = resolve_available_aws_config(initialization_conf.clone(), initial_region).await;
 
-        match config {
-            Some(ref conf) => Self {
-                pricing_client: Some(pricing::client::Client::new(conf)),
-                ec2_client: RwLock::new(Some(Ec2Client::new_with_config(conf).await)),
+        match (pricing_config, ec2_config) {
+            (Some(ref p_conf), Some(ref e_conf)) => Self {
+                pricing_client: Some(pricing::client::Client::new(p_conf)),
+                ec2_client: RwLock::new(Some(Ec2Client::new_with_config(e_conf).await)),
                 aws_config: initialization_conf,
-                region: region.to_string(),
+                ec2_region: RwLock::new(initial_region.to_string()),
             },
-            None => Self {
+            (Some(ref p_conf), None) => Self {
+                pricing_client: Some(pricing::client::Client::new(p_conf)),
+                ec2_client: RwLock::new(None),
+                ec2_region: RwLock::new(initial_region.to_string()),
+                aws_config: initialization_conf,
+            },
+            _ => Self {
                 pricing_client: None,
                 ec2_client: RwLock::new(None),
-                region: region.to_string(),
+                ec2_region: RwLock::new(initial_region.to_string()),
                 aws_config: initialization_conf,
             },
         }
@@ -45,9 +56,17 @@ impl PricingClient {
         &self,
         metadata: &AwsInstanceMetaData,
     ) -> Option<InstancePricingContext> {
-        // Functional pipeline: reinitialize -> update -> build context
+        // Check if EC2 client needs reinitialization for the correct region
+        let current_region = self.ec2_region.read().await.clone();
         let maybe_new_client =
-            reinitialize_client_if_needed(&self.aws_config, &self.region, metadata).await;
+            reinitialize_client_if_needed(&self.aws_config, &current_region, metadata).await;
+        
+        if maybe_new_client.is_some() {
+            // Update the region tracking
+            let mut region_guard = self.ec2_region.write().await;
+            *region_guard = metadata.region.clone();
+        }
+        
         update_client_if_needed(&self.ec2_client, maybe_new_client).await;
 
         let guard = self.ec2_client.read().await;
