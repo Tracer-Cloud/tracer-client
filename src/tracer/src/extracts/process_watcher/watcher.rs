@@ -1,5 +1,7 @@
 use crate::extracts::containers::DockerWatcher;
+use crate::extracts::files::file_manager::manager::FileManager;
 use crate::extracts::process::extract_process_data::get_process_argv;
+use crate::extracts::process::process_manager::recorder::EventRecorder;
 use crate::extracts::process::process_manager::ProcessManager;
 use crate::extracts::process_watcher::handler::trigger::trigger_processor::TriggerProcessor;
 use crate::process_identification::recorder::EventDispatcher;
@@ -21,20 +23,22 @@ pub struct ProcessWatcher {
     ebpf_initialized: Arc<Mutex<bool>>,
     process_manager: Arc<RwLock<ProcessManager>>,
     trigger_processor: TriggerProcessor,
-    // here will go the file manager for dataset recognition operations
 }
 
 impl ProcessWatcher {
     pub fn new(event_dispatcher: EventDispatcher, docker_watcher: Arc<DockerWatcher>) -> Self {
         // instantiate the process manager
-        let process_manager = Arc::new(RwLock::new(ProcessManager::new(
-            event_dispatcher.clone(),
-            docker_watcher,
-        )));
+        let event_recorder = EventRecorder::new(event_dispatcher.clone(), docker_watcher.clone());
+        let process_manager = Arc::new(RwLock::new(ProcessManager::new(event_recorder.clone())));
+
+        let file_manager = Arc::new(RwLock::new(FileManager::new(event_recorder)));
 
         ProcessWatcher {
             ebpf_initialized: Arc::new(Mutex::new(false)),
-            trigger_processor: TriggerProcessor::new(Arc::clone(&process_manager)),
+            trigger_processor: TriggerProcessor::new(
+                Arc::clone(&process_manager),
+                Arc::clone(&file_manager),
+            ),
             process_manager,
         }
     }
