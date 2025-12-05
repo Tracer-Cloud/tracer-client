@@ -1,3 +1,4 @@
+use crate::extracts::files::file_manager::manager::FileManager;
 use crate::extracts::process::process_manager::ProcessManager;
 use anyhow::Result;
 use std::sync::Arc;
@@ -9,12 +10,19 @@ use tracing::{debug, info};
 
 pub struct TriggerProcessor {
     process_manager: Arc<RwLock<ProcessManager>>,
+    file_manager: Arc<RwLock<FileManager>>,
 }
 
 impl TriggerProcessor {
-    pub fn new(process_manager: Arc<RwLock<ProcessManager>>) -> Self {
+    pub fn new(
+        process_manager: Arc<RwLock<ProcessManager>>,
+        file_manager: Arc<RwLock<FileManager>>,
+    ) -> Self {
         info!("Initializing TriggerProcessor");
-        Self { process_manager }
+        Self {
+            process_manager,
+            file_manager,
+        }
     }
 
     pub async fn process_out_of_memory_triggers(
@@ -87,8 +95,16 @@ impl TriggerProcessor {
         file_opening_triggers: Vec<FileOpenTrigger>,
     ) -> Result<()> {
         if !file_opening_triggers.is_empty() {
-            let process_manager = self.process_manager.write().await;
-            process_manager
+            for trigger in &file_opening_triggers {
+                debug!(
+                    "Processing file opening for process={}, filename={}, size={:?}",
+                    trigger.pid, trigger.filename, trigger.size_bytes
+                );
+            }
+
+            let file_manager = self.file_manager.write().await;
+
+            file_manager
                 .handle_file_openings(file_opening_triggers)
                 .await?;
         }

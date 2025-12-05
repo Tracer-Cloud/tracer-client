@@ -7,7 +7,9 @@ use crate::cloud_providers::aws::pricing::PricingSource;
 use crate::config::Config;
 use crate::daemon::structs::{PipelineMetadata, RunSnapshot};
 use crate::extracts::containers::DockerWatcher;
+use crate::extracts::files::file_manager::manager::FileManager;
 use crate::extracts::metrics::system_metrics_collector::SystemMetricsCollector;
+use crate::extracts::process::process_manager::recorder::EventRecorder;
 use crate::extracts::process_watcher::watcher::ProcessWatcher;
 use crate::process_identification::recorder::EventDispatcher;
 use crate::process_identification::types::current_run::RunMetadata;
@@ -38,6 +40,7 @@ pub struct TracerClient {
     force_procfs: bool,
 
     pub exporter: Arc<ExporterManager>,
+    pub file_manager: Arc<RwLock<FileManager>>,
 }
 
 impl TracerClient {
@@ -87,7 +90,13 @@ impl TracerClient {
         // Initialize Docker watcher lazily to avoid blocking startup
         let docker_watcher = Arc::new(DockerWatcher::new_lazy(event_dispatcher.clone()));
 
-        let process_watcher = Self::init_process_watcher(&event_dispatcher, docker_watcher.clone());
+        let event_recorder = EventRecorder::new(event_dispatcher.clone(), docker_watcher.clone());
+        let file_manager = Arc::new(RwLock::new(FileManager::new(event_recorder)));
+        let process_watcher = Self::init_process_watcher(
+            &event_dispatcher,
+            docker_watcher.clone(),
+            file_manager.clone(),
+        );
 
         let exporter = Arc::new(ExporterManager::new(db_client, rx));
 
@@ -106,6 +115,7 @@ impl TracerClient {
             docker_watcher,
             run,
             pipeline,
+            file_manager,
         })
     }
 
@@ -125,10 +135,12 @@ impl TracerClient {
     fn init_process_watcher(
         event_dispatcher: &EventDispatcher,
         docker_watcher: Arc<DockerWatcher>,
+        file_manager: Arc<RwLock<FileManager>>,
     ) -> Arc<ProcessWatcher> {
         Arc::new(ProcessWatcher::new(
             event_dispatcher.clone(),
             docker_watcher,
+            file_manager,
         ))
     }
 
@@ -255,6 +267,11 @@ impl TracerClient {
     #[tracing::instrument(skip(self))]
     pub async fn poll_process_metrics(&mut self) -> Result<()> {
         self.process_watcher.poll_process_metrics().await
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn poll_files_metrics(&mut self) -> Result<()> {
+        self.file_manager.read().await.poll_file_metrics().await
     }
 
     #[tracing::instrument(skip(self))]

@@ -1,5 +1,5 @@
 use crate::ebpf_trigger;
-use crate::utils::get_file_size;
+use crate::utils::{get_file_full_path, get_file_size};
 
 // CEvent must be kept in-sync with bootstrap.h types
 pub const TASK_COMM_LEN: usize = 16;
@@ -155,11 +155,12 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                 let filename = from_bpf_str(&payload.filename)?.to_string();
 
                 // Getting the size of the file in bytes
-                let size_bytes = get_file_size(pid, &filename);
+                let size_bytes = get_file_size(pid, &filename).unwrap_or(-1);
+                let file_full_path = get_file_full_path(pid, &filename);
 
                 Ok(ebpf_trigger::Trigger::FileOpen(
                     ebpf_trigger::FileOpenTrigger {
-                        pid: pid as usize,
+                        pid,
                         filename,
                         size_bytes,
                         timestamp: chrono::DateTime::from_timestamp(
@@ -167,6 +168,7 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                             (self.timestamp_ns % 1_000_000_000) as u32,
                         )
                         .unwrap(),
+                        file_full_path,
                     },
                 ))
             }

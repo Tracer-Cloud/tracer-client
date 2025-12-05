@@ -18,6 +18,7 @@ use tracer_ebpf::ebpf_trigger::{FileOpenTrigger, ProcessEndTrigger, ProcessStart
 use tracing::{debug, info};
 
 /// Handles recording of process-related events
+#[derive(Clone)]
 pub struct EventRecorder {
     event_dispatcher: EventDispatcher,
     /// shared reference to the docker watcher - used to get the ContainerEvent associated
@@ -221,6 +222,20 @@ impl EventRecorder {
             .log_with_metadata(
                 TracerProcessStatus::FileOpened,
                 format!("File opened: {}", &file_open_trigger.filename),
+                Some(EventAttributes::FileOpened(file_open_trigger.clone())),
+                Some(file_open_trigger.timestamp),
+            )
+            .await
+    }
+
+    pub async fn record_file_size_updates(&self, file_open_trigger: FileOpenTrigger) -> Result<()> {
+        self.event_dispatcher
+            .log_with_metadata(
+                TracerProcessStatus::FileSizeUpdate,
+                format!(
+                    "File size update for {}, now = {}",
+                    &file_open_trigger.filename, &file_open_trigger.size_bytes
+                ),
                 Some(EventAttributes::FileOpened(file_open_trigger.clone())),
                 Some(file_open_trigger.timestamp),
             )

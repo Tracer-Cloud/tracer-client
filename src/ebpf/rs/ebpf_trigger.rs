@@ -101,10 +101,11 @@ pub struct ProcessEndTrigger {
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct FileOpenTrigger {
-    pub pid: usize,              // pid of the process that opened the file
-    pub filename: String,        // it can be the full path or just the name
-    pub size_bytes: Option<u64>, // Option, because the file might not exist or be accessible
-    pub timestamp: DateTime<Utc>,
+    pub pid: u32,                 // pid of the process that opened the file
+    pub filename: String,         // it can be the full path or just the name
+    pub size_bytes: i128, // -1 if we can't get the size of the file, otherwise the size in bytes
+    pub timestamp: DateTime<Utc>, // timestamp of the event
+    pub file_full_path: String, // we use it to understand if 2 equals filenames are the same file
 }
 
 #[derive(Debug, Clone)]
@@ -123,7 +124,7 @@ pub enum Trigger {
     FileOpen(FileOpenTrigger),
 }
 
-/// Exit code along with short reason and longer explanation.
+/// Exit code along with a short reason and longer explanation.
 ///
 /// We always create the reason and explanation when creating the struct (rather than on-demand
 /// via a method call) because ExitReason always gets serialized, and it makes it possible to
