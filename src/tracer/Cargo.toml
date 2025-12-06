@@ -19,7 +19,7 @@ aws-sdk-pricing.workspace = true
 aws-sdk-s3.workspace = true
 aws-sdk-secretsmanager.workspace = true
 axum.workspace = true
-tower-http = { version = "0.6.2", features = ["cors"] }
+tower-http = { version = "0.6.7", features = ["cors"] }
 bollard.workspace = true
 chrono.workspace = true
 clap.workspace = true
