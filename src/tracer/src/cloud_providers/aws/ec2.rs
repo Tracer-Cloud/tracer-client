@@ -96,15 +96,13 @@ impl Ec2Client {
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("EC2 client is not initialized"))?;
 
-        tracing::info!(
-            instance_type,
-            availability_zone,
-            "Fetching spot price for instance type"
-        );
+        let it: aws_sdk_ec2::types::InstanceType = instance_type
+            .parse()
+            .map_err(|_| anyhow::anyhow!("Invalid instance type: {}", instance_type))?;
 
         let output = client
             .describe_spot_price_history()
-            .instance_types(instance_type)
+            .instance_types(it)
             .availability_zone(availability_zone)
             .product_descriptions("Linux/UNIX")
             .max_results(1)
@@ -123,14 +121,10 @@ impl Ec2Client {
                 instance_type,
                 availability_zone,
                 price,
-                "Found spot price"
+                "Spot price retrieved"
             );
         } else {
-            tracing::warn!(
-                instance_type,
-                availability_zone,
-                "No spot price history found"
-            );
+            tracing::warn!(instance_type, availability_zone, "No spot price");
         }
 
         Ok(spot_price)

@@ -23,13 +23,12 @@ pub async fn build_pricing_context(
 ) -> Option<InstancePricingContext> {
     // Functional pipeline: describe -> filter -> fetch -> match -> combine
     let filterable_data = describe_instance(ec2_client, metadata).await?;
-    
+
     // Check if this is a spot instance and fetch spot price if needed
     let spot_price = if matches!(
         metadata.instance_purchasing_model,
         Some(InstancePurchasingModel::Spot)
     ) {
-        tracing::info!("Detected spot instance, fetching spot price");
         ec2_client
             .get_spot_price(&metadata.instance_type, &metadata.availability_zone)
             .await
@@ -42,18 +41,14 @@ pub async fn build_pricing_context(
     let ec2_filters = build_ec2_filters(&filterable_data);
     let ec2_raw = fetch_ec2_pricing_data(pricing_client, ec2_filters).await?;
     let mut ec2_matches = match_ec2_instances(filterable_data.clone(), ec2_raw)?;
-    
+
     // Override with spot price if available
     if let Some(spot_hourly_price) = spot_price {
-        tracing::info!(
-            spot_hourly_price,
-            "Using spot price instead of on-demand price"
-        );
         if let Some(first_match) = ec2_matches.first_mut() {
             first_match.price_per_unit = spot_hourly_price;
         }
     }
-    
+
     let ebs_cost = calculate_total_ebs_cost(
         pricing_client,
         ec2_client,
@@ -146,7 +141,7 @@ fn combine_pricing_data(
 
     let total = ec2_data.price_per_unit + ebs_cost;
     let best_match_score = ec2_matches.first().and_then(|m| m.match_percentage);
-    
+
     let source = if is_spot {
         "Live-Spot".to_string()
     } else {

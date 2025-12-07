@@ -24,10 +24,12 @@ impl PricingClient {
     /// The ec2_client will be reinitialized to the correct region when needed
     pub async fn new(initialization_conf: AwsConfig, initial_region: &'static str) -> Self {
         // Pricing API requires us-east-1
-        let pricing_config = resolve_available_aws_config(initialization_conf.clone(), "us-east-1").await;
-        
+        let pricing_config =
+            resolve_available_aws_config(initialization_conf.clone(), "us-east-1").await;
+
         // EC2 client starts with initial_region, will be reinitialized as needed
-        let ec2_config = resolve_available_aws_config(initialization_conf.clone(), initial_region).await;
+        let ec2_config =
+            resolve_available_aws_config(initialization_conf.clone(), initial_region).await;
 
         match (pricing_config, ec2_config) {
             (Some(ref p_conf), Some(ref e_conf)) => Self {
@@ -60,13 +62,13 @@ impl PricingClient {
         let current_region = self.ec2_region.read().await.clone();
         let maybe_new_client =
             reinitialize_client_if_needed(&self.aws_config, &current_region, metadata).await;
-        
+
         if maybe_new_client.is_some() {
             // Update the region tracking
             let mut region_guard = self.ec2_region.write().await;
             *region_guard = metadata.region.clone();
         }
-        
+
         update_client_if_needed(&self.ec2_client, maybe_new_client).await;
 
         let guard = self.ec2_client.read().await;
