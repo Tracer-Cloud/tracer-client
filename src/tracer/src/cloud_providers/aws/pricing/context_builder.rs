@@ -24,11 +24,26 @@ pub async fn build_pricing_context(
     // Functional pipeline: describe -> filter -> fetch -> match -> combine
     let filterable_data = describe_instance(ec2_client, metadata).await?;
 
-    // Check if this is a spot instance and fetch spot price if needed
-    let spot_price = if matches!(
+    // Check if this is a spot instance - use EC2 API as authoritative source
+    let is_spot = if matches!(
         metadata.instance_purchasing_model,
         Some(InstancePurchasingModel::Spot)
     ) {
+        true
+    } else {
+        // Fallback: check via EC2 API if metadata was inconclusive
+        ec2_client
+            .get_instance_lifecycle(&metadata.instance_id)
+            .await
+            .ok()
+            .flatten()
+            .as_deref()
+            == Some("spot")
+    };
+
+    // Fetch spot price if needed
+    let spot_price = if is_spot {
+        tracing::info!("Detected spot instance, fetching spot price");
         ec2_client
             .get_spot_price(&metadata.instance_type, &metadata.availability_zone)
             .await
@@ -44,6 +59,10 @@ pub async fn build_pricing_context(
 
     // Override with spot price if available
     if let Some(spot_hourly_price) = spot_price {
+        tracing::info!(
+            spot_hourly_price,
+            "Overriding on-demand price with spot price"
+        );
         if let Some(first_match) = ec2_matches.first_mut() {
             first_match.price_per_unit = spot_hourly_price;
         }
@@ -57,15 +76,15 @@ pub async fn build_pricing_context(
     )
     .await;
 
-    combine_pricing_data(metadata, ec2_matches, ebs_cost, spot_price.is_some())
+    combine_pricing_data(metadata, ec2_matches, ebs_cost, is_spot)
 }
 
-/// Describe EC2 instance with error handling
+/// Describe EC2 instance with error handling and lifecycle detection
 async fn describe_instance(
     ec2_client: &Ec2Client,
     metadata: &AwsInstanceMetaData,
 ) -> Option<crate::cloud_providers::aws::types::pricing::FilterableInstanceDetails> {
-    ec2_client
+    let details = ec2_client
         .describe_instance(&metadata.instance_id, &metadata.region)
         .await
         .map_err(|e| {
@@ -76,7 +95,9 @@ async fn describe_instance(
             );
             e
         })
-        .ok()
+        .ok()?;
+
+    Some(details)
 }
 
 /// Match EC2 instances using the matching engine

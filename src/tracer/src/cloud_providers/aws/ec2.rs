@@ -130,6 +130,33 @@ impl Ec2Client {
         Ok(spot_price)
     }
 
+    pub async fn get_instance_lifecycle(
+        &self,
+        instance_id: &str,
+    ) -> Result<Option<String>, anyhow::Error> {
+        let client = self
+            .client
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("EC2 client is not initialized"))?;
+
+        let output = client
+            .describe_instances()
+            .instance_ids(instance_id)
+            .send()
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to describe instance: {e}"))?;
+
+        let lifecycle = output
+            .reservations()
+            .first()
+            .and_then(|r| r.instances().first())
+            .and_then(|i| i.instance_lifecycle())
+            .map(|l| l.as_str().to_string());
+
+        tracing::info!(?lifecycle, instance_id, "EC2 API lifecycle");
+        Ok(lifecycle)
+    }
+
     pub async fn describe_instance(
         &self,
         instance_id: &str,
