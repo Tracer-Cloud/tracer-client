@@ -31,7 +31,7 @@ pub fn report_user_id_resolution_failure(
     );
     println!(
         "  Visit: {}",
-        "https://sandbox.tracer.cloud/onboarding/github-codespaces"
+        "https://app.tracer.cloud/onboarding/github-codespaces"
             .blue()
             .underline()
     );

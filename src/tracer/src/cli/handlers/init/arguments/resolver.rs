@@ -38,7 +38,7 @@ impl ArgumentResolver {
             let token_claims_option = self.decode_token(self.args.token.clone(), platform).await;
 
             if token_claims_option.is_none() {
-                println!("\nUnable to log in automatically. Please open {}, select your platform and copy your init code here.", get_sandbox_url().cyan());
+                println!("\nUnable to log in automatically. Please open {}, and copy your init code here.", get_sandbox_url().cyan());
                 std::process::exit(1);
             }
 
@@ -58,11 +58,11 @@ impl ArgumentResolver {
             }
 
             // checks on email of the user
-            self.args.tags.email = Some(token_claims.email);
+            self.args.tags.email = Some(token_claims.email.clone());
             self.args.tags.organization_slug = token_claims.organization_slug;
 
             // getting the user's full name from the token
-            self.args.tags.user_full_name = token_claims.get_full_name_or_initials();
+            self.args.tags.user_full_name = token_claims.full_name.unwrap_or(token_claims.email);
             user_name = if !user_name.is_empty() {
                 user_name
             } else {
@@ -109,8 +109,14 @@ impl ArgumentResolver {
     }
 
     fn resolve_pipeline_name(&self, prompt_mode: &PromptMode, user_name: String) -> String {
-        // we expect to create somenthing like <Name> pipeline
-        let pipeline_name_value = user_name.to_lowercase() + "_pipeline";
+        // we expect to create something like <name/email user>_pipeline
+        let pipeline_name_value = user_name
+            .split('@')
+            .collect::<Vec<&str>>()
+            .first()
+            .unwrap()
+            .to_lowercase()
+            + "_pipeline";
 
         match (self.args.pipeline_name.clone(), prompt_mode) {
             (Some(name), PromptMode::Required) => {
@@ -121,32 +127,7 @@ impl ArgumentResolver {
                         name
                     })
             }
-            (Some(name), _) => {
-                // If the pipeline name is "test" or "demo", expand it to include user_id or full name
-                if name == "test" {
-                    format!("test-{}", pipeline_name_value)
-                } else if name == "demo" {
-                    format!("demo-{}", pipeline_name_value)
-                } else if name.starts_with("demo-pipeline:") {
-                    // For demo pipelines with specific pipeline ID: "demo-pipeline:{pipeline_id}" -> "{environment}-demo-{pipeline_id}-{user_id}"
-                    let pipeline_id = name.strip_prefix("demo-pipeline:").unwrap();
-                    let env_type = self
-                        .args
-                        .tags
-                        .environment_type
-                        .as_ref()
-                        .map(|env| {
-                            env.to_lowercase()
-                                .replace(" ", "-")
-                                .replace("(", "")
-                                .replace(")", "")
-                        })
-                        .unwrap_or_else(|| "local".to_string());
-                    format!("{}-demo-{}-{}", env_type, pipeline_id, pipeline_name_value)
-                } else {
-                    name
-                }
-            }
+            (Some(name), _) => name,
             (None, PromptMode::Minimal | PromptMode::Required) => {
                 UserPrompts::prompt_for_pipeline_name(&pipeline_name_value).unwrap_or_else(|| {
                     // Generate pipeline name with environment prefix

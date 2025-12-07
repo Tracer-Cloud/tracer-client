@@ -155,7 +155,7 @@ jobs:
             aws s3 cp release-files/tracer-installer-${{ matrix.target }}.tar.gz s3://tracer-installer-releases/${{ github.head_ref || github.ref_name }}/tracer-installer-${{ matrix.target }}.tar.gz
           fi
         
-  build-and-release-amazon-linux:
+  build-and-release-amazon-linux-2023:
     permissions: write-all
     strategy:
       matrix:

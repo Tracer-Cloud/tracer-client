@@ -90,7 +90,7 @@ impl DockerWatcher {
                         }
                         // Log the container event
                         if let Err(e) = recorder
-                            .log(
+                            .log_with_metadata(
                                 process_status,
                                 "[container event]".to_string(),
                                 Some(EventAttributes::ContainerEvents(
