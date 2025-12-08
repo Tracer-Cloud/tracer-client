@@ -1,3 +1,4 @@
+pub mod auth;
 mod box_formatter;
 pub mod message;
 

@@ -25,9 +25,10 @@ pub fn flatten_event_attributes(event: &Event) -> Result<Value> {
         EventAttributes::CompletedProcess(p) => ("process", serde_json::to_value(p)?),
         EventAttributes::SystemMetric(p) => ("system_metric", serde_json::to_value(p)?),
         EventAttributes::SystemProperties(_) => return Ok(Value::Object(map)),
-        EventAttributes::ProcessDatasetStats(p) => {
-            ("processed_dataset_stats", serde_json::to_value(p)?)
-        }
+        EventAttributes::FileOpened(file_opened) => (
+            "processed_dataset_stats",
+            serde_json::to_value(file_opened)?,
+        ),
         EventAttributes::Syslog(p) => ("syslog", serde_json::to_value(p)?),
 
         EventAttributes::ContainerEvents(p) => ("containers", serde_json::to_value(p)?),
@@ -51,11 +52,13 @@ pub fn flatten_with_prefix(prefix: &str, val: &Value, out: &mut Map<String, Valu
             }
         }
         Value::Array(arr) => {
-            // Optionally, serialize arrays as JSON strings
             out.insert(
                 prefix.to_string(),
-                Value::String(serde_json::to_string(arr).unwrap()),
+                Value::String(serde_json::to_string(arr).unwrap_or_default()),
             );
+        }
+        Value::Null => {
+            out.insert(prefix.to_string(), Value::Null);
         }
         _ => {
             out.insert(prefix.to_string(), val.clone());

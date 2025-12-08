@@ -370,10 +370,6 @@ rules:
     display_name: umi_tools
     condition:
       command_contains: umi_tools
-  - rule_name: fastp command
-    display_name: fastp
-    condition:
-      command_contains: fastp
   - rule_name: qualimap command
     display_name: qualimap
     condition:
@@ -671,3 +667,24 @@ rules:
           - GroupReadsByUmi
           - CollectDuplexSeqMetrics
           - FastqToBam
+
+  # s3 upload
+  - rule_name: s3 cp
+    display_name: aws s3 cp
+    condition:
+      command_contains: aws s3 cp
+
+  - rule_name: s3 sync
+    display_name: aws s3 sync
+    condition:
+      command_contains: aws s3 sync
+
+  - rule_name: docker pull
+    display_name: docker pull
+    condition:
+      command_contains: docker pull
+
+  - rule_name: parabricks rna_fq2bam
+    display_name: rna_fq2bam (Parabricks)
+    condition:
+      command_contains: pbrun rna_fq2bam

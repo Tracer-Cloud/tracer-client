@@ -1,4 +1,5 @@
 use crate::ebpf_trigger;
+use crate::utils::get_file_size;
 
 // CEvent must be kept in-sync with bootstrap.h types
 pub const TASK_COMM_LEN: usize = 16;
@@ -32,6 +33,15 @@ pub struct SchedProcessExecPayload {
 
 pub struct SchedProcessExitPayload {
     pub status: u16,
+}
+
+// struct syscall__sys_enter_openat__payload in bootstrap.h
+#[repr(C, packed)]
+pub struct SysEnterOpenAtPayload {
+    pub dfd: i32,
+    pub filename: [u8; MAX_STR_LEN],
+    pub flags: i32,
+    pub mode: i32,
 }
 
 // Define the CEvent struct to match the memory layout of the C struct
@@ -135,7 +145,31 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                     },
                 ))
             }
-            // We can add cases for other event types as needed
+            EVENT__SYSCALL__SYS_ENTER_OPENAT => {
+                // Casting the payload
+                let payload_ptr = self.payload.as_ptr() as *const SysEnterOpenAtPayload;
+                let payload = unsafe { &*payload_ptr };
+                let pid = self.pid;
+
+                // Extracting the filename
+                let filename = from_bpf_str(&payload.filename)?.to_string();
+
+                // Getting the size of the file in bytes
+                let size_bytes = get_file_size(pid, &filename);
+
+                Ok(ebpf_trigger::Trigger::FileOpen(
+                    ebpf_trigger::FileOpenTrigger {
+                        pid: pid as usize,
+                        filename,
+                        size_bytes,
+                        timestamp: chrono::DateTime::from_timestamp(
+                            (self.timestamp_ns / 1_000_000_000) as i64,
+                            (self.timestamp_ns % 1_000_000_000) as u32,
+                        )
+                        .unwrap(),
+                    },
+                ))
+            }
             _ => Err(anyhow::anyhow!("Unsupported event type")),
         }
     }

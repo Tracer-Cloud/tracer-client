@@ -49,12 +49,11 @@ pub enum ProcessStatus {
     SyslogEvent,
     RunStatusMessage,
     Alert,
-    #[serde(rename = "datasets_in_process")]
-    DataSamplesEvent,
-    TestEvent, // Added TestEvent variant
+    TestEvent,
     ContainerExecution,
     ContainerTermination,
     TaskMatch,
+    FileOpened,
 }
 
 impl std::fmt::Display for ProcessStatus {
@@ -69,7 +68,7 @@ impl std::fmt::Display for ProcessStatus {
             ProcessStatus::SyslogEvent => write!(f, "syslog_event"),
             ProcessStatus::RunStatusMessage => write!(f, "run_status_message"),
             ProcessStatus::Alert => write!(f, "alert"),
-            ProcessStatus::DataSamplesEvent => write!(f, "datasets_in_process"),
+            ProcessStatus::FileOpened => write!(f, "file_opened"),
             ProcessStatus::TestEvent => write!(f, "test_event"),
             ProcessStatus::ContainerExecution => write!(f, "container_execution"),
             ProcessStatus::ContainerTermination => write!(f, "container_termination"),

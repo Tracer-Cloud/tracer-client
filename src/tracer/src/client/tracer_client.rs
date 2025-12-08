@@ -71,7 +71,7 @@ impl TracerClient {
         let (event_dispatcher, rx) = Self::init_event_dispatcher(pipeline.clone(), run.clone());
 
         event_dispatcher
-            .log(
+            .log_with_metadata(
                 ProcessStatus::NewRun,
                 "[CLI] Starting new pipeline run".to_owned(),
                 Some(EventAttributes::SystemProperties(Box::new(

@@ -9,5 +9,3 @@ pub const ENV_AWS_BATCH: &str = "aws_batch";
 pub const ENV_GITHUB_CODESPACES: &str = "github_codespaces";
 pub const ENV_DOCKER: &str = "docker";
 pub const ENV_LOCAL: &str = "local";
-// pub const ENV_GITHUB_ACTIONS: &str = "github_actions"; // Not used in installer
-// pub const ENV_UNKNOWN: &str = "unknown"; // Not used in installer
