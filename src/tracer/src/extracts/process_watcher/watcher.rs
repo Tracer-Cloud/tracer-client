@@ -285,8 +285,6 @@ impl ProcessWatcher {
                         python_function_trigger.line_number
                     );
                 }
-
-                _ => {}
             }
         }
 

@@ -22,28 +22,42 @@ struct
 } rb SEC(".maps");
 
 /* -------------------------------------------------------------------------- */
-/* Map to track function entry times for duration calculation                 */
-/* Key: (pid << 32) | stack_depth_hash                                        */
-/* Value: entry timestamp in nanoseconds                                      */
+/* Per-thread call stack for tracking function entry/exit                     */
 /* -------------------------------------------------------------------------- */
-struct python_call_key {
-    u32 pid;
-    u64 frame_ptr;  // Use frame pointer as unique identifier
-};
 
-struct python_call_value {
+#define MAX_STACK_DEPTH 128
+
+struct stack_entry {
     u64 entry_time_ns;
     char filename[MAX_STR_LEN];
     char function_name[MAX_STR_LEN];
     int line_number;
+    int _pad;  // Padding for alignment
 };
 
+/* Per-thread stack - key is pid_tgid */
+struct {
+    __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+    __uint(max_entries, 1);
+    __type(key, u32);
+    __type(value, struct stack_entry);
+} scratch_entry SEC(".maps");
+
+/* Stack depth per thread */
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(max_entries, 16384);
+    __type(key, u64);    // pid_tgid
+    __type(value, u32);  // current depth
+} stack_depth SEC(".maps");
+
+/* The actual stack entries - key is (pid_tgid << 7) | depth */
 struct {
     __uint(type, BPF_MAP_TYPE_LRU_HASH);
-    __uint(max_entries, 65536);
-    __type(key, struct python_call_key);
-    __type(value, struct python_call_value);
-} python_call_stack SEC(".maps");
+    __uint(max_entries, 262144);  // Support many nested calls
+    __type(key, u64);
+    __type(value, struct stack_entry);
+} stack_entries SEC(".maps");
 
 static __always_inline void debug_printk(const char *fmt)
 {
@@ -56,6 +70,11 @@ static __always_inline u64 make_upid(u32 pid, u64 start_ns)
   const u64 PID_MASK = 0x00FFFFFFULL;
   const u64 TIME_MASK = 0x000FFFFFFFFFFULL;
   return ((u64)(pid & PID_MASK) << 40) | (start_ns & TIME_MASK);
+}
+
+/* Create a unique key for stack entry lookup */
+static __always_inline u64 make_stack_key(u64 pid_tgid, u32 depth) {
+    return (pid_tgid << 7) | (depth & 0x7F);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -130,33 +149,26 @@ static __always_inline void fill_oom_mark_victim(struct event *e, struct trace_e
 /* -------------------------------------------------------------------------- */
 
 /*
- * Python 3.12+ uses compact ASCII strings where the string data immediately
- * follows the PyASCIIObject header when state.ascii=1 and state.compact=1.
+ * Python 3.12 string layout for compact ASCII strings.
  *
- * The structure is:
- *   PyASCIIObject (header) + char[] (inline string data)
- *
- * For ASCII compact strings, offset to data = sizeof(PyASCIIObject)
- * On 64-bit: sizeof(PyASCIIObject) = 48 bytes typically
+ * Your system's verification script found strings at offset 40.
+ * This is the header size of PyASCIIObject on your Python 3.12.3 build.
  */
-
-/* Minimal PyASCIIObject for size calculation */
-struct PyASCIIObject_minimal {
-    long ob_refcnt;           // 8 bytes
-    void *ob_type;            // 8 bytes
-    long length;              // 8 bytes
-    long hash;                // 8 bytes
-    unsigned int state;       // 4 bytes (contains ascii, compact, kind flags)
-    // wstr pointer removed in Python 3.12 for compact strings
-};
-
-/* Size of PyASCIIObject header - string data follows immediately after */
-#define PY_ASCII_OBJECT_SIZE 48
+#define PY_ASCII_OBJECT_SIZE 40
 
 /*
- * Read a Python string object.
- * For compact ASCII strings (the common case), data is at object + 48 bytes.
- * Returns the number of bytes read, or negative on error.
+ * PyCodeObject field offsets for Python 3.12
+ * Verified by your script output:
+ *   co_filename pointer at offset 112
+ *   co_name pointer at offset 120
+ *   co_firstlineno at offset 68
+ */
+#define PYCODE_OFFSET_FIRSTLINENO  68
+#define PYCODE_OFFSET_FILENAME    112
+#define PYCODE_OFFSET_NAME        120
+
+/*
+ * Read a Python ASCII string object's data.
  */
 static __always_inline long read_python_ascii_string(void *str_obj, char *dst, int max_len) {
     if (!str_obj) {
@@ -164,28 +176,9 @@ static __always_inline long read_python_ascii_string(void *str_obj, char *dst, i
         return 0;
     }
 
-    /* Read the string data from offset 48 (after PyASCIIObject header) */
     void *str_data = (void *)((unsigned long)str_obj + PY_ASCII_OBJECT_SIZE);
     return bpf_probe_read_user_str(dst, max_len, str_data);
 }
-
-/*
- * Python 3.12 PyCodeObject layout (verified offsets)
- * Use pahole or gdb on your Python binary to verify these for your build.
- *
- * The critical fields we need:
- *   co_filename: offset 112 from start of PyCodeObject
- *   co_name:     offset 120 from start of PyCodeObject
- *   co_firstlineno: offset 64 from start of PyCodeObject
- */
-#define PYCODE_OFFSET_FIRSTLINENO  64
-#define PYCODE_OFFSET_FILENAME    112
-#define PYCODE_OFFSET_NAME        120
-
-/*
- * Python 3.12 _PyInterpreterFrame layout
- * f_code is at offset 0
- */
 
 /* Helper to fill common event fields */
 static __always_inline void fill_python_common(struct event *e, u32 tgid) {
@@ -202,17 +195,15 @@ static __always_inline void fill_python_common(struct event *e, u32 tgid) {
     e->uppid = make_upid(e->ppid, pstart_ns);
 }
 
-/* Helper to read code object fields into payload */
+/* Helper to read code object fields into stack entry */
 static __always_inline int read_code_object_fields(
     void *code_obj,
-    char *filename_dst,
-    char *funcname_dst,
-    int *line_number_dst
+    struct stack_entry *entry
 ) {
     if (!code_obj) {
-        filename_dst[0] = '\0';
-        funcname_dst[0] = '\0';
-        *line_number_dst = 0;
+        entry->filename[0] = '\0';
+        entry->function_name[0] = '\0';
+        entry->line_number = 0;
         return -1;
     }
 
@@ -224,20 +215,20 @@ static __always_inline int read_code_object_fields(
                         (void *)((unsigned long)code_obj + PYCODE_OFFSET_FILENAME));
     bpf_probe_read_user(&name_obj, sizeof(name_obj),
                         (void *)((unsigned long)code_obj + PYCODE_OFFSET_NAME));
-    bpf_probe_read_user(line_number_dst, sizeof(int),
+    bpf_probe_read_user(&entry->line_number, sizeof(int),
                         (void *)((unsigned long)code_obj + PYCODE_OFFSET_FIRSTLINENO));
 
     /* Read string contents */
     if (filename_obj) {
-        read_python_ascii_string(filename_obj, filename_dst, MAX_STR_LEN);
+        read_python_ascii_string(filename_obj, entry->filename, MAX_STR_LEN);
     } else {
-        filename_dst[0] = '\0';
+        entry->filename[0] = '\0';
     }
 
     if (name_obj) {
-        read_python_ascii_string(name_obj, funcname_dst, MAX_STR_LEN);
+        read_python_ascii_string(name_obj, entry->function_name, MAX_STR_LEN);
     } else {
-        funcname_dst[0] = '\0';
+        entry->function_name[0] = '\0';
     }
 
     return 0;
@@ -245,18 +236,15 @@ static __always_inline int read_code_object_fields(
 
 /*
  * Python function ENTRY handler
- * Attaches to: _PyEval_EvalFrameDefault
- *
- * In Python 3.12+, the frame is passed as the 2nd argument (RSI on x86_64)
  */
 SEC("uprobe//usr/bin/python3:_PyEval_EvalFrameDefault")
 int handle_python_entry(struct pt_regs *ctx)
 {
-    u64 id = bpf_get_current_pid_tgid();
-    u32 tgid = id >> 32;
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    u32 tgid = pid_tgid >> 32;
     u64 entry_time = bpf_ktime_get_ns();
 
-    /* Get the frame pointer (2nd argument) */
+    /* Get the frame pointer (2nd argument on x86_64) */
     void *frame = (void *)PT_REGS_PARM2(ctx);
     if (!frame)
         return 0;
@@ -267,43 +255,48 @@ int handle_python_entry(struct pt_regs *ctx)
     if (!code)
         return 0;
 
-    /* Store entry info in map for duration calculation on exit */
-    struct python_call_key key = {
-        .pid = tgid,
-        .frame_ptr = (u64)frame,
-    };
+    /* Get scratch space for building the entry */
+    u32 zero = 0;
+    struct stack_entry *scratch = bpf_map_lookup_elem(&scratch_entry, &zero);
+    if (!scratch)
+        return 0;
 
-    struct python_call_value val = {
-        .entry_time_ns = entry_time,
-        .line_number = 0,
-    };
-    val.filename[0] = '\0';
-    val.function_name[0] = '\0';
+    /* Initialize and fill the entry */
+    scratch->entry_time_ns = entry_time;
+    scratch->filename[0] = '\0';
+    scratch->function_name[0] = '\0';
+    scratch->line_number = 0;
 
-    /* Read code object fields */
-    read_code_object_fields(code, val.filename, val.function_name, &val.line_number);
+    read_code_object_fields(code, scratch);
 
-    /* Store in map */
-    bpf_map_update_elem(&python_call_stack, &key, &val, BPF_ANY);
+    /* Get current depth for this thread */
+    u32 *depth_ptr = bpf_map_lookup_elem(&stack_depth, &pid_tgid);
+    u32 depth = 0;
+    if (depth_ptr) {
+        depth = *depth_ptr;
+    }
+
+    /* Store entry in stack */
+    u64 stack_key = make_stack_key(pid_tgid, depth);
+    bpf_map_update_elem(&stack_entries, &stack_key, scratch, BPF_ANY);
+
+    /* Increment depth */
+    u32 new_depth = depth + 1;
+    bpf_map_update_elem(&stack_depth, &pid_tgid, &new_depth, BPF_ANY);
 
     /* Reserve and submit entry event */
     struct event *e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
     if (!e)
         return 0;
 
-    /* Initialize payload */
-    e->python__function_entry__payload.filename[0] = '\0';
-    e->python__function_entry__payload.function_name[0] = '\0';
-    e->python__function_entry__payload.line_number = 0;
-    e->python__function_entry__payload.entry_time_ns = entry_time;
-
     e->event_type = EVENT__PYTHON__FUNCTION_ENTRY;
     fill_python_common(e, tgid);
 
-    /* Copy cached values to event */
-    __builtin_memcpy(e->python__function_entry__payload.filename, val.filename, MAX_STR_LEN);
-    __builtin_memcpy(e->python__function_entry__payload.function_name, val.function_name, MAX_STR_LEN);
-    e->python__function_entry__payload.line_number = val.line_number;
+    /* Copy from scratch to event payload */
+    e->python__function_entry__payload.entry_time_ns = scratch->entry_time_ns;
+    e->python__function_entry__payload.line_number = scratch->line_number;
+    __builtin_memcpy(e->python__function_entry__payload.filename, scratch->filename, MAX_STR_LEN);
+    __builtin_memcpy(e->python__function_entry__payload.function_name, scratch->function_name, MAX_STR_LEN);
 
     bpf_ringbuf_submit(e, 0);
     return 0;
@@ -311,36 +304,48 @@ int handle_python_entry(struct pt_regs *ctx)
 
 /*
  * Python function EXIT handler (uretprobe)
- * Captures when _PyEval_EvalFrameDefault returns
  */
 SEC("uretprobe//usr/bin/python3:_PyEval_EvalFrameDefault")
 int handle_python_exit(struct pt_regs *ctx)
 {
-    u64 id = bpf_get_current_pid_tgid();
-    u32 tgid = id >> 32;
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    u32 tgid = pid_tgid >> 32;
     u64 exit_time = bpf_ktime_get_ns();
 
-    /*
-     * Note: In uretprobe, we don't have access to the original frame pointer.
-     * We use a per-CPU scratch approach or look up by PID.
-     * For simplicity, we'll emit an exit event and let userspace correlate.
-     *
-     * A more sophisticated approach would use a per-thread stack in BPF.
-     */
+    /* Get current depth for this thread */
+    u32 *depth_ptr = bpf_map_lookup_elem(&stack_depth, &pid_tgid);
+    if (!depth_ptr || *depth_ptr == 0)
+        return 0;
 
-    /* For now, just reserve an exit event with timestamp */
+    /* Decrement depth first (to get the index of the entry we're returning from) */
+    u32 depth = *depth_ptr - 1;
+    bpf_map_update_elem(&stack_depth, &pid_tgid, &depth, BPF_ANY);
+
+    /* Look up the entry from stack */
+    u64 stack_key = make_stack_key(pid_tgid, depth);
+    struct stack_entry *entry = bpf_map_lookup_elem(&stack_entries, &stack_key);
+    if (!entry)
+        return 0;
+
+    u64 duration_ns = exit_time - entry->entry_time_ns;
+
+    /* Reserve and submit exit event */
     struct event *e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
     if (!e)
         return 0;
 
-    e->python__function_exit__payload.filename[0] = '\0';
-    e->python__function_exit__payload.function_name[0] = '\0';
-    e->python__function_exit__payload.line_number = 0;
-    e->python__function_exit__payload.entry_time_ns = 0;
-    e->python__function_exit__payload.duration_ns = 0;
-
     e->event_type = EVENT__PYTHON__FUNCTION_EXIT;
     fill_python_common(e, tgid);
+
+    /* Copy from stack entry to event payload */
+    __builtin_memcpy(e->python__function_exit__payload.filename, entry->filename, MAX_STR_LEN);
+    __builtin_memcpy(e->python__function_exit__payload.function_name, entry->function_name, MAX_STR_LEN);
+    e->python__function_exit__payload.line_number = entry->line_number;
+    e->python__function_exit__payload.entry_time_ns = entry->entry_time_ns;
+    e->python__function_exit__payload.duration_ns = duration_ns;
+
+    /* Clean up the entry from the map */
+    bpf_map_delete_elem(&stack_entries, &stack_key);
 
     bpf_ringbuf_submit(e, 0);
     return 0;

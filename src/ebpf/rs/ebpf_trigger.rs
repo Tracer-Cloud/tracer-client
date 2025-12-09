@@ -1,7 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use shlex;
-use std::collections::HashMap;
 use std::fmt;
 
 fn join_args(argv: &[String]) -> String {
@@ -132,7 +131,7 @@ impl fmt::Display for PythonFunctionEntryTrigger {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "[ENTER] {}:{} {}()",
+            "→ {}:{}  {}()",
             self.filename, self.line_number, self.function_name
         )
     }
@@ -161,23 +160,13 @@ impl fmt::Display for PythonFunctionExitTrigger {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "[EXIT]  {}:{} {}() - {}",
+            "← {}:{}  {}()  [{}]",
             self.filename,
             self.line_number,
             self.function_name,
             self.format_duration()
         )
     }
-}
-
-/// Legacy trigger for backward compatibility (combined entry info)
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct PythonFunctionTrigger {
-    pub pid: u32,
-    pub filename: String,
-    pub function_name: String,
-    pub line_number: i32,
-    pub timestamp: DateTime<Utc>,
 }
 
 /// Format duration in human-readable form
@@ -201,9 +190,8 @@ pub enum Trigger {
     ProcessEnd(ProcessEndTrigger),
     OutOfMemory(OutOfMemoryTrigger),
     FileOpen(FileOpenTrigger),
-    PythonFunction(PythonFunctionTrigger),           // Legacy
-    PythonFunctionEntry(PythonFunctionEntryTrigger), // New: function entry
-    PythonFunctionExit(PythonFunctionExitTrigger),   // New: function exit with duration
+    PythonFunctionEntry(PythonFunctionEntryTrigger),
+    PythonFunctionExit(PythonFunctionExitTrigger),
 }
 
 impl fmt::Display for Trigger {
@@ -213,77 +201,17 @@ impl fmt::Display for Trigger {
             Trigger::ProcessEnd(t) => write!(f, "ProcessEnd(pid={})", t.pid),
             Trigger::OutOfMemory(t) => write!(f, "OOM(pid={}, comm={})", t.pid, t.comm),
             Trigger::FileOpen(t) => write!(f, "FileOpen(pid={}, file={})", t.pid, t.filename),
-            Trigger::PythonFunction(t) => {
-                write!(f, "Python: {}:{} {}()", t.filename, t.line_number, t.function_name)
-            }
             Trigger::PythonFunctionEntry(t) => write!(f, "{}", t),
             Trigger::PythonFunctionExit(t) => write!(f, "{}", t),
         }
     }
 }
 
-/// Helper struct to track Python function call durations in userspace
-/// Use this when BPF-side duration tracking is not available
-#[derive(Debug, Default)]
-pub struct PythonCallTracker {
-    /// Map of (pid, function_key) -> entry_time_ns
-    /// function_key is formatted as "filename:function_name:line"
-    pending_calls: HashMap<(u32, String), u64>,
-}
-
-impl PythonCallTracker {
-    pub fn new() -> Self {
-        Self {
-            pending_calls: HashMap::new(),
-        }
-    }
-
-    /// Record a function entry
-    pub fn record_entry(&mut self, trigger: &PythonFunctionEntryTrigger) {
-        let key = (
-            trigger.pid,
-            format!(
-                "{}:{}:{}",
-                trigger.filename, trigger.function_name, trigger.line_number
-            ),
-        );
-        self.pending_calls.insert(key, trigger.entry_time_ns);
-    }
-
-    /// Try to match an exit with an entry and compute duration
-    /// Returns the duration if a matching entry was found
-    pub fn record_exit(&mut self, trigger: &PythonFunctionExitTrigger, exit_time_ns: u64) -> Option<u64> {
-        let key = (
-            trigger.pid,
-            format!(
-                "{}:{}:{}",
-                trigger.filename, trigger.function_name, trigger.line_number
-            ),
-        );
-
-        if let Some(entry_time) = self.pending_calls.remove(&key) {
-            Some(exit_time_ns.saturating_sub(entry_time))
-        } else {
-            None
-        }
-    }
-
-    /// Clean up old entries (useful for long-running processes)
-    pub fn cleanup_older_than(&mut self, threshold_ns: u64, current_time_ns: u64) {
-        self.pending_calls
-            .retain(|_, &mut entry_time| current_time_ns - entry_time < threshold_ns);
-    }
-}
-
 /// Exit code along with a short reason and longer explanation.
-///
-/// We always create the reason and explanation when creating the struct (rather than on-demand
-/// via a method call) because ExitReason always gets serialized, and it makes it possible to
-/// derive the serde implementation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ExitReason {
     pub code: i64,
-    pub term_signal: Option<u16>, // If the process was terminated by a signal we save the signal number
+    pub term_signal: Option<u16>,
     pub reason: String,
     pub explanation: String,
 }
@@ -304,9 +232,6 @@ impl fmt::Display for ExitReason {
     }
 }
 
-/// Convert an exit status to an ExitReason.
-/// For now, only POSIX wait statuses are supported. A POSIX wait status is a 16-bit integer
-/// with the high 8 bits being the exit code and the low 7 bits being the termination signal.
 impl From<i64> for ExitReason {
     fn from(value: i64) -> Self {
         let status = value as u16;
@@ -322,17 +247,11 @@ impl From<i64> for ExitReason {
     }
 }
 
-/// Command exited without error
 pub const EXIT_CODE_SUCCESS: i64 = 0;
-/// Command could not be invoked
 pub const EXIT_CODE_COMMAND_NOT_INVOKED: i64 = 126;
-/// Command not found in the container
 pub const EXIT_CODE_COMMAND_NOT_FOUND: i64 = 127;
-/// Container terminated by Ctrl-C
 pub const EXIT_CODE_CTRL_C_KILLED: i64 = 130;
-/// SIGKILL from kernel → usually OOM
 pub const EXIT_CODE_OUT_OF_MEMORY_KILLED: i64 = 137;
-// SIGTERM
 pub const EXIT_CODE_SIGNAL_TERMINATED: i64 = 143;
 
 pub fn exit_code_reason(code: i64) -> String {
@@ -380,34 +299,5 @@ mod tests {
         assert_eq!(format_duration_ns(1500), "1.50µs");
         assert_eq!(format_duration_ns(1_500_000), "1.50ms");
         assert_eq!(format_duration_ns(1_500_000_000), "1.500s");
-    }
-
-    #[test]
-    fn test_python_call_tracker() {
-        let mut tracker = PythonCallTracker::new();
-
-        let entry = PythonFunctionEntryTrigger {
-            pid: 1234,
-            filename: "test.py".to_string(),
-            function_name: "my_func".to_string(),
-            line_number: 10,
-            entry_time_ns: 1000000,
-            timestamp: Utc::now(),
-        };
-
-        tracker.record_entry(&entry);
-
-        let exit = PythonFunctionExitTrigger {
-            pid: 1234,
-            filename: "test.py".to_string(),
-            function_name: "my_func".to_string(),
-            line_number: 10,
-            entry_time_ns: 1000000,
-            duration_ns: 0, // Will be computed
-            timestamp: Utc::now(),
-        };
-
-        let duration = tracker.record_exit(&exit, 2000000);
-        assert_eq!(duration, Some(1000000)); // 1ms
     }
 }
