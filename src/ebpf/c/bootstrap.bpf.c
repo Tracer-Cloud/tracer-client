@@ -4,7 +4,17 @@
 #include <bpf/bpf_tracing.h>
 #include "bootstrap.h"
 
-/* Initialisation-time tunables & common helpers */
+/* -------------------------------------------------------------------------- */
+/* Fixes for Compilation Errors                                               */
+/* -------------------------------------------------------------------------- */
+
+// FIX: Forward declare this struct to make it visible globally.
+// This prevents the "incompatible pointer types" and visibility warnings.
+struct trace_event_raw_vmscan_direct_reclaim_begin;
+
+/* -------------------------------------------------------------------------- */
+/* Initialisation-time tunables & common helpers                              */
+/* -------------------------------------------------------------------------- */
 
 // .rodata: globals tunable from user space
 const volatile bool debug_enabled SEC(".rodata") = false;
@@ -49,7 +59,9 @@ static __always_inline u64 make_upid(u32 pid, u64 start_ns)
   X(SYSCALL__SYS_ENTER_OPENAT, trace_event_raw_sys_enter,                                                      \
     "tracepoint/syscalls/sys_enter_openat", fill_sys_enter_openat)
 
-/* 2.  Variant‑specific payload helpers */
+/* -------------------------------------------------------------------------- */
+/* 2.  Variant‑specific payload helpers                                       */
+/* -------------------------------------------------------------------------- */
 
 // Process launched successfully
 static __always_inline void
@@ -155,7 +167,12 @@ fill_oom_mark_victim(struct event *e,
   (void)e;
 }
 
-/* 3.  Python Instrumentation */
+/* -------------------------------------------------------------------------- */
+/* 3.  Python Instrumentation (Python 3.10 Structures)                        */
+/* -------------------------------------------------------------------------- */
+
+// FIX: Define wchar_t because vmlinux.h does not define standard C types.
+typedef int wchar_t;
 
 typedef struct {
     long ob_refcnt;
@@ -293,7 +310,9 @@ int handle_python_entry(struct pt_regs *ctx)
     return 0;
 }
 
-/* 4.  Generic handler generator */
+/* -------------------------------------------------------------------------- */
+/* 4.  Generic handler generator                                              */
+/* -------------------------------------------------------------------------- */
 
 #define HANDLER_DECL(name, ctx_t, sec, fill_fn)                                   \
   SEC(sec)                                                                        \
