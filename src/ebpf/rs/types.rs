@@ -46,6 +46,7 @@ pub struct SysEnterOpenAtPayload {
     pub mode: i32,
 }
 
+// Must match struct python__function_entry__payload in bootstrap.h
 #[repr(C, packed)]
 #[derive(Debug, Clone)]
 pub struct PythonFunctionEntryPayload {
@@ -55,6 +56,7 @@ pub struct PythonFunctionEntryPayload {
     pub entry_time_ns: u64,
 }
 
+// Must match struct python__function_exit__payload in bootstrap.h
 #[repr(C, packed)]
 #[derive(Debug, Clone)]
 pub struct PythonFunctionExitPayload {
@@ -100,31 +102,16 @@ pub fn from_bpf_str(s: &[u8]) -> anyhow::Result<String> {
     let cleaned: String = raw_string
         .chars()
         .filter(|c| {
-            // Keep printable ASCII, spaces, and common punctuation
-            c.is_ascii_graphic() || c.is_ascii_whitespace() ||
-                // Keep path separators and common filename chars
-                *c == '/' || *c == '.' || *c == '_' || *c == '-'
+            // Keep printable ASCII (including space)
+            (*c >= ' ' && *c <= '~') ||
+                // Keep common path/filename characters
+                *c == '/' || *c == '.' || *c == '_' || *c == '-' ||
+                // Keep angle brackets for <frozen ...> modules
+                *c == '<' || *c == '>'
         })
         .collect();
 
     Ok(cleaned)
-}
-
-/// More lenient string parsing that keeps replacement characters visible
-/// for debugging purposes
-pub fn from_bpf_str_debug(s: &[u8]) -> String {
-    let len = s.iter().position(|&x| x == 0).unwrap_or(s.len());
-    let valid_slice = &s[..len];
-
-    // Show first few bytes for debugging if string looks corrupted
-    if valid_slice.iter().any(|&b| b > 127 || (b < 32 && b != 0)) {
-        format!(
-            "<corrupted: first 8 bytes = {:?}>",
-            &valid_slice[..valid_slice.len().min(8)]
-        )
-    } else {
-        String::from_utf8_lossy(valid_slice).into_owned()
-    }
 }
 
 pub fn env_val(s: &[u8]) -> Option<String> {
@@ -136,14 +123,16 @@ pub fn env_val(s: &[u8]) -> Option<String> {
 
 /// Format duration in human-readable form
 pub fn format_duration_ns(duration_ns: u64) -> String {
-    if duration_ns < 1_000 {
+    if duration_ns == 0 {
+        "N/A".to_string()
+    } else if duration_ns < 1_000 {
         format!("{}ns", duration_ns)
     } else if duration_ns < 1_000_000 {
         format!("{:.2}µs", duration_ns as f64 / 1_000.0)
     } else if duration_ns < 1_000_000_000 {
         format!("{:.2}ms", duration_ns as f64 / 1_000_000.0)
     } else {
-        format!("{:.2}s", duration_ns as f64 / 1_000_000_000.0)
+        format!("{:.3}s", duration_ns as f64 / 1_000_000_000.0)
     }
 }
 
@@ -241,8 +230,9 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                 let filename = from_bpf_str(&payload.filename)?;
                 let function_name = from_bpf_str(&payload.function_name)?;
                 let line_number = payload.line_number;
+                let entry_time_ns = payload.entry_time_ns;
 
-                println!("Python function entry: pid={} filename={} function_name={} line_number={}", pid, filename, function_name, line_number);
+                println!("PythonFunctionEntry: {:?} {:?} {:?} {:?}", pid, filename, function_name, line_number);
 
                 Ok(ebpf_trigger::Trigger::PythonFunctionEntry(
                     ebpf_trigger::PythonFunctionEntryTrigger {
@@ -250,7 +240,7 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                         filename,
                         function_name,
                         line_number,
-                        entry_time_ns: payload.entry_time_ns,
+                        entry_time_ns,
                         timestamp: chrono::DateTime::from_timestamp(
                             (self.timestamp_ns / 1_000_000_000) as i64,
                             (self.timestamp_ns % 1_000_000_000) as u32,
@@ -266,17 +256,20 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                 let pid = self.pid;
                 let filename = from_bpf_str(&payload.filename)?;
                 let function_name = from_bpf_str(&payload.function_name)?;
+                let line_number = payload.line_number;
+                let entry_time_ns = payload.entry_time_ns;
+                let duration_ns = payload.duration_ns;
 
-                println!("Python function exit: pid={} filename={} function_name={}", pid, filename, function_name);
+                println!("PythonFunctionExit: {:?} {:?} {:?} {:?} {:?}", pid, filename, function_name, line_number, duration_ns);
 
                 Ok(ebpf_trigger::Trigger::PythonFunctionExit(
                     ebpf_trigger::PythonFunctionExitTrigger {
                         pid,
                         filename,
                         function_name,
-                        line_number: payload.line_number,
-                        entry_time_ns: payload.entry_time_ns,
-                        duration_ns: payload.duration_ns,
+                        line_number,
+                        entry_time_ns,
+                        duration_ns,
                         timestamp: chrono::DateTime::from_timestamp(
                             (self.timestamp_ns / 1_000_000_000) as i64,
                             (self.timestamp_ns % 1_000_000_000) as u32,
