@@ -182,6 +182,12 @@ int handle_python_entry(struct pt_regs *ctx)
     if (!e)
         return 0;
 
+    // --- FIX BEGIN: Zero-initialize memory ---
+    // This ensures all strings are empty ("\0") by default.
+    // If a read fails or is skipped, we won't send garbage to userspace.
+    __builtin_memset(e, 0, sizeof(*e));
+    // --- FIX END ---
+
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     struct task_struct *parent = BPF_CORE_READ(task, parent);
 
@@ -195,9 +201,6 @@ int handle_python_entry(struct pt_regs *ctx)
     e->upid = make_upid(e->pid, start_ns);
     e->uppid = make_upid(e->ppid, pstart_ns);
 
-    // Python 3.12:
-    // Arg 1 (RDI): tstate
-    // Arg 2 (RSI): frame pointer <-- We want this
     _PyInterpreterFrame *frame = (_PyInterpreterFrame *)PT_REGS_PARM2(ctx);
 
     PyCodeObject_312 *code = 0;
@@ -209,11 +212,11 @@ int handle_python_entry(struct pt_regs *ctx)
         void *name_obj = 0;
         void *filename_obj = 0;
 
-        // Read pointers using the Python 3.12 layout
         bpf_probe_read_user(&name_obj, sizeof(name_obj), &code->co_name);
         bpf_probe_read_user(&filename_obj, sizeof(filename_obj), &code->co_filename);
 
-        // Read the actual strings
+        // Even if name_obj exists, the read might technically fail or return short.
+        // Since we memset above, we don't need else branches or manual NULL setting.
         if (name_obj)
             read_python_string(name_obj, e->python__function_entry__payload.function_name, MAX_STR_LEN);
 
@@ -221,12 +224,8 @@ int handle_python_entry(struct pt_regs *ctx)
             read_python_string(filename_obj, e->python__function_entry__payload.filename, MAX_STR_LEN);
 
         bpf_probe_read_user(&e->python__function_entry__payload.line_number, sizeof(int), &code->co_firstlineno);
-    } else {
-        // Fallback or empty if we couldn't read the code object
-        e->python__function_entry__payload.function_name[0] = '\0';
-        e->python__function_entry__payload.filename[0] = '\0';
-        e->python__function_entry__payload.line_number = 0;
     }
+    // No 'else' needed; memset handled the defaults.
 
     bpf_ringbuf_submit(e, 0);
     return 0;
@@ -249,6 +248,9 @@ int handle_python_entry(struct pt_regs *ctx)
       return 0;                                                                   \
     struct event *e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);                    \
     if (!e) return 0;                                                             \
+    /* --- FIX: Zero-initialize --- */                                            \
+    __builtin_memset(e, 0, sizeof(*e));                                           \
+    /* ---------------------------- */                                            \
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();      \
     struct task_struct *parent = BPF_CORE_READ(task, parent);                     \
     e->event_type = EVENT__##name;                                                \
