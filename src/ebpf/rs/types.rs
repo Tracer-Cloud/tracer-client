@@ -46,6 +46,7 @@ pub struct SysEnterOpenAtPayload {
 }
 
 #[repr(C, packed)]
+#[derive(Debug)]
 pub struct PythonFunctionEntryPayload {
     pub filename: [u8; MAX_STR_LEN],
     pub function_name: [u8; MAX_STR_LEN],
@@ -177,8 +178,11 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                 ))
             }
             EVENT__PYTHON__FUNCTION_ENTRY => {
+                println!("Python function entry event");
                 let payload_ptr = self.payload.as_ptr() as *const PythonFunctionEntryPayload;
                 let payload = unsafe { &*payload_ptr };
+
+                println!("payload: {:?}", payload);
 
                 let pid = self.pid;
                 let filename = from_bpf_str(&payload.filename)?;
