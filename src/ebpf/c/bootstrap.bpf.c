@@ -248,7 +248,7 @@ typedef struct {
 // Uprobe Handler for PyEval_EvalFrameDefault
 // Note: "uprobe/python_eval" is a placeholder name. You must attach this
 // via libbpf to the specific binary path (e.g. /usr/bin/python3).
-SEC("uprobe/python_eval")
+SEC("uprobe//usr/bin/python3:PyEval_EvalFrameDefault")
 int handle_python_entry(struct pt_regs *ctx)
 {
     u64 id = bpf_get_current_pid_tgid();
