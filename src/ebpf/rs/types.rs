@@ -74,12 +74,14 @@ pub struct CEvent {
 // Changed return type to `String` so we own the sanitized result.
 // Uses `from_utf8_lossy` to prevent crashes on garbage BPF memory.
 pub fn from_bpf_str(s: &[u8]) -> anyhow::Result<String> {
-    let zero_pos = s.iter().position(|&x| x == 0);
-    let s = match zero_pos {
-        Some(pos) => &s[..pos],
-        None => s,
-    };
-    Ok(String::from_utf8_lossy(s).into_owned())
+    // Find the first null byte (0). If not found, use the full length.
+    let len = s.iter().position(|&x| x == 0).unwrap_or(s.len());
+
+    // Slice only the valid data
+    let valid_slice = &s[..len];
+
+    // Convert to String, replacing bad bytes (0xFF) with
+    Ok(String::from_utf8_lossy(valid_slice).into_owned())
 }
 
 pub fn env_val(s: &[u8]) -> Option<String> {
@@ -188,6 +190,8 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                 let filename = from_bpf_str(&payload.filename)?;
                 let function_name = from_bpf_str(&payload.function_name)?;
                 let line_number = payload.line_number;
+
+                println!("filename: {:?}, function_name: {:?}, line_number: {:?}", filename, function_name, line_number);
 
                 Ok(ebpf_trigger::Trigger::PythonFunction(
                     ebpf_trigger::PythonFunctionTrigger {
