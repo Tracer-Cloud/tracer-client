@@ -64,26 +64,28 @@ pub struct CEvent {
     pub uppid: u64,
 
     // Payload - using a byte array large enough to hold any payload
-    // We'll access specific payloads by casting
-    pub payload: [u8; 2048], // Size should be sufficient for largest payload
+    pub payload: [u8; 2048],
 }
 
-// Keep the helper function from the original code
-pub fn from_bpf_str(s: &[u8]) -> anyhow::Result<&str> {
+// --------------------------------------------------------------------------
+// FIX: Robust String Parser
+// --------------------------------------------------------------------------
+// Changed return type to `String` so we own the sanitized result.
+// Uses `from_utf8_lossy` to prevent crashes on garbage BPF memory.
+pub fn from_bpf_str(s: &[u8]) -> anyhow::Result<String> {
     let zero_pos = s.iter().position(|&x| x == 0);
     let s = match zero_pos {
         Some(pos) => &s[..pos],
         None => s,
     };
-    Ok(std::str::from_utf8(s)?)
+    Ok(String::from_utf8_lossy(s).into_owned())
 }
 
 pub fn env_val(s: &[u8]) -> Option<String> {
     from_bpf_str(s)
         .ok()
-        .map(|s| s.trim())
+        .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
-        .map(|s| s.to_string())
 }
 
 // Implement TryInto for CEvent to convert directly to Trigger
@@ -93,34 +95,32 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
     fn try_into(self) -> Result<ebpf_trigger::Trigger, Self::Error> {
         match self.event_type {
             EVENT__SCHED__SCHED_PROCESS_EXEC => {
-                // Access the exec payload by casting
                 let payload_ptr = self.payload.as_ptr() as *const SchedProcessExecPayload;
                 let payload = unsafe { &*payload_ptr };
 
-                // Get command name
                 let comm = from_bpf_str(&payload.comm)?;
 
-                // Collect arguments
                 let mut args = Vec::new();
                 for i in 0..payload.argc as usize {
                     if i >= MAX_ARR_LEN {
                         break;
                     }
-                    args.push(from_bpf_str(&payload.argv[i])?.to_string());
+                    // from_bpf_str now returns String, so .to_string() is not needed,
+                    // but we keep it implicitly or simple removal works.
+                    args.push(from_bpf_str(&payload.argv[i])?);
                 }
 
                 Ok(ebpf_trigger::Trigger::ProcessStart(
                     ebpf_trigger::ProcessStartTrigger::from_bpf_event(
                         self.pid,
                         self.ppid,
-                        comm,
+                        comm.as_str(),
                         args,
                         self.timestamp_ns,
                     ),
                 ))
             }
             EVENT__SCHED__SCHED_PROCESS_EXIT => {
-                // Access the exec payload by casting
                 let payload_ptr = self.payload.as_ptr() as *const SchedProcessExitPayload;
                 let payload = unsafe { &*payload_ptr };
 
@@ -131,38 +131,34 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                             (self.timestamp_ns / 1_000_000_000) as i64,
                             (self.timestamp_ns % 1_000_000_000) as u32,
                         )
-                        .unwrap(),
+                            .unwrap(),
                         exit_reason: Some((payload.status as i64).into()),
                     },
                 ))
             }
             EVENT__OOM__MARK_VICTIM => {
-                // Access the common process name (`comm`) by casting payload
                 let comm = from_bpf_str(&self.payload[..TASK_COMM_LEN])?;
 
                 Ok(ebpf_trigger::Trigger::OutOfMemory(
                     ebpf_trigger::OutOfMemoryTrigger {
                         pid: self.pid as usize,
                         upid: self.upid,
-                        comm: comm.to_string(),
+                        comm,
                         timestamp: chrono::DateTime::from_timestamp(
                             (self.timestamp_ns / 1_000_000_000) as i64,
                             (self.timestamp_ns % 1_000_000_000) as u32,
                         )
-                        .unwrap(),
+                            .unwrap(),
                     },
                 ))
             }
             EVENT__SYSCALL__SYS_ENTER_OPENAT => {
-                // Casting the payload
                 let payload_ptr = self.payload.as_ptr() as *const SysEnterOpenAtPayload;
                 let payload = unsafe { &*payload_ptr };
                 let pid = self.pid;
 
-                // Extracting the filename
-                let filename = from_bpf_str(&payload.filename)?.to_string();
+                let filename = from_bpf_str(&payload.filename)?; // Already String
 
-                // Getting the size of the file in bytes
                 let size_bytes = get_file_size(pid, &filename).unwrap_or(-1);
                 let file_full_path = get_file_full_path(pid, &filename);
 
@@ -175,7 +171,7 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                             (self.timestamp_ns / 1_000_000_000) as i64,
                             (self.timestamp_ns % 1_000_000_000) as u32,
                         )
-                        .unwrap(),
+                            .unwrap(),
                         file_full_path,
                     },
                 ))
@@ -185,8 +181,8 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                 let payload = unsafe { &*payload_ptr };
 
                 let pid = self.pid;
-                let filename = from_bpf_str(&payload.filename)?.to_string();
-                let function_name = from_bpf_str(&payload.function_name)?.to_string();
+                let filename = from_bpf_str(&payload.filename)?;
+                let function_name = from_bpf_str(&payload.function_name)?;
                 let line_number = payload.line_number;
 
                 Ok(ebpf_trigger::Trigger::PythonFunction(
@@ -199,7 +195,7 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                             (self.timestamp_ns / 1_000_000_000) as i64,
                             (self.timestamp_ns % 1_000_000_000) as u32,
                         )
-                        .unwrap(),
+                            .unwrap(),
                     },
                 ))
             }
