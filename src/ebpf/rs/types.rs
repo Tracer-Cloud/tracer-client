@@ -232,7 +232,7 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                 let line_number = payload.line_number;
                 let entry_time_ns = payload.entry_time_ns;
 
-                println!("PythonFunctionEntry: {:?} {:?} {:?} {:?}", pid, filename, function_name, line_number);
+                println!("PythonFunctionEntry: {:?}:{:?}:{:?}", filename, function_name, line_number);
 
                 Ok(ebpf_trigger::Trigger::PythonFunctionEntry(
                     ebpf_trigger::PythonFunctionEntryTrigger {
@@ -260,7 +260,7 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                 let entry_time_ns = payload.entry_time_ns;
                 let duration_ns = payload.duration_ns;
 
-                println!("PythonFunctionExit: {:?} {:?} {:?} {:?} {:?}", pid, filename, function_name, line_number, duration_ns);
+                println!("PythonFunctionExit: {:?}:{:?}:{:?}, duration_ns: {:?}", filename, function_name, line_number, duration_ns);
 
                 Ok(ebpf_trigger::Trigger::PythonFunctionExit(
                     ebpf_trigger::PythonFunctionExitTrigger {
