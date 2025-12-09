@@ -27,7 +27,8 @@ struct
 
 #define MAX_STACK_DEPTH 128
 
-struct stack_entry {
+/* Renamed from stack_entry to avoid conflict with vmlinux.h */
+struct py_call_entry {
     u64 entry_time_ns;
     char filename[MAX_STR_LEN];
     char function_name[MAX_STR_LEN];
@@ -35,12 +36,12 @@ struct stack_entry {
     int _pad;  // Padding for alignment
 };
 
-/* Per-thread stack - key is pid_tgid */
+/* Per-CPU scratch space for building entries */
 struct {
     __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
     __uint(max_entries, 1);
     __type(key, u32);
-    __type(value, struct stack_entry);
+    __type(value, struct py_call_entry);
 } scratch_entry SEC(".maps");
 
 /* Stack depth per thread */
@@ -56,8 +57,8 @@ struct {
     __uint(type, BPF_MAP_TYPE_LRU_HASH);
     __uint(max_entries, 262144);  // Support many nested calls
     __type(key, u64);
-    __type(value, struct stack_entry);
-} stack_entries SEC(".maps");
+    __type(value, struct py_call_entry);
+} py_stack_entries SEC(".maps");
 
 static __always_inline void debug_printk(const char *fmt)
 {
@@ -150,9 +151,7 @@ static __always_inline void fill_oom_mark_victim(struct event *e, struct trace_e
 
 /*
  * Python 3.12 string layout for compact ASCII strings.
- *
- * Your system's verification script found strings at offset 40.
- * This is the header size of PyASCIIObject on your Python 3.12.3 build.
+ * Verified offset: 40 bytes
  */
 #define PY_ASCII_OBJECT_SIZE 40
 
@@ -195,10 +194,10 @@ static __always_inline void fill_python_common(struct event *e, u32 tgid) {
     e->uppid = make_upid(e->ppid, pstart_ns);
 }
 
-/* Helper to read code object fields into stack entry */
+/* Helper to read code object fields into py_call_entry */
 static __always_inline int read_code_object_fields(
     void *code_obj,
-    struct stack_entry *entry
+    struct py_call_entry *entry
 ) {
     if (!code_obj) {
         entry->filename[0] = '\0';
@@ -257,7 +256,7 @@ int handle_python_entry(struct pt_regs *ctx)
 
     /* Get scratch space for building the entry */
     u32 zero = 0;
-    struct stack_entry *scratch = bpf_map_lookup_elem(&scratch_entry, &zero);
+    struct py_call_entry *scratch = bpf_map_lookup_elem(&scratch_entry, &zero);
     if (!scratch)
         return 0;
 
@@ -278,7 +277,7 @@ int handle_python_entry(struct pt_regs *ctx)
 
     /* Store entry in stack */
     u64 stack_key = make_stack_key(pid_tgid, depth);
-    bpf_map_update_elem(&stack_entries, &stack_key, scratch, BPF_ANY);
+    bpf_map_update_elem(&py_stack_entries, &stack_key, scratch, BPF_ANY);
 
     /* Increment depth */
     u32 new_depth = depth + 1;
@@ -323,7 +322,7 @@ int handle_python_exit(struct pt_regs *ctx)
 
     /* Look up the entry from stack */
     u64 stack_key = make_stack_key(pid_tgid, depth);
-    struct stack_entry *entry = bpf_map_lookup_elem(&stack_entries, &stack_key);
+    struct py_call_entry *entry = bpf_map_lookup_elem(&py_stack_entries, &stack_key);
     if (!entry)
         return 0;
 
@@ -345,7 +344,7 @@ int handle_python_exit(struct pt_regs *ctx)
     e->python__function_exit__payload.duration_ns = duration_ns;
 
     /* Clean up the entry from the map */
-    bpf_map_delete_elem(&stack_entries, &stack_key);
+    bpf_map_delete_elem(&py_stack_entries, &stack_key);
 
     bpf_ringbuf_submit(e, 0);
     return 0;
