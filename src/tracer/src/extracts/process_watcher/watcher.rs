@@ -14,7 +14,8 @@ use sysinfo::ProcessesToUpdate;
 use tokio::sync::{mpsc, Mutex, RwLock};
 use tracer_ebpf::binding::start_processing_events;
 use tracer_ebpf::ebpf_trigger::{
-    FileOpenTrigger, OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger, Trigger,
+    FileOpenTrigger, OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger,
+    PythonFunctionTrigger, Trigger,
 };
 use tracing::{debug, error, info};
 
@@ -230,6 +231,7 @@ impl ProcessWatcher {
         let mut process_end_triggers: Vec<ProcessEndTrigger> = vec![];
         let mut out_of_memory_triggers: Vec<OutOfMemoryTrigger> = vec![];
         let mut file_opening_triggers: Vec<FileOpenTrigger> = vec![];
+        let mut python_function_triggers: Vec<PythonFunctionTrigger> = vec![];
 
         debug!("ProcessWatcher: processing {} triggers", triggers.len());
 
@@ -268,6 +270,15 @@ impl ProcessWatcher {
                         file_opened.pid, file_opened.filename, file_opened.size_bytes
                     );
                     file_opening_triggers.push(file_opened);
+                }
+                Trigger::PythonFunction(python_function_trigger) => {
+                    debug!(
+                        "Python function trigger from pid={}, filename={}, line_number={}",
+                        python_function_trigger.pid,
+                        python_function_trigger.filename,
+                        python_function_trigger.line_number
+                    );
+                    python_function_triggers.push(python_function_trigger);
                 }
             }
         }

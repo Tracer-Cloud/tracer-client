@@ -4,9 +4,7 @@
 #include <bpf/bpf_tracing.h>
 #include "bootstrap.h"
 
-/* -------------------------------------------------------------------------- */
-/* Initialisation-time tunables & common helpers                */
-/* -------------------------------------------------------------------------- */
+/* Initialisation-time tunables & common helpers */
 
 // .rodata: globals tunable from user space
 const volatile bool debug_enabled SEC(".rodata") = false;
@@ -36,7 +34,7 @@ static __always_inline u64 make_upid(u32 pid, u64 start_ns)
 }
 
 /* -------------------------------------------------------------------------- */
-/* 1.  Event registration table                       */
+/* 1.  Event registration table                                               */
 /* -------------------------------------------------------------------------- */
 
 #define EVENT_LIST(X)                                                                                          \
@@ -51,9 +49,7 @@ static __always_inline u64 make_upid(u32 pid, u64 start_ns)
   X(SYSCALL__SYS_ENTER_OPENAT, trace_event_raw_sys_enter,                                                      \
     "tracepoint/syscalls/sys_enter_openat", fill_sys_enter_openat)
 
-/* -------------------------------------------------------------------------- */
-/* 2.  Variant‑specific payload helpers                    */
-/* -------------------------------------------------------------------------- */
+/* 2.  Variant‑specific payload helpers */
 
 // Process launched successfully
 static __always_inline void
@@ -159,9 +155,145 @@ fill_oom_mark_victim(struct event *e,
   (void)e;
 }
 
-/* -------------------------------------------------------------------------- */
-/* 3.  Generic handler generator                       */
-/* -------------------------------------------------------------------------- */
+/* 3.  Python Instrumentation */
+
+typedef struct {
+    long ob_refcnt;
+    void *ob_type;
+} PyObject;
+
+typedef struct {
+    PyObject ob_base;
+    long length;
+    long hash;
+    struct {
+        unsigned int interned:2;
+        unsigned int kind:3;
+        unsigned int compact:1;
+        unsigned int ascii:1;
+        unsigned int ready:1;
+        unsigned int :24;
+    } state;
+    wchar_t *wstr;
+} PyASCIIObject;
+
+typedef struct {
+    PyASCIIObject _base;
+    long utf8_length;
+    char *utf8;
+    long wstr_length;
+} PyCompactUnicodeObject;
+
+// Helper to read python strings
+static __always_inline long read_python_string(void *obj, char *dst, int max_len) {
+    // Note: This assumes compact ASCII strings (common for filenames/funcnames)
+    // A robust implementation would check 'kind' and handle other encodings
+    return bpf_probe_read_user_str(dst, max_len, (void *)((long)obj + sizeof(PyASCIIObject)));
+}
+
+typedef struct {
+    PyObject ob_base;
+    int co_argcount;
+    int co_posonlyargcount;
+    int co_kwonlyargcount;
+    int co_nlocals;
+    int co_stacksize;
+    int co_flags;
+    PyObject *co_code;
+    PyObject *co_consts;
+    PyObject *co_names;
+    PyObject *co_varnames;
+    PyObject *co_freevars;
+    PyObject *co_cellvars;
+    void *co_cell2arg;
+    PyObject *co_filename;
+    PyObject *co_name;
+    int co_firstlineno;
+} PyCodeObject;
+
+typedef struct {
+    PyObject ob_base;
+    struct _frame *f_back;
+    PyCodeObject *f_code;
+    PyObject *f_builtins;
+    PyObject *f_globals;
+    PyObject *f_locals;
+    PyObject **f_valuestack;
+    PyObject *f_trace;
+    int f_stackdepth;
+    char f_trace_lines;
+    char f_trace_opcodes;
+    void *f_gen;
+    int f_lasti;
+    int f_lineno;
+} PyFrameObject;
+
+// Uprobe Handler for PyEval_EvalFrameDefault
+// Note: "uprobe/python_eval" is a placeholder name. You must attach this
+// via libbpf to the specific binary path (e.g. /usr/bin/python3).
+SEC("uprobe/python_eval")
+int handle_python_entry(struct pt_regs *ctx)
+{
+    u64 id = bpf_get_current_pid_tgid();
+    u32 tgid = id >> 32;
+    u32 pid = (u32)id;
+
+    // Reserve ring buffer
+    struct event *e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+    if (!e)
+        return 0;
+
+    // Fill common fields
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    struct task_struct *parent = BPF_CORE_READ(task, parent);
+
+    e->event_type = EVENT__PYTHON__FUNCTION_ENTRY;
+    e->timestamp_ns = bpf_ktime_get_ns() + system_boot_ns;
+    e->pid = tgid;
+    e->ppid = BPF_CORE_READ(parent, tgid);
+
+    u64 start_ns = BPF_CORE_READ(task, start_time);
+    u64 pstart_ns = BPF_CORE_READ(parent, start_time);
+    e->upid = make_upid(e->pid, start_ns);
+    e->uppid = make_upid(e->ppid, pstart_ns);
+
+    // Python specific payload filling
+    // On x86_64, the first argument is passed in %rdi (PT_REGS_PARM1)
+    PyFrameObject *frame = (PyFrameObject *)PT_REGS_PARM1(ctx);
+
+    PyCodeObject *code = 0;
+    if (frame) {
+        bpf_probe_read_user(&code, sizeof(code), &frame->f_code);
+    }
+
+    if (code) {
+        void *name_obj = 0;
+        void *filename_obj = 0;
+
+        // Read pointers to the string objects
+        bpf_probe_read_user(&name_obj, sizeof(name_obj), &code->co_name);
+        bpf_probe_read_user(&filename_obj, sizeof(filename_obj), &code->co_filename);
+
+        // Read the actual strings
+        if (name_obj)
+            read_python_string(name_obj, e->python__function_entry__payload.function_name, MAX_STR_LEN);
+
+        if (filename_obj)
+            read_python_string(filename_obj, e->python__function_entry__payload.filename, MAX_STR_LEN);
+
+        bpf_probe_read_user(&e->python__function_entry__payload.line_number, sizeof(int), &code->co_firstlineno);
+    } else {
+        // Fallback or empty if we couldn't read the code object
+        e->python__function_entry__payload.function_name[0] = '\0';
+        e->python__function_entry__payload.filename[0] = '\0';
+        e->python__function_entry__payload.line_number = 0;
+    }
+
+    bpf_ringbuf_submit(e, 0);
+    return 0;
+}
+
+/* 4.  Generic handler generator */
 
 #define HANDLER_DECL(name, ctx_t, sec, fill_fn)                                   \
   SEC(sec)                                                                        \
