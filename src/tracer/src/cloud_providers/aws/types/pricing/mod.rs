@@ -14,7 +14,7 @@ pub struct InstancePricingContext {
     pub ec2_pricing: FlattenedData,
     pub ebs_pricing: Option<FlattenedData>,
     pub total_hourly_cost: f64,
-    pub source: String, // "Live" or "Static"
+    pub source: String, // "Live-Spot", "Live-OnDemand", "Static", or "Api"
     pub cost_per_minute: f64,
     pub ec2_pricing_best_matches: Vec<FlattenedData>,
 

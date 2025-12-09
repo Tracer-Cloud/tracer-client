@@ -38,7 +38,7 @@ async fn gather_system_properties(
     let gpu_stats = GpuMonitor::collect_gpu_stats().unwrap_or_default();
     let gpu_aggregate = GpuMonitor::calculate_aggregate_gpu_metrics(&gpu_stats);
     let system_gpu_utilization = gpu_aggregate.avg_utilization;
-    let system_gpu_memory_used = gpu_aggregate.total_memory_used;
+    let system_gpu_memory_used: Option<u64> = gpu_aggregate.total_memory_used;
     let system_gpu_memory_total = gpu_aggregate.total_memory_total;
     let system_gpu_memory_utilization = gpu_aggregate.memory_utilization;
 

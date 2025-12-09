@@ -75,8 +75,8 @@ fn determine_purchasing_model(
         (Some("spot"), _) => InstancePurchasingModel::Spot,
         (_, Some("host")) => InstancePurchasingModel::DedicatedHost,
         (_, Some("dedicated")) => InstancePurchasingModel::DedicatedInstance,
-        (Some("normal") | Some("on-demand"), Some("default")) => InstancePurchasingModel::OnDemand,
-        (Some("normal") | Some("on-demand"), _) => InstancePurchasingModel::OnDemand,
+        (Some("normal"), _) | (Some("on-demand"), _) => InstancePurchasingModel::OnDemand,
+        (None, Some("default")) | (None, None) => InstancePurchasingModel::OnDemand,
         _ => InstancePurchasingModel::Unknown,
     }
 }
@@ -104,6 +104,8 @@ async fn fetch_instance_metadata() -> (Option<String>, Option<String>) {
     let lifecycle = fetch_metadata_value(&client, &token, "instance-life-cycle").await;
     let tenancy = fetch_metadata_value(&client, &token, "placement/tenancy").await;
 
+    tracing::info!(?lifecycle, ?tenancy, "Instance metadata");
+
     (lifecycle, tenancy)
 }
 
@@ -114,6 +116,8 @@ pub async fn get_aws_instance_metadata() -> Option<AwsInstanceMetaData> {
     let mut aws_metadata: AwsInstanceMetaData = metadata.into();
     let (lifecycle, tenancy) = fetch_instance_metadata().await;
     aws_metadata.instance_lifecycle = lifecycle.clone();
-    aws_metadata.instance_purchasing_model = Some(determine_purchasing_model(&lifecycle, &tenancy));
+    let purchasing_model = determine_purchasing_model(&lifecycle, &tenancy);
+    tracing::info!(?purchasing_model, "Determined purchasing model");
+    aws_metadata.instance_purchasing_model = Some(purchasing_model);
     Some(aws_metadata)
 }
