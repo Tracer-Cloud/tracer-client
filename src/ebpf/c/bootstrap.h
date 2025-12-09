@@ -25,7 +25,8 @@ enum event_type
 
     EVENT__OOM__MARK_VICTIM = 3072,
 
-    EVENT__PYTHON__FUNCTION_ENTRY = 4096
+    EVENT__PYTHON__FUNCTION_ENTRY = 4096,
+    EVENT__PYTHON__FUNCTION_EXIT = 4097
 };
 
 struct sched__sched_process_exec__payload
@@ -85,6 +86,16 @@ struct python__function_entry__payload
     char filename[MAX_STR_LEN];
     char function_name[MAX_STR_LEN];
     int line_number;
+    u64 entry_time_ns;  // For correlating entry/exit
+};
+
+struct python__function_exit__payload
+{
+    char filename[MAX_STR_LEN];
+    char function_name[MAX_STR_LEN];
+    int line_number;
+    u64 entry_time_ns;   // Matches the entry event
+    u64 duration_ns;     // Duration of the function call
 };
 
 struct event
@@ -110,6 +121,7 @@ struct event
         struct sched__psi_memstall_enter__payload sched__psi_memstall_enter__payload;
         struct oom__mark_victim__payload oom__mark_victim__payload;
         struct python__function_entry__payload python__function_entry__payload;
+        struct python__function_exit__payload python__function_exit__payload;
     };
 } __attribute__((packed));
 

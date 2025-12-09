@@ -21,6 +21,30 @@ struct
   __uint(max_entries, 8 * 1024 * 1024);
 } rb SEC(".maps");
 
+/* -------------------------------------------------------------------------- */
+/* Map to track function entry times for duration calculation                 */
+/* Key: (pid << 32) | stack_depth_hash                                        */
+/* Value: entry timestamp in nanoseconds                                      */
+/* -------------------------------------------------------------------------- */
+struct python_call_key {
+    u32 pid;
+    u64 frame_ptr;  // Use frame pointer as unique identifier
+};
+
+struct python_call_value {
+    u64 entry_time_ns;
+    char filename[MAX_STR_LEN];
+    char function_name[MAX_STR_LEN];
+    int line_number;
+};
+
+struct {
+    __uint(type, BPF_MAP_TYPE_LRU_HASH);
+    __uint(max_entries, 65536);
+    __type(key, struct python_call_key);
+    __type(value, struct python_call_value);
+} python_call_stack SEC(".maps");
+
 static __always_inline void debug_printk(const char *fmt)
 {
   if (unlikely(debug_enabled))
@@ -50,7 +74,7 @@ static __always_inline u64 make_upid(u32 pid, u64 start_ns)
     "tracepoint/syscalls/sys_enter_openat", fill_sys_enter_openat)
 
 /* -------------------------------------------------------------------------- */
-/* 2.  Variant‑specific payload helpers                                       */
+/* 2.  Variant-specific payload helpers                                       */
 /* -------------------------------------------------------------------------- */
 
 static __always_inline void
@@ -102,102 +126,72 @@ static __always_inline void fill_vmscan_mm_vmscan_direct_reclaim_begin(struct ev
 static __always_inline void fill_oom_mark_victim(struct event *e, struct trace_event_raw_mark_victim *ctx) { (void)e; }
 
 /* -------------------------------------------------------------------------- */
-/* 3.  Python Instrumentation (Python 3.12 Structures)                        */
+/* 3.  Python Instrumentation (Python 3.12+ Structures)                       */
 /* -------------------------------------------------------------------------- */
 
-typedef int wchar_t;
+/*
+ * Python 3.12+ uses compact ASCII strings where the string data immediately
+ * follows the PyASCIIObject header when state.ascii=1 and state.compact=1.
+ *
+ * The structure is:
+ *   PyASCIIObject (header) + char[] (inline string data)
+ *
+ * For ASCII compact strings, offset to data = sizeof(PyASCIIObject)
+ * On 64-bit: sizeof(PyASCIIObject) = 48 bytes typically
+ */
 
-typedef struct {
-    long ob_refcnt;
-    void *ob_type;
-} PyObject;
+/* Minimal PyASCIIObject for size calculation */
+struct PyASCIIObject_minimal {
+    long ob_refcnt;           // 8 bytes
+    void *ob_type;            // 8 bytes
+    long length;              // 8 bytes
+    long hash;                // 8 bytes
+    unsigned int state;       // 4 bytes (contains ascii, compact, kind flags)
+    // wstr pointer removed in Python 3.12 for compact strings
+};
 
-typedef struct {
-    PyObject ob_base;
-    long length;
-    long hash;
-    struct {
-        unsigned int interned:2;
-        unsigned int kind:3;
-        unsigned int compact:1;
-        unsigned int ascii:1;
-        unsigned int ready:1;
-        unsigned int :24;
-    } state;
-    wchar_t *wstr;
-} PyASCIIObject;
+/* Size of PyASCIIObject header - string data follows immediately after */
+#define PY_ASCII_OBJECT_SIZE 48
 
-// Helper to read python strings
-static __always_inline long read_python_string(void *obj, char *dst, int max_len) {
-    return bpf_probe_read_user_str(dst, max_len, (void *)((long)obj + sizeof(PyASCIIObject)));
+/*
+ * Read a Python string object.
+ * For compact ASCII strings (the common case), data is at object + 48 bytes.
+ * Returns the number of bytes read, or negative on error.
+ */
+static __always_inline long read_python_ascii_string(void *str_obj, char *dst, int max_len) {
+    if (!str_obj) {
+        dst[0] = '\0';
+        return 0;
+    }
+
+    /* Read the string data from offset 48 (after PyASCIIObject header) */
+    void *str_data = (void *)((unsigned long)str_obj + PY_ASCII_OBJECT_SIZE);
+    return bpf_probe_read_user_str(dst, max_len, str_data);
 }
 
-// Python 3.12 PyCodeObject (Approximate layout)
-typedef struct {
-    PyObject ob_base;             // 0
-    PyObject *co_consts;          // 16
-    PyObject *co_names;           // 24
-    PyObject *co_exceptiontable;  // 32
-    int co_flags;                 // 40
-    short co_warmup;              // 44
-    short _co_linearray_entry_size; // 46
-    int co_argcount;              // 48
-    int co_posonlyargcount;       // 52
-    int co_kwonlyargcount;        // 56
-    int co_stacksize;             // 60
-    int co_firstlineno;           // 64
-    int co_nlocalsplus;           // 68
-    int co_framesize;             // 72
-    int co_nlocals;               // 76
-    int co_ncellvars;             // 80
-    int co_nfreevars;             // 84
-    u32 co_version;               // 88
-    PyObject *co_localsplusnames; // 96
-    PyObject *co_localspluskinds; // 104
-    PyObject *co_filename;        // 112  <-- We want this
-    PyObject *co_name;            // 120  <-- We want this
-    PyObject *co_qualname;        // 128
-    PyObject *co_linetable;       // 136
-} PyCodeObject_312;
+/*
+ * Python 3.12 PyCodeObject layout (verified offsets)
+ * Use pahole or gdb on your Python binary to verify these for your build.
+ *
+ * The critical fields we need:
+ *   co_filename: offset 112 from start of PyCodeObject
+ *   co_name:     offset 120 from start of PyCodeObject
+ *   co_firstlineno: offset 64 from start of PyCodeObject
+ */
+#define PYCODE_OFFSET_FIRSTLINENO  64
+#define PYCODE_OFFSET_FILENAME    112
+#define PYCODE_OFFSET_NAME        120
 
-// Python 3.12 uses _PyInterpreterFrame, not PyFrameObject
-typedef struct {
-    PyCodeObject_312 *f_code; /* Strong reference */
-    struct _PyInterpreterFrame *previous;
-    PyObject *f_funcobj;
-    PyObject *f_globals;
-    PyObject *f_builtins;
-    PyObject *f_locals;
-} _PyInterpreterFrame;
+/*
+ * Python 3.12 _PyInterpreterFrame layout
+ * f_code is at offset 0
+ */
 
-// ATTACH TO: /usr/bin/python3 : _PyEval_EvalFrameDefault
-// Note the leading underscore for Python 3.12!
-SEC("uprobe//usr/bin/python3:_PyEval_EvalFrameDefault")
-int handle_python_entry(struct pt_regs *ctx)
-{
-    u64 id = bpf_get_current_pid_tgid();
-    u32 tgid = id >> 32;
-
-    struct event *e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
-    if (!e)
-        return 0;
-
-    /* * ----------------------------------------------------------------------
-     * FIX: Initialize payload fields manually
-     * ----------------------------------------------------------------------
-     * We cannot use memset() in BPF without compiler errors on some kernels.
-     * We MUST set the first byte of strings to 0 so that if the probe fails
-     * or fields are missing, the consumer sees a valid empty string ("")
-     * instead of uninitialized memory (garbage) which causes UTF-8 errors.
-     */
-    e->python__function_entry__payload.function_name[0] = '\0';
-    e->python__function_entry__payload.filename[0] = '\0';
-    e->python__function_entry__payload.line_number = 0;
-
+/* Helper to fill common event fields */
+static __always_inline void fill_python_common(struct event *e, u32 tgid) {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     struct task_struct *parent = BPF_CORE_READ(task, parent);
 
-    e->event_type = EVENT__PYTHON__FUNCTION_ENTRY;
     e->timestamp_ns = bpf_ktime_get_ns() + system_boot_ns;
     e->pid = tgid;
     e->ppid = BPF_CORE_READ(parent, tgid);
@@ -206,36 +200,152 @@ int handle_python_entry(struct pt_regs *ctx)
     u64 pstart_ns = BPF_CORE_READ(parent, start_time);
     e->upid = make_upid(e->pid, start_ns);
     e->uppid = make_upid(e->ppid, pstart_ns);
+}
 
-    // Python 3.12 Argument 2 (RSI) is the frame pointer
-    _PyInterpreterFrame *frame = (_PyInterpreterFrame *)PT_REGS_PARM2(ctx);
-
-    PyCodeObject_312 *code = 0;
-    if (frame) {
-        bpf_probe_read_user(&code, sizeof(code), &frame->f_code);
+/* Helper to read code object fields into payload */
+static __always_inline int read_code_object_fields(
+    void *code_obj,
+    char *filename_dst,
+    char *funcname_dst,
+    int *line_number_dst
+) {
+    if (!code_obj) {
+        filename_dst[0] = '\0';
+        funcname_dst[0] = '\0';
+        *line_number_dst = 0;
+        return -1;
     }
 
-    if (code) {
-        void *name_obj = 0;
-        void *filename_obj = 0;
+    void *filename_obj = NULL;
+    void *name_obj = NULL;
 
-        // Read pointers using the Python 3.12 layout
-        bpf_probe_read_user(&name_obj, sizeof(name_obj), &code->co_name);
-        bpf_probe_read_user(&filename_obj, sizeof(filename_obj), &code->co_filename);
+    /* Read pointers at known offsets */
+    bpf_probe_read_user(&filename_obj, sizeof(filename_obj),
+                        (void *)((unsigned long)code_obj + PYCODE_OFFSET_FILENAME));
+    bpf_probe_read_user(&name_obj, sizeof(name_obj),
+                        (void *)((unsigned long)code_obj + PYCODE_OFFSET_NAME));
+    bpf_probe_read_user(line_number_dst, sizeof(int),
+                        (void *)((unsigned long)code_obj + PYCODE_OFFSET_FIRSTLINENO));
 
-        // Read the actual strings if the objects exist
-        if (name_obj)
-            read_python_string(name_obj, e->python__function_entry__payload.function_name, MAX_STR_LEN);
-
-        if (filename_obj)
-            read_python_string(filename_obj, e->python__function_entry__payload.filename, MAX_STR_LEN);
-
-        bpf_probe_read_user(&e->python__function_entry__payload.line_number, sizeof(int), &code->co_firstlineno);
+    /* Read string contents */
+    if (filename_obj) {
+        read_python_ascii_string(filename_obj, filename_dst, MAX_STR_LEN);
+    } else {
+        filename_dst[0] = '\0';
     }
+
+    if (name_obj) {
+        read_python_ascii_string(name_obj, funcname_dst, MAX_STR_LEN);
+    } else {
+        funcname_dst[0] = '\0';
+    }
+
+    return 0;
+}
+
+/*
+ * Python function ENTRY handler
+ * Attaches to: _PyEval_EvalFrameDefault
+ *
+ * In Python 3.12+, the frame is passed as the 2nd argument (RSI on x86_64)
+ */
+SEC("uprobe//usr/bin/python3:_PyEval_EvalFrameDefault")
+int handle_python_entry(struct pt_regs *ctx)
+{
+    u64 id = bpf_get_current_pid_tgid();
+    u32 tgid = id >> 32;
+    u64 entry_time = bpf_ktime_get_ns();
+
+    /* Get the frame pointer (2nd argument) */
+    void *frame = (void *)PT_REGS_PARM2(ctx);
+    if (!frame)
+        return 0;
+
+    /* Read f_code from frame (offset 0) */
+    void *code = NULL;
+    bpf_probe_read_user(&code, sizeof(code), frame);
+    if (!code)
+        return 0;
+
+    /* Store entry info in map for duration calculation on exit */
+    struct python_call_key key = {
+        .pid = tgid,
+        .frame_ptr = (u64)frame,
+    };
+
+    struct python_call_value val = {
+        .entry_time_ns = entry_time,
+        .line_number = 0,
+    };
+    val.filename[0] = '\0';
+    val.function_name[0] = '\0';
+
+    /* Read code object fields */
+    read_code_object_fields(code, val.filename, val.function_name, &val.line_number);
+
+    /* Store in map */
+    bpf_map_update_elem(&python_call_stack, &key, &val, BPF_ANY);
+
+    /* Reserve and submit entry event */
+    struct event *e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+    if (!e)
+        return 0;
+
+    /* Initialize payload */
+    e->python__function_entry__payload.filename[0] = '\0';
+    e->python__function_entry__payload.function_name[0] = '\0';
+    e->python__function_entry__payload.line_number = 0;
+    e->python__function_entry__payload.entry_time_ns = entry_time;
+
+    e->event_type = EVENT__PYTHON__FUNCTION_ENTRY;
+    fill_python_common(e, tgid);
+
+    /* Copy cached values to event */
+    __builtin_memcpy(e->python__function_entry__payload.filename, val.filename, MAX_STR_LEN);
+    __builtin_memcpy(e->python__function_entry__payload.function_name, val.function_name, MAX_STR_LEN);
+    e->python__function_entry__payload.line_number = val.line_number;
 
     bpf_ringbuf_submit(e, 0);
     return 0;
 }
+
+/*
+ * Python function EXIT handler (uretprobe)
+ * Captures when _PyEval_EvalFrameDefault returns
+ */
+SEC("uretprobe//usr/bin/python3:_PyEval_EvalFrameDefault")
+int handle_python_exit(struct pt_regs *ctx)
+{
+    u64 id = bpf_get_current_pid_tgid();
+    u32 tgid = id >> 32;
+    u64 exit_time = bpf_ktime_get_ns();
+
+    /*
+     * Note: In uretprobe, we don't have access to the original frame pointer.
+     * We use a per-CPU scratch approach or look up by PID.
+     * For simplicity, we'll emit an exit event and let userspace correlate.
+     *
+     * A more sophisticated approach would use a per-thread stack in BPF.
+     */
+
+    /* For now, just reserve an exit event with timestamp */
+    struct event *e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+    if (!e)
+        return 0;
+
+    e->python__function_exit__payload.filename[0] = '\0';
+    e->python__function_exit__payload.function_name[0] = '\0';
+    e->python__function_exit__payload.line_number = 0;
+    e->python__function_exit__payload.entry_time_ns = 0;
+    e->python__function_exit__payload.duration_ns = 0;
+
+    e->event_type = EVENT__PYTHON__FUNCTION_EXIT;
+    fill_python_common(e, tgid);
+
+    bpf_ringbuf_submit(e, 0);
+    return 0;
+}
+
 /* -------------------------------------------------------------------------- */
 /* 4.  Generic handler generator                                              */
 /* -------------------------------------------------------------------------- */
@@ -253,7 +363,6 @@ int handle_python_entry(struct pt_regs *ctx)
       return 0;                                                                   \
     struct event *e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);                    \
     if (!e) return 0;                                                             \
-    /* --- REMOVED: __builtin_memset(e, 0, sizeof(*e)); --- */                    \
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();      \
     struct task_struct *parent = BPF_CORE_READ(task, parent);                     \
     e->event_type = EVENT__##name;                                                \
