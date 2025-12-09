@@ -232,7 +232,9 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                 let line_number = payload.line_number;
                 let entry_time_ns = payload.entry_time_ns;
 
-                // println!("PythonFunctionEntry: {:?}:{:?}:{:?}, entry_time_ns: {:?}", filename, function_name, line_number, entry_time_ns);
+                if filename.contains("testpip.py") {
+                    println!("PythonFunctionEntry: {:?}:{:?}:{:?}, entry_time_ns: {:?}", filename, function_name, line_number, entry_time_ns);
+                }
 
                 Ok(ebpf_trigger::Trigger::PythonFunctionEntry(
                     ebpf_trigger::PythonFunctionEntryTrigger {
@@ -260,7 +262,7 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                 let entry_time_ns = payload.entry_time_ns;
                 let duration_ns = payload.duration_ns;
 
-                if !filename.contains("<frozen importlib._bootstrap>") {
+                if filename.contains("testpip.py") {
                     println!("PythonFunctionExit: {:?}:{:?}:{:?}, duration_ns: {:?}", filename, function_name, line_number, duration_ns);
                 }
 
