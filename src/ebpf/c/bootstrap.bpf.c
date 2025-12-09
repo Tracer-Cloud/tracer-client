@@ -182,8 +182,17 @@ int handle_python_entry(struct pt_regs *ctx)
     if (!e)
         return 0;
 
-    // --- REMOVED: __builtin_memset(e, 0, sizeof(*e)); ---
-    // It is too expensive for BPF and causes compilation errors.
+    /* * ----------------------------------------------------------------------
+     * FIX: Initialize payload fields manually
+     * ----------------------------------------------------------------------
+     * We cannot use memset() in BPF without compiler errors on some kernels.
+     * We MUST set the first byte of strings to 0 so that if the probe fails
+     * or fields are missing, the consumer sees a valid empty string ("")
+     * instead of uninitialized memory (garbage) which causes UTF-8 errors.
+     */
+    e->python__function_entry__payload.function_name[0] = '\0';
+    e->python__function_entry__payload.filename[0] = '\0';
+    e->python__function_entry__payload.line_number = 0;
 
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     struct task_struct *parent = BPF_CORE_READ(task, parent);
@@ -198,12 +207,7 @@ int handle_python_entry(struct pt_regs *ctx)
     e->upid = make_upid(e->pid, start_ns);
     e->uppid = make_upid(e->ppid, pstart_ns);
 
-    // --- FIX: Manually initialize string fields to empty ---
-    // This fixes the "invalid utf-8" error by ensuring valid defaults.
-    e->python__function_entry__payload.function_name[0] = '\0';
-    e->python__function_entry__payload.filename[0] = '\0';
-    e->python__function_entry__payload.line_number = 0;
-
+    // Python 3.12 Argument 2 (RSI) is the frame pointer
     _PyInterpreterFrame *frame = (_PyInterpreterFrame *)PT_REGS_PARM2(ctx);
 
     PyCodeObject_312 *code = 0;
@@ -215,9 +219,11 @@ int handle_python_entry(struct pt_regs *ctx)
         void *name_obj = 0;
         void *filename_obj = 0;
 
+        // Read pointers using the Python 3.12 layout
         bpf_probe_read_user(&name_obj, sizeof(name_obj), &code->co_name);
         bpf_probe_read_user(&filename_obj, sizeof(filename_obj), &code->co_filename);
 
+        // Read the actual strings if the objects exist
         if (name_obj)
             read_python_string(name_obj, e->python__function_entry__payload.function_name, MAX_STR_LEN);
 
