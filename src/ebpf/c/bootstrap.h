@@ -1,4 +1,3 @@
-// bootstrap.h
 #ifndef BOOTSTRAP_H
 #define BOOTSTRAP_H
 
@@ -25,6 +24,8 @@ enum event_type
     EVENT__VMSCAN__MM_VMSCAN_DIRECT_RECLAIM_BEGIN = 2048,
 
     EVENT__OOM__MARK_VICTIM = 3072
+
+    EVENT__PYTHON__FUNCTION_ENTRY = 4096
 };
 
 struct sched__sched_process_exec__payload
@@ -79,6 +80,13 @@ struct oom__mark_victim__payload
     // No additional fields required for this payload
 };
 
+struct python__function_entry__payload
+{
+    char filename[MAX_STR_LEN];
+    char function_name[MAX_STR_LEN];
+    int line_number;
+};
+
 struct event
 {
     /* common fields */
@@ -101,6 +109,7 @@ struct event
         struct vmscan__mm_vmscan_direct_reclaim_begin__payload vmscan__mm_vmscan_direct_reclaim_begin__payload;
         struct sched__psi_memstall_enter__payload sched__psi_memstall_enter__payload;
         struct oom__mark_victim__payload oom__mark_victim__payload;
+        struct python__function_entry__payload python__function_entry__payload;
     };
 } __attribute__((packed));
 

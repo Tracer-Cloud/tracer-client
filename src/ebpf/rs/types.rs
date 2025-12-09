@@ -20,6 +20,7 @@ pub const EVENT__SYSCALL__SYS_ENTER_WRITE: u32 = 1028;
 pub const EVENT__SYSCALL__SYS_EXIT_WRITE: u32 = 1029;
 pub const EVENT__VMSCAN__MM_VMSCAN_DIRECT_RECLAIM_BEGIN: u32 = 2048;
 pub const EVENT__OOM__MARK_VICTIM: u32 = 3072;
+pub const EVENT__PYTHON__FUNCTION_ENTRY: u32 = 4096;
 
 // Define payload structs for the events we care about
 #[repr(C, packed)]
@@ -42,6 +43,13 @@ pub struct SysEnterOpenAtPayload {
     pub filename: [u8; MAX_STR_LEN],
     pub flags: i32,
     pub mode: i32,
+}
+
+#[repr(C, packed)]
+pub struct PythonFunctionEntryPayload {
+    pub filename: [u8; MAX_STR_LEN],
+    pub function_name: [u8; MAX_STR_LEN],
+    pub line_number: i32,
 }
 
 // Define the CEvent struct to match the memory layout of the C struct
@@ -169,6 +177,29 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                         )
                         .unwrap(),
                         file_full_path,
+                    },
+                ))
+            }
+            EVENT__PYTHON__FUNCTION_ENTRY => {
+                let payload_ptr = self.payload.as_ptr() as *const PythonFunctionEntryPayload;
+                let payload = unsafe { &*payload_ptr };
+
+                let pid = self.pid;
+                let filename = from_bpf_str(&payload.filename)?.to_string();
+                let function_name = from_bpf_str(&payload.function_name)?.to_string();
+                let line_number = payload.line_number;
+
+                Ok(ebpf_trigger::Trigger::PythonFunction(
+                    ebpf_trigger::PythonFunctionTrigger {
+                        pid,
+                        filename,
+                        function_name,
+                        line_number,
+                        timestamp: chrono::DateTime::from_timestamp(
+                            (self.timestamp_ns / 1_000_000_000) as i64,
+                            (self.timestamp_ns % 1_000_000_000) as u32,
+                        )
+                        .unwrap(),
                     },
                 ))
             }

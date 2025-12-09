@@ -116,12 +116,22 @@ pub struct OutOfMemoryTrigger {
     pub timestamp: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct PythonFunctionTrigger {
+    pub pid: u32,
+    pub filename: String,
+    pub function_name: String,
+    pub line_number: i32,
+    pub timestamp: DateTime<Utc>,
+}
+
 #[derive(Debug, Clone)]
 pub enum Trigger {
     ProcessStart(ProcessStartTrigger),
     ProcessEnd(ProcessEndTrigger),
     OutOfMemory(OutOfMemoryTrigger),
     FileOpen(FileOpenTrigger),
+    PythonFunction(PythonFunctionTrigger),
 }
 
 /// Exit code along with a short reason and longer explanation.
