@@ -242,6 +242,8 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                 let function_name = from_bpf_str(&payload.function_name)?;
                 let line_number = payload.line_number;
 
+                println!("Python function entry: pid={} filename={} function_name={} line_number={}", pid, filename, function_name, line_number);
+
                 Ok(ebpf_trigger::Trigger::PythonFunctionEntry(
                     ebpf_trigger::PythonFunctionEntryTrigger {
                         pid,
@@ -264,6 +266,8 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                 let pid = self.pid;
                 let filename = from_bpf_str(&payload.filename)?;
                 let function_name = from_bpf_str(&payload.function_name)?;
+
+                println!("Python function exit: pid={} filename={} function_name={}", pid, filename, function_name);
 
                 Ok(ebpf_trigger::Trigger::PythonFunctionExit(
                     ebpf_trigger::PythonFunctionExitTrigger {
