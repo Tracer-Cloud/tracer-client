@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use shlex;
+use std::collections::HashMap;
 use std::fmt;
 
 fn join_args(argv: &[String]) -> String {
@@ -55,7 +56,7 @@ impl ProcessStartTrigger {
                 (timestamp_ns / NS_PER_SEC) as i64,
                 (timestamp_ns % NS_PER_SEC) as u32,
             )
-            .unwrap(),
+                .unwrap(),
         }
     }
 
@@ -116,6 +117,60 @@ pub struct OutOfMemoryTrigger {
     pub timestamp: DateTime<Utc>,
 }
 
+/// Python function entry event - captures when a function starts executing
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct PythonFunctionEntryTrigger {
+    pub pid: u32,
+    pub filename: String,
+    pub function_name: String,
+    pub line_number: i32,
+    pub entry_time_ns: u64,
+    pub timestamp: DateTime<Utc>,
+}
+
+impl fmt::Display for PythonFunctionEntryTrigger {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "[ENTER] {}:{} {}()",
+            self.filename, self.line_number, self.function_name
+        )
+    }
+}
+
+/// Python function exit event - captures when a function returns
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct PythonFunctionExitTrigger {
+    pub pid: u32,
+    pub filename: String,
+    pub function_name: String,
+    pub line_number: i32,
+    pub entry_time_ns: u64,
+    pub duration_ns: u64,
+    pub timestamp: DateTime<Utc>,
+}
+
+impl PythonFunctionExitTrigger {
+    /// Format duration in human-readable form
+    pub fn format_duration(&self) -> String {
+        format_duration_ns(self.duration_ns)
+    }
+}
+
+impl fmt::Display for PythonFunctionExitTrigger {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "[EXIT]  {}:{} {}() - {}",
+            self.filename,
+            self.line_number,
+            self.function_name,
+            self.format_duration()
+        )
+    }
+}
+
+/// Legacy trigger for backward compatibility (combined entry info)
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct PythonFunctionTrigger {
     pub pid: u32,
@@ -125,13 +180,99 @@ pub struct PythonFunctionTrigger {
     pub timestamp: DateTime<Utc>,
 }
 
+/// Format duration in human-readable form
+pub fn format_duration_ns(duration_ns: u64) -> String {
+    if duration_ns == 0 {
+        "N/A".to_string()
+    } else if duration_ns < 1_000 {
+        format!("{}ns", duration_ns)
+    } else if duration_ns < 1_000_000 {
+        format!("{:.2}µs", duration_ns as f64 / 1_000.0)
+    } else if duration_ns < 1_000_000_000 {
+        format!("{:.2}ms", duration_ns as f64 / 1_000_000.0)
+    } else {
+        format!("{:.3}s", duration_ns as f64 / 1_000_000_000.0)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Trigger {
     ProcessStart(ProcessStartTrigger),
     ProcessEnd(ProcessEndTrigger),
     OutOfMemory(OutOfMemoryTrigger),
     FileOpen(FileOpenTrigger),
-    PythonFunction(PythonFunctionTrigger),
+    PythonFunction(PythonFunctionTrigger),           // Legacy
+    PythonFunctionEntry(PythonFunctionEntryTrigger), // New: function entry
+    PythonFunctionExit(PythonFunctionExitTrigger),   // New: function exit with duration
+}
+
+impl fmt::Display for Trigger {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Trigger::ProcessStart(t) => write!(f, "ProcessStart(pid={}, comm={})", t.pid, t.comm),
+            Trigger::ProcessEnd(t) => write!(f, "ProcessEnd(pid={})", t.pid),
+            Trigger::OutOfMemory(t) => write!(f, "OOM(pid={}, comm={})", t.pid, t.comm),
+            Trigger::FileOpen(t) => write!(f, "FileOpen(pid={}, file={})", t.pid, t.filename),
+            Trigger::PythonFunction(t) => {
+                write!(f, "Python: {}:{} {}()", t.filename, t.line_number, t.function_name)
+            }
+            Trigger::PythonFunctionEntry(t) => write!(f, "{}", t),
+            Trigger::PythonFunctionExit(t) => write!(f, "{}", t),
+        }
+    }
+}
+
+/// Helper struct to track Python function call durations in userspace
+/// Use this when BPF-side duration tracking is not available
+#[derive(Debug, Default)]
+pub struct PythonCallTracker {
+    /// Map of (pid, function_key) -> entry_time_ns
+    /// function_key is formatted as "filename:function_name:line"
+    pending_calls: HashMap<(u32, String), u64>,
+}
+
+impl PythonCallTracker {
+    pub fn new() -> Self {
+        Self {
+            pending_calls: HashMap::new(),
+        }
+    }
+
+    /// Record a function entry
+    pub fn record_entry(&mut self, trigger: &PythonFunctionEntryTrigger) {
+        let key = (
+            trigger.pid,
+            format!(
+                "{}:{}:{}",
+                trigger.filename, trigger.function_name, trigger.line_number
+            ),
+        );
+        self.pending_calls.insert(key, trigger.entry_time_ns);
+    }
+
+    /// Try to match an exit with an entry and compute duration
+    /// Returns the duration if a matching entry was found
+    pub fn record_exit(&mut self, trigger: &PythonFunctionExitTrigger, exit_time_ns: u64) -> Option<u64> {
+        let key = (
+            trigger.pid,
+            format!(
+                "{}:{}:{}",
+                trigger.filename, trigger.function_name, trigger.line_number
+            ),
+        );
+
+        if let Some(entry_time) = self.pending_calls.remove(&key) {
+            Some(exit_time_ns.saturating_sub(entry_time))
+        } else {
+            None
+        }
+    }
+
+    /// Clean up old entries (useful for long-running processes)
+    pub fn cleanup_older_than(&mut self, threshold_ns: u64, current_time_ns: u64) {
+        self.pending_calls
+            .retain(|_, &mut entry_time| current_time_ns - entry_time < threshold_ns);
+    }
 }
 
 /// Exit code along with a short reason and longer explanation.
@@ -225,5 +366,48 @@ pub fn exit_code_explanation(code: i64) -> String {
         code if (128..=255).contains(&code)=> format!("Terminated by signal {}.", code),
         code if (0..=127).contains(&code) => format!("Exited with code {} indicating an error in the invoked process.", code),
         code => format!("Exited with unknown code {}.", code),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_format_duration() {
+        assert_eq!(format_duration_ns(0), "N/A");
+        assert_eq!(format_duration_ns(500), "500ns");
+        assert_eq!(format_duration_ns(1500), "1.50µs");
+        assert_eq!(format_duration_ns(1_500_000), "1.50ms");
+        assert_eq!(format_duration_ns(1_500_000_000), "1.500s");
+    }
+
+    #[test]
+    fn test_python_call_tracker() {
+        let mut tracker = PythonCallTracker::new();
+
+        let entry = PythonFunctionEntryTrigger {
+            pid: 1234,
+            filename: "test.py".to_string(),
+            function_name: "my_func".to_string(),
+            line_number: 10,
+            entry_time_ns: 1000000,
+            timestamp: Utc::now(),
+        };
+
+        tracker.record_entry(&entry);
+
+        let exit = PythonFunctionExitTrigger {
+            pid: 1234,
+            filename: "test.py".to_string(),
+            function_name: "my_func".to_string(),
+            line_number: 10,
+            entry_time_ns: 1000000,
+            duration_ns: 0, // Will be computed
+            timestamp: Utc::now(),
+        };
+
+        let duration = tracker.record_exit(&exit, 2000000);
+        assert_eq!(duration, Some(1000000)); // 1ms
     }
 }

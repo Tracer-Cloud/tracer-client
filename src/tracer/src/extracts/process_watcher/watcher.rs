@@ -13,10 +13,7 @@ use std::sync::Arc;
 use sysinfo::ProcessesToUpdate;
 use tokio::sync::{mpsc, Mutex, RwLock};
 use tracer_ebpf::binding::start_processing_events;
-use tracer_ebpf::ebpf_trigger::{
-    FileOpenTrigger, OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger,
-    PythonFunctionTrigger, Trigger,
-};
+use tracer_ebpf::ebpf_trigger::{FileOpenTrigger, OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger, PythonFunctionEntryTrigger, Trigger};
 use tracing::{debug, error, info};
 
 /// Watches system processes and records events related to them
@@ -231,7 +228,7 @@ impl ProcessWatcher {
         let mut process_end_triggers: Vec<ProcessEndTrigger> = vec![];
         let mut out_of_memory_triggers: Vec<OutOfMemoryTrigger> = vec![];
         let mut file_opening_triggers: Vec<FileOpenTrigger> = vec![];
-        let mut python_function_triggers: Vec<PythonFunctionTrigger> = vec![];
+        let mut python_function_entry_triggers: Vec<PythonFunctionEntryTrigger> = vec![];
 
         debug!("ProcessWatcher: processing {} triggers", triggers.len());
 
@@ -271,15 +268,25 @@ impl ProcessWatcher {
                     );
                     file_opening_triggers.push(file_opened);
                 }
-                Trigger::PythonFunction(python_function_trigger) => {
+                Trigger::PythonFunctionEntry(python_function_entry_trigger) => {
                     debug!(
-                        "Python function trigger from pid={}, filename={}, line_number={}",
+                        "Python function entry trigger from pid={}, filename={}, line_number={}",
+                        python_function_entry_trigger.pid,
+                        python_function_entry_trigger.filename,
+                        python_function_entry_trigger.line_number
+                    );
+                    python_function_entry_triggers.push(python_function_entry_trigger);
+                }
+                Trigger::PythonFunctionExit(python_function_trigger) => {
+                    debug!(
+                        "Python function exit trigger from pid={}, filename={}, line_number={}",
                         python_function_trigger.pid,
                         python_function_trigger.filename,
                         python_function_trigger.line_number
                     );
-                    python_function_triggers.push(python_function_trigger);
                 }
+
+                _ => {}
             }
         }
 
