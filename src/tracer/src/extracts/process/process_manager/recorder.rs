@@ -1,6 +1,7 @@
 use crate::extracts::containers::DockerWatcher;
 use crate::extracts::process::extract_process_data;
 use crate::extracts::process::extract_process_data::construct_tool_id;
+use crate::extracts::process::process_manager::handlers::process_starts::PythonFunctionCall;
 use crate::extracts::process::types::process_result::ProcessResult;
 use crate::process_identification::recorder::EventDispatcher;
 use crate::process_identification::target_pipeline::pipeline_manager::TaskMatch;
@@ -212,6 +213,17 @@ impl EventRecorder {
                 TracerProcessStatus::TaskMatch,
                 format!("[{}] Job match: {}", Utc::now(), &task_match),
                 Some(EventAttributes::TaskMatch(task_match)),
+                None,
+            )
+            .await
+    }
+
+    pub async fn record_python_function(&self, python_function: PythonFunctionCall) -> Result<()> {
+        self.event_dispatcher
+            .log_with_metadata(
+                TracerProcessStatus::PythonFunction,
+                "python_function call".to_string(),
+                Some(EventAttributes::PythonFunction(python_function)),
                 None,
             )
             .await

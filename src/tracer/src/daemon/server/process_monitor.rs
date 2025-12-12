@@ -146,6 +146,22 @@ pub async fn monitor(client: Arc<Mutex<TracerClient>>, server_token: Cancellatio
         )
     };
 
+    let mut python_file_handle = {
+        let client = Arc::clone(&client);
+        spawn_worker_thread(
+            5000, // 5 seconds
+            server_token.clone(),
+            client_token.clone(),
+            move || {
+                let client = Arc::clone(&client);
+                async move {
+                    let mut guard = client.lock().await;
+                    guard.monitor_python().await.unwrap();
+                }
+            },
+        )
+    };
+
     tokio::select! {
         result = &mut submission_handle => {
             if let Err(join_error) = result {
@@ -179,6 +195,14 @@ pub async fn monitor(client: Arc<Mutex<TracerClient>>, server_token: Cancellatio
                 }
             }
         }
+        result = &mut python_file_handle => {
+        if let Err(join_error) = result {
+            if join_error.is_panic() {
+                error!("Python file monitor thread panicked");
+                server_token.cancel();
+            }
+        }
+    }
 
     }
 
