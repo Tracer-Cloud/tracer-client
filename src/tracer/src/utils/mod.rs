@@ -8,6 +8,7 @@ pub mod cli;
 pub mod command;
 pub mod env;
 pub mod file_system;
+pub mod files;
 pub mod input_validation;
 pub mod jwt_utils;
 pub mod spawn;
