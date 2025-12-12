@@ -177,7 +177,7 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                             (self.timestamp_ns / 1_000_000_000) as i64,
                             (self.timestamp_ns % 1_000_000_000) as u32,
                         )
-                            .unwrap(),
+                        .unwrap(),
                         exit_reason: Some((payload.status as i64).into()),
                     },
                 ))
@@ -194,7 +194,7 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                             (self.timestamp_ns / 1_000_000_000) as i64,
                             (self.timestamp_ns % 1_000_000_000) as u32,
                         )
-                            .unwrap(),
+                        .unwrap(),
                     },
                 ))
             }
@@ -217,7 +217,7 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                             (self.timestamp_ns / 1_000_000_000) as i64,
                             (self.timestamp_ns % 1_000_000_000) as u32,
                         )
-                            .unwrap(),
+                        .unwrap(),
                         file_full_path,
                     },
                 ))
@@ -233,7 +233,10 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                 let entry_time_ns = payload.entry_time_ns;
 
                 if filename.contains("testpip.py") {
-                    println!("PythonFunctionEntry: {:?}:{:?}:{:?}, entry_time_ns: {:?}", filename, function_name, line_number, entry_time_ns);
+                    println!(
+                        "PythonFunctionEntry: {:?}:{:?}:{:?}, entry_time_ns: {:?}",
+                        filename, function_name, line_number, entry_time_ns
+                    );
                 }
 
                 Ok(ebpf_trigger::Trigger::PythonFunctionEntry(
@@ -247,7 +250,7 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                             (self.timestamp_ns / 1_000_000_000) as i64,
                             (self.timestamp_ns % 1_000_000_000) as u32,
                         )
-                            .unwrap(),
+                        .unwrap(),
                     },
                 ))
             }
@@ -263,7 +266,10 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                 let duration_ns = payload.duration_ns;
 
                 if filename.contains("testpip.py") {
-                    println!("PythonFunctionExit: {:?}:{:?}:{:?}, duration_ns: {:?}", filename, function_name, line_number, duration_ns);
+                    println!(
+                        "PythonFunctionExit: {:?}:{:?}:{:?}, duration_ns: {:?}",
+                        filename, function_name, line_number, duration_ns
+                    );
                 }
 
                 Ok(ebpf_trigger::Trigger::PythonFunctionExit(
@@ -278,7 +284,7 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                             (self.timestamp_ns / 1_000_000_000) as i64,
                             (self.timestamp_ns % 1_000_000_000) as u32,
                         )
-                            .unwrap(),
+                        .unwrap(),
                     },
                 ))
             }

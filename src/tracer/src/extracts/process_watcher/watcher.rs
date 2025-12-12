@@ -13,7 +13,10 @@ use std::sync::Arc;
 use sysinfo::ProcessesToUpdate;
 use tokio::sync::{mpsc, Mutex, RwLock};
 use tracer_ebpf::binding::start_processing_events;
-use tracer_ebpf::ebpf_trigger::{FileOpenTrigger, OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger, PythonFunctionEntryTrigger, Trigger};
+use tracer_ebpf::ebpf_trigger::{
+    FileOpenTrigger, OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger,
+    PythonFunctionEntryTrigger, Trigger,
+};
 use tracing::{debug, error, info};
 
 /// Watches system processes and records events related to them

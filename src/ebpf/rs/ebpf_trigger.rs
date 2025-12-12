@@ -55,7 +55,7 @@ impl ProcessStartTrigger {
                 (timestamp_ns / NS_PER_SEC) as i64,
                 (timestamp_ns % NS_PER_SEC) as u32,
             )
-                .unwrap(),
+            .unwrap(),
         }
     }
 
