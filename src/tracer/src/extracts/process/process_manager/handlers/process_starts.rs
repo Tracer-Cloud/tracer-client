@@ -3,9 +3,20 @@ use crate::extracts::process::process_manager::recorder::EventRecorder;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
-use tracing::debug;
+use tracing::{debug, warn};
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct PythonFunctionCall {
+    pub timestamp: String,
+    pub function: String,
+    pub args: String,
+    pub kwargs: String,
+    pub output: String,
+    pub time_seconds: f64,
+}
 
 /// Handles process start events through explicit data transformations.
 pub struct ProcessStartHandler;
@@ -152,5 +163,23 @@ impl ProcessStartHandler {
             .map(|(k, v)| (k, v.into_iter().cloned().collect()))
             .collect();
         state_manager.update_monitoring(matched_processes).await
+    }
+
+    pub async fn record_python_functions(
+        event_recorder: &EventRecorder,
+        lines: Vec<String>,
+    ) -> Result<()> {
+        for line in lines {
+            match serde_json::from_str::<PythonFunctionCall>(line.as_str()) {
+                Ok(call) => {
+                    event_recorder.record_python_function(call).await?;
+                }
+                Err(e) => {
+                    warn!("Failed to parse python monitoring line: {}", e);
+                }
+            }
+        }
+
+        Ok(())
     }
 }
