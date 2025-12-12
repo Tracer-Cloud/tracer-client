@@ -1,3 +1,4 @@
+use crate::extracts::process::process_manager::handlers::process_starts::PythonFunctionCall;
 use crate::process_identification::target_pipeline::pipeline_manager::TaskMatch;
 use container::ContainerProperties;
 use process::{CompletedProcess, ProcessProperties};
@@ -22,4 +23,5 @@ pub enum EventAttributes {
     ContainerEvents(ContainerProperties),
     TaskMatch(TaskMatch),
     NewRun { trace_id: String },
+    PythonFunction(PythonFunctionCall),
 }
