@@ -692,6 +692,4 @@ rules:
   - rule_name: nextflow pipeline run
     display_name: nextflow pipeline run
     condition:
-      and:
-        - command_contains: nextflow
-        - command_contains: run
+      command_contains: nextflow run
