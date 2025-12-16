@@ -19,8 +19,12 @@ use crate::process_identification::types::event::{Event, ProcessStatus};
 use crate::utils::env::detect_environment_type;
 use crate::utils::system_info::get_kernel_version;
 use anyhow::{Context, Result};
+use std::fs::OpenOptions;
+use std::io::SeekFrom;
 use std::sync::Arc;
 use sysinfo::System;
+use tokio::fs::File as TokioFile;
+use tokio::io::{AsyncBufReadExt, AsyncSeekExt, BufReader as TokioBufReader};
 use tokio::sync::Mutex;
 use tokio::sync::{mpsc, RwLock};
 use tokio_util::sync::CancellationToken;
@@ -41,6 +45,7 @@ pub struct TracerClient {
 
     pub exporter: Arc<ExporterManager>,
     pub file_manager: Arc<RwLock<FileManager>>,
+    python_file_pos: Arc<Mutex<u64>>,
 }
 
 impl TracerClient {
@@ -98,6 +103,12 @@ impl TracerClient {
             file_manager.clone(),
         );
 
+        OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open("/tmp/tracer/python_monitoring.txt")?;
+
         let exporter = Arc::new(ExporterManager::new(db_client, rx));
 
         let metrics_collector = Self::init_watchers(&event_dispatcher, &system);
@@ -116,6 +127,7 @@ impl TracerClient {
             run,
             pipeline,
             file_manager,
+            python_file_pos: Arc::new(Mutex::new(0)),
         })
     }
 
@@ -264,6 +276,22 @@ impl TracerClient {
         (run, system_properties)
     }
 
+    pub async fn monitor_python(&mut self) -> Result<()> {
+        let mut lines: Vec<String> = Vec::new();
+        info!("Monitoring python triggered");
+        if let Err(e) = self
+            .tail_file_async("/tmp/tracer/python_monitoring.txt", |line| {
+                info!("Monitoring python: {}", line);
+                lines.push(line.to_string());
+            })
+            .await
+        {
+            error!("Failed to monitor python file: {}", e);
+        }
+
+        self.process_watcher.record_python_monitoring(lines).await
+    }
+
     #[tracing::instrument(skip(self))]
     pub async fn poll_process_metrics(&mut self) -> Result<()> {
         self.process_watcher.poll_process_metrics().await
@@ -315,5 +343,35 @@ impl TracerClient {
                 error!("Docker watcher failed: {:?}", e);
             }
         });
+    }
+
+    async fn tail_file_async<F>(&self, path: &str, mut callback: F) -> std::io::Result<()>
+    where
+        F: FnMut(&str),
+    {
+        let mut pos = self.python_file_pos.lock().await;
+
+        let mut file = TokioFile::open(path).await?;
+        let metadata = file.metadata().await?;
+
+        // If file was truncated, start from beginning
+        if metadata.len() < *pos {
+            *pos = 0;
+        }
+
+        file.seek(SeekFrom::Start(*pos)).await?;
+        let reader = TokioBufReader::new(file);
+        let mut lines = reader.lines();
+
+        while let Ok(Some(line)) = lines.next_line().await {
+            callback(&line);
+        }
+
+        // Get the actual current position after reading
+        // Reopen to get accurate file size
+        let metadata = TokioFile::open(path).await?.metadata().await?;
+        *pos = metadata.len();
+
+        Ok(())
     }
 }
