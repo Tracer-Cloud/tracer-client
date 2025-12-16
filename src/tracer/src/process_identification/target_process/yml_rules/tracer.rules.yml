@@ -688,8 +688,3 @@ rules:
     display_name: rna_fq2bam (Parabricks)
     condition:
       command_contains: pbrun rna_fq2bam
-
-  - rule_name: nextflow pipeline run
-    display_name: nextflow pipeline run
-    condition:
-      command_contains: nextflow run
