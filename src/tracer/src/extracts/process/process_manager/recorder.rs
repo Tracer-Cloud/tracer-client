@@ -86,9 +86,10 @@ impl EventRecorder {
             }
         }
 
-        // If we have a new trace ID and the TRACE_ID is a valid uuid, create a new run in the database
+        // If we have a new trace ID and a job Id (it means is a batch run)
+        // and the TRACE_ID is a valid uuid, create a new run in the database
         if let Some(trace_id) = &full.trace_id {
-            if is_valid_uuid(trace_id.as_ref()) {
+            if is_valid_uuid(trace_id.as_ref()) && full.job_id.is_some() {
                 let mut logged_trace_ids = self.logged_trace_ids.write().await;
                 if !logged_trace_ids.contains(trace_id) {
                     info!("Detected new trace ID: {}", trace_id);

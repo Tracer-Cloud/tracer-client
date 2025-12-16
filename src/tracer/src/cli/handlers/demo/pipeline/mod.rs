@@ -28,7 +28,7 @@ pub enum Pipeline {
 
 impl Pipeline {
     pub fn tracer<P: Into<PathBuf>>(path: P) -> Result<Self> {
-        Self::local_pixi(path, "pipeline")
+        Self::local_pixi(path, "pipeline_full")
     }
 
     pub fn local_pixi<P: Into<PathBuf>>(path: P, task: &str) -> Result<Self> {
