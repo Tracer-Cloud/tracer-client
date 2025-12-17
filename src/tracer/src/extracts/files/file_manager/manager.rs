@@ -41,6 +41,7 @@ impl FileManager {
             // for now, we filter in only fq, fq.gz, fastq, fastq.gz files
             if file_opening_trigger.filename.contains(".fq")
                 || file_opening_trigger.filename.contains(".fastq")
+                || file_opening_trigger.filename.contains(".csv")
             {
                 self.add_file_to_monitoring(file_opening_trigger.clone());
 
