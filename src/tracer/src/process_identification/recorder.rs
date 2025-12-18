@@ -130,8 +130,9 @@ mod tests {
         let attributes = Some(EventAttributes::FileOpened(FileOpenTrigger {
             pid: 3,
             timestamp: DateTime::default(),
-            size_bytes: Some(5),
+            size_bytes: 5,
             filename: "test".to_string(),
+            file_full_path: "/tmp/test".to_string(),
         }));
 
         // Call the log method
@@ -156,7 +157,7 @@ mod tests {
         // Check that attributes were passed correctly
         match &event.attributes {
             Some(EventAttributes::FileOpened(stats)) => {
-                assert_eq!(stats.size_bytes, Some(5));
+                assert_eq!(stats.size_bytes, 5);
                 assert_eq!(stats.filename, "test".to_string());
             }
             _ => panic!("Expected ProcessDatasetStats attributes"),

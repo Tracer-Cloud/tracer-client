@@ -1,6 +1,7 @@
 use crate::extracts::containers::DockerWatcher;
 use crate::extracts::process::extract_process_data;
 use crate::extracts::process::extract_process_data::construct_tool_id;
+use crate::extracts::process::process_manager::handlers::process_starts::PythonFunctionCall;
 use crate::extracts::process::types::process_result::ProcessResult;
 use crate::process_identification::recorder::EventDispatcher;
 use crate::process_identification::target_pipeline::pipeline_manager::TaskMatch;
@@ -18,6 +19,7 @@ use tracer_ebpf::ebpf_trigger::{FileOpenTrigger, ProcessEndTrigger, ProcessStart
 use tracing::{debug, info};
 
 /// Handles recording of process-related events
+#[derive(Clone)]
 pub struct EventRecorder {
     event_dispatcher: EventDispatcher,
     /// shared reference to the docker watcher - used to get the ContainerEvent associated
@@ -84,9 +86,10 @@ impl EventRecorder {
             }
         }
 
-        // If we have a new trace ID and the TRACE_ID is a valid uuid, create a new run in the database
+        // If we have a new trace ID and a job Id (it means is a batch run)
+        // and the TRACE_ID is a valid uuid, create a new run in the database
         if let Some(trace_id) = &full.trace_id {
-            if is_valid_uuid(trace_id.as_ref()) {
+            if is_valid_uuid(trace_id.as_ref()) && full.job_id.is_some() {
                 let mut logged_trace_ids = self.logged_trace_ids.write().await;
                 if !logged_trace_ids.contains(trace_id) {
                     info!("Detected new trace ID: {}", trace_id);
@@ -216,11 +219,36 @@ impl EventRecorder {
             .await
     }
 
+    pub async fn record_python_function(&self, python_function: PythonFunctionCall) -> Result<()> {
+        self.event_dispatcher
+            .log_with_metadata(
+                TracerProcessStatus::PythonFunction,
+                "python_function call".to_string(),
+                Some(EventAttributes::PythonFunction(python_function)),
+                None,
+            )
+            .await
+    }
+
     pub async fn record_file_opening(&self, file_open_trigger: FileOpenTrigger) -> Result<()> {
         self.event_dispatcher
             .log_with_metadata(
                 TracerProcessStatus::FileOpened,
                 format!("File opened: {}", &file_open_trigger.filename),
+                Some(EventAttributes::FileOpened(file_open_trigger.clone())),
+                Some(file_open_trigger.timestamp),
+            )
+            .await
+    }
+
+    pub async fn record_file_size_updates(&self, file_open_trigger: FileOpenTrigger) -> Result<()> {
+        self.event_dispatcher
+            .log_with_metadata(
+                TracerProcessStatus::FileSizeUpdate,
+                format!(
+                    "File size update for {}, now = {}",
+                    &file_open_trigger.filename, &file_open_trigger.size_bytes
+                ),
                 Some(EventAttributes::FileOpened(file_open_trigger.clone())),
                 Some(file_open_trigger.timestamp),
             )

@@ -1,22 +1,14 @@
+use crate::extracts::process::process_manager::handlers::oom::OomHandler;
 use crate::extracts::process::process_manager::handlers::process_starts::ProcessStartHandler;
 use crate::extracts::process::process_manager::handlers::process_terminations::ProcessTerminationHandler;
 use crate::extracts::process::process_manager::metrics::ProcessMetricsHandler;
 use crate::extracts::process::process_manager::recorder::EventRecorder;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
-use crate::extracts::{
-    containers::DockerWatcher, process::process_manager::handlers::oom::OomHandler,
-};
-use crate::process_identification::recorder::EventDispatcher;
 use anyhow::Result;
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::collections::{HashMap, HashSet};
 use tokio::task::JoinHandle;
-use tracer_ebpf::ebpf_trigger::{
-    FileOpenTrigger, OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger,
-};
+use tracer_ebpf::ebpf_trigger::{OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger};
 
 pub struct ProcessManager {
     pub state_manager: StateManager,
@@ -25,9 +17,8 @@ pub struct ProcessManager {
 }
 
 impl ProcessManager {
-    pub fn new(event_dispatcher: EventDispatcher, docker_watcher: Arc<DockerWatcher>) -> Self {
+    pub fn new(event_recorder: EventRecorder) -> Self {
         let state_manager = StateManager::default();
-        let event_recorder = EventRecorder::new(event_dispatcher, docker_watcher);
         let system_refresher = SystemRefresher::new();
 
         ProcessManager {
@@ -82,20 +73,6 @@ impl ProcessManager {
         .await
     }
 
-    pub async fn handle_file_openings(
-        &self,
-        file_opening_triggers: Vec<FileOpenTrigger>,
-    ) -> Result<()> {
-        for file_opening_trigger in file_opening_triggers {
-            let _ = &self
-                .event_recorder
-                .record_file_opening(file_opening_trigger)
-                .await?;
-        }
-
-        Ok(())
-    }
-
     /// Polls and updates metrics for all monitored processes
     pub async fn poll_process_metrics(&self) -> Result<()> {
         ProcessMetricsHandler::poll_process_metrics(
@@ -104,6 +81,10 @@ impl ProcessManager {
             &self.system_refresher,
         )
         .await
+    }
+
+    pub async fn record_python(&self, lines: Vec<String>) -> Result<()> {
+        ProcessStartHandler::record_python_functions(&self.event_recorder, lines.clone()).await
     }
 
     /// Returns a set of monitored process names

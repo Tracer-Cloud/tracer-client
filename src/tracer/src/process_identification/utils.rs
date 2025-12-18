@@ -25,17 +25,14 @@ pub fn flatten_event_attributes(event: &Event) -> Result<Value> {
         EventAttributes::CompletedProcess(p) => ("process", serde_json::to_value(p)?),
         EventAttributes::SystemMetric(p) => ("system_metric", serde_json::to_value(p)?),
         EventAttributes::SystemProperties(_) => return Ok(Value::Object(map)),
-        EventAttributes::FileOpened(file_opened) => (
-            "processed_dataset_stats",
-            serde_json::to_value(file_opened)?,
-        ),
+        EventAttributes::FileOpened(p) => ("file", serde_json::to_value(p)?),
         EventAttributes::Syslog(p) => ("syslog", serde_json::to_value(p)?),
-
         EventAttributes::ContainerEvents(p) => ("containers", serde_json::to_value(p)?),
         EventAttributes::TaskMatch(p) => ("task_match", serde_json::to_value(p)?),
         EventAttributes::NewRun { trace_id } => {
             ("new_run", serde_json::json!({ "trace_id": trace_id }))
         }
+        EventAttributes::PythonFunction(p) => ("python_function", serde_json::to_value(p)?),
     };
 
     flatten_with_prefix(prefix, &json, &mut map);

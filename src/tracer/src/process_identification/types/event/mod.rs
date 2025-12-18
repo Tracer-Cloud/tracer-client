@@ -54,6 +54,8 @@ pub enum ProcessStatus {
     ContainerTermination,
     TaskMatch,
     FileOpened,
+    FileSizeUpdate,
+    PythonFunction,
 }
 
 impl std::fmt::Display for ProcessStatus {
@@ -73,6 +75,8 @@ impl std::fmt::Display for ProcessStatus {
             ProcessStatus::ContainerExecution => write!(f, "container_execution"),
             ProcessStatus::ContainerTermination => write!(f, "container_termination"),
             ProcessStatus::TaskMatch => write!(f, "task_match"),
+            ProcessStatus::FileSizeUpdate => write!(f, "file_size_update"),
+            ProcessStatus::PythonFunction => write!(f, "python_function"),
         }
     }
 }

@@ -1,5 +1,7 @@
 use crate::extracts::containers::DockerWatcher;
+use crate::extracts::files::file_manager::manager::FileManager;
 use crate::extracts::process::extract_process_data::get_process_argv;
+use crate::extracts::process::process_manager::recorder::EventRecorder;
 use crate::extracts::process::process_manager::ProcessManager;
 use crate::extracts::process_watcher::handler::trigger::trigger_processor::TriggerProcessor;
 use crate::process_identification::recorder::EventDispatcher;
@@ -12,7 +14,8 @@ use sysinfo::ProcessesToUpdate;
 use tokio::sync::{mpsc, Mutex, RwLock};
 use tracer_ebpf::binding::start_processing_events;
 use tracer_ebpf::ebpf_trigger::{
-    FileOpenTrigger, OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger, Trigger,
+    FileOpenTrigger, OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger,
+    PythonFunctionEntryTrigger, Trigger,
 };
 use tracing::{debug, error, info};
 
@@ -21,20 +24,21 @@ pub struct ProcessWatcher {
     ebpf_initialized: Arc<Mutex<bool>>,
     process_manager: Arc<RwLock<ProcessManager>>,
     trigger_processor: TriggerProcessor,
-    // here will go the file manager for dataset recognition operations
 }
 
 impl ProcessWatcher {
-    pub fn new(event_dispatcher: EventDispatcher, docker_watcher: Arc<DockerWatcher>) -> Self {
+    pub fn new(
+        event_dispatcher: EventDispatcher,
+        docker_watcher: Arc<DockerWatcher>,
+        file_manager: Arc<RwLock<FileManager>>,
+    ) -> Self {
         // instantiate the process manager
-        let process_manager = Arc::new(RwLock::new(ProcessManager::new(
-            event_dispatcher.clone(),
-            docker_watcher,
-        )));
+        let event_recorder = EventRecorder::new(event_dispatcher.clone(), docker_watcher.clone());
+        let process_manager = Arc::new(RwLock::new(ProcessManager::new(event_recorder.clone())));
 
         ProcessWatcher {
             ebpf_initialized: Arc::new(Mutex::new(false)),
-            trigger_processor: TriggerProcessor::new(Arc::clone(&process_manager)),
+            trigger_processor: TriggerProcessor::new(Arc::clone(&process_manager), file_manager),
             process_manager,
         }
     }
@@ -227,6 +231,7 @@ impl ProcessWatcher {
         let mut process_end_triggers: Vec<ProcessEndTrigger> = vec![];
         let mut out_of_memory_triggers: Vec<OutOfMemoryTrigger> = vec![];
         let mut file_opening_triggers: Vec<FileOpenTrigger> = vec![];
+        let mut python_function_entry_triggers: Vec<PythonFunctionEntryTrigger> = vec![];
 
         debug!("ProcessWatcher: processing {} triggers", triggers.len());
 
@@ -262,17 +267,26 @@ impl ProcessWatcher {
                 Trigger::FileOpen(file_opened) => {
                     debug!(
                         "File open trigger from pid={}, filename={}, size={}",
-                        file_opened.pid,
-                        file_opened.filename,
-                        file_opened.size_bytes.unwrap_or(0)
+                        file_opened.pid, file_opened.filename, file_opened.size_bytes
                     );
-
-                    // for now, we log only fq, fq.gz, fastq, fastq.gz files
-                    if file_opened.filename.contains(".fq")
-                        || file_opened.filename.contains(".fastq")
-                    {
-                        file_opening_triggers.push(file_opened);
-                    }
+                    file_opening_triggers.push(file_opened);
+                }
+                Trigger::PythonFunctionEntry(python_function_entry_trigger) => {
+                    debug!(
+                        "Python function entry trigger from pid={}, filename={}, line_number={}",
+                        python_function_entry_trigger.pid,
+                        python_function_entry_trigger.filename,
+                        python_function_entry_trigger.line_number
+                    );
+                    python_function_entry_triggers.push(python_function_entry_trigger);
+                }
+                Trigger::PythonFunctionExit(python_function_trigger) => {
+                    debug!(
+                        "Python function exit trigger from pid={}, filename={}, line_number={}",
+                        python_function_trigger.pid,
+                        python_function_trigger.filename,
+                        python_function_trigger.line_number
+                    );
                 }
             }
         }
@@ -301,6 +315,14 @@ impl ProcessWatcher {
             .write()
             .await
             .poll_process_metrics()
+            .await
+    }
+
+    pub async fn record_python_monitoring(&self, lines: Vec<String>) -> Result<()> {
+        self.process_manager
+            .write()
+            .await
+            .record_python(lines)
             .await
     }
 

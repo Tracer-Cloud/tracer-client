@@ -101,10 +101,11 @@ pub struct ProcessEndTrigger {
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct FileOpenTrigger {
-    pub pid: usize,              // pid of the process that opened the file
-    pub filename: String,        // it can be the full path or just the name
-    pub size_bytes: Option<u64>, // Option, because the file might not exist or be accessible
-    pub timestamp: DateTime<Utc>,
+    pub pid: u32,                 // pid of the process that opened the file
+    pub filename: String,         // it can be the full path or just the name
+    pub size_bytes: i128, // -1 if we can't get the size of the file, otherwise the size in bytes
+    pub timestamp: DateTime<Utc>, // timestamp of the event
+    pub file_full_path: String, // we use it to understand if 2 equals filenames are the same file
 }
 
 #[derive(Debug, Clone)]
@@ -115,23 +116,102 @@ pub struct OutOfMemoryTrigger {
     pub timestamp: DateTime<Utc>,
 }
 
+/// Python function entry event - captures when a function starts executing
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct PythonFunctionEntryTrigger {
+    pub pid: u32,
+    pub filename: String,
+    pub function_name: String,
+    pub line_number: i32,
+    pub entry_time_ns: u64,
+    pub timestamp: DateTime<Utc>,
+}
+
+impl fmt::Display for PythonFunctionEntryTrigger {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "→ {}:{}  {}()",
+            self.filename, self.line_number, self.function_name
+        )
+    }
+}
+
+/// Python function exit event - captures when a function returns
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct PythonFunctionExitTrigger {
+    pub pid: u32,
+    pub filename: String,
+    pub function_name: String,
+    pub line_number: i32,
+    pub entry_time_ns: u64,
+    pub duration_ns: u64,
+    pub timestamp: DateTime<Utc>,
+}
+
+impl PythonFunctionExitTrigger {
+    /// Format duration in human-readable form
+    pub fn format_duration(&self) -> String {
+        format_duration_ns(self.duration_ns)
+    }
+}
+
+impl fmt::Display for PythonFunctionExitTrigger {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "← {}:{}  {}()  [{}]",
+            self.filename,
+            self.line_number,
+            self.function_name,
+            self.format_duration()
+        )
+    }
+}
+
+/// Format duration in human-readable form
+pub fn format_duration_ns(duration_ns: u64) -> String {
+    if duration_ns == 0 {
+        "N/A".to_string()
+    } else if duration_ns < 1_000 {
+        format!("{}ns", duration_ns)
+    } else if duration_ns < 1_000_000 {
+        format!("{:.2}µs", duration_ns as f64 / 1_000.0)
+    } else if duration_ns < 1_000_000_000 {
+        format!("{:.2}ms", duration_ns as f64 / 1_000_000.0)
+    } else {
+        format!("{:.3}s", duration_ns as f64 / 1_000_000_000.0)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Trigger {
     ProcessStart(ProcessStartTrigger),
     ProcessEnd(ProcessEndTrigger),
     OutOfMemory(OutOfMemoryTrigger),
     FileOpen(FileOpenTrigger),
+    PythonFunctionEntry(PythonFunctionEntryTrigger),
+    PythonFunctionExit(PythonFunctionExitTrigger),
 }
 
-/// Exit code along with short reason and longer explanation.
-///
-/// We always create the reason and explanation when creating the struct (rather than on-demand
-/// via a method call) because ExitReason always gets serialized, and it makes it possible to
-/// derive the serde implementation.
+impl fmt::Display for Trigger {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Trigger::ProcessStart(t) => write!(f, "ProcessStart(pid={}, comm={})", t.pid, t.comm),
+            Trigger::ProcessEnd(t) => write!(f, "ProcessEnd(pid={})", t.pid),
+            Trigger::OutOfMemory(t) => write!(f, "OOM(pid={}, comm={})", t.pid, t.comm),
+            Trigger::FileOpen(t) => write!(f, "FileOpen(pid={}, file={})", t.pid, t.filename),
+            Trigger::PythonFunctionEntry(t) => write!(f, "{}", t),
+            Trigger::PythonFunctionExit(t) => write!(f, "{}", t),
+        }
+    }
+}
+
+/// Exit code along with a short reason and longer explanation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ExitReason {
     pub code: i64,
-    pub term_signal: Option<u16>, // If the process was terminated by a signal we save the signal number
+    pub term_signal: Option<u16>,
     pub reason: String,
     pub explanation: String,
 }
@@ -152,9 +232,6 @@ impl fmt::Display for ExitReason {
     }
 }
 
-/// Convert an exit status to an ExitReason.
-/// For now, only POSIX wait statuses are supported. A POSIX wait status is a 16-bit integer
-/// with the high 8 bits being the exit code and the low 7 bits being the termination signal.
 impl From<i64> for ExitReason {
     fn from(value: i64) -> Self {
         let status = value as u16;
@@ -170,17 +247,11 @@ impl From<i64> for ExitReason {
     }
 }
 
-/// Command exited without error
 pub const EXIT_CODE_SUCCESS: i64 = 0;
-/// Command could not be invoked
 pub const EXIT_CODE_COMMAND_NOT_INVOKED: i64 = 126;
-/// Command not found in the container
 pub const EXIT_CODE_COMMAND_NOT_FOUND: i64 = 127;
-/// Container terminated by Ctrl-C
 pub const EXIT_CODE_CTRL_C_KILLED: i64 = 130;
-/// SIGKILL from kernel → usually OOM
 pub const EXIT_CODE_OUT_OF_MEMORY_KILLED: i64 = 137;
-// SIGTERM
 pub const EXIT_CODE_SIGNAL_TERMINATED: i64 = 143;
 
 pub fn exit_code_reason(code: i64) -> String {
@@ -214,5 +285,19 @@ pub fn exit_code_explanation(code: i64) -> String {
         code if (128..=255).contains(&code)=> format!("Terminated by signal {}.", code),
         code if (0..=127).contains(&code) => format!("Exited with code {} indicating an error in the invoked process.", code),
         code => format!("Exited with unknown code {}.", code),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_format_duration() {
+        assert_eq!(format_duration_ns(0), "N/A");
+        assert_eq!(format_duration_ns(500), "500ns");
+        assert_eq!(format_duration_ns(1500), "1.50µs");
+        assert_eq!(format_duration_ns(1_500_000), "1.50ms");
+        assert_eq!(format_duration_ns(1_500_000_000), "1.500s");
     }
 }
