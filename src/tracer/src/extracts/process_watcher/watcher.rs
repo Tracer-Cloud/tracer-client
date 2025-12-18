@@ -299,14 +299,6 @@ impl ProcessWatcher {
             .await
     }
 
-    pub async fn record_python_monitoring(&self, lines: Vec<String>) -> Result<()> {
-        self.process_manager
-            .write()
-            .await
-            .record_python(lines)
-            .await
-    }
-
     pub async fn get_monitored_processes(&self) -> HashSet<String> {
         self.process_manager
             .write()
