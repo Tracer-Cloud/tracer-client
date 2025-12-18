@@ -2,6 +2,7 @@ use crate::constants::{
     CLERK_ISSUER_DOMAIN_DEV, CLERK_ISSUER_DOMAIN_PROD, CLERK_JWKS_DOMAIN_DEV,
     CLERK_JWKS_DOMAIN_PROD,
 };
+use crate::utils::env::is_development_environment;
 use crate::utils::jwt_utils::claims::Claims;
 use jsonwebtoken::jwk::JwkSet;
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
@@ -16,7 +17,12 @@ impl ClerkJwtVerifier {
         let jwks_url: String;
         let issuer: String;
 
-        if platform.eq_ignore_ascii_case("dev") || platform.eq_ignore_ascii_case("local") {
+        // by default, the platform is "default" so we use add a check on is_development_environment() to get the right domain
+        // if default + dev environment, we use the dev domain, if default + prod (not dev) environment, we use the prod domain
+        if platform.eq_ignore_ascii_case("dev")
+            || platform.eq_ignore_ascii_case("local")
+            || (platform.eq_ignore_ascii_case("default") && is_development_environment())
+        {
             jwks_url = CLERK_JWKS_DOMAIN_DEV.to_string();
             issuer = CLERK_ISSUER_DOMAIN_DEV.to_string();
         } else {
