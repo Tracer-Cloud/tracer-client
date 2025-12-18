@@ -14,8 +14,7 @@ use sysinfo::ProcessesToUpdate;
 use tokio::sync::{mpsc, Mutex, RwLock};
 use tracer_ebpf::binding::start_processing_events;
 use tracer_ebpf::ebpf_trigger::{
-    FileOpenTrigger, OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger,
-    PythonFunctionEntryTrigger, Trigger,
+    FileOpenTrigger, OutOfMemoryTrigger, ProcessEndTrigger, ProcessStartTrigger, Trigger,
 };
 use tracing::{debug, error, info};
 
@@ -196,7 +195,7 @@ impl ProcessWatcher {
                 Ok(Some(event)) => {
                     buffer.push(event);
 
-                    // Try to receive more events non-blockingly (up to 99 more)
+                    // Try to receive more events non-blocking (up to 99 more)
                     while let Ok(Some(event)) =
                         tokio::time::timeout(std::time::Duration::from_millis(10), rx.recv()).await
                     {
@@ -231,7 +230,6 @@ impl ProcessWatcher {
         let mut process_end_triggers: Vec<ProcessEndTrigger> = vec![];
         let mut out_of_memory_triggers: Vec<OutOfMemoryTrigger> = vec![];
         let mut file_opening_triggers: Vec<FileOpenTrigger> = vec![];
-        let mut python_function_entry_triggers: Vec<PythonFunctionEntryTrigger> = vec![];
 
         debug!("ProcessWatcher: processing {} triggers", triggers.len());
 
@@ -270,23 +268,6 @@ impl ProcessWatcher {
                         file_opened.pid, file_opened.filename, file_opened.size_bytes
                     );
                     file_opening_triggers.push(file_opened);
-                }
-                Trigger::PythonFunctionEntry(python_function_entry_trigger) => {
-                    debug!(
-                        "Python function entry trigger from pid={}, filename={}, line_number={}",
-                        python_function_entry_trigger.pid,
-                        python_function_entry_trigger.filename,
-                        python_function_entry_trigger.line_number
-                    );
-                    python_function_entry_triggers.push(python_function_entry_trigger);
-                }
-                Trigger::PythonFunctionExit(python_function_trigger) => {
-                    debug!(
-                        "Python function exit trigger from pid={}, filename={}, line_number={}",
-                        python_function_trigger.pid,
-                        python_function_trigger.filename,
-                        python_function_trigger.line_number
-                    );
                 }
             }
         }

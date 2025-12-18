@@ -116,59 +116,6 @@ pub struct OutOfMemoryTrigger {
     pub timestamp: DateTime<Utc>,
 }
 
-/// Python function entry event - captures when a function starts executing
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct PythonFunctionEntryTrigger {
-    pub pid: u32,
-    pub filename: String,
-    pub function_name: String,
-    pub line_number: i32,
-    pub entry_time_ns: u64,
-    pub timestamp: DateTime<Utc>,
-}
-
-impl fmt::Display for PythonFunctionEntryTrigger {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "→ {}:{}  {}()",
-            self.filename, self.line_number, self.function_name
-        )
-    }
-}
-
-/// Python function exit event - captures when a function returns
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct PythonFunctionExitTrigger {
-    pub pid: u32,
-    pub filename: String,
-    pub function_name: String,
-    pub line_number: i32,
-    pub entry_time_ns: u64,
-    pub duration_ns: u64,
-    pub timestamp: DateTime<Utc>,
-}
-
-impl PythonFunctionExitTrigger {
-    /// Format duration in human-readable form
-    pub fn format_duration(&self) -> String {
-        format_duration_ns(self.duration_ns)
-    }
-}
-
-impl fmt::Display for PythonFunctionExitTrigger {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "← {}:{}  {}()  [{}]",
-            self.filename,
-            self.line_number,
-            self.function_name,
-            self.format_duration()
-        )
-    }
-}
-
 /// Format duration in human-readable form
 pub fn format_duration_ns(duration_ns: u64) -> String {
     if duration_ns == 0 {
@@ -190,8 +137,6 @@ pub enum Trigger {
     ProcessEnd(ProcessEndTrigger),
     OutOfMemory(OutOfMemoryTrigger),
     FileOpen(FileOpenTrigger),
-    PythonFunctionEntry(PythonFunctionEntryTrigger),
-    PythonFunctionExit(PythonFunctionExitTrigger),
 }
 
 impl fmt::Display for Trigger {
@@ -201,8 +146,6 @@ impl fmt::Display for Trigger {
             Trigger::ProcessEnd(t) => write!(f, "ProcessEnd(pid={})", t.pid),
             Trigger::OutOfMemory(t) => write!(f, "OOM(pid={}, comm={})", t.pid, t.comm),
             Trigger::FileOpen(t) => write!(f, "FileOpen(pid={}, file={})", t.pid, t.filename),
-            Trigger::PythonFunctionEntry(t) => write!(f, "{}", t),
-            Trigger::PythonFunctionExit(t) => write!(f, "{}", t),
         }
     }
 }

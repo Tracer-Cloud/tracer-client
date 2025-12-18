@@ -20,8 +20,6 @@ pub const EVENT__SYSCALL__SYS_ENTER_WRITE: u32 = 1028;
 pub const EVENT__SYSCALL__SYS_EXIT_WRITE: u32 = 1029;
 pub const EVENT__VMSCAN__MM_VMSCAN_DIRECT_RECLAIM_BEGIN: u32 = 2048;
 pub const EVENT__OOM__MARK_VICTIM: u32 = 3072;
-pub const EVENT__PYTHON__FUNCTION_ENTRY: u32 = 4096;
-pub const EVENT__PYTHON__FUNCTION_EXIT: u32 = 4097;
 
 // Define payload structs for the events we care about
 #[repr(C, packed)]
@@ -44,27 +42,6 @@ pub struct SysEnterOpenAtPayload {
     pub filename: [u8; MAX_STR_LEN],
     pub flags: i32,
     pub mode: i32,
-}
-
-// Must match struct python__function_entry__payload in bootstrap.h
-#[repr(C, packed)]
-#[derive(Debug, Clone)]
-pub struct PythonFunctionEntryPayload {
-    pub filename: [u8; MAX_STR_LEN],
-    pub function_name: [u8; MAX_STR_LEN],
-    pub line_number: i32,
-    pub entry_time_ns: u64,
-}
-
-// Must match struct python__function_exit__payload in bootstrap.h
-#[repr(C, packed)]
-#[derive(Debug, Clone)]
-pub struct PythonFunctionExitPayload {
-    pub filename: [u8; MAX_STR_LEN],
-    pub function_name: [u8; MAX_STR_LEN],
-    pub line_number: i32,
-    pub entry_time_ns: u64,
-    pub duration_ns: u64,
 }
 
 // Define the CEvent struct to match the memory layout of the C struct
@@ -219,72 +196,6 @@ impl TryInto<ebpf_trigger::Trigger> for &CEvent {
                         )
                         .unwrap(),
                         file_full_path,
-                    },
-                ))
-            }
-            EVENT__PYTHON__FUNCTION_ENTRY => {
-                let payload_ptr = self.payload.as_ptr() as *const PythonFunctionEntryPayload;
-                let payload = unsafe { &*payload_ptr };
-
-                let pid = self.pid;
-                let filename = from_bpf_str(&payload.filename)?;
-                let function_name = from_bpf_str(&payload.function_name)?;
-                let line_number = payload.line_number;
-                let entry_time_ns = payload.entry_time_ns;
-
-                if filename.contains("testpip.py") {
-                    println!(
-                        "PythonFunctionEntry: {:?}:{:?}:{:?}, entry_time_ns: {:?}",
-                        filename, function_name, line_number, entry_time_ns
-                    );
-                }
-
-                Ok(ebpf_trigger::Trigger::PythonFunctionEntry(
-                    ebpf_trigger::PythonFunctionEntryTrigger {
-                        pid,
-                        filename,
-                        function_name,
-                        line_number,
-                        entry_time_ns,
-                        timestamp: chrono::DateTime::from_timestamp(
-                            (self.timestamp_ns / 1_000_000_000) as i64,
-                            (self.timestamp_ns % 1_000_000_000) as u32,
-                        )
-                        .unwrap(),
-                    },
-                ))
-            }
-            EVENT__PYTHON__FUNCTION_EXIT => {
-                let payload_ptr = self.payload.as_ptr() as *const PythonFunctionExitPayload;
-                let payload = unsafe { &*payload_ptr };
-
-                let pid = self.pid;
-                let filename = from_bpf_str(&payload.filename)?;
-                let function_name = from_bpf_str(&payload.function_name)?;
-                let line_number = payload.line_number;
-                let entry_time_ns = payload.entry_time_ns;
-                let duration_ns = payload.duration_ns;
-
-                if filename.contains("testpip.py") {
-                    println!(
-                        "PythonFunctionExit: {:?}:{:?}:{:?}, duration_ns: {:?}",
-                        filename, function_name, line_number, duration_ns
-                    );
-                }
-
-                Ok(ebpf_trigger::Trigger::PythonFunctionExit(
-                    ebpf_trigger::PythonFunctionExitTrigger {
-                        pid,
-                        filename,
-                        function_name,
-                        line_number,
-                        entry_time_ns,
-                        duration_ns,
-                        timestamp: chrono::DateTime::from_timestamp(
-                            (self.timestamp_ns / 1_000_000_000) as i64,
-                            (self.timestamp_ns % 1_000_000_000) as u32,
-                        )
-                        .unwrap(),
                     },
                 ))
             }
