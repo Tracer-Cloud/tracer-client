@@ -2,7 +2,7 @@
 
 use aws_sdk_pricing as pricing;
 
-use crate::cloud_providers::aws::aws_metadata::AwsInstanceMetaData;
+use crate::cloud_providers::aws::aws_metadata::{AwsInstanceMetaData, InstancePurchasingModel};
 use crate::cloud_providers::aws::ec2::Ec2Client;
 use crate::cloud_providers::aws::pricing::filtering::ec2_matcher::EC2MatchEngine;
 use crate::cloud_providers::aws::types::pricing::{
@@ -23,9 +23,51 @@ pub async fn build_pricing_context(
 ) -> Option<InstancePricingContext> {
     // Functional pipeline: describe -> filter -> fetch -> match -> combine
     let filterable_data = describe_instance(ec2_client, metadata).await?;
+
+    // Check if this is a spot instance - use EC2 API as authoritative source
+    let is_spot = if matches!(
+        metadata.instance_purchasing_model,
+        Some(InstancePurchasingModel::Spot)
+    ) {
+        true
+    } else {
+        // Fallback: check via EC2 API if metadata was inconclusive
+        ec2_client
+            .get_instance_lifecycle(&metadata.instance_id)
+            .await
+            .ok()
+            .flatten()
+            .as_deref()
+            == Some("spot")
+    };
+
+    // Fetch spot price if needed
+    let spot_price = if is_spot {
+        tracing::info!("Detected spot instance, fetching spot price");
+        ec2_client
+            .get_spot_price(&metadata.instance_type, &metadata.availability_zone)
+            .await
+            .ok()
+            .flatten()
+    } else {
+        None
+    };
+
     let ec2_filters = build_ec2_filters(&filterable_data);
     let ec2_raw = fetch_ec2_pricing_data(pricing_client, ec2_filters).await?;
-    let ec2_matches = match_ec2_instances(filterable_data.clone(), ec2_raw)?;
+    let mut ec2_matches = match_ec2_instances(filterable_data.clone(), ec2_raw)?;
+
+    // Override with spot price if available
+    if let Some(spot_hourly_price) = spot_price {
+        tracing::info!(
+            spot_hourly_price,
+            "Overriding on-demand price with spot price"
+        );
+        if let Some(first_match) = ec2_matches.first_mut() {
+            first_match.price_per_unit = spot_hourly_price;
+        }
+    }
+
     let ebs_cost = calculate_total_ebs_cost(
         pricing_client,
         ec2_client,
@@ -34,15 +76,15 @@ pub async fn build_pricing_context(
     )
     .await;
 
-    combine_pricing_data(metadata, ec2_matches, ebs_cost)
+    combine_pricing_data(metadata, ec2_matches, ebs_cost, is_spot)
 }
 
-/// Describe EC2 instance with error handling
+/// Describe EC2 instance with error handling and lifecycle detection
 async fn describe_instance(
     ec2_client: &Ec2Client,
     metadata: &AwsInstanceMetaData,
 ) -> Option<crate::cloud_providers::aws::types::pricing::FilterableInstanceDetails> {
-    ec2_client
+    let details = ec2_client
         .describe_instance(&metadata.instance_id, &metadata.region)
         .await
         .map_err(|e| {
@@ -53,7 +95,9 @@ async fn describe_instance(
             );
             e
         })
-        .ok()
+        .ok()?;
+
+    Some(details)
 }
 
 /// Match EC2 instances using the matching engine
@@ -92,6 +136,7 @@ fn combine_pricing_data(
     metadata: &AwsInstanceMetaData,
     ec2_matches: Vec<FlattenedData>,
     ebs_cost: f64,
+    is_spot: bool,
 ) -> Option<InstancePricingContext> {
     let ec2_data = ec2_matches.first().cloned()?;
 
@@ -118,12 +163,18 @@ fn combine_pricing_data(
     let total = ec2_data.price_per_unit + ebs_cost;
     let best_match_score = ec2_matches.first().and_then(|m| m.match_percentage);
 
+    let source = if is_spot {
+        "Live-Spot".to_string()
+    } else {
+        "Live-OnDemand".to_string()
+    };
+
     Some(InstancePricingContext {
         ec2_pricing: ec2_data,
         ebs_pricing: ebs_data,
         total_hourly_cost: total,
         cost_per_minute: total / 60.0,
-        source: "Live".to_string(),
+        source,
         ec2_pricing_best_matches: ec2_matches,
         match_confidence: best_match_score,
         instance_type: metadata.instance_type.clone(),

@@ -197,8 +197,8 @@ mod tests {
                 gpu_name: "Test GPU".to_string(),
                 gpu_type: "test".to_string(),
                 gpu_utilization: 75.0,
-                gpu_memory_used: 1024 * 1024 * 1024,      // 1GB
-                gpu_memory_total: 4 * 1024 * 1024 * 1024, // 4GB
+                gpu_memory_used: 1024 * 1024 * 1024,
+                gpu_memory_total: 4 * 1024 * 1024 * 1024,
                 gpu_memory_utilization: 25.0,
                 gpu_temperature: Some(80.0),
             },
