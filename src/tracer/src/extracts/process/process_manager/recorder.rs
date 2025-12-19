@@ -1,8 +1,8 @@
 use crate::extracts::containers::DockerWatcher;
 use crate::extracts::process::extract_process_data;
 use crate::extracts::process::extract_process_data::construct_tool_id;
-use crate::extracts::process::process_manager::handlers::process_starts::PythonFunctionCall;
 use crate::extracts::process::types::process_result::ProcessResult;
+use crate::extracts::python_monitor::function_monitor::function_monitor_manager::PythonFunctionCall;
 use crate::process_identification::recorder::EventDispatcher;
 use crate::process_identification::target_pipeline::pipeline_manager::TaskMatch;
 use crate::process_identification::types::event::attributes::process::ProcessProperties;
@@ -223,7 +223,7 @@ impl EventRecorder {
         self.event_dispatcher
             .log_with_metadata(
                 TracerProcessStatus::PythonFunction,
-                "python_function call".to_string(),
+                "Python function call".to_string(),
                 Some(EventAttributes::PythonFunction(python_function)),
                 None,
             )

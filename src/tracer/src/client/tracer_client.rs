@@ -11,6 +11,7 @@ use crate::extracts::files::file_manager::manager::FileManager;
 use crate::extracts::metrics::system_metrics_collector::SystemMetricsCollector;
 use crate::extracts::process::process_manager::recorder::EventRecorder;
 use crate::extracts::process_watcher::watcher::ProcessWatcher;
+use crate::extracts::python_monitor::function_monitor::function_monitor_manager::FunctionMonitorManager;
 use crate::process_identification::recorder::EventDispatcher;
 use crate::process_identification::types::current_run::RunMetadata;
 use crate::process_identification::types::event::attributes::system_metrics::SystemProperties;
@@ -46,6 +47,7 @@ pub struct TracerClient {
     pub exporter: Arc<ExporterManager>,
     pub file_manager: Arc<RwLock<FileManager>>,
     python_file_pos: Arc<Mutex<u64>>,
+    python_function_monitor_manager: FunctionMonitorManager,
 }
 
 impl TracerClient {
@@ -96,7 +98,8 @@ impl TracerClient {
         let docker_watcher = Arc::new(DockerWatcher::new_lazy(event_dispatcher.clone()));
 
         let event_recorder = EventRecorder::new(event_dispatcher.clone(), docker_watcher.clone());
-        let file_manager = Arc::new(RwLock::new(FileManager::new(event_recorder)));
+        let file_manager = Arc::new(RwLock::new(FileManager::new(event_recorder.clone())));
+        let python_function_monitor_manager = FunctionMonitorManager::new(event_recorder);
         let process_watcher = Self::init_process_watcher(
             &event_dispatcher,
             docker_watcher.clone(),
@@ -128,6 +131,7 @@ impl TracerClient {
             pipeline,
             file_manager,
             python_file_pos: Arc::new(Mutex::new(0)),
+            python_function_monitor_manager,
         })
     }
 
@@ -278,7 +282,6 @@ impl TracerClient {
 
     pub async fn monitor_python(&mut self) -> Result<()> {
         let mut lines: Vec<String> = Vec::new();
-        info!("Monitoring python triggered");
         if let Err(e) = self
             .tail_file_async("/tmp/tracer/python_monitoring.txt", |line| {
                 info!("Monitoring python: {}", line);
@@ -289,7 +292,9 @@ impl TracerClient {
             error!("Failed to monitor python file: {}", e);
         }
 
-        self.process_watcher.record_python_monitoring(lines).await
+        self.python_function_monitor_manager
+            .record_python_functions(lines)
+            .await
     }
 
     #[tracing::instrument(skip(self))]

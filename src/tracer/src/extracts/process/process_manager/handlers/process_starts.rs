@@ -3,26 +3,13 @@ use crate::extracts::process::process_manager::recorder::EventRecorder;
 use crate::extracts::process::process_manager::state::StateManager;
 use crate::extracts::process::process_manager::system_refresher::SystemRefresher;
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use tracer_ebpf::ebpf_trigger::ProcessStartTrigger;
-use tracing::{debug, warn};
+use tracing::debug;
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct PythonFunctionCall {
-    pub timestamp: String,
-    pub function: String,
-    pub args: String,
-    pub kwargs: String,
-    pub output: String,
-    pub time_seconds: f64,
-}
-
-/// Handles process start events through explicit data transformations.
 pub struct ProcessStartHandler;
 
 impl ProcessStartHandler {
-    /// Entry point: handles newly started processes.
     pub async fn handle_process_starts(
         state_manager: &StateManager,
         event_recorder: &EventRecorder,
@@ -55,7 +42,6 @@ impl ProcessStartHandler {
         Ok(())
     }
 
-    /// Step 1: Store triggers for parent-child tracking in state.
     async fn store_triggers(state_manager: &StateManager, triggers: Vec<ProcessStartTrigger>) {
         debug!("Storing {} triggers in state.", triggers.len());
         for trigger in &triggers {
@@ -65,7 +51,6 @@ impl ProcessStartHandler {
         }
     }
 
-    /// Step 2: Match stored triggers against targets.
     async fn match_processes<'a>(
         state_manager: &StateManager,
         triggers: &'a [ProcessStartTrigger],
@@ -78,7 +63,6 @@ impl ProcessStartHandler {
         filtering::filter_processes_by_target(triggers, &state)
     }
 
-    /// Step 3: Refresh system data for matched processes.
     async fn refresh_process_data(
         system_refresher: &SystemRefresher,
         matched_processes: &HashMap<String, HashSet<&ProcessStartTrigger>>,
@@ -93,7 +77,6 @@ impl ProcessStartHandler {
         system_refresher.refresh_system(&pids).await
     }
 
-    /// Step 4: Log data for each matched process.
     async fn record_matched_processes(
         event_recorder: &EventRecorder,
         system_refresher: &SystemRefresher,
@@ -116,7 +99,6 @@ impl ProcessStartHandler {
         Ok(())
     }
 
-    /// Step 5: Match pipelines for matched processes.
     async fn record_matching_tasks(
         event_recorder: &EventRecorder,
         state_manager: &StateManager,
@@ -152,7 +134,6 @@ impl ProcessStartHandler {
         Ok(())
     }
 
-    /// Step 6: Update the monitoring state with new processes.
     async fn update_monitoring(
         state_manager: &StateManager,
         matched_processes: HashMap<String, HashSet<&ProcessStartTrigger>>,
@@ -163,23 +144,5 @@ impl ProcessStartHandler {
             .map(|(k, v)| (k, v.into_iter().cloned().collect()))
             .collect();
         state_manager.update_monitoring(matched_processes).await
-    }
-
-    pub async fn record_python_functions(
-        event_recorder: &EventRecorder,
-        lines: Vec<String>,
-    ) -> Result<()> {
-        for line in lines {
-            match serde_json::from_str::<PythonFunctionCall>(line.as_str()) {
-                Ok(call) => {
-                    event_recorder.record_python_function(call).await?;
-                }
-                Err(e) => {
-                    warn!("Failed to parse python monitoring line: {}", e);
-                }
-            }
-        }
-
-        Ok(())
     }
 }

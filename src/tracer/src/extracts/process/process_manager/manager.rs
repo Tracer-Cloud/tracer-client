@@ -83,10 +83,6 @@ impl ProcessManager {
         .await
     }
 
-    pub async fn record_python(&self, lines: Vec<String>) -> Result<()> {
-        ProcessStartHandler::record_python_functions(&self.event_recorder, lines.clone()).await
-    }
-
     /// Returns a set of monitored process names
     pub async fn get_monitored_processes(&self) -> HashSet<String> {
         self.state_manager.get_monitored_processes().await

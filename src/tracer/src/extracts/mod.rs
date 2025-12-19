@@ -4,3 +4,4 @@ pub mod files;
 pub mod metrics;
 pub mod process;
 pub mod process_watcher;
+pub mod python_monitor;
