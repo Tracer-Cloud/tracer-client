@@ -167,6 +167,13 @@ impl DockerWatcher {
         Ok(())
     }
 
+    fn get_container_environment_variable(env_vars: &[String], name: &str) -> Option<String> {
+        env_vars
+            .iter()
+            .find(|v| v.starts_with(&format!("{}=", name)))
+            .and_then(|v| v.split('=').nth(1).map(String::from))
+    }
+
     fn inspect_to_event(
         inspect: bollard::models::ContainerInspectResponse,
         timestamp: DateTime<Utc>,
@@ -196,14 +203,8 @@ impl DockerWatcher {
                 .unwrap_or_default(),
             timestamp,
             state,
-            trace_id: env_vars
-                .iter()
-                .find(|v| v.starts_with("TRACER_TRACE_ID="))
-                .and_then(|v| v.split('=').nth(1).map(String::from)),
-            job_id: env_vars
-                .iter()
-                .find(|v| v.starts_with("AWS_BATCH_JOB_ID="))
-                .and_then(|v| v.split('=').nth(1).map(String::from)),
+            trace_id: Self::get_container_environment_variable(&env_vars, "TRACER_TRACE_ID"),
+            job_id: Self::get_container_environment_variable(&env_vars, "AWS_BATCH_JOB_ID"),
             environment_variables: env_vars,
         })
     }
