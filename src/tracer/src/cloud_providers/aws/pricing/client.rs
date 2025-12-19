@@ -60,19 +60,20 @@ impl PricingClient {
     ) -> Option<InstancePricingContext> {
         // Check if EC2 client needs reinitialization for the correct region
         let current_region = self.ec2_region.read().await.clone();
-        let client_is_none = {
-            let guard = self.ec2_client.read().await;
-            guard.is_none()
-        };
-        
-        // Initialize client if it's None or if region mismatch detected
-        let maybe_new_client = if client_is_none {
-            // Client is None, try to initialize it for the metadata's region
+
+        let client_is_none = self.ec2_client.read().await.is_none();
+
+        // Initialize the client if it's None or if region mismatch detected
+        let reinitialized_client = if client_is_none {
+            // client is None, try to initialize it for the metadata's region
             tracing::info!(
-                "EC2 client is None, initializing for region: {}",
+                "EC2 client: None, initializing for region: {}",
                 metadata.region
             );
-            if let Some(conf) = resolve_available_aws_config(self.aws_config.clone(), &metadata.region).await {
+
+            if let Some(conf) =
+                resolve_available_aws_config(self.aws_config.clone(), &metadata.region).await
+            {
                 Some(Ec2Client::new_with_config(&conf).await)
             } else {
                 None
@@ -82,13 +83,13 @@ impl PricingClient {
             reinitialize_client_if_needed(&self.aws_config, &current_region, metadata).await
         };
 
-        if maybe_new_client.is_some() {
+        if reinitialized_client.is_some() {
             // Update the region tracking
             let mut region_guard = self.ec2_region.write().await;
             *region_guard = metadata.region.clone();
         }
 
-        update_client_if_needed(&self.ec2_client, maybe_new_client).await;
+        update_client_if_needed(&self.ec2_client, reinitialized_client).await;
 
         let guard = self.ec2_client.read().await;
         let ec2_client = guard.as_ref()?;

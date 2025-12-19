@@ -24,9 +24,6 @@ async fn gather_system_properties(
     let aws_metadata = get_aws_instance_metadata().await;
     let is_aws_instance = aws_metadata.is_some();
 
-    info!("AWS metadata: {:?}", aws_metadata);
-    info!("IS AWS instance: {}", is_aws_instance.then(|| "Yes").unwrap_or("No"));
-
     let pricing_context = if let Some(ref metadata) = &aws_metadata {
         pricing_client.get_aws_price_for_instance(metadata).await
     } else {
