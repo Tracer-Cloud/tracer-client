@@ -8,7 +8,7 @@ use anyhow::Result;
 use bollard::models::EventMessage;
 use bollard::query_parameters::{EventsOptionsBuilder, InspectContainerOptions};
 use bollard::Docker;
-use chrono::{TimeZone, Utc};
+use chrono::{DateTime, TimeZone, Utc};
 use futures_util::StreamExt;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -59,6 +59,11 @@ impl DockerWatcher {
         };
 
         if let Some(ref docker) = docker {
+            // Scan existing containers first
+            if let Err(e) = self.scan_existing_containers(docker).await {
+                tracing::warn!("Failed to scan existing containers: {:?}", e);
+            }
+
             let filters = HashMap::from_iter([("type", vec!["container".to_string()])]);
             let events_options = EventsOptionsBuilder::default().filters(&filters).build();
             let mut events_stream = docker.events(Some(events_options));
@@ -109,71 +114,120 @@ impl DockerWatcher {
         Ok(())
     }
 
+    async fn scan_existing_containers(&self, docker: &Docker) -> Result<()> {
+        let containers = docker
+            .list_containers(None::<bollard::query_parameters::ListContainersOptions>)
+            .await?;
+
+        for container in containers {
+            let Some(ref id) = container.id else { continue };
+
+            let Ok(inspect) = docker
+                .inspect_container(id, None::<InspectContainerOptions>)
+                .await
+            else {
+                continue;
+            };
+
+            if !matches!(inspect.state.as_ref().and_then(|s| s.running), Some(true)) {
+                continue;
+            }
+
+            let timestamp = inspect
+                .state
+                .as_ref()
+                .and_then(|s| s.started_at.as_ref()?.parse::<DateTime<Utc>>().ok())
+                .unwrap_or_else(Utc::now);
+
+            let Some(event) = Self::inspect_to_event(inspect, timestamp, ContainerState::Started)
+            else {
+                continue;
+            };
+
+            self.container_state
+                .write()
+                .await
+                .insert(ContainerId(event.id.clone()), event.clone());
+
+            if let Err(e) = self
+                .recorder
+                .log_with_metadata(
+                    ProcessStatus::ContainerExecution,
+                    "[existing container]".to_string(),
+                    Some(EventAttributes::ContainerEvents(event.into())),
+                    Some(timestamp),
+                )
+                .await
+            {
+                tracing::error!("Failed to log existing container: {:?}", e);
+            }
+        }
+
+        tracing::info!("Scanned existing containers");
+        Ok(())
+    }
+
+    fn get_container_environment_variable(env_vars: &[String], name: &str) -> Option<String> {
+        env_vars
+            .iter()
+            .find(|v| v.starts_with(&format!("{}=", name)))
+            .and_then(|v| v.split('=').nth(1).map(String::from))
+    }
+
+    fn inspect_to_event(
+        inspect: bollard::models::ContainerInspectResponse,
+        timestamp: DateTime<Utc>,
+        state: ContainerState,
+    ) -> Option<ContainerEvent> {
+        let env_vars = inspect.config.as_ref()?.env.clone().unwrap_or_default();
+
+        Some(ContainerEvent {
+            id: inspect.id?,
+            name: inspect
+                .name
+                .unwrap_or_default()
+                .trim_start_matches('/')
+                .to_string(),
+            image: inspect
+                .config
+                .as_ref()
+                .and_then(|cfg| cfg.image.clone())
+                .unwrap_or_default(),
+            ip: inspect.network_settings.and_then(|net| {
+                net.ip_address
+                    .or_else(|| net.networks?.values().next()?.ip_address.clone())
+            }),
+            labels: inspect
+                .config
+                .and_then(|cfg| cfg.labels)
+                .unwrap_or_default(),
+            timestamp,
+            state,
+            trace_id: Self::get_container_environment_variable(&env_vars, "TRACER_TRACE_ID"),
+            job_id: Self::get_container_environment_variable(&env_vars, "AWS_BATCH_JOB_ID"),
+            environment_variables: env_vars,
+        })
+    }
+
     async fn process_event(docker: &Docker, event: EventMessage) -> Option<ContainerEvent> {
-        let id = event.actor.as_ref().map(|action| action.id.clone())??;
+        let id = event.actor.as_ref()?.id.as_ref()?;
         let action = event.action.as_deref()?;
         let time = Utc
             .timestamp_opt(event.time.unwrap_or_default(), 0)
             .single()?;
-
-        let inspect = docker
-            .inspect_container(&id, None::<InspectContainerOptions>)
-            .await
-            .ok()?;
-
-        // environment variables of the container to get the TRACER_TRACE_ID and the AWS_BATCH_JOB_ID
-        let container_environment_variables = inspect
-            .config
-            .as_ref()
-            .and_then(|container_config| container_config.env.clone())
-            .unwrap_or_default();
-
-        // each element of the vector is a string "key=value"
-        let trace_id = container_environment_variables
-            .iter()
-            .find(|environment_variable| environment_variable.starts_with("TRACER_TRACE_ID="))
-            .map(|environment_variable| {
-                environment_variable.split("=").nth(1).unwrap().to_string()
-            }); // getting the value of the environment variable
-
-        let job_id = container_environment_variables
-            .iter()
-            .find(|environment_variable| environment_variable.starts_with("AWS_BATCH_JOB_ID="))
-            .map(|environment_variable| {
-                environment_variable.split("=").nth(1).unwrap().to_string()
-            }); // getting the value of the environment variable
-
-        let name = inspect
-            .name
-            .unwrap_or_default()
-            .trim_start_matches('/')
-            .to_string();
-        let image = inspect
-            .config
-            .as_ref()
-            .and_then(|cfg| cfg.image.clone())
-            .unwrap_or_default();
-        let labels = inspect
-            .config
-            .and_then(|cfg| cfg.labels)
-            .unwrap_or_default();
-        let ip = inspect.network_settings.and_then(|net| {
-            net.ip_address.or_else(|| {
-                net.networks
-                    .and_then(|m| m.values().next().and_then(|n| n.ip_address.clone()))
-            })
-        });
 
         let state = match action {
             "start" => ContainerState::Started,
             "die" => {
                 let exit_code = event
                     .actor
-                    .and_then(|a| a.attributes)
-                    .and_then(|attrs| attrs.get("exitCode")?.parse().ok())
+                    .as_ref()?
+                    .attributes
+                    .as_ref()?
+                    .get("exitCode")?
+                    .parse()
+                    .ok()
                     .unwrap_or(-1);
-                // TODO: if the attributes contain the invoked command, add the command name to
-                // the error messages when relevant
                 let reason = exit_code_explanation(exit_code);
                 ContainerState::Exited { exit_code, reason }
             }
@@ -181,18 +235,11 @@ impl DockerWatcher {
             _ => return None,
         };
 
-        Some(ContainerEvent {
-            id,
-            name,
-            image,
-            ip,
-            labels,
-            timestamp: time,
-            state,
-            environment_variables: container_environment_variables,
-            trace_id,
-            job_id,
-        })
+        let inspect = docker
+            .inspect_container(id, None::<InspectContainerOptions>)
+            .await
+            .ok()?;
+        Self::inspect_to_event(inspect, time, state)
     }
 
     pub async fn get_container_event(&self, id: &str) -> Option<ContainerEvent> {
