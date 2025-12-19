@@ -60,8 +60,27 @@ impl PricingClient {
     ) -> Option<InstancePricingContext> {
         // Check if EC2 client needs reinitialization for the correct region
         let current_region = self.ec2_region.read().await.clone();
-        let maybe_new_client =
-            reinitialize_client_if_needed(&self.aws_config, &current_region, metadata).await;
+        let client_is_none = {
+            let guard = self.ec2_client.read().await;
+            guard.is_none()
+        };
+        
+        // Initialize client if it's None or if region mismatch detected
+        let maybe_new_client = if client_is_none {
+            // Client is None, try to initialize it for the metadata's region
+            tracing::info!(
+                "EC2 client is None, initializing for region: {}",
+                metadata.region
+            );
+            if let Some(conf) = resolve_available_aws_config(self.aws_config.clone(), &metadata.region).await {
+                Some(Ec2Client::new_with_config(&conf).await)
+            } else {
+                None
+            }
+        } else {
+            // Client exists, check for region mismatch
+            reinitialize_client_if_needed(&self.aws_config, &current_region, metadata).await
+        };
 
         if maybe_new_client.is_some() {
             // Update the region tracking
