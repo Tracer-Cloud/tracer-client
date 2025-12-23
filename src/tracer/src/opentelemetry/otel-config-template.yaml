@@ -62,10 +62,10 @@ processors:
   resource:
     attributes:
       - key: service.name
-        value: "nextflow-pipeline"
+        value: "tracer-logger"
         action: insert
       - key: service.version
-        value: "1.0.0"
+        value: "1.1.0"
         action: insert
       - key: deployment.environment
         value: "production"
@@ -89,8 +89,9 @@ processors:
           - set(attributes["run_name"], "{{run_name}}")
           - set(attributes["trace_id"], "{{trace_id}}")
           - set(attributes["span_id"], "{{span_id}}")
-          - set(attributes["organization_id"], "{{organization_id}}")
           - set(attributes["run_id"], "{{run_id}}")
+          - set(attributes["organization_id"], "{{organization_id}}")
+          - set(attributes["organization_slug"], "{{organization_slug}}")
           - set(attributes["user_email"], "{{user_email}}")
           - set(attributes["log_file_path"], attributes["log.file.path"]) where attributes["log.file.path"] != nil
           - set(attributes["file_name"], attributes["log.file.name"]) where attributes["log.file.name"] != nil
@@ -106,6 +107,8 @@ exporters:
     endpoint: "{{otel_endpoint}}"
     headers:
       Content-Type: "application/json"
+      x-organization-slug: "{{organization_slug}}"
+      x-organization-id: "{{organization_id}}"
     timeout: 60s
     retry_on_failure:
       enabled: true

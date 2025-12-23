@@ -17,6 +17,7 @@ pub struct OtelConfig {
     pub span_id: String,
     pub user_email: String,
     pub environment_variables: HashMap<String, String>,
+    pub organization_slug: String,
 }
 
 impl OtelConfig {
@@ -30,6 +31,7 @@ impl OtelConfig {
         trace_id: String,
         span_id: String,
         user_email: String,
+        organization_slug: String,
     ) -> Self {
         Self {
             user_id,
@@ -40,6 +42,7 @@ impl OtelConfig {
             trace_id,
             span_id,
             user_email,
+            organization_slug,
             environment_variables: HashMap::new(),
         }
     }
@@ -54,6 +57,7 @@ impl OtelConfig {
         trace_id: String,
         span_id: String,
         user_email: String,
+        organization_slug: String,
         environment_variables: HashMap<String, String>,
     ) -> Self {
         Self {
@@ -66,6 +70,7 @@ impl OtelConfig {
             span_id,
             user_email,
             environment_variables,
+            organization_slug,
         }
     }
 
@@ -95,8 +100,9 @@ impl OtelConfig {
 
     pub fn generate_config(&self) -> Result<String> {
         crate::info_message!(
-            "Generating OpenTelemetry config for run_id: {}",
-            self.run_id
+            "Generating OpenTelemetry config for run_id: {}, organization: {}",
+            self.run_id,
+            self.organization_slug
         );
 
         let template_content = include_str!("otel-config-template.yaml");
@@ -111,6 +117,7 @@ impl OtelConfig {
             .replace("{{run_id}}", &self.run_id)
             .replace("{{otel_endpoint}}", OTEL_FORWARD_ENDPOINT)
             .replace("{{organization_id}}", &self.organization_id)
+            .replace("{{organization_slug}}", &self.organization_slug)
             .replace("{{trace_id}}", &self.trace_id)
             .replace("{{span_id}}", &self.span_id)
             .replace("{{user_email}}", &self.user_email);
