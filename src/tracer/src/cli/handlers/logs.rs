@@ -170,6 +170,7 @@ pub async fn otel_start_with_auto_install(
                 let run_name = run_snapshot.name.clone();
                 let pipeline_name = pipeline_data.name.clone();
                 let user_id = pipeline_data.tags.user_id.unwrap();
+                let organization_slug = pipeline_data.tags.organization_slug.clone();
 
                 let trace_id = run_id.clone();
                 let span_id = run_id.clone();
@@ -187,6 +188,7 @@ pub async fn otel_start_with_auto_install(
                     trace_id,
                     span_id,
                     user_email,
+                    organization_slug,
                     std::collections::HashMap::new(),
                 );
 
@@ -208,6 +210,7 @@ pub async fn otel_start_with_auto_install(
                 warning_message!("No active run found, using standalone configuration");
 
                 let user_email = pipeline_data.tags.email.unwrap();
+                let organization_slug = pipeline_data.tags.organization_slug.clone();
 
                 let run_id = uuid::Uuid::new_v4().to_string();
                 let standalone_config = OtelConfig::with_environment_variables(
@@ -219,6 +222,7 @@ pub async fn otel_start_with_auto_install(
                     run_id.clone(),
                     run_id,
                     user_email,
+                    organization_slug.clone(),
                     std::collections::HashMap::new(),
                 );
 
@@ -235,6 +239,7 @@ pub async fn otel_start_with_auto_install(
             warning_message!("Daemon not accessible: {}", e);
 
             let user_email = "unknown".to_string();
+            let organization_slug = "unknown".to_string();
 
             let run_id = uuid::Uuid::new_v4().to_string();
             let standalone_config = OtelConfig::with_environment_variables(
@@ -246,6 +251,7 @@ pub async fn otel_start_with_auto_install(
                 run_id.clone(),
                 run_id,
                 user_email,
+                organization_slug.clone(),
                 std::collections::HashMap::new(),
             );
 
