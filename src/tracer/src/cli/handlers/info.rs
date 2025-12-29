@@ -141,32 +141,24 @@ impl InfoDisplay {
         formatter.add_field("User", pipeline_user, "magenta");
         formatter.add_field("Organization", user_organization, "magenta");
         formatter.add_field("Email", user_email, "magenta");
-        formatter.add_field("Stage", pipeline.stage(), "yellow");
 
         if let Some(otel_status) = &pipeline.opentelemetry_status {
             let status_text = if otel_status.enabled {
-                "Running"
+                format!(
+                    "Running (PID: {})",
+                    otel_status.pid.map_or("N/A".to_string(), |p| p.to_string())
+                )
             } else {
-                "Stopped"
+                "Stopped".to_string()
             };
             let status_color = if otel_status.enabled {
                 "active"
             } else {
                 "inactive"
             };
-            formatter.add_status_field("Logging status", status_text, status_color);
-
-            if let Some(version) = &otel_status.version {
-                formatter.add_field("Version", version, "cyan");
-            }
-            if let Some(pid) = otel_status.pid {
-                formatter.add_field("PID", &pid.to_string(), "white");
-            }
-            if let Some(endpoint) = &otel_status.endpoint {
-                formatter.add_field("Endpoint", endpoint, "yellow");
-            }
+            formatter.add_status_field("Logging", &status_text, status_color);
         } else {
-            formatter.add_status_field("Logging status", "Unknown", "inactive");
+            formatter.add_status_field("Logging", "Unknown", "inactive");
         }
 
         formatter.add_empty_line();
@@ -235,6 +227,13 @@ impl InfoDisplay {
             formatter.add_field("Run status", "No run found", "red");
             formatter.add_empty_line();
         }
+
+        formatter.add_section_header("Resources");
+        formatter.add_empty_line();
+        formatter.add_field("Dashboard", self.get_sandbox_url(&pipeline), "blue");
+        formatter.add_field("Docs", "https://www.tracer.cloud/docs", "blue");
+        formatter.add_field("Support", "support@tracer.cloud", "blue");
+        formatter.add_empty_line();
     }
 
     pub fn print_error(&self) {
@@ -246,6 +245,15 @@ impl InfoDisplay {
         formatter.add_header("Tracer CLI");
         formatter.add_empty_line();
         formatter.add_field("Version", &Version::current().to_string(), "bold");
+        formatter.add_field(
+            "Stage",
+            if is_development_environment() {
+                "dev"
+            } else {
+                "prod"
+            },
+            "bold",
+        );
         formatter.add_empty_line();
         formatter.add_section_header("Pipeline details");
         formatter.add_empty_line();
@@ -253,19 +261,24 @@ impl InfoDisplay {
         formatter.add_empty_line();
         formatter.add_section_header("Next steps");
         formatter.add_empty_line();
-        formatter.add_field("Interactive setup", "tracer init", "cyan");
-        formatter.add_hyperlink("Sandbox", self.get_sandbox_url());
-        formatter.add_hyperlink(
-            "Documentation",
-            "https://github.com/Tracer-Cloud/tracer-client",
-        );
+        formatter.add_field("Get started", "tracer login && tracer init", "cyan");
+        formatter.add_field("Dashboard", self.get_sandbox_url_from_env(), "blue");
+        formatter.add_field("Docs", "https://www.tracer.cloud/docs", "blue");
         formatter.add_field("Support", "support@tracer.cloud", "blue");
         formatter.add_empty_line();
         formatter.add_footer();
         println!("{}", formatter.get_output());
     }
 
-    pub fn get_sandbox_url(&self) -> &str {
+    pub fn get_sandbox_url(&self, pipeline: &PipelineMetadata) -> &str {
+        if pipeline.is_dev {
+            SANDBOX_URL_DEV
+        } else {
+            SANDBOX_URL_PROD
+        }
+    }
+
+    pub fn get_sandbox_url_from_env(&self) -> &str {
         if is_development_environment() {
             SANDBOX_URL_DEV
         } else {
