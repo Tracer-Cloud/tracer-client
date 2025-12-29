@@ -222,13 +222,13 @@ impl Installer {
             sandbox_url.cyan()
         );
 
-        println!("- {} Read the documentation:");
+        println!("- {} Read the documentation:", "Docs".bold().yellow());
         println!("  {}\n", "https://www.tracer.cloud/docs".cyan());
 
-        println!("- {} Initialize Tracer:");
+        println!("- {} Initialize Tracer:", "Setup".bold().yellow());
         println!("  {}\n", "tracer init".cyan());
 
-        println!("- {} Check daemon status:");
+        println!("- {} Check daemon status:", "Status".bold().yellow());
         println!("  {}\n", "tracer info".cyan());
 
         if !nix::unistd::Uid::effective().is_root() {
