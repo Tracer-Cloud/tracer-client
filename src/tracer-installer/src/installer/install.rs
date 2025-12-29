@@ -217,15 +217,18 @@ impl Installer {
 
         print_title("Next Steps");
         println!(
-            "- {} please follow the instructions at {}\n",
-            "For a better onboarding".bold().yellow(),
+            "- {} Get started with the interactive guide at {}\n",
+            "Quick Start".bold().yellow(),
             sandbox_url.cyan()
         );
 
-        println!("- Then initialize Tracer:");
+        println!("- {} Read the documentation:");
+        println!("  {}\n", "https://www.tracer.cloud/docs".cyan());
+
+        println!("- {} Initialize Tracer:");
         println!("  {}\n", "tracer init".cyan());
 
-        println!("- [Optional] View Daemon Status:");
+        println!("- {} Check daemon status:");
         println!("  {}\n", "tracer info".cyan());
 
         if !nix::unistd::Uid::effective().is_root() {
@@ -234,11 +237,9 @@ impl Installer {
             println!("  {}\n", "sudo chmod u+s ~/.tracerbio/bin/tracer".cyan());
         }
 
-        println!("- Support:");
         println!(
-            "  {} Visit {} or email {}\n",
-            "Need help?".green(),
-            "https://github.com/Tracer-Cloud/tracer".cyan(),
+            "- {} Need help? Email us at {}\n",
+            "Support".green(),
             "support@tracer.cloud".cyan()
         );
     }
