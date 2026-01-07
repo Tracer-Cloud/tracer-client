@@ -1,4 +1,11 @@
 receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
   filelog:
     include:
       - "**/*.log"
@@ -55,9 +62,13 @@ receivers:
 
 processors:
   batch:
-    timeout: 6s
+    timeout: 10s
     send_batch_size: 1000
     send_batch_max_size: 2000
+
+  memory_limiter:
+    check_interval: 10s
+    limit_mib: 512
 
   resource:
     attributes:
@@ -65,7 +76,7 @@ processors:
         value: "tracer-logger"
         action: insert
       - key: service.version
-        value: "1.1.0"
+        value: "1.1.1"
         action: insert
       - key: deployment.environment
         value: "production"
@@ -74,7 +85,7 @@ processors:
         from_attribute: host.name
         action: insert
 
-  transform:
+  transform/logs:
     log_statements:
       - context: log
         statements:
@@ -102,8 +113,22 @@ processors:
           - set(attributes["data_stream.namespace"], "namespace")
           - set(attributes["data_stream.type"], "record")
 
+  transform/metrics:
+    metric_statements:
+      - context: datapoint # resource (or use this)
+        statements:
+          - set(attributes["trace_id"], "{{trace_id}}")
+          - set(attributes["span_id"], "{{span_id}}")
+          - set(attributes["run_id"], "{{run_id}}")
+          - set(attributes["organization_id"], "{{organization_id}}")
+          - set(attributes["organization_slug"], "{{organization_slug}}")
+          - set(attributes["user_id"], "{{user_id}}")
+          - set(attributes["user_email"], "{{user_email}}")
+          - set(attributes["pipeline_name"], "{{pipeline_name}}")
+          - set(attributes["run_name"], "{{run_name}}")
+
 exporters:
-  otlphttp:
+  otlphttp/logs:
     endpoint: "{{otel_endpoint}}"
     headers:
       Content-Type: "application/json"
@@ -120,7 +145,19 @@ exporters:
       num_consumers: 2
       queue_size: 2000
     tls:
-      insecure: true
+      insecure: false
+    encoding: json
+
+  otlphttp/metrics:
+    endpoint: "{{otel_endpoint}}"
+    headers:
+      x-organization-slug: "{{organization_slug}}"
+      x-organization-id: "{{organization_id}}"
+    timeout: 30s
+    retry_on_failure:
+      enabled: true
+    tls:
+      insecure: false
     encoding: json
 
   debug:
@@ -130,10 +167,15 @@ exporters:
 
 service:
   pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, transform/metrics, batch]
+      exporters: [otlphttp/metrics]
+
     logs:
       receivers: [filelog]
-      processors: [resource, transform, batch]
-      exporters: [otlphttp, debug]
+      processors: [resource, transform/logs, batch]
+      exporters: [otlphttp/logs, debug]
 
   extensions: []
 
