@@ -19,7 +19,7 @@ async-trait = "0.1.89"
 aws-config = { version = "1.8.6", features = ["behavior-version-latest"] }
 aws-credential-types = "1.2.8"
 aws-sdk-ec2 = "1.177.0"
-aws-sdk-pricing = "1.87.0"
+aws-sdk-pricing = "1.92.0"
 aws-sdk-s3 = "1.109.0"
 aws-sdk-secretsmanager = "1.88.0"
 axum = "0.8.5"
