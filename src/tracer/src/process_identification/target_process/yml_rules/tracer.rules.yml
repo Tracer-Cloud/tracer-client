@@ -684,6 +684,11 @@ rules:
     condition:
       command_contains: aws s3 sync
 
+  - rule_name: s3 s3api
+    display_name: aws s3api
+    condition:
+      command_contains: aws s3api
+
   - rule_name: docker pull
     display_name: docker pull
     condition:
