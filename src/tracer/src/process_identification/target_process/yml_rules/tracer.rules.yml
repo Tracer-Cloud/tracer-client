@@ -694,6 +694,11 @@ rules:
     condition:
       command_contains: docker pull
 
+  - rule_name: jq
+    display_name: jq
+    condition:
+      command_contains: jq
+
   - rule_name: parabricks rna_fq2bam
     display_name: rna_fq2bam (Parabricks)
     condition:
