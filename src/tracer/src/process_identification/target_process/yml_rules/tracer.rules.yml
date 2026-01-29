@@ -523,6 +523,11 @@ rules:
         - min_args: 1
         - first_arg_is: mqc_features_stat.py
 
+  - rule_name: python command
+    display_name: python
+    condition:
+      process_name_contains: python
+
   # samtools rules
   - rule_name: samtools process
     display_name: samtools {subcommand}
