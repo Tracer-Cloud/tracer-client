@@ -23,7 +23,7 @@ jobs:
           path: bioconda-recipes
           repository: bioconda/bioconda-recipes
 
-      - uses: prefix-dev/setup-pixi@v0.8.10
+      - uses: prefix-dev/setup-pixi@14c8aabd75893f83f4ab30c03e7cf853c8208961 # v0.8.10
         with:
           cache: false
           run-install: false
