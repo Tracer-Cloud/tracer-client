@@ -35,7 +35,7 @@ config = { version = "0.15.17", default-features = false, features = [
 console = "0.16.1"
 daemonize = "0.5.0"
 dashmap = "6.1.0"
-dialoguer = "0.11.0"
+dialoguer = "0.12.0"
 dirs-next = "2.0.0"
 ec2_instance_metadata = { git = "https://github.com/Tracer-Cloud/ec2-instance-metadata-rs.git", branch = "master" }
 enquote = "1.1.0"
