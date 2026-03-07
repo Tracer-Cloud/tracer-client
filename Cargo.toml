@@ -20,7 +20,7 @@ aws-config = { version = "1.8.6", features = ["behavior-version-latest"] }
 aws-credential-types = "1.2.8"
 aws-sdk-ec2 = "1.177.0"
 aws-sdk-pricing = "1.87.0"
-aws-sdk-s3 = "1.109.0"
+aws-sdk-s3 = "1.124.0"
 aws-sdk-secretsmanager = "1.88.0"
 axum = "0.8.5"
 bollard = "0.19.3"
@@ -41,7 +41,7 @@ ec2_instance_metadata = { git = "https://github.com/Tracer-Cloud/ec2-instance-me
 enquote = "1.1.0"
 flate2 = "1.1.4"
 futures-util = "0.3.31"
-git2 = { version = "0.20.2", features = [
+git2 = { version = "0.20.4", features = [
     "https",
     "vendored-openssl",
 ], default-features = false }
