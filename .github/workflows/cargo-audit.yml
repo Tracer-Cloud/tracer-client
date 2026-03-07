@@ -8,6 +8,8 @@ on:
     branches:
       - main
       - dev
+  schedule:
+    - cron: "0 10 * * *"
 jobs:
   cargo-audit:
     name: Cargo Audit
@@ -21,9 +23,9 @@ jobs:
 
       - name: Setup Rust toolchain
         run: |
-            rustup toolchain install 1.89.0 --profile minimal
-            rustup component add clippy
-            rustup component add rustfmt
+          rustup toolchain install 1.89.0 --profile minimal
+          rustup component add clippy
+          rustup component add rustfmt
 
       - name: Install build dependencies
         run: |
