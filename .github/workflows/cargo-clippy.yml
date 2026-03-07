@@ -25,7 +25,7 @@ jobs:
 
       - name: Setup Rust toolchain
         run: |
-          rustup toolchain install 1.89.0 --profile minimal
+          rustup toolchain install 1.91.1 --profile minimal
           rustup component add clippy
           rustup component add rustfmt
 

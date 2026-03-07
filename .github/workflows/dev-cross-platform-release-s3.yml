@@ -8,7 +8,7 @@ on:
   push:
     branches:
       - "main"
-      
+
 jobs:
   build-and-release:
     permissions: write-all
@@ -29,7 +29,6 @@ jobs:
           - arch: macos-x86_64
             target: x86_64-apple-darwin
             runner: macos-latest
-
 
     runs-on: ${{ matrix.runner }}
 
@@ -61,7 +60,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.89.0
+          toolchain: 1.91.1
           override: true
 
       - name: Install target
@@ -97,8 +96,6 @@ jobs:
               sudo apt-get install -y linux-headers-$(uname -r) libbpf-dev clang llvm libelf-dev libssl-dev pkg-config
           fi
 
-
-
       # Verify submodules are properly loaded
       - name: Verify submodule content
         run: |
@@ -131,13 +128,12 @@ jobs:
           cp target/${{ matrix.target }}/release/tracer release-files/${{ matrix.arch }}/tracer
           chmod +x release-files/${{ matrix.arch }}/tracer
           tar -czf release-files/tracer-${{ matrix.channel }}-${{ matrix.target }}.tar.gz -C release-files/${{ matrix.arch }} tracer
-      
+
           if [ -f target/${{ matrix.target }}/release/tracer-installer ]; then
             cp target/${{ matrix.target }}/release/tracer-installer release-files/${{ matrix.arch }}/tracer-installer
             chmod +x release-files/${{ matrix.arch }}/tracer-installer
             tar -czf release-files/tracer-installer-${{ matrix.target }}.tar.gz -C release-files/${{ matrix.arch }} tracer-installer
           fi
-      
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -150,11 +146,11 @@ jobs:
         run: |
           aws s3 cp release-files/tracer-${{ matrix.channel }}-${{ matrix.target }}.tar.gz s3://tracer-releases/tracer-${{ matrix.channel }}-${{ matrix.target }}.tar.gz
           aws s3 cp release-files/tracer-${{ matrix.channel }}-${{ matrix.target }}.tar.gz s3://tracer-releases/${{ github.head_ref || github.ref_name }}/tracer-${{ matrix.channel }}-${{ matrix.target }}.tar.gz
-      
+
           if [ -f release-files/tracer-installer-${{ matrix.target }}.tar.gz ]; then
             aws s3 cp release-files/tracer-installer-${{ matrix.target }}.tar.gz s3://tracer-installer-releases/${{ github.head_ref || github.ref_name }}/tracer-installer-${{ matrix.target }}.tar.gz
           fi
-        
+
   build-and-release-amazon-linux-2023:
     permissions: write-all
     strategy:
@@ -179,9 +175,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-            yum update -y --allowerasing
-            yum groupinstall -y "Development Tools" --allowerasing
-            yum install -y kernel-devel kernel-headers clang llvm libbpf-devel openssl-devel pkgconfig --allowerasing
+          yum update -y --allowerasing
+          yum groupinstall -y "Development Tools" --allowerasing
+          yum install -y kernel-devel kernel-headers clang llvm libbpf-devel openssl-devel pkgconfig --allowerasing
 
       - name: Install Rust
         run: |
@@ -189,7 +185,7 @@ jobs:
           echo 'source $HOME/.cargo/env' >> ~/.bashrc
           source $HOME/.cargo/env
           rustup target add x86_64-unknown-linux-gnu
-          rustup toolchain install 1.89.0 --profile minimal
+          rustup toolchain install 1.91.1 --profile minimal
           rustup component add clippy
           rustup component add rustfmt
 
