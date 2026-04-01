@@ -18,6 +18,7 @@ const OTEL_CONFIG_FILE: &str = "otel-config.yaml";
 const OTEL_PID_FILE: &str = "otelcol.pid";
 const OTEL_STDOUT_FILE: &str = "otelcol.out";
 const OTEL_STDERR_FILE: &str = "otelcol.err";
+const PYTHON_MONITORING_FILE: &str = "python_monitoring.txt";
 
 pub static TRACER_WORK_DIR: LazyLock<TracerWorkDir> = LazyLock::new(|| {
     // Use /tmp/tracer as the working directory for demo runs
@@ -35,6 +36,7 @@ pub static TRACER_WORK_DIR: LazyLock<TracerWorkDir> = LazyLock::new(|| {
         otel_pid_file: path.join(OTEL_PID_FILE),
         otel_stdout_file: path.join(OTEL_STDOUT_FILE),
         otel_stderr_file: path.join(OTEL_STDERR_FILE),
+        python_monitoring_file: path.join(PYTHON_MONITORING_FILE),
         path,
         // Avoid canonicalizing /tmp on macOS which resolves to /private/tmp
         canonical_path: Ok(base_dir.join("tracer")),
@@ -55,6 +57,7 @@ pub struct TracerWorkDir {
     pub otel_pid_file: PathBuf,
     pub otel_stdout_file: PathBuf,
     pub otel_stderr_file: PathBuf,
+    pub python_monitoring_file: PathBuf,
 }
 
 impl TracerWorkDir {
@@ -87,6 +90,7 @@ impl TracerWorkDir {
             &self.otel_pid_file,
             &self.otel_stdout_file,
             &self.otel_stderr_file,
+            &self.python_monitoring_file,
         ]
         .iter()
         .try_for_each(|path| {
