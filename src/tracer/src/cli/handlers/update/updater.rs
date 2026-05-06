@@ -252,11 +252,11 @@ fn extract_binary_from_tar(
 
 #[cfg(test)]
 mod tests {
+    use super::update_impl;
+    use anyhow::Result;
 
     #[test]
-    fn test_update_impl_structure() {
-        // This test ensures the update_impl function structure is maintained
-        // Integration tests should be in the tests module
-        assert!(true);
+    fn test_update_impl_signature_is_stable() {
+        let _: fn() -> Result<()> = update_impl;
     }
 }
