@@ -99,132 +99,175 @@ impl TargetPipelineManager {
             trace!("PID {} is already registered", process.pid);
             return None;
         };
+
         // the rule name to use for matching to task rules
         let (rule, matched) = if let Some(display_name) = matched_target {
             (display_name, true)
         } else {
             (&process.comm, false)
         };
+
         // update candidate matches with the child pid
-        let candidate_matches = self
-            .candidate_matches
+        // We use explicit field access to allow the closure to borrow immutable fields while we mutate another
+        let tasks = &self.tasks;
+        let pid_to_process = &self.pid_to_process;
+
+        self.candidate_matches
             .entry(task_pid)
-            .and_modify(|candidate_matches| {
-                // if we have seen this task before, and the rule was matched (i.e. it is expected
-                // to be in the set of rules for the task), only keep the candidates that contain
-                // the new rule
-                if matched {
-                    candidate_matches.retain(|candidate_match| {
-                        self.tasks.task_has_rule(&candidate_match.id, rule)
-                    });
-                }
-                // and only add the rule to tasks that don't already contain that rule
-                for candidate_match in candidate_matches {
-                    if !candidate_match.child_pids.iter().any(|pid| {
-                        self.pid_to_process
-                            .get(pid)
-                            .is_some_and(|p| p.name == *rule && p.matched == matched)
-                    }) {
-                        candidate_match.child_pids.push(process.pid);
-                    }
-                }
+            .and_modify(|candidates| {
+                Self::update_existing_candidates(
+                    tasks,
+                    pid_to_process,
+                    candidates,
+                    rule,
+                    matched,
+                    process.pid,
+                )
             })
-            .or_insert_with(|| {
-                self.tasks
-                    .get_tasks_with(rule)
-                    .map(|tasks|
-                    // otherwise, identify all the candidate matches based on the current rule
-                    tasks
-                        .iter()
-                        .filter_map(|(task, match_type)| {
-                            // TODO: should we check that the rule associated with the PID is not one
-                            // that has already been recognized? Sometimes, the same command will be run
-                            // multiple times in the same task. We could require a separate rule entry in
-                            // the task definition for each time the command is run, or have a way to
-                            // specify the cardinality of the rule within the task.
+            .or_insert_with(|| Self::identify_new_candidates(tasks, rule, process, task_pid));
 
-                            // if the rule is specialized, check if the additional conditions match the
-                            // process
-                            if let Some(match_type) = match_type {
-                                if !match_type.matches(process) {
-                                    return None;
-                                }
-                            }
-                            let total_rules = task.rules.as_ref().map(|v| v.len()).unwrap_or(0)
-                                + task.optional_rules.as_ref().map(|v| v.len()).unwrap_or(0);
-                            Some(CandidateMatch {
-                                id: task.id.clone(),
-                                pid: task_pid,
-                                child_pids: vec![process.pid],
-                                total_rules,
-                            })
-                        })
-                        .collect::<Vec<_>>())
-                    .unwrap_or_default()
-            });
+        // Get candidates for further processing
+        let candidates = self.candidate_matches.get(&task_pid)?;
 
-        // find the best match
-        let best_match = if candidate_matches.is_empty() {
+        if candidates.is_empty() {
             self.candidate_matches.remove(&task_pid);
             self.best_match.remove(&task_pid);
-            None
-        } else {
-            // add the PID to the set we're tracking if it matched at least one task
-            self.pid_to_process.insert(
-                process.pid,
-                ProcessRule {
-                    name: rule.clone(),
-                    matched,
-                },
-            );
-            // find any tasks that exceed the score threshold after adding the rule
-            let mut matched_tasks = candidate_matches
-                .iter()
-                .filter_map(|candidate_match| {
-                    // For now score is just the fraction of rules that have been observed.
-                    // TODO: weight score based on whether the rule is optional or not.
-                    let num_matched = candidate_match.child_pids.len() as f64;
-                    let score = num_matched / candidate_match.total_rules as f64;
-                    if score > TASK_SCORE_THRESHOLD {
-                        Some((candidate_match, score, candidate_match.total_rules))
-                    } else {
-                        None
-                    }
-                })
-                .collect::<Vec<_>>();
-            // if there are multiple matches, pick the one with the highest score
-            if matched_tasks.len() > 1 {
-                matched_tasks.sort_by(|a, b| match a.1.partial_cmp(&b.1) {
-                    Some(Ordering::Equal) => a.2.cmp(&b.2), // use number of tasks as tiebreaker
-                    Some(o) => o,
-                    None => panic!("Score comparison failed"),
-                });
-            }
-            matched_tasks
-                .pop()
-                .map(|(best_candidate, score, total_rules)| {
-                    // insert the best match into the best matches map, potentially replacing a previous match
-                    let task_match = TaskMatch {
-                        id: best_candidate.id.clone(),
-                        description: self
-                            .tasks
-                            .get(&best_candidate.id)
-                            .unwrap()
-                            .description
-                            .clone(),
-                        pid: best_candidate.pid,
-                        child_pids: best_candidate.child_pids.clone(),
-                        score,
-                        total_rules,
-                    };
-                    self.best_match.insert(task_pid, task_match.clone());
-                    task_match
-                })
-        };
+            return None;
+        }
+
+        // add the PID to the set we're tracking if it matched at least one task
+        self.pid_to_process.insert(
+            process.pid,
+            ProcessRule {
+                name: rule.clone(),
+                matched,
+            },
+        );
+
+        // find the best match
+        let best_match = Self::find_best_match(candidates, &self.tasks);
+
+        if let Some(ref m) = best_match {
+            self.best_match.insert(task_pid, m.clone());
+        }
 
         self.record_task_match(rule, process.pid, task_pid, best_match.as_ref());
 
         best_match
+    }
+
+    /// Update existing candidate matches with the new process PID.
+    ///
+    /// If the rule matched a target, we filter candidates to only those that contain that rule.
+    /// We then add the PID to any candidate that doesn't already have a process for that rule.
+    fn update_existing_candidates(
+        tasks: &Tasks,
+        pid_to_process: &HashMap<usize, ProcessRule>,
+        candidates: &mut Vec<CandidateMatch>,
+        rule: &str,
+        matched: bool,
+        pid: usize,
+    ) {
+        // if we have seen this task before, and the rule was matched (i.e. it is expected
+        // to be in the set of rules for the task), only keep the candidates that contain
+        // the new rule
+        if matched {
+            candidates.retain(|candidate_match| tasks.task_has_rule(&candidate_match.id, rule));
+        }
+        // and only add the rule to tasks that don't already contain that rule
+        for candidate_match in candidates {
+            if !candidate_match.child_pids.iter().any(|pid| {
+                pid_to_process
+                    .get(pid)
+                    .is_some_and(|p| p.name == *rule && p.matched == matched)
+            }) {
+                candidate_match.child_pids.push(pid);
+            }
+        }
+    }
+
+    /// Identify new candidate tasks that this process might belong to.
+    fn identify_new_candidates(
+        tasks: &Tasks,
+        rule: &str,
+        process: &ProcessStartTrigger,
+        task_pid: usize,
+    ) -> Vec<CandidateMatch> {
+        tasks
+            .get_tasks_with(rule)
+            .map(|tasks| {
+                // identify all the candidate matches based on the current rule
+                tasks
+                    .iter()
+                    .filter_map(|(task, match_type)| {
+                        // TODO: should we check that the rule associated with the PID is not one
+                        // that has already been recognized? Sometimes, the same command will be run
+                        // multiple times in the same task. We could require a separate rule entry in
+                        // the task definition for each time the command is run, or have a way to
+                        // specify the cardinality of the rule within the task.
+
+                        // if the rule is specialized, check if the additional conditions match the
+                        // process
+                        if let Some(match_type) = match_type {
+                            if !match_type.matches(process) {
+                                return None;
+                            }
+                        }
+                        let total_rules = task.rules.as_ref().map(|v| v.len()).unwrap_or(0)
+                            + task.optional_rules.as_ref().map(|v| v.len()).unwrap_or(0);
+                        Some(CandidateMatch {
+                            id: task.id.clone(),
+                            pid: task_pid,
+                            child_pids: vec![process.pid],
+                            total_rules,
+                        })
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default()
+    }
+
+    /// Score candidates and select the best one if it meets the threshold.
+    fn find_best_match(candidates: &[CandidateMatch], tasks: &Tasks) -> Option<TaskMatch> {
+        // find any tasks that exceed the score threshold after adding the rule
+        let mut matched_tasks = candidates
+            .iter()
+            .filter_map(|candidate_match| {
+                // For now score is just the fraction of rules that have been observed.
+                // TODO: weight score based on whether the rule is optional or not.
+                let num_matched = candidate_match.child_pids.len() as f64;
+                let score = num_matched / candidate_match.total_rules as f64;
+                if score > TASK_SCORE_THRESHOLD {
+                    Some((candidate_match, score, candidate_match.total_rules))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+
+        // if there are multiple matches, pick the one with the highest score
+        if matched_tasks.len() > 1 {
+            matched_tasks.sort_by(|a, b| match a.1.partial_cmp(&b.1) {
+                Some(Ordering::Equal) => a.2.cmp(&b.2), // use number of tasks as tiebreaker
+                Some(o) => o,
+                None => panic!("Score comparison failed"),
+            });
+        }
+
+        matched_tasks
+            .pop()
+            .map(|(best_candidate, score, total_rules)| TaskMatch {
+                id: best_candidate.id.clone(),
+                description: tasks
+                    .get(&best_candidate.id)
+                    .unwrap()
+                    .description
+                    .clone(),
+                pid: best_candidate.pid,
+                child_pids: best_candidate.child_pids.clone(),
+                score,
+                total_rules,
+            })
     }
 
     fn record_task_match(
