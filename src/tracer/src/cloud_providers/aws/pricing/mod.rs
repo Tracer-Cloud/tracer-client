@@ -8,7 +8,8 @@ pub mod ebs_pricing;
 pub mod ec2_client_manager;
 pub mod ec2_pricing;
 pub mod filter_builder;
-pub mod tests;
+#[cfg(test)]
+mod tests;
 
 pub use api::ApiPricingClient;
 pub use client::PricingClient;
