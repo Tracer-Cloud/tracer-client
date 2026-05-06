@@ -18,10 +18,28 @@ assert_cmd = "2.0.17"
 async-trait = "0.1.89"
 aws-config = { version = "1.8.6", features = ["behavior-version-latest"] }
 aws-credential-types = "1.2.8"
-aws-sdk-ec2 = "1.177.0"
-aws-sdk-pricing = "1.87.0"
-aws-sdk-s3 = "1.124.0"
-aws-sdk-secretsmanager = "1.88.0"
+# AWS SDK crates: disable the legacy `rustls` feature (which pulls in
+# rustls 0.21 + rustls-webpki 0.101.7 — vulnerable to GHSA-82j2-j2ch-gfr8,
+# GHSA-xgp8-3hg3-c2mh, GHSA-965h-392x-2mh5) and rely on the modern
+# `default-https-client` path (rustls 0.23 + aws-lc-rs).
+aws-sdk-ec2 = { version = "1.177.0", default-features = false, features = [
+    "default-https-client",
+    "rt-tokio",
+] }
+aws-sdk-pricing = { version = "1.87.0", default-features = false, features = [
+    "default-https-client",
+    "rt-tokio",
+] }
+aws-sdk-s3 = { version = "1.124.0", default-features = false, features = [
+    "default-https-client",
+    "rt-tokio",
+    "http-1x",
+    "sigv4a",
+] }
+aws-sdk-secretsmanager = { version = "1.88.0", default-features = false, features = [
+    "default-https-client",
+    "rt-tokio",
+] }
 axum = "0.8.5"
 bollard = "0.19.3"
 built = { version = "0.8.0", features = ["chrono", "git2"] }
@@ -98,7 +116,7 @@ uuid = { version = "1.18.1", features = [
 ] }
 which = "8.0.0"
 yaml-rust2 = "0.10.4"
-jsonwebtoken = "9.3.1"
+jsonwebtoken = "10.1.0"
 
 [profile.dev]
 incremental = true
