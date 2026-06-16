@@ -19,9 +19,11 @@ use crate::process_identification::types::event::attributes::EventAttributes;
 use crate::process_identification::types::event::{Event, ProcessStatus};
 use crate::utils::env::detect_environment_type;
 use crate::utils::system_info::get_kernel_version;
+use crate::utils::workdir::TRACER_WORK_DIR;
 use anyhow::{Context, Result};
 use std::fs::OpenOptions;
 use std::io::SeekFrom;
+use std::path::Path;
 use std::sync::Arc;
 use sysinfo::System;
 use tokio::fs::File as TokioFile;
@@ -110,7 +112,7 @@ impl TracerClient {
             .write(true)
             .truncate(true)
             .create(true)
-            .open("/tmp/tracer/python_monitoring.txt")?;
+            .open(&TRACER_WORK_DIR.python_monitoring_file)?;
 
         let exporter = Arc::new(ExporterManager::new(db_client, rx));
 
@@ -283,7 +285,7 @@ impl TracerClient {
     pub async fn monitor_python(&mut self) -> Result<()> {
         let mut lines: Vec<String> = Vec::new();
         if let Err(e) = self
-            .tail_file_async("/tmp/tracer/python_monitoring.txt", |line| {
+            .tail_file_async(&TRACER_WORK_DIR.python_monitoring_file, |line| {
                 info!("Monitoring python: {}", line);
                 lines.push(line.to_string());
             })
@@ -350,7 +352,7 @@ impl TracerClient {
         });
     }
 
-    async fn tail_file_async<F>(&self, path: &str, mut callback: F) -> std::io::Result<()>
+    async fn tail_file_async<F>(&self, path: &Path, mut callback: F) -> std::io::Result<()>
     where
         F: FnMut(&str),
     {

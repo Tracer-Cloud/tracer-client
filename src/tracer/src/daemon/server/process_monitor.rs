@@ -5,7 +5,7 @@ use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
-use tokio::task::JoinHandle;
+use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use tracing::error;
 
@@ -17,17 +17,18 @@ pub(super) async fn monitor_processes(tracer_client: &mut TracerClient) -> Resul
     Ok(())
 }
 
-fn spawn_worker_thread<F, Fut>(
+fn spawn_worker_in_set<F, Fut>(
+    set: &mut JoinSet<&'static str>,
+    name: &'static str,
     interval_ms: u64,
     server_token: CancellationToken,
     client_token: CancellationToken,
     work_fn: F,
-) -> JoinHandle<()>
-where
+) where
     F: Fn() -> Fut + Send + 'static,
     Fut: std::future::Future<Output = ()> + Send,
 {
-    tokio::spawn(async move {
+    set.spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_millis(interval_ms));
         loop {
             tokio::select! {
@@ -43,14 +44,15 @@ where
                             // Work completed within 50 seconds
                         }
                         Err(_) => {
-                            error!("Thread took too long to complete, shutting down daemon");
+                            error!("Worker '{}' took too long to complete, shutting down daemon", name);
                             break;
                         }
                     }
                 }
             }
         }
-    })
+        name
+    });
 }
 
 pub async fn monitor(client: Arc<Mutex<TracerClient>>, server_token: CancellationToken) {
@@ -77,10 +79,14 @@ pub async fn monitor(client: Arc<Mutex<TracerClient>>, server_token: Cancellatio
         )
     };
 
-    // Spawn 3 independent threads
-    let mut submission_handle = {
+    let mut set = JoinSet::new();
+
+    // 1. Submission worker
+    {
         let exporter = Arc::clone(&exporter);
-        spawn_worker_thread(
+        spawn_worker_in_set(
+            &mut set,
+            "submission",
             submission_interval_ms,
             server_token.clone(),
             client_token.clone(),
@@ -93,11 +99,15 @@ pub async fn monitor(client: Arc<Mutex<TracerClient>>, server_token: Cancellatio
                         .unwrap();
                 }
             },
-        )
-    };
-    let mut system_metrics_handle = {
+        );
+    }
+
+    // 2. System metrics worker
+    {
         let client = Arc::clone(&client);
-        spawn_worker_thread(
+        spawn_worker_in_set(
+            &mut set,
+            "system_metrics",
             system_metrics_interval_ms,
             server_token.clone(),
             client_token.clone(),
@@ -109,12 +119,15 @@ pub async fn monitor(client: Arc<Mutex<TracerClient>>, server_token: Cancellatio
                     sentry_alert(&guard).await;
                 }
             },
-        )
-    };
+        );
+    }
 
-    let mut process_metrics_handle = {
+    // 3. Process metrics worker
+    {
         let client = Arc::clone(&client);
-        spawn_worker_thread(
+        spawn_worker_in_set(
+            &mut set,
+            "process_metrics",
             process_metrics_interval_ms,
             server_token.clone(),
             client_token.clone(),
@@ -126,12 +139,15 @@ pub async fn monitor(client: Arc<Mutex<TracerClient>>, server_token: Cancellatio
                     sentry_alert(&guard).await;
                 }
             },
-        )
-    };
+        );
+    }
 
-    let mut file_metrics_handle = {
+    // 4. File metrics worker
+    {
         let client = Arc::clone(&client);
-        spawn_worker_thread(
+        spawn_worker_in_set(
+            &mut set,
+            "file_metrics",
             system_metrics_interval_ms, // 500ms x 10 so we do the file metrics every 5 seconds
             server_token.clone(),
             client_token.clone(),
@@ -143,12 +159,15 @@ pub async fn monitor(client: Arc<Mutex<TracerClient>>, server_token: Cancellatio
                     sentry_alert(&guard).await;
                 }
             },
-        )
-    };
+        );
+    }
 
-    let mut python_file_handle = {
+    // 5. Python file monitor worker
+    {
         let client = Arc::clone(&client);
-        spawn_worker_thread(
+        spawn_worker_in_set(
+            &mut set,
+            "python_file",
             5000, // 5 seconds
             server_token.clone(),
             client_token.clone(),
@@ -159,52 +178,33 @@ pub async fn monitor(client: Arc<Mutex<TracerClient>>, server_token: Cancellatio
                     guard.monitor_python().await.unwrap();
                 }
             },
-        )
-    };
+        );
+    }
 
-    tokio::select! {
-        result = &mut submission_handle => {
-            if let Err(join_error) = result {
-                if join_error.is_panic() {
-                    error!("Submission thread panicked");
-                    server_token.cancel();
-                }
+    // Wait for any worker to finish (panic or cancellation).
+    if let Some(res) = set.join_next().await {
+        match res {
+            Err(join_error) if join_error.is_panic() => {
+                error!("A monitor worker panicked");
+                server_token.cancel();
             }
-        }
-        result = &mut system_metrics_handle => {
-            if let Err(join_error) = result {
-                if join_error.is_panic() {
-                    error!("System metrics thread panicked");
-                    server_token.cancel();
-                }
+            Ok(name) => {
+                // Worker exited normally (timeout or cancellation token).
+                // Cancel remaining workers so they release the mutex before
+                // we attempt the final data submission below.
+                error!("Worker '{}' exited, cancelling remaining workers", name);
+                server_token.cancel();
             }
-        }
-        result = &mut process_metrics_handle => {
-            if let Err(join_error) = result {
-                if join_error.is_panic() {
-                    error!("Process metrics thread panicked");
-                    server_token.cancel();
-                }
-            }
-        }
-        result = &mut file_metrics_handle => {
-            if let Err(join_error) = result {
-                if join_error.is_panic() {
-                    error!("Files metrics thread panicked");
-                    server_token.cancel();
-                }
-            }
-        }
-        result = &mut python_file_handle => {
-        if let Err(join_error) = result {
-            if join_error.is_panic() {
-                error!("Python file monitor thread panicked");
+            Err(_) => {
+                // Task was cancelled/aborted externally.
                 server_token.cancel();
             }
         }
     }
 
-    }
+    // Drain the JoinSet so all workers finish gracefully via their
+    // cancellation-token branches before we acquire the mutex.
+    while set.join_next().await.is_some() {}
 
     // submit all data left
     let guard = client.lock().await;
