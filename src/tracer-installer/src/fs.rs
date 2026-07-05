@@ -33,8 +33,13 @@ impl TrustedDir {
         Ok(Self::Temp(tempfile::tempdir()?))
     }
 
-    pub fn usr_local_bin() -> Result<Self> {
-        Self::new(Path::new("/usr/local/bin"), Some("755"))
+    /// The directory the tracer binary is installed into given the current privilege level.
+    /// Root installs system-wide to `/usr/local/bin`; a non-root user installs to their own
+    /// `~/.local/bin` so rootless (`tracer init --force-procfs`) users can still get the binary
+    /// on disk instead of being hard-gated by the root check.
+    pub fn tracer_install_dir(is_root: bool) -> Result<Self> {
+        let path = install_dir_path(is_root, dirs_next::home_dir())?;
+        Self::new(&path, Some("755"))
     }
 
     /// Creates a new `TrustedDir` from an aribtrary path. The path must be sanitary. If the path
@@ -82,6 +87,21 @@ impl TrustedDir {
     {
         let path = self.as_path()?.join(subpath.try_into()?.into_path());
         Self::new(&path, None)
+    }
+}
+
+/// Resolve the directory the tracer binary should be installed into. Root installs system-wide
+/// to `/usr/local/bin`; a non-root user installs to `~/.local/bin`. Non-root without a
+/// resolvable home directory is an error (there is nowhere safe to place a user-local binary).
+fn install_dir_path(is_root: bool, home: Option<PathBuf>) -> Result<PathBuf> {
+    if is_root {
+        Ok(PathBuf::from("/usr/local/bin"))
+    } else {
+        let home = home.context(
+            "could not determine your home directory for a rootless install; \
+             re-run as root or set $HOME",
+        )?;
+        Ok(home.join(".local").join("bin"))
     }
 }
 
@@ -375,5 +395,23 @@ pub mod test {
         assert!(RelativePath::try_from(path).is_ok());
         let abs_path = Path::new("/absolute/path");
         assert!(RelativePath::try_from(abs_path).is_err());
+    }
+
+    #[test]
+    fn install_dir_root_is_system_wide() {
+        // Root installs system-wide regardless of home directory.
+        let path = install_dir_path(true, Some(PathBuf::from("/home/alice"))).unwrap();
+        assert_eq!(path, PathBuf::from("/usr/local/bin"));
+    }
+
+    #[test]
+    fn install_dir_nonroot_is_user_local_bin() {
+        let path = install_dir_path(false, Some(PathBuf::from("/home/alice"))).unwrap();
+        assert_eq!(path, PathBuf::from("/home/alice/.local/bin"));
+    }
+
+    #[test]
+    fn install_dir_nonroot_without_home_errors() {
+        assert!(install_dir_path(false, None).is_err());
     }
 }

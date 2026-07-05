@@ -22,10 +22,29 @@ impl InstallCheck for RootCheck {
         "Root Privileges Access"
     }
     fn error_message(&self) -> String {
-        "Not Running As Root".into()
+        "Not running as root - installing to ~/.local/bin; run with `tracer init --force-procfs`"
+            .into()
     }
 
     fn success_message(&self) -> String {
         "Running As Root".into()
+    }
+
+    fn is_required(&self) -> bool {
+        // The daemon supports rootless operation via `tracer init --force-procfs`, so a
+        // non-root user should not be hard-gated. A failed root check is advisory only.
+        false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn root_check_is_advisory_not_required() {
+        // A non-root user should not be hard-gated: the daemon supports rootless
+        // (`--force-procfs`) mode, so a failed root check is only a warning.
+        assert!(!RootCheck::new().is_required());
     }
 }

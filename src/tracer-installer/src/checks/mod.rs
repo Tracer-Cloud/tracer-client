@@ -23,6 +23,12 @@ pub trait InstallCheck {
     fn name(&self) -> &'static str;
     fn error_message(&self) -> String;
     fn success_message(&self) -> String;
+
+    /// Whether a failure of this check should abort the install. Required checks (the default)
+    /// hard-fail; advisory checks only print a warning and let the install continue.
+    fn is_required(&self) -> bool {
+        true
+    }
 }
 
 pub struct CheckManager {
@@ -63,7 +69,7 @@ impl CheckManager {
     }
 
     pub async fn run_all(&self) {
-        let mut all_passed = true;
+        let mut required_failed = false;
 
         for check in &self.checks {
             if check.check().await {
@@ -73,16 +79,20 @@ impl CheckManager {
                     &check.success_message(),
                     TagColor::Green,
                 );
-            } else {
-                all_passed = false;
+            } else if check.is_required() {
+                required_failed = true;
                 let reason = check.error_message();
                 print_status("FAILED", check.name(), &reason, TagColor::Red);
+            } else {
+                // Advisory check: warn but let the install continue.
+                let reason = check.error_message();
+                print_status("WARNING", check.name(), &reason, TagColor::Cyan);
             }
         }
 
         println!(); // spacing after checks
 
-        if !all_passed {
+        if required_failed {
             error_message!("Required environment checks failed. Please contact support.");
             std::process::exit(1);
         }

@@ -71,6 +71,11 @@ pub struct DemoInitArgs {
     /// Input prompts: [none|minimal|required] (default: minimal)
     #[clap(short = 'i', long, default_value = "minimal")]
     pub interactive: crate::cli::handlers::init::arguments::PromptMode,
+
+    /// force process polling even if eBPF is available; this enables you to use
+    /// the client without having root/sudo privileges
+    #[clap(long)]
+    pub force_procfs: bool,
 }
 
 impl DemoInitArgs {
@@ -80,6 +85,7 @@ impl DemoInitArgs {
             pipeline_name: self.pipeline_name,
             run_name: self.run_name,
             interactive_prompts: self.interactive,
+            force_procfs: self.force_procfs,
             tags: PipelineTags {
                 environment: self.environment,
                 instance_type: self.instance_type,
@@ -114,5 +120,26 @@ impl TracerCliDemoArgs {
         // Since we removed the command structure, we need a different way to handle list
         // For now, we'll check if the pipeline_id is "list"
         self.demo_pipeline_id.as_deref() == Some("list")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn force_procfs_propagates_to_init_args() {
+        // `tracer demo --force-procfs` must reach init so rootless users can run the demo.
+        let demo = DemoInitArgs {
+            force_procfs: true,
+            ..Default::default()
+        };
+        assert!(demo.to_full_init_args().force_procfs);
+    }
+
+    #[test]
+    fn force_procfs_defaults_to_false() {
+        let demo = DemoInitArgs::default();
+        assert!(!demo.to_full_init_args().force_procfs);
     }
 }
