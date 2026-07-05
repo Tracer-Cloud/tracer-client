@@ -60,10 +60,16 @@ Start the Tracer client to initialize a pipeline and enable monitoring. You must
 - Get your token from the [Tracer Sandbox](https://app.tracer.cloud/)
 - Then run:
 
-> **Note:** Root privileges required
+> **Note:** Root gives the best experience (eBPF-based monitoring). Without root/sudo, add `--force-procfs` to run in rootless mode using `/proc` polling.
 
 ```bash
 sudo tracer init --token <paste-your-token-here> --watch-dir "/tmp/tracer"
+```
+
+Without root/sudo (rootless mode):
+
+```bash
+tracer init --token <paste-your-token-here> --watch-dir "/tmp/tracer" --force-procfs
 ```
 
 ### 4. Initialize a Pipeline
@@ -73,6 +79,12 @@ Run your own pipeline by following your usual workflow or try with one of our te
 
 ```bash
 sudo -E tracer demo
+```
+
+Without root/sudo (rootless mode):
+
+```bash
+tracer demo --force-procfs
 ```
 
 ### 5. Monitor Your Pipeline With Our Dashboard

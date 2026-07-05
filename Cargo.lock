@@ -4045,6 +4045,7 @@ dependencies = [
  "async-trait",
  "clap",
  "colored",
+ "dirs-next",
  "ec2_instance_metadata",
  "flate2",
  "futures-util",

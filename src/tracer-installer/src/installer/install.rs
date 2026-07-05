@@ -30,6 +30,16 @@ pub struct Installer {
     pub user_id: Option<String>,
 }
 
+/// The `tracer init` invocation to recommend after install. A rootless (non-root) install can't
+/// use the eBPF path, so it needs `--force-procfs`; a root install uses the default init.
+fn setup_command(is_root: bool) -> &'static str {
+    if is_root {
+        "tracer init"
+    } else {
+        "tracer init --force-procfs"
+    }
+}
+
 impl Installer {
     /// Executes the tracer binary download process:
     /// - Downloads the appropriate Tracer binary based on platform and version
@@ -37,6 +47,7 @@ impl Installer {
     /// - Updates shell configuration files to include Tracer in the PATH
     /// - Emits analytics events if a user ID is provided
     pub async fn run(&self) -> Result<()> {
+        let is_root = nix::unistd::Uid::effective().is_root();
         let mut analytics_handles = Vec::new();
 
         if let Some(handle) = self
@@ -56,7 +67,7 @@ impl Installer {
             .download_and_extract_tarball(&url, &temp_dir, "tracer.tar.gz", "extracted")
             .await?;
 
-        let _ = self.install_to_final_dir(&extract_path)?;
+        let installed_path = self.install_to_final_dir(&extract_path, is_root)?;
 
         if let Some(handle) = self
             .emit_analytic_event(AnalyticsEventType::InstallScriptCompleted)
@@ -65,7 +76,7 @@ impl Installer {
             analytics_handles.push(handle);
         }
 
-        self.print_next_steps();
+        self.print_next_steps(is_root, &installed_path);
         join_all(analytics_handles).await;
         Ok(())
     }
@@ -132,9 +143,13 @@ impl Installer {
         Ok(())
     }
 
-    fn install_to_final_dir(&self, extracted_dir: &TrustedDir) -> Result<TrustedFile> {
+    fn install_to_final_dir(
+        &self,
+        extracted_dir: &TrustedDir,
+        is_root: bool,
+    ) -> Result<TrustedFile> {
         let extracted_binary = extracted_dir.join_file("tracer")?;
-        let tracer_installation_dir = TrustedDir::usr_local_bin()?;
+        let tracer_installation_dir = TrustedDir::tracer_install_dir(is_root)?;
         let final_path = tracer_installation_dir.join_file("tracer")?;
 
         extracted_binary
@@ -208,7 +223,7 @@ impl Installer {
         }))
     }
 
-    pub fn print_next_steps(&self) {
+    pub fn print_next_steps(&self, is_root: bool, installed_path: &TrustedFile) {
         let sandbox_url = if self.channel == TracerVersion::Production {
             TRACER_SANDBOX_ENDPOINT_PROD
         } else {
@@ -226,21 +241,37 @@ impl Installer {
         println!("  {}\n", "https://www.tracer.cloud/docs".cyan());
 
         println!("- {} Initialize Tracer:", "Setup".bold().yellow());
-        println!("  {}\n", "tracer init".cyan());
+        println!("  {}\n", setup_command(is_root).cyan());
+        if !is_root {
+            println!(
+                "  Installed to {}. Make sure {} is on your PATH.\n",
+                installed_path.to_string().cyan(),
+                "~/.local/bin".cyan()
+            );
+        }
 
         println!("- {} Check daemon status:", "Status".bold().yellow());
         println!("  {}\n", "tracer info".cyan());
-
-        if !nix::unistd::Uid::effective().is_root() {
-            println!("- {} Set up elevated privileges:", "Required:".yellow());
-            println!("  {}\n", "sudo chown root ~/.tracerbio/bin/tracer".cyan());
-            println!("  {}\n", "sudo chmod u+s ~/.tracerbio/bin/tracer".cyan());
-        }
 
         println!(
             "- {} Need help? Email us at {}\n",
             "Support".green(),
             "support@tracer.cloud".cyan()
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn setup_command_root_uses_plain_init() {
+        assert_eq!(setup_command(true), "tracer init");
+    }
+
+    #[test]
+    fn setup_command_rootless_uses_force_procfs() {
+        assert_eq!(setup_command(false), "tracer init --force-procfs");
     }
 }
